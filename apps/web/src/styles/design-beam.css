@@ -80,29 +80,34 @@
     radial-gradient(ellipse 11px 12px at 100% 27%, rgb(255 50 100 / 30%), transparent);
 }
 
-/* Motion keeps Design's geometry, masks and timing; only the colours change to
-   the TUIFT Media palette. Design's beam is rotated 30deg backwards by its
-   hue filter, so the base hue is set back to leave these colours as written. */
+/* Motion keeps Design's geometry, masks and timing; the colours change to the
+   TUIFT Media cast, in deeper takes so the beam reads on both themes. Design's
+   beam is rotated 30deg backwards by its hue filter, so the base hue is set back
+   to leave these colours as written. */
 .composer__design-button-beam.composer__motion-beam {
   --beam-hue-base: 30deg;
   --design-beam-border-gradients:
-    radial-gradient(ellipse 9px 18px at 2% 68%, var(--composer-motion-lime), transparent),
-    radial-gradient(ellipse 4px 8px at 2% 68%, var(--composer-motion-yellow), transparent),
+    radial-gradient(ellipse 9px 18px at 2% 68%, var(--composer-motion-beam-green), transparent),
+    radial-gradient(ellipse 4px 8px at 2% 68%, var(--composer-motion-beam-gold), transparent),
     radial-gradient(ellipse 59px 9px at 72% -3%, var(--composer-motion-accent), transparent),
-    radial-gradient(ellipse 42px 7px at 74% 100%, var(--composer-motion-blue), transparent),
-    radial-gradient(ellipse 10px 17px at 100% 27%, var(--composer-motion-pink), transparent),
-    radial-gradient(ellipse 10px 18px at 100% 27%, var(--composer-motion-orange), transparent),
-    radial-gradient(ellipse 5px 10px at 100% 27%, var(--composer-motion-blue), transparent),
-    radial-gradient(ellipse 11px 12px at 100% 27%, var(--composer-motion-yellow), transparent);
+    radial-gradient(ellipse 42px 7px at 74% 100%, var(--composer-motion-beam-azure), transparent),
+    radial-gradient(
+      ellipse 10px 17px at 100% 27%,
+      var(--composer-motion-beam-magenta),
+      transparent
+    ),
+    radial-gradient(ellipse 10px 18px at 100% 27%, var(--composer-motion-beam-violet), transparent),
+    radial-gradient(ellipse 5px 10px at 100% 27%, var(--composer-motion-beam-azure), transparent),
+    radial-gradient(ellipse 11px 12px at 100% 27%, var(--composer-motion-beam-gold), transparent);
   --design-beam-inner-gradients:
     radial-gradient(
       ellipse 9px 18px at 2% 68%,
-      color-mix(in srgb, var(--composer-motion-lime) 50%, transparent),
+      color-mix(in srgb, var(--composer-motion-beam-green) 50%, transparent),
       transparent
     ),
     radial-gradient(
       ellipse 4px 8px at 2% 68%,
-      color-mix(in srgb, var(--composer-motion-yellow) 45%, transparent),
+      color-mix(in srgb, var(--composer-motion-beam-gold) 45%, transparent),
       transparent
     ),
     radial-gradient(
@@ -112,27 +117,110 @@
     ),
     radial-gradient(
       ellipse 42px 7px at 74% 100%,
-      color-mix(in srgb, var(--composer-motion-blue) 35%, transparent),
+      color-mix(in srgb, var(--composer-motion-beam-azure) 35%, transparent),
       transparent
     ),
     radial-gradient(
       ellipse 10px 17px at 100% 27%,
-      color-mix(in srgb, var(--composer-motion-pink) 30%, transparent),
+      color-mix(in srgb, var(--composer-motion-beam-magenta) 30%, transparent),
       transparent
     ),
     radial-gradient(
       ellipse 10px 18px at 100% 27%,
-      color-mix(in srgb, var(--composer-motion-orange) 40%, transparent),
+      color-mix(in srgb, var(--composer-motion-beam-violet) 40%, transparent),
       transparent
     ),
     radial-gradient(
       ellipse 5px 10px at 100% 27%,
-      color-mix(in srgb, var(--composer-motion-blue) 30%, transparent),
+      color-mix(in srgb, var(--composer-motion-beam-azure) 30%, transparent),
       transparent
     ),
     radial-gradient(
       ellipse 11px 12px at 100% 27%,
-      color-mix(in srgb, var(--composer-motion-yellow) 30%, transparent),
+      color-mix(in srgb, var(--composer-motion-beam-gold) 30%, transparent),
+      transparent
+    );
+}
+
+/* The same beam around the prompt box while Motion is on, as Design has. A little
+   more stroke and saturation than Design: the owner wants Motion to read stronger. */
+.composer__design-beam.composer__motion-beam {
+  --beam-hue-base: 30deg;
+  --design-beam-stroke: 0.6;
+  --design-beam-inner: 0.62;
+  --design-beam-bloom: 0.42;
+  --design-beam-brightness: 1.35;
+  --design-beam-saturation: 1.45;
+  --design-beam-border-gradients:
+    radial-gradient(ellipse 70px 40px at 33% -7.4%, var(--composer-motion-accent), transparent),
+    radial-gradient(ellipse 60px 35px at 12% -5%, var(--composer-motion-beam-azure), transparent),
+    radial-gradient(
+      ellipse 40px 70px at 2.1% 68.3%,
+      var(--composer-motion-beam-green),
+      transparent
+    ),
+    radial-gradient(ellipse 20px 35px at 2.1% 68.3%, var(--composer-motion-beam-gold), transparent),
+    radial-gradient(
+      ellipse 180px 32px at 74.4% 100%,
+      var(--composer-motion-beam-violet),
+      transparent
+    ),
+    radial-gradient(ellipse 85px 26px at 55% 100%, var(--composer-motion-beam-azure), transparent),
+    radial-gradient(
+      ellipse 74px 32px at 93.9% 0%,
+      var(--composer-motion-beam-magenta),
+      transparent
+    ),
+    radial-gradient(ellipse 26px 42px at 100% 27.1%, var(--composer-motion-orange), transparent),
+    radial-gradient(
+      ellipse 52px 48px at 100% 27.1%,
+      var(--composer-motion-beam-violet),
+      transparent
+    );
+  --design-beam-inner-gradients:
+    radial-gradient(
+      ellipse 63px 36px at 33% -7.4%,
+      color-mix(in srgb, var(--composer-motion-accent) 55%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 54px 32px at 12% -5%,
+      color-mix(in srgb, var(--composer-motion-beam-azure) 55%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 36px 63px at 2.1% 68.3%,
+      color-mix(in srgb, var(--composer-motion-beam-green) 55%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 18px 32px at 2.1% 68.3%,
+      color-mix(in srgb, var(--composer-motion-beam-gold) 55%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 162px 29px at 74.4% 100%,
+      color-mix(in srgb, var(--composer-motion-beam-violet) 55%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 77px 23px at 55% 100%,
+      color-mix(in srgb, var(--composer-motion-beam-azure) 55%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 67px 29px at 93.9% 0%,
+      color-mix(in srgb, var(--composer-motion-beam-magenta) 55%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 23px 38px at 100% 27.1%,
+      color-mix(in srgb, var(--composer-motion-orange) 55%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 47px 43px at 100% 27.1%,
+      color-mix(in srgb, var(--composer-motion-beam-violet) 55%, transparent),
       transparent
     );
 }

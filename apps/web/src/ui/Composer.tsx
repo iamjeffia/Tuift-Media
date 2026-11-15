@@ -703,6 +703,7 @@ function ComposerComponent(props: {
   const [voiceError, setVoiceError] = useComposerError()
   const [queueError, setQueueError] = useComposerError()
   const editingQueue = useRef(new Set<string>())
+  const promptBeamKind = useRef<'design' | 'motion'>('design')
   const [dragging, setDragging] = useState(false)
   const [draggedQueueId, setDraggedQueueId] = useState<string>()
   const [queueDropTarget, setQueueDropTarget] = useState<{
@@ -1933,6 +1934,15 @@ function ComposerComponent(props: {
     grow()
   }
 
+  // The prompt beam is shared by Design and Motion. It keeps the last mode's colours while
+  // it fades out, so turning Motion off does not flash Design's palette.
+  if (props.motionMode) promptBeamKind.current = 'motion'
+  else if (props.designMode) promptBeamKind.current = 'design'
+  const promptBeamClass =
+    promptBeamKind.current === 'motion'
+      ? 'composer__design-beam composer__motion-beam'
+      : 'composer__design-beam'
+
   return (
     <>
       <div
@@ -2098,9 +2108,9 @@ function ComposerComponent(props: {
           ) : null}
 
           <DesignBeam
-            className={`composer__design-beam${props.newSession ? ' is-shelved' : ''}`}
+            className={`${promptBeamClass}${props.newSession ? ' is-shelved' : ''}`}
             strength={1}
-            active={props.designMode}
+            active={props.designMode || props.motionMode}
           >
             {/* New chat: the beam wraps shelf and prompt, so its clip and glow follow the one surface. */}
             {props.newSession ? (

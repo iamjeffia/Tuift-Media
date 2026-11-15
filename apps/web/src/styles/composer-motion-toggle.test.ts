@@ -36,6 +36,24 @@ describe('composer Motion toggle styles', () => {
     expect(motion).not.toMatch(/animation|radius|brightness|stroke:/)
   })
 
+  it('wraps the prompt box in the same beam, in deeper cast colours and a little stronger', () => {
+    for (const name of ['magenta', 'azure', 'violet', 'green', 'gold'])
+      expect(tokensCss).toMatch(new RegExp(`--composer-motion-beam-${name}: #[0-9a-f]{6};`))
+    const box =
+      /\.composer__design-beam\.composer__motion-beam \{([\s\S]*?)\n\}/.exec(beamCss)?.[1] ?? ''
+    const design = /\n\.composer__design-beam \{([\s\S]*?)\n\}/.exec(beamCss)?.[1] ?? ''
+    const number = (css: string, name: string) =>
+      Number(new RegExp(`--design-beam-${name}: ([0-9.]+);`).exec(css)?.[1])
+    expect(box).toContain('var(--composer-motion-accent)')
+    expect(box).toContain('var(--composer-motion-beam-violet)')
+    expect(box).not.toMatch(/#[0-9a-f]{3,8}|rgb\(/i)
+    expect(box).not.toMatch(/animation|radius/)
+    // Same number of light sources as Design's box, so the geometry matches.
+    expect(box.match(/radial-gradient\(/g)?.length).toBe(design.match(/radial-gradient\(/g)?.length)
+    expect(number(box, 'stroke')).toBeGreaterThan(number(design, 'stroke'))
+    expect(number(box, 'saturation')).toBeGreaterThan(number(design, 'saturation'))
+  })
+
   it('tints the active chip orange, also while hovered', () => {
     expect(beamCss).toMatch(
       /\.tools \.composer__motion\.is-active \{[^}]*border-color: var\(--composer-motion-border-active\);/s,

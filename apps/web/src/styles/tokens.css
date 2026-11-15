@@ -103,6 +103,12 @@
   --composer-motion-yellow: #ffe45c;
   --composer-motion-orange: #ff9f3d;
   --composer-motion-pink: #ff5fae;
+  /* Deeper takes of the cast colours for the Motion beam, so it reads on both themes. */
+  --composer-motion-beam-magenta: #ff2e93;
+  --composer-motion-beam-azure: #2f8bff;
+  --composer-motion-beam-violet: #8b5cf6;
+  --composer-motion-beam-green: #7ed321;
+  --composer-motion-beam-gold: #ffc21a;
   --composer-motion-border-active: color-mix(
     in srgb,
     var(--composer-motion-accent) 55%,

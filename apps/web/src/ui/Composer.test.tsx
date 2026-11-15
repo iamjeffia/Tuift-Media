@@ -2390,10 +2390,10 @@ describe('Composer Motion mode', () => {
     expect(active.getAttribute('title')).toBe('Turn off Motion mode')
     expect(activeBeam?.hasAttribute('data-active')).toBe(true)
     expect(activeBeam?.querySelector('[data-beam-bloom]')).toBeTruthy()
-    // The prompt beam belongs to Design alone, and Design stays off.
-    expect(document.querySelector('.composer__design-beam')?.hasAttribute('data-active')).toBe(
-      false,
-    )
+    // The prompt box carries the beam too, in Motion's colours, and Design stays off.
+    const promptBeam = document.querySelector('.composer__design-beam')
+    expect(promptBeam?.hasAttribute('data-active')).toBe(true)
+    expect(promptBeam?.classList.contains('composer__motion-beam')).toBe(true)
     expect(screen.getByRole('button', { name: 'Design' }).getAttribute('aria-pressed')).toBe(
       'false',
     )
