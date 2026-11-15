@@ -176,7 +176,7 @@ describe('takeSnapshot', () => {
     write('tracked.txt', 'changed\n')
     const snapshot = await takeSnapshot(repo)
     expect(git('log', '-1', '--format=%an <%ae>', snapshot.commit).trim()).toBe(
-      'TasteCode checkpoint <checkpoint@tastecode.invalid>',
+      'TUIFT Code checkpoint <checkpoint@tastecode.invalid>',
     )
   })
 })

@@ -1,5 +1,8 @@
 # Credits
 
+TUIFT Code is based on TasteCode, used under the Apache License 2.0. The credits below are
+TasteCode's and stay as written.
+
 TasteCode is built by [Leonxlnx](https://github.com/Leonxlnx) and
 [Blueemi](https://github.com/Blueemi).
 

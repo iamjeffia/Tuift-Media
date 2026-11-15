@@ -5,6 +5,7 @@ import type { ProviderUpdate } from '@harness/contracts'
 import { TestTransport } from '../test-transport.js'
 import { resetInstalls } from '../provider-install.js'
 import { providerUpdatesStore } from '../provider-updates.js'
+import { setLanguage } from '../i18n/index.js'
 import { ProviderUpdateCheck, ProviderUpdateNotice } from './ProviderUpdates.js'
 
 const terminalLoading = vi.hoisted(() => ({ pending: undefined as Promise<void> | undefined }))
@@ -42,6 +43,22 @@ function finishNoticeExit(container: HTMLElement) {
   Object.defineProperty(event, 'propertyName', { value: 'opacity' })
   fireEvent(notice, event)
 }
+
+describe('provider updates in Portuguese', () => {
+  it('words the check and the notice in pt-BR', async () => {
+    setLanguage('pt-BR', { persist: false })
+    const transport = new TestTransport(() => ({ updates: [available] }))
+    render(
+      <>
+        <ProviderUpdateCheck transport={transport} />
+        <ProviderUpdateNotice transport={transport} onUpdated={() => {}} />
+      </>,
+    )
+    expect(await screen.findByRole('button', { name: '1 atualização disponível' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Atualizar' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Verificar atualizações' })).toBeTruthy()
+  })
+})
 
 describe('provider update toast', () => {
   it('fills lazy update details with terminal lines until output is ready', async () => {

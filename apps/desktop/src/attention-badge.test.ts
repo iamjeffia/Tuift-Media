@@ -58,7 +58,12 @@ describe('badgeBitmap', () => {
 
 describe('badgeDescription', () => {
   it('reads the count as a sentence', () => {
-    expect(badgeDescription(1)).toBe('1 chat needs you')
-    expect(badgeDescription(4)).toBe('4 chats need you')
+    expect(badgeDescription(1, 'en')).toBe('1 chat needs you')
+    expect(badgeDescription(4, 'en')).toBe('4 chats need you')
+  })
+
+  it('reads the count as a sentence in Portuguese', () => {
+    expect(badgeDescription(1, 'pt-BR')).toBe('1 chat precisa de você')
+    expect(badgeDescription(4, 'pt-BR')).toBe('4 chats precisam de você')
   })
 })

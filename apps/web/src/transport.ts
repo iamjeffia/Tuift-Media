@@ -158,7 +158,7 @@ const UNCHECKED_PROTOCOL = 'tastecode'
 export const REFUSED_SERVER_RETRY_MS = 5_000
 /**
  * Why a window whose desktop started its server works without it: another
- * TasteCode's server holds the port (`other-app`), or, after that one went,
+ * TUIFT Code's server holds the port (`other-app`), or, after that one went,
  * nothing answers there any more (`gone`): the own server gave up meanwhile.
  */
 export type MissingServer = 'other-app' | 'gone'
@@ -220,7 +220,7 @@ class WebSocketTransport implements Transport {
   }
 
   /**
-   * Another TasteCode's server holds the port, so this window's own could not
+   * Another TUIFT Code's server holds the port, so this window's own could not
    * start. Nothing is sent to it, and nothing it sends is applied.
    */
   #refuseServer(socket: WebSocket): void {
@@ -396,7 +396,7 @@ class WebSocketTransport implements Transport {
               console.warn(`[transport] ${method} reply failed validation`, error)
               fail(
                 new IndeterminateRequestError(
-                  `The server sent an invalid reply to ${method}. Restart TasteCode if this keeps happening.`,
+                  `The server sent an invalid reply to ${method}. Restart TUIFT Code if this keeps happening.`,
                 ),
               )
             }
@@ -544,7 +544,7 @@ class WebSocketTransport implements Transport {
   }
 
   /**
-   * After another TasteCode held the port, nothing answering there means that
+   * After another TUIFT Code held the port, nothing answering there means that
    * app has gone and this window's own server gave up meanwhile; saying another
    * app runs would be wrong. Look again at the slow pace, not every 100 ms.
    */
@@ -782,7 +782,7 @@ class WebSocketTransport implements Transport {
             .get(id)
             ?.reject(
               new IndeterminateRequestError(
-                'The server reply could not be validated. The operation may have completed. Restart TasteCode before trying again.',
+                'The server reply could not be validated. The operation may have completed. Restart TUIFT Code before trying again.',
               ),
             )
         }

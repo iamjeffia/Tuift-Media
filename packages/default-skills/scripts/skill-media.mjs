@@ -1,5 +1,5 @@
 // Reads the pinned GitHub archives of the default skills and decides which of
-// their files TasteCode bundles. sync.js builds the bundle with these helpers.
+// their files TUIFT Code bundles. sync.js builds the bundle with these helpers.
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 

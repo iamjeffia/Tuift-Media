@@ -5,6 +5,7 @@ import { deflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { canCreateSymlinks } from '@harness/proc/symlink.test-support'
 import { snapshotDesignAssets } from './file-snapshot.js'
+import { DesignScanLimitError } from './workspace-files.js'
 import {
   parseAssetManifest,
   validateAssetManifestForPage,
@@ -107,6 +108,46 @@ describe('asset manifest', () => {
       writeFileSync(path.join(workspace, 'photo.png'), original)
       expect(validateAssetManifestForPage(assets, page, workspace)).toEqual(assets)
       expect(readFileSync(path.join(workspace, 'photo.png'))).toEqual(original)
+    } finally {
+      rmSync(workspace, { recursive: true, force: true })
+    }
+  })
+
+  it('asks for a smaller folder when a font directory is too large to list', () => {
+    const workspace = mkdtempSync(path.join(tmpdir(), 'harness-font-scan-limit-'))
+    const page = {
+      sections: [{ id: 'hero', assetNeeds: ['font_bodoni'], componentNeeds: [] }],
+    } as unknown as Parameters<typeof validateAssetManifestForPage>[1]
+    const assets = parseAssetManifest({
+      version: 1,
+      assets: [
+        {
+          id: 'font_bodoni',
+          kind: 'font',
+          role: 'font',
+          status: 'ready',
+          purpose: 'Headings',
+          requirements: [],
+          sectionIds: ['hero'],
+          source: { kind: 'project', reference: 'fonts' },
+          destination: 'fonts',
+        },
+      ],
+    })
+    try {
+      mkdirSync(path.join(workspace, 'fonts', ...Array.from({ length: 42 }, (_, i) => `d${i}`)), {
+        recursive: true,
+      })
+      const failure = (() => {
+        try {
+          validateAssetManifestForPage(assets, page, workspace)
+        } catch (error) {
+          return error
+        }
+      })()
+      expect(failure).toBeInstanceOf(Error)
+      expect(failure).not.toBeInstanceOf(DesignScanLimitError)
+      expect((failure as Error).message).toMatch(/font asset font_bodoni directory is too large/)
     } finally {
       rmSync(workspace, { recursive: true, force: true })
     }

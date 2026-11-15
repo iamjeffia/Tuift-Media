@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import type { ThreadSubagent } from '@harness/contracts'
+import { t, useI18n } from '../../i18n/index.js'
 import { providerDisplayName } from '../../provider-presentation.js'
 import { ThreadFrameStore } from '../../thread-frame-store.js'
 import { emptyThread } from '../../thread-state.js'
@@ -17,7 +18,7 @@ const noSubscription = () => () => {}
 const NO_TRANSCRIPT = new ThreadFrameStore(emptyThread)
 
 /**
- * The chat's sub-agents, the engine's own and the ones TasteCode started on
+ * The chat's sub-agents, the engine's own and the ones TUIFT Code started on
  * another provider. Rows come from the transcript's structural snapshot, which
  * changes at item boundaries only, plus `thread.subagents` for rows on pages
  * the transcript has not loaded. A hidden tab neither subscribes nor asks.
@@ -29,6 +30,7 @@ export function WorkspaceAgents(props: {
   frameStore?: ThreadFrameStore | undefined
   subagentTranscript?: boolean | undefined
 }) {
+  const { t } = useI18n()
   const { active, transport, threadId } = props
   const frameStore = props.frameStore ?? NO_TRANSCRIPT
   const subscribe = active ? frameStore.subscribeStructure : noSubscription
@@ -70,8 +72,8 @@ export function WorkspaceAgents(props: {
     return (
       <WorkspaceEmptyState
         kind="agents"
-        title="No chat open"
-        detail="Open a chat to see the subagents it starts."
+        title={t('workspace.agents.noChat.title')}
+        detail={t('workspace.agents.noChat.detail')}
       />
     )
   }
@@ -96,8 +98,8 @@ export function WorkspaceAgents(props: {
     return (
       <WorkspaceEmptyState
         kind="agents"
-        title="No subagents in this chat yet"
-        detail="When the agent hands part of the work to a helper, on its own engine or another one, it shows up here."
+        title={t('workspace.agents.none.title')}
+        detail={t('workspace.agents.none.detail')}
       />
     )
   }
@@ -105,12 +107,12 @@ export function WorkspaceAgents(props: {
   return (
     <div className="workspace-agents">
       <AgentGroup
-        label="Active"
+        label={t('workspace.agents.active')}
         entries={groups.running}
-        empty="No active subagents"
+        empty={t('workspace.agents.noneActive')}
         onOpen={open}
       />
-      <AgentGroup label="Done" entries={groups.finished} onOpen={open} />
+      <AgentGroup label={t('workspace.agents.done')} entries={groups.finished} onOpen={open} />
     </div>
   )
 }
@@ -150,6 +152,7 @@ function AgentGroup({
 }
 
 function AgentRow({ entry, onOpen }: { entry: AgentEntry; onOpen: (itemId: string) => void }) {
+  const { t } = useI18n()
   const { subagent } = entry
   const running = subagent.state === 'running'
   const engine = subagent.provider
@@ -160,9 +163,9 @@ function AgentRow({ entry, onOpen }: { entry: AgentEntry; onOpen: (itemId: strin
     .join(' · ')
   const attention =
     running && subagent.attention === 'approval'
-      ? 'Needs approval'
+      ? t('workspace.agents.needsApproval')
       : running && subagent.attention === 'input'
-        ? 'Needs input'
+        ? t('workspace.agents.needsInput')
         : undefined
   return (
     <button
@@ -175,7 +178,7 @@ function AgentRow({ entry, onOpen }: { entry: AgentEntry; onOpen: (itemId: strin
         <SubagentAvatar seed={entry.itemId} running={running} />
       </span>
       <span className="agents-row__text">
-        <span className="agents-row__name">{subagent.name ?? 'Subagent'}</span>
+        <span className="agents-row__name">{subagent.name ?? t('workspace.agents.subagent')}</span>
         {detail ? <span className="agents-row__detail">{detail}</span> : null}
       </span>
       <span className="agents-row__meta">
@@ -196,18 +199,22 @@ export function finishedLabel(entry: AgentEntry, now: number): string {
   const endedAt = entry.createdAt + (subagent.durationMs ?? 0)
   const ago = relativeTime(endedAt, now)
   const ending =
-    subagent.state === 'failed' ? 'Failed' : subagent.state === 'interrupted' ? 'Stopped' : ''
+    subagent.state === 'failed'
+      ? t('workspace.agents.failed')
+      : subagent.state === 'interrupted'
+        ? t('workspace.agents.stopped')
+        : ''
   return ending ? `${ending} · ${ago}` : ago
 }
 
 function relativeTime(at: number, now: number): string {
   const seconds = Math.max(0, Math.round((now - at) / 1_000))
-  if (seconds < 60) return 'just now'
+  if (seconds < 60) return t('workspace.agents.ago.now')
   const minutes = Math.round(seconds / 60)
-  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 60) return t('workspace.agents.ago.minutes', { count: minutes })
   const hours = Math.round(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.round(hours / 24)}d ago`
+  if (hours < 24) return t('workspace.agents.ago.hours', { count: hours })
+  return t('workspace.agents.ago.days', { count: Math.round(hours / 24) })
 }
 
 function oneLine(text: string): string {

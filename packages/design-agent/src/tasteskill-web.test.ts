@@ -44,10 +44,10 @@ describe('tasteskill website chapters', () => {
     expect(() => tasteskillSection('copy.md', 'No such section')).toThrow(/no section/)
   })
 
-  it('puts the TasteCode adaptations in front of the quoted rules', () => {
+  it('puts the TUIFT Code adaptations in front of the quoted rules', () => {
     for (const phase of Object.keys(WEBSITE_RULE_SECTIONS) as WebsitePhase[]) {
       const rules = tasteskillWebsiteRules(phase)
-      expect(rules.indexOf('TasteCode adaptations')).toBeLessThan(
+      expect(rules.indexOf('TUIFT Code adaptations')).toBeLessThan(
         rules.indexOf('<tasteskill-rules>'),
       )
       expect(rules).toContain(

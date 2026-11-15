@@ -11,6 +11,7 @@ import {
   within,
 } from '@testing-library/react'
 import type { Capabilities, Model, ProviderId, ProviderStatus } from '@harness/contracts'
+import { setLanguage } from '../i18n/index.js'
 import { choicesFor } from '../model-catalog.js'
 import { TestTransport } from '../test-transport.js'
 import {
@@ -145,6 +146,21 @@ function press(element: HTMLElement, key: string) {
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+})
+
+describe('ProviderTuning in Portuguese', () => {
+  it('names its rows and menus in pt-BR', () => {
+    setLanguage('pt-BR', { persist: false })
+    renderTuning()
+
+    expect(screen.getByRole('group', { name: 'Padrões de Claude Code' })).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: /^Modelo padrão de Claude Code: Último usado/ }),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: /^Contexto de Claude Code: Compacta em 93%/ }),
+    ).toBeTruthy()
+  })
 })
 
 describe('formatTokens', () => {
@@ -486,7 +502,7 @@ const claudeRuntimes: ProviderStatus = {
     ...claude.capabilities!,
     runtimes: [
       { id: 'sdk', label: 'Agent SDK', description: 'The SDK starts Claude Code' },
-      { id: 'cli', label: 'claude -p', description: 'TasteCode starts claude -p itself' },
+      { id: 'cli', label: 'claude -p', description: 'TUIFT Code starts claude -p itself' },
     ],
   },
 }
@@ -511,7 +527,7 @@ describe('provider runtime', () => {
       choices.map((choice) => [choice.textContent, choice.getAttribute('aria-checked')]),
     ).toEqual([
       ['Agent SDKThe SDK starts Claude Code', 'true'],
-      ['claude -pTasteCode starts claude -p itself', 'false'],
+      ['claude -pTUIFT Code starts claude -p itself', 'false'],
     ])
     fireEvent.click(choices[1]!)
     expect(onChange).toHaveBeenLastCalledWith('cli')

@@ -306,9 +306,9 @@ async function nestedRepositories(repoPath: string, scope: string): Promise<stri
 }
 
 const SNAPSHOT_IDENTITY = {
-  GIT_AUTHOR_NAME: 'TasteCode checkpoint',
+  GIT_AUTHOR_NAME: 'TUIFT Code checkpoint',
   GIT_AUTHOR_EMAIL: 'checkpoint@tastecode.invalid',
-  GIT_COMMITTER_NAME: 'TasteCode checkpoint',
+  GIT_COMMITTER_NAME: 'TUIFT Code checkpoint',
   GIT_COMMITTER_EMAIL: 'checkpoint@tastecode.invalid',
 }
 

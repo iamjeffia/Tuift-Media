@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockKeyboardModifierState } from '../test-keyboard.js'
+import { setLanguage } from '../i18n/index.js'
 import {
   createDefaultKeybindings,
   type KeybindingId,
@@ -313,5 +314,18 @@ describe('keybind settings', () => {
     fireEvent.click(recorder)
     fireEvent.keyDown(recorder, { key: 'π', code: 'KeyP', metaKey: true, altKey: true })
     expect(recorder.querySelector('kbd')?.title).toBe('⌘⌥P')
+  })
+
+  it('speaks Portuguese, with the shortcut names the General page uses', () => {
+    setLanguage('pt-BR', { persist: false })
+    render(<StatefulKeybindSettings />)
+
+    expect(screen.getByRole('heading', { name: 'Atalhos' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Projetos' })).toBeTruthy()
+    expect(screen.getByText('Alternar terminal')).toBeTruthy()
+    const recorder = screen.getByRole('button', { name: 'Alterar atalho de Paleta de comandos' })
+    fireEvent.click(recorder)
+    fireEvent.keyDown(recorder, { key: 'n', metaKey: true })
+    expect(screen.getByRole('alert').textContent).toBe('Já usado por Novo chat.')
   })
 })

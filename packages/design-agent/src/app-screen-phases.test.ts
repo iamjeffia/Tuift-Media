@@ -114,7 +114,7 @@ describe('app-screen phases', () => {
       selectTypographyCandidates(() => 0),
       direction,
     )
-    expect(prompt).toContain('Brand phase of TasteCode Design Mode for an app screen')
+    expect(prompt).toContain('Brand phase of TUIFT Code Design Mode for an app screen')
     expect(prompt).toContain('1. The style: Framed sheet (framed-sheet, light)')
     expect(prompt).toContain('Return colorPalette, not paletteRecipe')
     expect(prompt).toContain('APP TYPE')
@@ -139,7 +139,7 @@ describe('app-screen phases', () => {
 
   it('plans one operating screen from the sheet and locks it as a dashboard', () => {
     const prompt = designPagePrompt(brief, brand, [], [], direction)
-    expect(prompt).toContain('Page Blueprint phase of TasteCode Design Mode for an app screen')
+    expect(prompt).toContain('Page Blueprint phase of TUIFT Code Design Mode for an app screen')
     expect(prompt).toContain('### 2.2 Name the screen')
     expect(prompt).toContain('## 12. The phone')
     expect(prompt).toContain('"layoutFamily":"dashboard"')
@@ -178,8 +178,8 @@ describe('app-screen phases', () => {
   it('builds from the kit with the audit constraints spelled out', () => {
     const assets: AssetManifest = { version: 1, assets: [] }
     const prompt = designBuildPrompt(brief, brand, page as PageBlueprint, assets, [], direction)
-    expect(prompt).toContain('Build phase of TasteCode Design Mode for an app screen')
-    expect(prompt).toContain("TasteCode placed tasteskill's kit in .taste/app-kit/")
+    expect(prompt).toContain('Build phase of TUIFT Code Design Mode for an app screen')
+    expect(prompt).toContain("TUIFT Code placed tasteskill's kit in .taste/app-kit/")
     expect(prompt).toContain('exactly one h1')
     expect(prompt).toContain('44 by 44 CSS pixels')
     expect(prompt).toContain('"IBM Plex Sans"')
@@ -204,7 +204,7 @@ describe('app-screen phases', () => {
       undefined,
       direction,
     )
-    expect(review).toContain('visual Review phase of TasteCode Design Mode for an app screen')
+    expect(review).toContain('visual Review phase of TUIFT Code Design Mode for an app screen')
     expect(review).toContain('### 2.7 The check')
     expect(review).toContain('## 13. House rules for app screens')
     expect(review).not.toContain('<internal-reference-directions>')

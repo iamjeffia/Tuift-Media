@@ -4,10 +4,10 @@ A place (café, bakery, guesthouse, shop, studio) is its photographs: two or thr
 client's own. Software leads with its real interface; a photograph there is a real person or the real
 product. A game leads with its own art (key art, in-engine shots, the trailer's poster); with no art files its key art is a product render of its hero object or world (`sections.md`, Gaming), never a photograph or an effect in its place. A photograph never stands where an effect, a drawing or an empty box would.
 
-**In TasteCode there is no picture library.** This skill ships without the upstream photo library and
+**In TUIFT Code there is no picture library.** This skill ships without the upstream photo library and
 without sample pictures, and `scripts/photos.mjs` is switched off. Nothing is dealt, fetched or
 filled from stock. The pictures come from the brief and the user's own files. In a Design mode run,
-they can also come from TasteCode's Asset phase, which records where each file came from.
+they can also come from TUIFT Code's Asset phase, which records where each file came from.
 
 ## Where pictures come from (PH-01, PH-05)
 

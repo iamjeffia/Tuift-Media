@@ -255,7 +255,7 @@ describe('project inventory cache', () => {
     })
   })
 
-  it('drops a live server list when TasteCode changes the project servers', async () => {
+  it('drops a live server list when TUIFT Code changes the project servers', async () => {
     const { cache, probes } = setup()
     await cache.listMcpServers('/repo', async () => ({ servers: [server('tastecode-added')] }))
     cache.forgetLiveServers('/repo')

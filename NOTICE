@@ -4,3 +4,10 @@ Copyright 2026 TasteCode contributors
 This product includes software developed by TasteCode contributors.
 Third-party attributions and license references are listed in THIRD_PARTY_NOTICES.md
 and the bundled licenses directory.
+
+TUIFT Code
+Copyright 2026 TUIFT Media
+
+TUIFT Code is a modified version of TasteCode. The modifications rename the product,
+replace its icons and in-app mark, separate its data folder, credential-store entry,
+local port and update feed from TasteCode, and are listed in branding/README.md.

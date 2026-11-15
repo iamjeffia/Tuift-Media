@@ -8,7 +8,7 @@ import { SessionSearchHost, type SessionSearchHandle } from './SessionSearchHost
 const PROJECTS = [
   {
     path: 'D:\\repo',
-    name: 'TasteCode',
+    name: 'TUIFT Code',
     sessions: [
       {
         id: 'thread-1',
@@ -161,7 +161,7 @@ describe('SessionSearchHost focus restoration', () => {
   })
 
   it('falls back when the invoking control unmounts after selection', async () => {
-    function TasteCode() {
+    function TuiftApp() {
       const search = useRef<SessionSearchHandle>(null)
       const [showOpener, setShowOpener] = useState(true)
       return (
@@ -181,7 +181,7 @@ describe('SessionSearchHost focus restoration', () => {
         </>
       )
     }
-    render(<TasteCode />)
+    render(<TuiftApp />)
     const opener = screen.getByRole('button', { name: 'Temporary opener' })
     opener.focus()
     fireEvent.click(opener)

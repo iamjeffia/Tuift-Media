@@ -61,13 +61,13 @@ describe('server feedback details', () => {
     expect(
       withFeedbackDetails(inherited, {
         appVersion: '0.1.2',
-        feedbackConfig: '/Applications/Taste Code.app/Contents/Resources/feedback/feedback.env',
+        feedbackConfig: '/Applications/TUIFT Code.app/Contents/Resources/feedback/feedback.env',
       }),
     ).toEqual({
       PATH: 'retained',
       HARNESS_APP_VERSION: '0.1.2',
       TASTECODE_FEEDBACK_CONFIG:
-        '/Applications/Taste Code.app/Contents/Resources/feedback/feedback.env',
+        '/Applications/TUIFT Code.app/Contents/Resources/feedback/feedback.env',
     })
     expect(inherited).toEqual({ PATH: 'retained' })
   })

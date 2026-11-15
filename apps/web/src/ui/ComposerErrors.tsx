@@ -123,7 +123,7 @@ export function ComposerErrors({
                 <button
                   className="notice-action notice-action--quiet"
                   type="button"
-                  title="Send this error to the TasteCode team"
+                  title="Send this error to the TUIFT Code team"
                   onClick={error.report}
                 >
                   Report

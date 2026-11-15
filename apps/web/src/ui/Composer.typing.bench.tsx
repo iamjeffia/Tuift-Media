@@ -22,9 +22,9 @@ const view = render(
   <Composer
     transport={transport}
     provider="codex"
-    projects={[{ path: '/work/harness', name: 'TasteCode' }]}
+    projects={[{ path: '/work/harness', name: 'TUIFT Code' }]}
     projectPath="/work/harness"
-    projectName="TasteCode"
+    projectName="TUIFT Code"
     branch="main"
     branches={['main']}
     models={[]}
@@ -42,6 +42,7 @@ const view = render(
     newSession={false}
     isolate={false}
     designMode={false}
+    motionMode={false}
     focusRequest={0}
     queuedTurns={[]}
     canSteerQueue={false}
@@ -51,6 +52,7 @@ const view = render(
     onApprovalChange={noop}
     onIsolateChange={noop}
     onDesignModeChange={noop}
+    onMotionModeChange={noop}
     onTranscribeVoice={async () => ''}
     onCancelVoice={noop}
     onProjectChange={noop}

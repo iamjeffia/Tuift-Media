@@ -13,7 +13,7 @@ export type ProviderControlCapabilities = Readonly<{
   /** The provider can list the MCP servers its own settings load (server-internal). */
   mcpInventory: boolean
   /**
-   * A chat on this provider gets TasteCode's agent tools, served as the MCP
+   * A chat on this provider gets TUIFT Code's agent tools, served as the MCP
    * server `tastecode`, and can start sub-agents on other providers
    * (server-internal). It needs a managed MCP path that one more server does
    * not change; Grok switches to its ACP mode for any server, so it has none.
@@ -27,7 +27,7 @@ export type ProviderControlCapabilities = Readonly<{
    */
   agentsSkillsDir: boolean
   /**
-   * The provider loads the skills that ship with TasteCode itself, from the
+   * The provider loads the skills that ship with TUIFT Code itself, from the
    * plugin folder passed as `StartOptions.skillPlugin`, so its sessions skip
    * the skill catalog in the shared instructions (server-internal). Only a
    * runtime with a native plugin loader turns this on (Claude Code's
@@ -36,7 +36,7 @@ export type ProviderControlCapabilities = Readonly<{
   defaultSkillsPlugin: boolean
   nativeModels: boolean
   /**
-   * The provider names the chats it runs for TasteCode, and its history source
+   * The provider names the chats it runs for TUIFT Code, and its history source
    * reports that name for sessions in the default account folder (server-internal).
    * Only saved sessions showing such names turn this on.
    */
@@ -121,7 +121,7 @@ export const PROVIDER_CAPABILITIES = {
   acp: {
     ...unsupported,
     resume: true,
-    // TasteCode's project servers go to session/new, filtered by the agent's transports.
+    // TUIFT Code's project servers go to session/new, filtered by the agent's transports.
     managedMcp: true,
     nativeModels: true,
     account: true,
@@ -173,7 +173,7 @@ export const PROVIDER_CAPABILITIES = {
     // skills/extraRoots/set exists, but nothing shows it stays out of ~/.codex.
     defaultSkillsPlugin: false,
     nativeModels: true,
-    // Codex's own apps name their threads; the app server leaves TasteCode's unnamed.
+    // Codex's own apps name their threads; the app server leaves TUIFT Code's unnamed.
     nativeTitles: false,
     notifications: true,
     skillsInstall: true,

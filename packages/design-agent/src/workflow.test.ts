@@ -29,7 +29,7 @@ describe('provider-neutral briefing workflow', () => {
     }
   })
 
-  it('writes TasteCode markers while accepting legacy saved turns', () => {
+  it('writes TUIFT Code markers while accepting legacy saved turns', () => {
     expect(DESIGN_BRIEF_ATTACHMENT).toBe('tastecode://design-brief-v1')
     expect(isDesignBriefAttachment(DESIGN_BRIEF_ATTACHMENT)).toBe(true)
     expect(isDesignBriefAttachment('personal-harness://design-brief-v1')).toBe(true)
@@ -68,7 +68,7 @@ describe('provider-neutral briefing workflow', () => {
     expect(designBriefingContinuation([], {})).toContain('Never ask questions')
   })
 
-  it('ignores model-authored explicit answers, which TasteCode records itself', () => {
+  it('ignores model-authored explicit answers, which TUIFT Code records itself', () => {
     const brief = {
       originalRequest: 'Landing page for a Hamburg coffee roastery',
       subject: 'A small Hamburg coffee roastery',

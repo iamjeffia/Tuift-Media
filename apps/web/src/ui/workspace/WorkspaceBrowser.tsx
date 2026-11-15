@@ -28,6 +28,9 @@ import { BrowserAnnotations, type AnnotationGuest } from './BrowserAnnotations.j
 import type { AnnotationDraft } from './browser-annotations.js'
 import { runAgentBrowserCommand } from './agent-browser-executor.js'
 import { errorMessage } from '../../boundary.js'
+// `tNow` reads the language when it runs: for the guest's setup and the navigation handlers, which
+// must not be rebuilt (and the page reloaded) when the language changes.
+import { t as tNow, useI18n } from '../../i18n/index.js'
 import { IconMorph } from '../IconMorph.js'
 import { Skeleton, SkeletonLines, SkeletonStatus } from '../Skeleton.js'
 import { BrowserRecentPages } from './BrowserRecentPages.js'
@@ -173,6 +176,7 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
   /** Set on the chat's agent tab only: the agent's commands run here. */
   agent?: AgentBrowserLink | undefined
 }) {
+  const { t } = useI18n()
   const agentConsole = useRef<BrowserConsoleEntry[]>([])
   const agentLink = useRef(agent)
   agentLink.current = agent
@@ -264,7 +268,7 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
 
     const view = document.createElement('webview')
     view.className = 'workspace-browser__guest'
-    view.setAttribute('aria-label', 'Browser page')
+    view.setAttribute('aria-label', tNow('workspace.browser.page'))
     view.setAttribute('partition', 'persist:harness-browser')
     view.setAttribute(
       'webpreferences',
@@ -351,8 +355,10 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
       const stopped = RendererGoneEventSchema.safeParse(event)
       const reason = stopped.success ? stopped.data.details?.reason : undefined
       setFailure({
-        title: 'This page stopped',
-        detail: `Its renderer ended${reason ? ` (${reason})` : ''}. Retry to load it again.`,
+        title: tNow('workspace.browser.stopped.title'),
+        detail: reason
+          ? tNow('workspace.browser.stopped.detailReason', { reason })
+          : tNow('workspace.browser.stopped.detail'),
       })
       syncGuestState()
     }
@@ -391,7 +397,7 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
     guest.current = view
 
     if (typeof view.loadURL !== 'function') {
-      setError('The in-app browser is unavailable in this window.')
+      setError(tNow('workspace.browser.unavailable'))
     }
 
     return () => {
@@ -459,7 +465,7 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
       }
       const view = guest.current
       if (!view || typeof view.loadURL !== 'function') {
-        setError('The in-app browser is unavailable in this window.')
+        setError(tNow('workspace.browser.unavailable'))
         return false
       }
       if (readyGuest.current !== view) {
@@ -588,9 +594,13 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
     <div className="workspace-browser__placeholder">
       <WorkspaceEmptyState
         kind="browser"
-        title={isDesktop ? 'Start browsing' : 'Desktop browser unavailable'}
+        title={
+          isDesktop ? t('workspace.browser.start.title') : t('workspace.browser.desktopOnly.title')
+        }
         detail={
-          isDesktop ? 'Enter a URL to open a page.' : 'The in-app browser runs in the desktop app.'
+          isDesktop
+            ? t('workspace.browser.start.detail')
+            : t('workspace.browser.desktopOnly.detail')
         }
       />
     </div>
@@ -675,18 +685,18 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
     >
       {agent?.active ? (
         <div className="workspace-browser__agent" role="status">
-          <span>Agent is using the browser</span>
+          <span>{t('workspace.browser.agent')}</span>
           <button type="button" onClick={agent.onStop}>
-            Stop
+            {t('workspace.browser.agentStop')}
           </button>
         </div>
       ) : null}
       <div className="workspace-browser__toolbar">
         <button
           type="button"
-          aria-label="Back"
+          aria-label={t('workspace.browser.back')}
           aria-keyshortcuts={hints.back.aria}
-          title={`Back (${hints.back.label})`}
+          title={t('workspace.browser.backKey', { key: hints.back.label })}
           disabled={!state.canGoBack}
           onClick={() => action('back')}
         >
@@ -694,9 +704,9 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
         </button>
         <button
           type="button"
-          aria-label="Forward"
+          aria-label={t('workspace.browser.forward')}
           aria-keyshortcuts={hints.forward.aria}
-          title={`Forward (${hints.forward.label})`}
+          title={t('workspace.browser.forwardKey', { key: hints.forward.label })}
           disabled={!state.canGoForward}
           onClick={() => action('forward')}
         >
@@ -704,9 +714,15 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
         </button>
         <button
           type="button"
-          aria-label={state.loading ? 'Stop loading' : 'Reload'}
+          aria-label={
+            state.loading ? t('workspace.browser.stopLoading') : t('workspace.browser.reload')
+          }
           aria-keyshortcuts={state.loading ? undefined : hints.reload.aria}
-          title={state.loading ? 'Stop loading' : `Reload (${hints.reload.label})`}
+          title={
+            state.loading
+              ? t('workspace.browser.stopLoading')
+              : t('workspace.browser.reloadKey', { key: hints.reload.label })
+          }
           disabled={!state.url}
           onClick={() => action(state.loading ? 'stop' : 'reload')}
         >
@@ -726,8 +742,8 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
           <input
             ref={addressInput}
             value={address}
-            placeholder="Enter a URL"
-            aria-label="Browser address"
+            placeholder={t('workspace.browser.address.placeholder')}
+            aria-label={t('workspace.browser.address.label')}
             aria-keyshortcuts={hints.address.aria}
             spellCheck={false}
             onChange={(event) => {
@@ -741,7 +757,7 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
           />
           <button
             type="button"
-            title="Open in system browser"
+            title={t('workspace.browser.external')}
             disabled={!state.url}
             onClick={() =>
               void openExternalUrl(state.url).catch((cause: unknown) =>
@@ -756,8 +772,8 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
         {isDesktop && canSavePastedFiles && onAnnotationDraft ? (
           <button
             type="button"
-            aria-label="Annotate page"
-            title="Annotate page"
+            aria-label={t('workspace.browser.annotate')}
+            title={t('workspace.browser.annotate')}
             aria-pressed={annotating}
             disabled={!state.url || state.loading || Boolean(failure)}
             onClick={() => setAnnotating((value) => !value)}
@@ -765,15 +781,18 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
             <MessagePlus size={15} aria-hidden />
           </button>
         ) : null}
-        <div className="workspace-browser__viewports" aria-label="Preview size">
+        <div
+          className="workspace-browser__viewports"
+          aria-label={t('workspace.browser.previewSize')}
+        >
           {BROWSER_VIEWPORTS.map((option) => {
             const Icon = VIEWPORT_ICONS[option.id]
             return (
               <button
                 type="button"
                 key={option.id}
-                title={option.label}
-                aria-label={option.label}
+                title={t(option.label)}
+                aria-label={t(option.label)}
                 aria-pressed={viewport === option.id}
                 onClick={() => setViewport(option.id)}
               >
@@ -809,7 +828,10 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
             />
           ) : null}
           {loadingFirstPage ? (
-            <SkeletonStatus label="Loading page…" className="workspace-browser__skeleton">
+            <SkeletonStatus
+              label={t('workspace.browser.loadingPage')}
+              className="workspace-browser__skeleton"
+            >
               <div className="workspace-browser__skeleton-header">
                 <Skeleton width={72} height={11} />
                 <Skeleton width="26%" height={9} />
@@ -832,10 +854,10 @@ export const WorkspaceBrowser = memo(function WorkspaceBrowser({
             >
               <div className="workspace-browser__failure-actions">
                 <button type="button" className="btn" onClick={() => action('reload')}>
-                  Retry
+                  {t('workspace.browser.retry')}
                 </button>
                 <button type="button" className="ghost" onClick={editAddress}>
-                  Edit address
+                  {t('workspace.browser.editAddress')}
                 </button>
               </div>
             </WorkspaceEmptyState>

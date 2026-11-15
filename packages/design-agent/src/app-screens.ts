@@ -247,7 +247,7 @@ function parseAppLibrary(value: unknown): AppLibrary {
 
 /**
  * Words that place a request in one of the library's product kinds. tasteskill lets the agent
- * pass `--kind`; TasteCode deals before any phase runs, so it reads the kind from the brief.
+ * pass `--kind`; TUIFT Code deals before any phase runs, so it reads the kind from the brief.
  */
 const KIND_WORDS = {
   finance: [
@@ -760,7 +760,7 @@ export function appDirectionTokens(direction: AppDirection) {
 }
 
 /**
- * The dealt sheet as the phases read it, adapted from tasteskill's printed app sheet: TasteCode
+ * The dealt sheet as the phases read it, adapted from tasteskill's printed app sheet: TUIFT Code
  * dealt it, it cannot be redrawn mid-run, the font comes from the Assets phase instead of a
  * Google Fonts link, and the fallback stack is generic so the brand font audit stays meaningful.
  */
@@ -771,7 +771,7 @@ export function appSheetGuidance(direction: AppDirection): string {
   const lines: string[] = []
   const line = (text = '') => lines.push(text)
   line(
-    `APP SHEET: dealt by TasteCode from ${direction.source} for this run (product kind ${direction.kind}: ${library.kinds.get(direction.kind)?.note ?? direction.kind}${direction.theme ? `; the request names a ${direction.theme} interface` : ''}).`,
+    `APP SHEET: dealt by TUIFT Code from ${direction.source} for this run (product kind ${direction.kind}: ${library.kinds.get(direction.kind)?.note ?? direction.kind}${direction.theme ? `; the request names a ${direction.theme} interface` : ''}).`,
   )
   line(
     "This is the style for this product and it is fixed for this run: no phase redraws it. Adopt it whole and keep its move intact; everything the sheet does not fix comes from the shared defaults in the app-screen rules. The values were measured on real product screens: use them as given rather than rounding them towards your habits. An explicit user requirement, an attached user reference or an existing brand outranks the sheet's colours and typeface: map that brand's colours onto the roles below and keep the style's colour budget, sizes, radii, row and control heights.",
@@ -884,7 +884,7 @@ function chapterSections(): ChapterSection[] {
   return sections
 }
 
-const CHAPTER_NOTE = `The text below is quoted unchanged from tasteskill's app-screen chapter (references/app-screens.md, MIT). Read it as written, with three adaptations: TasteCode already dealt the sheet that \`draw.mjs --app\` would print (above), so never run or redraw it; TasteCode does not run tasteskill's \`lint.mjs\` or \`inspect.mjs\`, so verify every rule the chapter says they check yourself, in the browser where it is visual, and TasteCode's preview capture, DOM audit and visual Review follow Build; \`<skill>/assets/app.css\`, \`assets/charts.js\`, \`app.css\` and \`Charts.*\` mean the copies TasteCode placed in ${APP_SCREEN_KIT_PATH}/. Section numbers (§) refer to this chapter; the whole chapter is at ${APP_SCREEN_KIT_PATH}/app-screens.md.`
+const CHAPTER_NOTE = `The text below is quoted unchanged from tasteskill's app-screen chapter (references/app-screens.md, MIT). Read it as written, with three adaptations: TUIFT Code already dealt the sheet that \`draw.mjs --app\` would print (above), so never run or redraw it; TUIFT Code does not run tasteskill's \`lint.mjs\` or \`inspect.mjs\`, so verify every rule the chapter says they check yourself, in the browser where it is visual, and TUIFT Code's preview capture, DOM audit and visual Review follow Build; \`<skill>/assets/app.css\`, \`assets/charts.js\`, \`app.css\` and \`Charts.*\` mean the copies TUIFT Code placed in ${APP_SCREEN_KIT_PATH}/. Section numbers (§) refer to this chapter; the whole chapter is at ${APP_SCREEN_KIT_PATH}/app-screens.md.`
 
 /** Quotes the named chapter sections in document order, without repeating a nested one. */
 export function appScreenRules(ids: readonly string[]): string {

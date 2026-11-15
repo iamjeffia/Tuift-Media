@@ -136,10 +136,10 @@ describe('brand fonts', () => {
       validateBrandFontsResolved(empty, brand, [
         { family: 'Syne', status: 'failed', reason: 'fetch failed' },
       ]),
-    ).toThrow(/Syne \(TasteCode could not download it: fetch failed\)/)
+    ).toThrow(/Syne \(TUIFT Code could not download it: fetch failed\)/)
   })
 
-  it('tells the agent the fonts are handled, or asks it to get the ones TasteCode could not', async () => {
+  it('tells the agent the fonts are handled, or asks it to get the ones TUIFT Code could not', async () => {
     const dir = workspace()
     const brief = {} as Parameters<typeof designAssetPrompt>[0]
     const fullBrand = brand as unknown as Parameters<typeof designAssetPrompt>[1]
@@ -147,7 +147,7 @@ describe('brand fonts', () => {
     expect(pending).toContain('Acquire every approved brand typeface')
     const fonts = await acquireBrandFonts(brand, dir, googleFonts().fetchImpl)
     const ready = designAssetPrompt(brief, fullBrand, page, [], fonts)
-    expect(ready).toContain('TasteCode already downloaded the approved typefaces Syne')
+    expect(ready).toContain('TUIFT Code already downloaded the approved typefaces Syne')
     expect(ready).not.toContain('Acquire every approved brand typeface')
     expect(ready).toContain('Preserve valid raster provenance metadata')
   })

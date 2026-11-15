@@ -89,7 +89,7 @@ export async function requestOpenAiTranscription(
   signal?: AbortSignal,
   account = false,
 ): Promise<VoiceHttpResponse> {
-  const boundary = `TasteCode-${randomUUID()}`
+  const boundary = `TUIFT-Code-${randomUUID()}`
   const body = Buffer.concat([
     Buffer.from(
       `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="voice.wav"\r\nContent-Type: audio/wav\r\n\r\n`,
@@ -122,7 +122,7 @@ export async function requestOpenAiTranscription(
           'Content-Type': `multipart/form-data; boundary=${boundary}`,
           'Content-Length': String(body.byteLength),
           Accept: 'application/json',
-          ...(account ? { 'User-Agent': 'TasteCode/0.1.0' } : {}),
+          ...(account ? { 'User-Agent': 'TUIFT Code/0.1.0' } : {}),
           'Accept-Encoding': 'identity',
         },
         signal: requestSignal,

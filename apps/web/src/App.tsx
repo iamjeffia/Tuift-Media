@@ -211,7 +211,8 @@ import {
   serializeModelCatalogCache,
 } from './model-catalog-cache.js'
 import { parseSideChatCommand } from './side-chat-command.js'
-import { FEEDBACK_SENT_NOTICE, useFeedbackStatus, type FeedbackRequest } from './feedback-state.js'
+import { useFeedbackStatus, type FeedbackRequest } from './feedback-state.js'
+import { t, useI18n } from './i18n/index.js'
 import {
   composerDraftKey,
   isEmptyComposerDraft,
@@ -258,6 +259,7 @@ import type {
 import type { BrowserNavigationRequest } from './ui/workspace/WorkspaceBrowser.js'
 import type { AnnotationDraft } from './ui/workspace/browser-annotations.js'
 import type { WorkspaceTool } from './ui/workspace/WorkspacePanel.js'
+import { registerProjectFileOpener } from './project-file-open.js'
 import { useCheckoutPullRequest } from './ui/pull-requests/useCheckoutPullRequest.js'
 import {
   DEFAULT_BOTTOM_PANEL_HEIGHT,
@@ -306,7 +308,6 @@ import {
 const SERVER_BASE_URL = serverBaseUrl(import.meta.env.VITE_HARNESS_SERVER_URL)
 const SETUP_KEY = 'harness.provider'
 const ONBOARDING_KEY = 'harness.onboarding.v1'
-const DRAFT_REPLACED_NOTICE = 'Your draft was replaced.'
 const PROVIDER_IDS = [
   'claude-code',
   'codex',
@@ -1179,6 +1180,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   threadEntryKeyRef.current = threadEntryKey
   const threadRevealRequestRef = useRef(threadRevealRequest)
   threadRevealRequestRef.current = threadRevealRequest
+  // Subscribes App to the language; handlers read it at call time through `t`.
+  useI18n()
   const [notice, setNotice] = useState<string | undefined>()
   /** The unsent draft an "Edit as new prompt" replaced, offered back in the notice. */
   const [replacedDraft, setReplacedDraft] = useState<{ owner: string; text: string } | undefined>()
@@ -1233,7 +1236,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   const closeFeedback = useCallback(() => setFeedbackRequest(undefined), [])
   const finishFeedback = useCallback(() => {
     setFeedbackRequest(undefined)
-    setNotice(FEEDBACK_SENT_NOTICE)
+    setNotice(t('dialogs.feedback.sent'))
   }, [])
   const [archiveToastDismissed, setArchiveToastDismissed] = useState(false)
   const pendingDeletionChecks = useRef(new Map<string, object>())
@@ -1305,9 +1308,40 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     if (threadId && saved) writeThreadModelSelection(threadId, { ...saved, designMode: enabled })
     setDesignModes((current) => ({ ...current, [threadId ?? NEW_CHAT_DRAFT_KEY]: enabled }))
   }, [])
+  // Motion is a visual toggle that follows the chat like Design does, but its
+  // behaviour is not defined yet: nothing here reaches the prompt, the provider
+  // or the server. The owner will decide what turning it on triggers.
+  const [motionModes, setMotionModes] = useState<Record<string, boolean>>({})
+  const motionMode = useMemo(
+    () =>
+      motionModes[activeId ?? NEW_CHAT_DRAFT_KEY] ??
+      readThreadModelSelection(activeId)?.motionMode ??
+      false,
+    [activeId, motionModes],
+  )
+  const setThreadMotionMode = useCallback((threadId: string | undefined, enabled: boolean) => {
+    const saved = readThreadModelSelection(threadId)
+    // Off is the absence of the key, so a chat that never used Motion stores nothing for it.
+    if (threadId && saved) {
+      const { motionMode: _previous, ...rest } = saved
+      writeThreadModelSelection(threadId, enabled ? { ...rest, motionMode: true } : rest)
+    }
+    setMotionModes((current) => ({ ...current, [threadId ?? NEW_CHAT_DRAFT_KEY]: enabled }))
+  }, [])
+  // Design and Motion exclude each other: turning one on turns the other off.
   const changeDesignMode = useCallback(
-    (enabled: boolean) => setThreadDesignMode(activeIdRef.current, enabled),
-    [setThreadDesignMode],
+    (enabled: boolean) => {
+      setThreadDesignMode(activeIdRef.current, enabled)
+      if (enabled) setThreadMotionMode(activeIdRef.current, false)
+    },
+    [setThreadDesignMode, setThreadMotionMode],
+  )
+  const changeMotionMode = useCallback(
+    (enabled: boolean) => {
+      setThreadMotionMode(activeIdRef.current, enabled)
+      if (enabled) setThreadDesignMode(activeIdRef.current, false)
+    },
+    [setThreadDesignMode, setThreadMotionMode],
   )
   // A multi-chat delete can stop on several isolated checkouts; each one is
   // confirmed in turn while the rest of the batch goes ahead.
@@ -1368,6 +1402,11 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     kind: WorkspaceTool
   }>()
   const nextWorkspaceToolRequest = useRef(0)
+  const [workspaceFileRequest, setWorkspaceFileRequest] = useState<{
+    request: number
+    path: string
+  }>()
+  const nextWorkspaceFileRequest = useRef(0)
   const [workspaceDesignPreviewRequest, setWorkspaceDesignPreviewRequest] =
     useState<BrowserNavigationRequest>()
   /** The newest Design preview of each chat in the background, shown once that chat opens. */
@@ -1838,14 +1877,15 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   const newChatAccountRef = useRef(newChatAccount)
   newChatAccountRef.current = newChatAccount
   const storedApproval = scopedDefault(approvalByProvider, provider, newChatAccount)
-  const defaultApproval = storedApproval ?? (autoReviewSupported ? 'auto-review' : 'full')
+  // TUIFT Code: new chats start in Full access; an explicit stored choice still wins.
+  const defaultApproval = storedApproval ?? 'full'
   const approval = activeId ? (activeThreadApproval ?? 'ask') : defaultApproval
   // Auto-review support arrives with the provider list. Until then a saved
-  // auto-review choice, or the default, would show as full access and flip.
+  // auto-review choice would show as full access and flip.
   const approvalWaitsForProvider =
     catalogAvailability === 'loading' &&
     !providerStatuses.some((entry) => entry.id === provider) &&
-    (approval === 'auto-review' || (!activeId && storedApproval === undefined))
+    approval === 'auto-review'
   const approvalLoading =
     Boolean(activeId && activeThreadApproval === undefined) || approvalWaitsForProvider
   // While waiting, the mode only sizes the placeholder; auto-review is what it
@@ -2511,7 +2551,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
           .request('browser.result', {
             commandId: command.commandId,
             ok: false,
-            error: 'TasteCode no longer shows this chat.',
+            error: 'TUIFT Code no longer shows this chat.',
           })
           .catch(() => undefined)
         return
@@ -2924,7 +2964,10 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         } catch (cause) {
           discoveryErrors[sourceKey({ provider: entry.id })] = {
             id: `models:${entry.id}:${catalogRequest}`,
-            message: `Could not load ${entry.displayName} models. ${cause instanceof Error ? cause.message : String(cause)}`,
+            message: t('dialogs.app.error.modelsLoad', {
+              name: entry.displayName,
+              reason: cause instanceof Error ? cause.message : String(cause),
+            }),
           }
           return preserveCatalog()
         }
@@ -2974,11 +3017,10 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         } catch (cause) {
           discoveryErrors[source] = {
             id: 'models:' + source + ':' + catalogRequest,
-            message:
-              'Could not load ' +
-              agent.name +
-              ' models. ' +
-              (cause instanceof Error ? cause.message : String(cause)),
+            message: t('dialogs.app.error.modelsLoad', {
+              name: agent.name,
+              reason: cause instanceof Error ? cause.message : String(cause),
+            }),
           }
           return preserveCatalog()
         }
@@ -3041,7 +3083,10 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         } catch (cause) {
           discoveryErrors[source] = {
             id: `models:${source}:${catalogRequest}`,
-            message: `Could not load ${harness.displayName} models. ${cause instanceof Error ? cause.message : String(cause)}`,
+            message: t('dialogs.app.error.modelsLoad', {
+              name: harness.displayName,
+              reason: cause instanceof Error ? cause.message : String(cause),
+            }),
           }
           const preserved = catalogModelsRef.current.filter(
             (choice) => !isCustomModelChoice(choice) && modelSource(choice) === source,
@@ -3200,7 +3245,9 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       if (!cancelled) {
         setCatalogError({
           id: `catalog:${catalogRequest}`,
-          message: `Could not load providers. ${cause instanceof Error ? cause.message : String(cause)}`,
+          message: t('dialogs.app.error.providersLoad', {
+            reason: cause instanceof Error ? cause.message : String(cause),
+          }),
         })
         setProviderCatalogSource((current) =>
           current?.transport === transport && current.request === catalogRequest
@@ -3484,7 +3531,9 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
           error: {
             id: `account:${provider}:${revision}`,
             role: 'status',
-            message: `Could not confirm this account, but you can still send. ${cause instanceof Error ? cause.message : String(cause)}`,
+            message: t('dialogs.app.error.accountCheck', {
+              reason: cause instanceof Error ? cause.message : String(cause),
+            }),
           },
         })
       })
@@ -4020,6 +4069,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     const selection = {
       modelKey: selectedModelChoice.key,
       designMode,
+      ...(motionMode ? { motionMode } : {}),
       ...(selectedEffort ? { effort: selectedEffort } : {}),
       ...(selectedServiceTier ? { serviceTier: selectedServiceTier } : {}),
     }
@@ -4040,6 +4090,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     selectedEffort,
     selectedServiceTier,
     designMode,
+    motionMode,
     transport,
   ])
 
@@ -4412,7 +4463,9 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         const message = errorText(failure.reason)
         // A dropped batch has to say which folders did not make it.
         reportError(
-          uniquePaths.length === 1 ? message : `Could not add ${failed.join(', ')}. ${message}`,
+          uniquePaths.length === 1
+            ? message
+            : t('dialogs.app.error.addFailed', { paths: failed.join(', '), reason: message }),
         )
       }
       const activePath = added.at(-1)
@@ -4486,8 +4539,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
           shown !== undefined && shown !== checkedOutBranches.current.get(projectPath)
             ? shown
             : undefined
-        if (projectRemoved())
-          throw new Error('The project was removed before the chat could start.')
+        if (projectRemoved()) throw new Error(t('dialogs.app.error.projectRemoved'))
         let sessionApproval = approval === 'auto-review' && !autoReviewSupported ? 'full' : approval
         // A chat that names no account starts on the server's recommended one,
         // else its active one. The account this app shows for new chats is
@@ -4530,7 +4582,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         }
         if (projectRemoved()) {
           await transport.request('thread.close', { threadId }).catch(() => undefined)
-          throw new Error('The project was removed before the chat could start.')
+          throw new Error(t('dialogs.app.error.projectRemoved'))
         }
         pendingThreadApprovals.current.delete(provisionalId)
         const savedSelection = readThreadModelSelection(provisionalId)
@@ -4688,6 +4740,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       } else enterNewChatDraft(projectPath)
       // Design is a choice for one chat; the next new chat starts without it.
       setThreadDesignMode(undefined, false)
+      setThreadMotionMode(undefined, false)
       setNotice(undefined)
       setActionError(undefined)
       setActivePath(projectPath)
@@ -4707,7 +4760,13 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       }
       setComposerFocusRequest((request) => request + 1)
     },
-    [publishComposerDraft, applyProviderDefault, setThreadDesignMode, enterNewChatDraft],
+    [
+      publishComposerDraft,
+      applyProviderDefault,
+      setThreadDesignMode,
+      setThreadMotionMode,
+      enterNewChatDraft,
+    ],
   )
 
   const updateQueue = useCallback(
@@ -4772,7 +4831,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       }
       if (activeId && !cancelArchive(activeId)) {
         restoreDraft()
-        reportError('This chat is being deleted.')
+        reportError(t('dialogs.app.error.chatDeleting'))
         return
       }
       // Clear only the submitted draft, before startup can yield to later edits.
@@ -4781,13 +4840,13 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       if (sideChatCommand) {
         if (!activeId || activeId.startsWith('pending:')) {
           restoreDraft()
-          reportError('Start the main chat before opening a side chat.')
+          reportError(t('dialogs.app.error.sideChatNeedsMain'))
           return
         }
         const parent = threadController.snapshot(activeId)
         if (!parent?.items.some((item) => item.type === 'message' && item.role === 'user')) {
           restoreDraft()
-          reportError('Send a message in the main chat before opening a side chat.')
+          reportError(t('dialogs.app.error.sideChatNeedsMessage'))
           return
         }
         setNotice(undefined)
@@ -4810,12 +4869,10 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       const moving = activeId && !activeId.startsWith('pending:') ? moveChoice : undefined
       if (moving && activeId && threadController.snapshot(activeId)?.running) {
         restoreDraft()
-        reportError(
-          `Wait for the current turn to finish, or stop it, before this chat switches to ${moving.sourceName}.`,
-        )
+        reportError(t('dialogs.app.error.switchBusy', { source: moving.sourceName }))
         return
       }
-      // Design briefing questions are TasteCode-owned and answered by the server,
+      // Design briefing questions are TUIFT-Code-owned and answered by the server,
       // so they work for every provider that can complete a text turn — no
       // structured-input capability gate here (that gates provider-originated
       // input only).
@@ -4865,11 +4922,13 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         writeThreadModelSelection(provisionalId, {
           modelKey: choice.key,
           designMode,
+          ...(motionMode ? { motionMode } : {}),
           ...(selectedEffort ? { effort: selectedEffort } : {}),
           ...(selectedServiceTier ? { serviceTier: selectedServiceTier } : {}),
         })
         // The chat keeps Design; the next new chat starts without it.
         setThreadDesignMode(undefined, false)
+        setThreadMotionMode(undefined, false)
         workspaceStartId = provisionalId
         workspaceStartToken = holdWorkspaceStart(provisionalId, activePath)
         optimisticTurnId = provisional.activeTurn?.id
@@ -4933,6 +4992,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
           restoreDraftAfterFailedStart()
           // The words return to the new chat's composer, and with them the Design choice.
           setThreadDesignMode(undefined, designMode)
+          setThreadMotionMode(undefined, motionMode)
           return
         }
         workspaceStartId = threadId
@@ -5088,9 +5148,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
             // Whether the chat moved is unknown: the sidebar asks the server again.
             void refreshProjects().catch(() => undefined)
             throw error instanceof IndeterminateRequestError
-              ? new Error(
-                  `The connection dropped while this chat switched to ${moving.sourceName}. Check which provider the chat shows, then send again.`,
-                )
+              ? new Error(t('dialogs.app.error.switchDropped', { source: moving.sourceName }))
               : error
           }
           setProjects((current) =>
@@ -5250,6 +5308,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       requestInterrupt,
       designMode,
       setThreadDesignMode,
+      motionMode,
+      setThreadMotionMode,
       holdWorkspaceStart,
       releaseWorkspaceStart,
       refreshWorkspaceAfterCompletion,
@@ -5495,7 +5555,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   // arrow on every streamed frame — memo compares props shallowly, and an
   // inline arrow fails that comparison every single time.
   const changeBranch = useCallback((branch: string) => void selectBranch(branch), [selectBranch])
-  const requireProject = useCallback(() => reportError('Choose a project before sending.'), [])
+  const requireProject = useCallback(() => reportError(t('dialogs.app.error.chooseProject')), [])
   const sendTurn = useCallback((text: string, files: string[]) => void send(text, files), [send])
   const steerTurn = useCallback(
     (text: string, files: string[]) => void send(text, files, 'steer'),
@@ -5517,7 +5577,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       setSurface('chat')
       pendingDeletionChecks.current.delete(id)
       if (!cancelArchive(id)) {
-        reportError('This chat is being deleted.')
+        reportError(t('dialogs.app.error.chatDeleting'))
         return
       }
       const threadSelection = readThreadModelSelection(id)
@@ -5728,7 +5788,9 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         .request('thread.respondToApproval', { threadId, approvalId, decision })
         .catch((error) => {
           setNotice(
-            `Could not send the approval. ${error instanceof Error ? error.message : String(error)}`,
+            t('dialogs.app.notice.approvalFailed', {
+              reason: error instanceof Error ? error.message : String(error),
+            }),
           )
         })
     },
@@ -5814,7 +5876,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     // compared as the provider receives them.
     if (draft.trim() && composerWireText(draft) !== composerWireText(text)) {
       setReplacedDraft({ owner, text: draft })
-      setNotice(DRAFT_REPLACED_NOTICE)
+      setNotice(t('dialogs.app.notice.draftReplaced'))
     }
   }, [])
   // Arrow Up in an empty composer takes the same path as the Edit action.
@@ -5863,7 +5925,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       setActionError(undefined)
       await transport.request('thread.undoTurnChanges', { threadId, turnId, expectedDiff })
       if (activeIdRef.current !== threadId) return
-      setNotice('Changes undone.')
+      setNotice(t('dialogs.app.notice.changesUndone'))
       const projectPath = findSession(projectsRef.current, threadId)?.project.path
       invalidateWorkspaceIdleProbe(projectPath)
       refreshWorkspaceAfterCompletion(projectPath)
@@ -5891,7 +5953,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       setRollbackOpen(false)
       setRollbackInspection(undefined)
       rollbackInspectionRequest.current = undefined
-      setNotice(`Restored to before “${rollbackInspection.checkpoint.label}”.`)
+      setNotice(t('dialogs.app.notice.restored', { label: rollbackInspection.checkpoint.label }))
       await loadHistory(activeId)
       await refreshCheckpoints(activeId)
       if (activePath) {
@@ -5931,7 +5993,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
           setWorkspace(info)
       }
       setUndoRestore(undefined)
-      setNotice('Restore undone.')
+      setNotice(t('dialogs.app.notice.restoreUndone'))
     } catch (error) {
       reportError(error instanceof Error ? error.message : String(error))
     }
@@ -6762,7 +6824,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     },
     [],
   )
-  // A CLI's /resume, /config, /mcp, ... screen, as TasteCode's own.
+  // A CLI's /resume, /config, /mcp, ... screen, as TUIFT Code's own.
   const openAppScreen = useCallback(
     (screen: AppScreen) => {
       if (screen === 'resume') {
@@ -6923,6 +6985,15 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     setWorkspacePanelOpen(false)
     setWorkspacePanelExpanded(false)
   }, [])
+  // A file the chat cites opens in the side panel's Files tab instead of Explorer.
+  useEffect(
+    () =>
+      registerProjectFileOpener(({ path }) => {
+        setWorkspacePanelHasMounted(true)
+        setWorkspaceFileRequest({ request: ++nextWorkspaceFileRequest.current, path })
+      }),
+    [],
+  )
   const openProviderLoginTerminal = useCallback(
     (target: ProviderLoginTerminalTarget) => {
       setWorkspacePanelHasMounted(true)
@@ -7201,8 +7272,10 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       ),
     [selectSession],
   )
+  const paletteI18n = useI18n()
   const commands = useMemo<PaletteCommand[]>(() => {
     if (!paletteScope) return EMPTY_PALETTE_COMMANDS
+    const { t } = paletteI18n
     const keybind = (id: KeybindingId) => {
       const shortcut = keybindings[id]
       return shortcut ? shortcutLabel(shortcut, macOS) : undefined
@@ -7210,8 +7283,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     return [
       {
         id: 'search-sessions',
-        title: 'Search all chats',
-        detail: 'Titles, messages, commands, and tool output across projects',
+        title: t('sidebar.palette.cmd.searchSessions'),
+        detail: t('sidebar.palette.cmd.searchSessionsDetail'),
         group: 'Actions',
         shortcut: keybind('searchSessions'),
         run: () => {
@@ -7220,8 +7293,10 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       },
       {
         id: 'new-chat',
-        title: 'New chat',
-        detail: activePath ? `Start in ${basename(activePath)}` : 'Choose a project folder',
+        title: t('sidebar.rail.newChat'),
+        detail: activePath
+          ? t('sidebar.palette.cmd.newChatDetail', { project: basename(activePath) })
+          : t('sidebar.palette.cmd.newChatChoose'),
         group: 'Actions',
         keywords: 'session conversation',
         shortcut: keybind('newChat'),
@@ -7229,8 +7304,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       },
       {
         id: 'switch-project',
-        title: 'Switch project…',
-        detail: 'Choose another workspace',
+        title: t('sidebar.palette.placeholderProjects'),
+        detail: t('sidebar.palette.cmd.switchProjectDetail'),
         group: 'Actions',
         keywords: 'folder workspace',
         shortcut: keybind('switchProject'),
@@ -7238,8 +7313,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       },
       {
         id: 'new-project',
-        title: 'New project',
-        detail: 'Add a folder to the sidebar',
+        title: t('sidebar.rail.newProject'),
+        detail: t('sidebar.palette.cmd.newProjectDetail'),
         group: 'Actions',
         keywords: 'add open folder workspace',
         projectCommand: true,
@@ -7250,8 +7325,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         ? [
             {
               id: 'focus-composer',
-              title: 'Focus composer',
-              detail: 'Move the cursor to your prompt',
+              title: t('sidebar.palette.cmd.focusComposer'),
+              detail: t('sidebar.palette.cmd.focusComposerDetail'),
               group: 'Actions' as const,
               keywords: 'prompt message type',
               shortcut: keybind('focusComposer'),
@@ -7261,7 +7336,9 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         : []),
       {
         id: 'toggle-sidebar',
-        title: collapsed ? 'Show sidebar' : 'Hide sidebar',
+        title: collapsed
+          ? t('sidebar.palette.cmd.showSidebar')
+          : t('sidebar.palette.cmd.hideSidebar'),
         group: 'Actions',
         keywords: 'rail navigation',
         shortcut: keybind('toggleSidebar'),
@@ -7269,16 +7346,16 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       },
       {
         id: 'open-settings',
-        title: 'Settings',
-        detail: 'General, appearance, keybinds, providers, and data',
+        title: t('settings.title'),
+        detail: t('sidebar.palette.cmd.settingsDetail'),
         group: 'Actions',
         shortcut: keybind('settings'),
         run: () => openSettings(),
       },
       {
         id: 'keyboard-shortcuts',
-        title: 'Keybinds',
-        detail: 'View and customize every app keybind',
+        title: t('settings.nav.keybinds'),
+        detail: t('sidebar.palette.cmd.keybindsDetail'),
         group: 'Actions',
         keywords: 'help keyboard shortcuts hotkeys key bindings',
         shortcut: keybind('keybindings'),
@@ -7288,8 +7365,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         ? [
             {
               id: 'send-feedback',
-              title: 'Send feedback…',
-              detail: 'Report a bug or share an idea with the TasteCode team',
+              title: t('sidebar.palette.cmd.feedback'),
+              detail: t('sidebar.palette.cmd.feedbackDetail'),
               group: 'Actions' as const,
               keywords: 'bug report problem error issue idea feedback',
               run: () => openFeedback('command_palette'),
@@ -7298,8 +7375,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         : []),
       {
         id: 'open-pull-requests',
-        title: 'Pull requests',
-        detail: 'Open the pull request inbox',
+        title: t('sidebar.rail.pullRequests'),
+        detail: t('sidebar.palette.cmd.pullRequestsDetail'),
         group: 'Actions',
         keywords: 'github prs review',
         shortcut: keybind('openPullRequests'),
@@ -7311,11 +7388,14 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
               id: 'toggle-terminal',
               title:
                 terminalPlacement === 'workspace'
-                  ? 'Toggle right sidebar terminal'
+                  ? t('sidebar.palette.cmd.toggleRightTerminal')
                   : terminalOpen
-                    ? 'Hide terminal'
-                    : 'Show terminal',
-              detail: terminalPlacement === 'workspace' ? 'Right sidebar' : 'Bottom panel',
+                    ? t('sidebar.palette.cmd.hideTerminal')
+                    : t('sidebar.palette.cmd.showTerminal'),
+              detail:
+                terminalPlacement === 'workspace'
+                  ? t('sidebar.palette.cmd.terminalRight')
+                  : t('sidebar.palette.cmd.terminalBottom'),
               group: 'Actions' as const,
               keywords: 'console shell',
               shortcut: keybind('toggleTerminal'),
@@ -7327,7 +7407,9 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         ? [
             {
               id: 'toggle-chat-pin',
-              title: active?.session.pinned ? 'Unpin current chat' : 'Pin current chat',
+              title: active?.session.pinned
+                ? t('sidebar.palette.cmd.unpinCurrent')
+                : t('sidebar.palette.cmd.pinCurrent'),
               group: 'Actions' as const,
               shortcut: keybind('toggleSessionPin'),
               run: () => toggleSidebarSessionPin(activeId),
@@ -7336,7 +7418,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
               ? [
                   {
                     id: 'stop-response',
-                    title: 'Stop response',
+                    title: t('sidebar.palette.cmd.stop'),
                     group: 'Actions' as const,
                     shortcut: keybind('interrupt'),
                     run: interrupt,
@@ -7347,8 +7429,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
               ? [
                   {
                     id: 'open-restore-points',
-                    title: 'Restore points',
-                    detail: 'Review chat checkpoints',
+                    title: t('sidebar.palette.cmd.restorePoints'),
+                    detail: t('sidebar.palette.cmd.restorePointsDetail'),
                     group: 'Actions' as const,
                     shortcut: keybind('rollback'),
                     run: openRollback,
@@ -7361,8 +7443,10 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         ? [
             {
               id: 'toggle-workspace',
-              title: workspacePanelOpen ? 'Hide workspace tools' : 'Show workspace tools',
-              detail: 'Files, review, browser, and side chat',
+              title: workspacePanelOpen
+                ? t('sidebar.stage.hideWorkspace')
+                : t('sidebar.stage.showWorkspace'),
+              detail: t('sidebar.palette.cmd.workspaceDetail'),
               group: 'Actions' as const,
               shortcut: keybind('toggleWorkspace'),
               run: toggleWorkspacePanel,
@@ -7380,7 +7464,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       })),
       ...projectChoices.map((project): PaletteCommand => ({
         id: `new-chat-${encodeURIComponent(project.path)}`,
-        title: `New thread in ${displayName(project)}`,
+        title: t('sidebar.palette.cmd.newThreadIn', { project: displayName(project) }),
         detail: project.path,
         group: 'Projects',
         keywords: 'session conversation',
@@ -7390,6 +7474,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     ]
   }, [
     paletteScope,
+    paletteI18n,
     activePath,
     startNewChat,
     addProject,
@@ -7775,6 +7860,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     isolate: active?.session.worktreeBranch ? true : isolateSession && !newChatUnbranched,
     ...(newChatUnbranched ? { isolateUnavailable: 'Isolated needs a Git repository' } : {}),
     designMode: designMode,
+    motionMode: motionMode,
     ...(askFirstUnsupported
       ? {
           askFirstUnavailable: `${providerName(provider, sourceAgentName)} can't ask before running commands`,
@@ -7799,6 +7885,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     onApprovalChange: changeApproval,
     onIsolateChange: setIsolateSession,
     onDesignModeChange: changeDesignMode,
+    onMotionModeChange: changeMotionMode,
     onTranscribeVoice: transcribeVoice,
     onCancelVoice: cancelVoice,
     onProjectChange: selectProject,
@@ -7845,7 +7932,9 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
 
   // Restores and sent feedback are confirmations; every other notice is neutral.
   const noticeTone =
-    undoRestore || notice === 'Restore undone.' || notice === FEEDBACK_SENT_NOTICE
+    undoRestore ||
+    notice === t('dialogs.app.notice.restoreUndone') ||
+    notice === t('dialogs.feedback.sent')
       ? 'success'
       : 'info'
   return (
@@ -8188,6 +8277,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                 onWidthChange={setWorkspacePanelWidth}
                 terminalToggleRequest={workspaceTerminalToggleRequest}
                 externalToolRequest={workspaceToolRequest}
+                fileRequest={workspaceFileRequest}
                 frameStore={threadFrameStore}
                 subagentTranscript={
                   providerStatuses.find((status) => status.id === activeSession?.provider)
@@ -8220,7 +8310,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
           onAnimationEnd={coverShell}
         >
           <SurfaceErrorBoundary
-            name="Settings"
+            name={t('settings.title')}
             onClose={closeSettings}
             fallback={<SettingsSkeleton section={settingsSection.section} />}
           >
@@ -8420,14 +8510,12 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         role="status"
         visible={offline && (settingsOpen || surface !== 'chat')}
       >
-        <NoticeBody tone="progress">Reconnecting to the server…</NoticeBody>
+        <NoticeBody tone="progress">{t('dialogs.app.offline')}</NoticeBody>
       </NoticePresence>
 
       <NoticePresence className="notice" tone="error" role="alert" visible={Boolean(missingServer)}>
         <NoticeBody tone="error">
-          {missingServer === 'gone'
-            ? "This window's TasteCode server has stopped. Restart TasteCode to continue."
-            : 'Another TasteCode is already running, so this window cannot reach its own server. Quit the other TasteCode, then restart this one.'}
+          {missingServer === 'gone' ? t('dialogs.app.serverGone') : t('dialogs.app.serverTaken')}
         </NoticeBody>
       </NoticePresence>
 
@@ -8461,9 +8549,9 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
           tone={noticeTone}
           actions={
             <>
-              {notice === DRAFT_REPLACED_NOTICE && replacedDraft ? (
+              {notice === t('dialogs.app.notice.draftReplaced') && replacedDraft ? (
                 <button className="notice-action" type="button" onClick={restoreReplacedDraft}>
-                  Restore
+                  {t('dialogs.app.notice.restoreDraft')}
                 </button>
               ) : null}
               {undoRestore ? (
@@ -8472,7 +8560,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                   type="button"
                   onClick={() => void reverseRestore()}
                 >
-                  Undo restore
+                  {t('dialogs.app.notice.undoRestore')}
                 </button>
               ) : null}
             </>
@@ -8506,13 +8594,14 @@ function Empty(props: {
   onAddProject: () => void
   onRetry: () => void
 }) {
+  const { t } = useI18n()
   const activeProject = props.projects.find((project) => project.path === props.activePath)
 
   // Before the first projects.list reply, "no projects" is not a fact yet —
   // flashing the add-a-project prompt for one round trip reads as a glitch.
   if (props.status === 'loading' && props.startupProjectName === undefined) {
     return (
-      <SkeletonStatus label="Loading projects…" className="empty">
+      <SkeletonStatus label={t('sidebar.empty.loadingProjects')} className="empty">
         <Skeleton className="skeleton--block empty__skeleton-prompt" />
       </SkeletonStatus>
     )
@@ -8522,10 +8611,10 @@ function Empty(props: {
     return (
       <div className="empty">
         <div className="empty__prompt" role="heading" aria-level={1}>
-          Projects could not be loaded.
+          {t('sidebar.empty.loadFailed')}
         </div>
         <button className="btn" type="button" onClick={props.onRetry}>
-          Retry
+          {t('sidebar.empty.retry')}
         </button>
       </div>
     )
@@ -8535,10 +8624,10 @@ function Empty(props: {
     return (
       <div className="empty">
         <div className="empty__prompt" role="heading" aria-level={1}>
-          Add a project to start building.
+          {t('sidebar.empty.addPrompt')}
         </div>
         <button className="btn" type="button" onClick={props.onAddProject}>
-          Add project
+          {t('sidebar.empty.addProject')}
         </button>
       </div>
     )
@@ -8548,7 +8637,11 @@ function Empty(props: {
     ? displayName(activeProject)
     : props.status === 'loading' && props.startupProjectName
       ? props.startupProjectName
-      : 'a project'
+      : t('sidebar.empty.aProject')
+  // The project name sits in its own span, so the sentence is cut where it goes.
+  const [promptBefore = '', promptAfter = ''] = t('sidebar.empty.buildIn', {
+    project: '{project}',
+  }).split('{project}')
   return (
     <div className="empty">
       <div
@@ -8556,13 +8649,13 @@ function Empty(props: {
         role="heading"
         aria-level={1}
         // The name span would read as "in project ?" where layout is unknown; say it once, as shown.
-        aria-label={`What should we build in ${projectName}?`}
+        aria-label={t('sidebar.empty.buildIn', { project: projectName })}
       >
-        What should we build in{' '}
+        {promptBefore}
         <span className={projectName.length <= EMPTY_PROJECT_NOWRAP ? 'empty__project' : undefined}>
           {projectName}
         </span>
-        ?
+        {promptAfter}
       </div>
     </div>
   )
@@ -8787,7 +8880,7 @@ type SourceSelection = {
   serviceTier?: string
 }
 
-type ThreadSelection = SourceSelection & { designMode?: boolean }
+type ThreadSelection = SourceSelection & { designMode?: boolean; motionMode?: boolean }
 
 function readThreadModelSelection(threadId: string | undefined): ThreadSelection | undefined {
   if (!threadId) return undefined
@@ -8798,7 +8891,8 @@ function readThreadModelSelection(threadId: string | undefined): ThreadSelection
       typeof value['modelKey'] !== 'string' ||
       (value['effort'] !== undefined && typeof value['effort'] !== 'string') ||
       (value['serviceTier'] !== undefined && typeof value['serviceTier'] !== 'string') ||
-      (value['designMode'] !== undefined && typeof value['designMode'] !== 'boolean')
+      (value['designMode'] !== undefined && typeof value['designMode'] !== 'boolean') ||
+      (value['motionMode'] !== undefined && typeof value['motionMode'] !== 'boolean')
     )
       return undefined
     return {
@@ -8806,6 +8900,7 @@ function readThreadModelSelection(threadId: string | undefined): ThreadSelection
       ...(value['effort'] !== undefined ? { effort: value['effort'] } : {}),
       ...(value['serviceTier'] !== undefined ? { serviceTier: value['serviceTier'] } : {}),
       ...(value['designMode'] !== undefined ? { designMode: value['designMode'] } : {}),
+      ...(value['motionMode'] !== undefined ? { motionMode: value['motionMode'] } : {}),
     }
   } catch {
     return undefined

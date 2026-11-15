@@ -121,10 +121,10 @@ describe('the note in a chat that continues another', () => {
     expect(
       continuationNote('Webhook retries', 'Work', {
         carried: false,
-        keptIn: 'C:\\TasteCode\\trees\\a1b2c3',
+        keptIn: 'C:\\TUIFT Code\\trees\\a1b2c3',
       }),
     ).toBe(
-      'Continues “Webhook retries” on Work. Its conversation goes with your first message. Its uncommitted changes could not be carried over; they are still in C:\\TasteCode\\trees\\a1b2c3.',
+      'Continues “Webhook retries” on Work. Its conversation goes with your first message. Its uncommitted changes could not be carried over; they are still in C:\\TUIFT Code\\trees\\a1b2c3.',
     )
   })
 })

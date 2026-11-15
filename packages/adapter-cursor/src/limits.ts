@@ -20,7 +20,7 @@ import { CURSOR_SIGN_IN_REQUIRED } from './auth.js'
  * logged, refreshed or written. On Windows and Linux cursor-agent keeps it in
  * a JSON file (`index.js` ~3867258, `../cli-credentials`, domain "cursor"):
  * `%APPDATA%\Cursor\auth.json`, `$XDG_CONFIG_HOME/cursor/auth.json`. On macOS
- * it is in the login keychain, which TasteCode does not open, so macOS
+ * it is in the login keychain, which TUIFT Code does not open, so macOS
  * reports no Cursor limits.
  */
 

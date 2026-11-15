@@ -7,7 +7,7 @@ import { Thread } from '../Thread.js'
 
 const readOnly = () => undefined
 /**
- * Native engines save a running agent's progress only on disk, without TasteCode child
+ * Native engines save a running agent's progress only on disk, without TUIFT Code child
  * events, so its detail asks again this often while someone can see it.
  */
 const POLL_MS = 5_000

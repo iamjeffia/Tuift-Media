@@ -49,7 +49,7 @@ describe('build edition', () => {
   it('leaves Antigravity out of a release build', async () => {
     takeEdition({ HARNESS_EDITION: 'release' })
     await expect(installCommandFor('antigravity')).rejects.toThrow(
-      'not part of this TasteCode build',
+      'not part of this TUIFT Code build',
     )
   })
 
@@ -69,11 +69,11 @@ describe('build edition', () => {
 
   it('refuses to install, sign in to or start a provider the build does not offer', async () => {
     takeEdition({ HARNESS_EDITION: 'release' })
-    await expect(installCommandFor('opencode')).rejects.toThrow('not part of this TasteCode build')
+    await expect(installCommandFor('opencode')).rejects.toThrow('not part of this TUIFT Code build')
     await expect(launchCommandFor('acp', 'gemini')).rejects.toThrow(
-      'not part of this TasteCode build',
+      'not part of this TUIFT Code build',
     )
-    expect(() => providerRuntime('pi', () => {})).toThrow('not part of this TasteCode build')
+    expect(() => providerRuntime('pi', () => {})).toThrow('not part of this TUIFT Code build')
     expect(() => providerRuntime('grok', () => {})).not.toThrow()
   })
 
@@ -92,7 +92,7 @@ describe('build edition', () => {
 
     expect(store.list()).toEqual([])
     expect(() => store.upsert({ ...hidden, provider: 'opencode' })).toThrow(
-      'not part of this TasteCode build',
+      'not part of this TUIFT Code build',
     )
     store.upsert({ id: 'fork', displayName: 'Fork', provider: 'codex', command: 'c', args: [] })
     expect(JSON.parse(readFileSync(location, 'utf8')).harnesses).toContainEqual(hidden)

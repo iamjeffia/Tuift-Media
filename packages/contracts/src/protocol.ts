@@ -242,7 +242,7 @@ export const BROWSER_PNG_MAX = 4_000_000
 export const BROWSER_CONSOLE_MAX = 200
 
 /**
- * What an agent asks the chat's own in-app browser tab to do, through TasteCode's agent tools.
+ * What an agent asks the chat's own in-app browser tab to do, through TUIFT Code's agent tools.
  * The client that shows the chat runs it and answers with `browser.result`.
  */
 const BrowserCommandBaseSchema = z.object({
@@ -935,7 +935,7 @@ const UsageSummaryResultSchema = z
 // User feedback
 // ---------------------------------------------------------------------------
 
-/** The kinds the TasteCode feedback inbox sorts by. */
+/** The kinds the TUIFT Code feedback inbox sorts by. */
 export const FeedbackKindSchema = z.enum(['bug', 'idea', 'question', 'praise', 'other'])
 export type FeedbackKind = z.infer<typeof FeedbackKindSchema>
 
@@ -985,7 +985,7 @@ export const FeedbackDraftSchema = z.object({
 export type FeedbackDraft = z.infer<typeof FeedbackDraftSchema>
 
 /**
- * Why a submission was not delivered. The first group is TasteCode's own
+ * Why a submission was not delivered. The first group is TUIFT Code's own
  * limits; the rest map the inbox's answers and transport failures.
  */
 export const FeedbackFailureCodeSchema = z.enum([
@@ -1040,7 +1040,7 @@ export type FeedbackSubmitResult = z.infer<typeof FeedbackSubmitResultSchema>
  * Method table. Adding a method means adding it here first — this object is the
  * single source of truth that the server routes against and the client calls.
  */
-/** A sub-agent TasteCode started, and the parent's transcript row that shows it. */
+/** A sub-agent TUIFT Code started, and the parent's transcript row that shows it. */
 export const ThreadSubagentSchema = z.object({
   /** The parent's `tool_call` item carrying the snapshot. */
   itemId: z.string().min(1),
@@ -1535,7 +1535,7 @@ export const methods = {
   },
   /**
    * Register another account. A `managed` home is a new folder under the
-   * TasteCode data folder that starts with copies of the default account's
+   * TUIFT Code data folder that starts with copies of the default account's
    * non-secret settings and never its sign-in. Sign in afterwards with
    * `auth.startLogin` and the new `accountId`.
    */
@@ -2110,7 +2110,7 @@ export const methods = {
     }),
   },
   /**
-   * The sub-agents TasteCode started for a chat, newest first, including those
+   * The sub-agents TUIFT Code started for a chat, newest first, including those
    * whose rows sit on transcript pages the client has not loaded. Sub-agents
    * an engine runs itself are not listed; their rows in the transcript are
    * all there is of them.
@@ -2606,7 +2606,7 @@ export const channels = {
      */
     seq: z.number().optional(),
   }),
-  /** Provider metadata or saved transcripts changed outside TasteCode. */
+  /** Provider metadata or saved transcripts changed outside TUIFT Code. */
   'providerHistory.changed': z.object({ threadIds: z.array(z.string()) }),
   /** An import moved on, or finished. */
   'chatImport.progress': ChatImportJobSchema,

@@ -668,7 +668,7 @@ function exitsWithin(child: ChildProcessWithoutNullStreams, ms: number): Promise
  * agy runs the commands of a turn in a Windows job object (agy.exe imports
  * CreateJobObject and AssignProcessToJobObject), and its process ends with the
  * turn, so a dev server it started stopped as soon as the answer was in. A
- * process created through WMI is not in that job; it also outlives TasteCode,
+ * process created through WMI is not in that job; it also outlives TUIFT Code,
  * like a server the user starts in a terminal. On POSIX the turn's process
  * group is kept after agy exits (keepGroupAfterExit), and a `nohup … &`
  * command outlives agy's own shell. Logs go to the temp folder, not the project.

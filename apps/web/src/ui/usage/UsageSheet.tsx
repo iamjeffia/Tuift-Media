@@ -1,9 +1,10 @@
 import { memo, useState, type CSSProperties, type ReactNode } from 'react'
 import type { AccountId, ProviderId, UsageHistoryModel } from '@harness/contracts'
+import { useI18n } from '../../i18n/index.js'
 import { providerMark } from '../../provider-presentation.js'
 import { ProviderIcon } from '../ProviderIcon.js'
 import { UsageChart, type ChartAxis } from './UsageChart.js'
-import { formatInteger, formatTokens, resetText } from './usage-format.js'
+import { countText, formatTokens, resetText } from './usage-format.js'
 import {
   formatValue,
   markInk,
@@ -14,10 +15,6 @@ import {
 
 /** Models listed before "N more models". */
 const MODELS_SHOWN = 3
-
-function plural(value: number, one: string, many: string): string {
-  return `${formatInteger(value)} ${value === 1 ? one : many}`
-}
 
 /**
  * One provider, read top to bottom: its name and totals, its tokens over the
@@ -36,6 +33,7 @@ export function UsageSheet(props: {
   now: number
   onRetry: (provider: ProviderId, accountId?: AccountId) => void
 }) {
+  const { t } = useI18n()
   const { sheet } = props
   const retry = () => props.onRetry(sheet.provider)
   const mark = providerMark(sheet.provider)
@@ -45,7 +43,7 @@ export function UsageSheet(props: {
   } as CSSProperties
   const split = sheet.accounts.length > 1
   const limits = split ? (
-    <SheetGroup label="Accounts">
+    <SheetGroup label={t('settings.usageSheet.accounts')}>
       {sheet.accounts.map((account) => (
         <AccountRows
           key={account.key}
@@ -77,8 +75,14 @@ export function UsageSheet(props: {
           <p className="usage-sheet__totals">{props.emptyText}</p>
         ) : (
           <p className="usage-sheet__totals">
-            <span>{plural(sheet.sessions, 'session', 'sessions')}</span>
-            <span>{formatTokens(sheet.tokens)} tokens</span>
+            <span>
+              {countText(
+                sheet.sessions,
+                'settings.usageSheet.sessionsOne',
+                'settings.usageSheet.sessionsOther',
+              )}
+            </span>
+            <span>{t('settings.usageSheet.tokens', { tokens: formatTokens(sheet.tokens) })}</span>
             <span className="usage-sheet__total">{formatValue(sheet.value)}</span>
           </p>
         )}
@@ -113,14 +117,17 @@ function SheetLimitGroup(props: {
   /** A provider without sessions says nothing about limits it does not have. */
   quietWhenNone: boolean
 }) {
+  const { t } = useI18n()
   const account = props.sheet.accounts[0]
   if (!account) return null
   const { rows, status } = account.limits
   if (rows.length === 0 && !status && props.quietWhenNone) return null
   return (
-    <SheetGroup label="Plan limits">
+    <SheetGroup label={t('settings.usageSheet.planLimits')}>
       <LimitRows sheet={props.sheet} account={account} now={props.now} onRetry={props.onRetry} />
-      {rows.length === 0 && !status ? <p className="usage-sheet__none">None reported</p> : null}
+      {rows.length === 0 && !status ? (
+        <p className="usage-sheet__none">{t('settings.usageSheet.noneReported')}</p>
+      ) : null}
     </SheetGroup>
   )
 }
@@ -132,6 +139,7 @@ function AccountRows(props: {
   now: number
   onRetry: () => void
 }) {
+  const { t } = useI18n()
   const { sheet, account } = props
   return (
     <div className="usage-account">
@@ -141,8 +149,11 @@ function AccountRows(props: {
         </span>
         <span className="usage-account__figures">
           {account.tokens > 0
-            ? `${formatTokens(account.tokens)} tokens · ${formatValue(account.value)}`
-            : 'No sessions'}
+            ? t('settings.usageSheet.accountFigures', {
+                tokens: formatTokens(account.tokens),
+                value: formatValue(account.value),
+              })
+            : t('settings.usageSheet.noSessions')}
         </span>
       </div>
       <LimitRows sheet={sheet} account={account} now={props.now} onRetry={props.onRetry} />
@@ -156,6 +167,7 @@ function LimitRows(props: {
   now: number
   onRetry: () => void
 }) {
+  const { t } = useI18n()
   const { rows, status, retryable } = props.account.limits
   const owner =
     props.sheet.accounts.length > 1
@@ -180,7 +192,7 @@ function LimitRows(props: {
               type="button"
               onClick={props.onRetry}
             >
-              Retry
+              {t('settings.usageSheet.retry')}
             </button>
           ) : null}
         </div>
@@ -191,6 +203,7 @@ function LimitRows(props: {
 
 /** A window's name, when it resets and what is left, over a meter of what is left. */
 function LimitRow(props: { owner: string; limit: SheetLimit; now: number }) {
+  const { t } = useI18n()
   const { limit } = props
   const reset = limit.resetsAt === undefined ? undefined : resetText(limit.resetsAt, props.now)
   return (
@@ -205,14 +218,20 @@ function LimitRow(props: { owner: string; limit: SheetLimit; now: number }) {
           </span>
         ) : null}
         <span className="usage-limit__end">
-          {limit.valueLabel ?? (limit.state === 'reached' ? 'Reached' : `${limit.left}% left`)}
+          {limit.valueLabel ??
+            (limit.state === 'reached'
+              ? t('settings.usageSheet.reached')
+              : t('settings.usageSheet.left', { left: limit.left }))}
         </span>
       </div>
       {limit.valueLabel === undefined ? (
         <span
           className="usage-limit__meter"
           role="progressbar"
-          aria-label={`${props.owner} ${limit.label} left`}
+          aria-label={t('settings.usageSheet.meterLabel', {
+            owner: props.owner,
+            label: limit.label,
+          })}
           aria-valuenow={limit.left}
           aria-valuemin={0}
           aria-valuemax={100}
@@ -229,6 +248,7 @@ function LimitRow(props: { owner: string; limit: SheetLimit; now: number }) {
 
 /** The period's models as a table: name, tokens and value at API prices. */
 const SheetModels = memo(function SheetModels(props: { models: UsageHistoryModel[] }) {
+  const { t, tp } = useI18n()
   const [expanded, setExpanded] = useState(false)
   const { models } = props
   if (models.length === 0) return null
@@ -239,9 +259,9 @@ const SheetModels = memo(function SheetModels(props: { models: UsageHistoryModel
       <table className="usage-models">
         <thead>
           <tr>
-            <th scope="col">Models</th>
-            <th scope="col">Tokens</th>
-            <th scope="col">At API prices</th>
+            <th scope="col">{t('settings.usageSheet.models')}</th>
+            <th scope="col">{t('settings.usageSheet.tokensHead')}</th>
+            <th scope="col">{t('settings.usageSheet.atApiPrices')}</th>
           </tr>
         </thead>
         <tbody>
@@ -252,13 +272,11 @@ const SheetModels = memo(function SheetModels(props: { models: UsageHistoryModel
               <td
                 className={model.pricing === 'unpriced' ? 'is-unpriced' : undefined}
                 title={
-                  model.pricing === 'family'
-                    ? 'Priced from a sibling model, so approximate'
-                    : undefined
+                  model.pricing === 'family' ? t('settings.usageSheet.approximate') : undefined
                 }
               >
                 {model.pricing === 'unpriced'
-                  ? 'not priced'
+                  ? t('settings.usageSheet.notPriced')
                   : `${model.pricing === 'family' ? '≈ ' : ''}${formatValue(model.totals.estimatedCostUsd)}`}
               </td>
             </tr>
@@ -272,7 +290,9 @@ const SheetModels = memo(function SheetModels(props: { models: UsageHistoryModel
           aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}
         >
-          {expanded ? 'Fewer models' : `${rest} more ${rest === 1 ? 'model' : 'models'}`}
+          {expanded
+            ? t('settings.usageSheet.fewerModels')
+            : tp('settings.usageSheet.moreModels', rest)}
         </button>
       ) : null}
     </div>

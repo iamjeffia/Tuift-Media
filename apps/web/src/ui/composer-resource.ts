@@ -24,7 +24,7 @@ export type ComposerResource = {
   argumentHint?: string | undefined
   /** Commands only: Enter on the exactly typed name sends it instead of completing it. */
   runsAsTyped?: boolean | undefined
-  /** TasteCode's own commands only: the icon their feature uses elsewhere. */
+  /** TUIFT Code's own commands only: the icon their feature uses elsewhere. */
   icon?: TablerIcon | undefined
 }
 

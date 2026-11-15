@@ -587,7 +587,7 @@ describe('Sidebar chat actions', () => {
         projects={[
           {
             path: '/work/harness',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: [session('thread-1', 'Chat 1')],
           },
         ]}
@@ -819,7 +819,7 @@ describe('Sidebar chat actions', () => {
         projects={[
           {
             path: '/work/harness',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: [session('thread-1', 'Polish the sidebar')],
           },
         ]}
@@ -848,7 +848,7 @@ describe('Sidebar chat actions', () => {
     )
 
     expect(screen.queryByRole('button', { name: 'Project options' })).toBeNull()
-    fireEvent.focus(screen.getByRole('button', { name: 'TasteCode' }))
+    fireEvent.focus(screen.getByRole('button', { name: 'TUIFT Code' }))
     expect(screen.getByRole('button', { name: 'Project options' })).toBeTruthy()
 
     const chat = screen.getByText('Polish the sidebar').closest('button')!
@@ -909,7 +909,7 @@ describe('Sidebar chat actions', () => {
         projects={[
           {
             path: '/work/harness',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: [session('thread-1', 'Polish the sidebar')],
           },
         ]}
@@ -965,14 +965,14 @@ describe('Sidebar chat actions', () => {
       elsewhere.remove()
     }
 
-    fireEvent.focus(screen.getByRole('button', { name: 'TasteCode' }))
+    fireEvent.focus(screen.getByRole('button', { name: 'TUIFT Code' }))
     fireEvent.click(screen.getByRole('button', { name: 'Project options' }))
     fireEvent.click(screen.getByRole('menuitem', { name: /Edit name/ }))
-    const projectInput = screen.getByDisplayValue('TasteCode')
+    const projectInput = screen.getByDisplayValue('TUIFT Code')
     fireEvent.change(projectInput, { target: { value: 'Harness' } })
     fireEvent.keyDown(projectInput, { key: 'Enter' })
     expect(onRenameProject).toHaveBeenCalledWith('/work/harness', 'Harness')
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'TasteCode' }))
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'TUIFT Code' }))
   })
 
   it('names the project rename field after the project', () => {
@@ -992,7 +992,7 @@ describe('Sidebar chat actions', () => {
         projects={[
           {
             path: '/work/harness',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: [session('thread-1', 'First chat'), session('thread-2', 'Second chat')],
           },
         ]}
@@ -1019,10 +1019,10 @@ describe('Sidebar chat actions', () => {
       />,
     )
 
-    fireEvent.doubleClick(screen.getByRole('button', { name: 'TasteCode' }))
-    expect(screen.queryByDisplayValue('TasteCode')).toBeNull()
+    fireEvent.doubleClick(screen.getByRole('button', { name: 'TUIFT Code' }))
+    expect(screen.queryByDisplayValue('TUIFT Code')).toBeNull()
 
-    fireEvent.contextMenu(screen.getByRole('button', { name: 'TasteCode' }))
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'TUIFT Code' }))
     const pinItem = screen.getByRole('menuitem', { name: 'Pin to top' })
     const editItem = screen.getByRole('menuitem', { name: 'Edit name' })
     const archiveItem = screen.getByRole('menuitem', { name: 'Delete chats' })
@@ -1034,7 +1034,7 @@ describe('Sidebar chat actions', () => {
 
     fireEvent.click(archiveItem)
     const deleteDialog = await screen.findByRole('alertdialog', {
-      name: 'Delete 2 chats in TasteCode?',
+      name: 'Delete 2 chats in TUIFT Code?',
     })
     expect(deleteDialog.textContent).toContain('/work/harness')
     const deleteButton = screen.getByRole('button', { name: 'Delete 2 chats' })
@@ -1045,7 +1045,7 @@ describe('Sidebar chat actions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Project options' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Remove from sidebar' }))
     const removeDialog = await screen.findByRole('alertdialog', {
-      name: 'Remove TasteCode from the sidebar?',
+      name: 'Remove TUIFT Code from the sidebar?',
     })
     expect(removeDialog.closest('.sheet')?.parentElement).toBe(document.body)
     expect(
@@ -1069,7 +1069,7 @@ describe('Sidebar chat actions', () => {
         projects={[
           {
             path: '/work/harness',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: [pinned, session('thread-2', 'Regular chat')],
           },
         ]}
@@ -1119,7 +1119,7 @@ describe('Sidebar chat actions', () => {
         projects={[
           {
             path: '/work/harness',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: [{ ...session('thread-1', 'Status chat'), status, unread: true }],
           },
         ]}
@@ -1169,7 +1169,7 @@ describe('Sidebar chat actions', () => {
         projects={[
           {
             path: '/work/harness',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: [
               session('thread-old', 'Older chat'),
               unread,
@@ -1227,7 +1227,7 @@ describe('Sidebar chat actions', () => {
         projects={[
           {
             path: '/work/harness',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: [
               session('thread-1', 'Current work'),
               working,
@@ -1286,7 +1286,7 @@ describe('Sidebar chat actions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Restore Finished work 3' }))
     expect(onRestoreSession).toHaveBeenCalledWith('thread-old-3')
     fireEvent.click(
-      screen.getByRole('button', { name: 'Finished work 3, Codex, archived, TasteCode' }),
+      screen.getByRole('button', { name: 'Finished work 3, Codex, archived, TUIFT Code' }),
     )
     expect(onSelectSession).toHaveBeenCalledWith('thread-old-3')
 
@@ -1297,7 +1297,7 @@ describe('Sidebar chat actions', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('true')
     expect(
       screen
-        .getByRole('button', { name: 'Finished work 11, Codex, archived, TasteCode' })
+        .getByRole('button', { name: 'Finished work 11, Codex, archived, TUIFT Code' })
         .closest('.sessrow')
         ?.querySelector('.sessrow__indicator'),
     ).not.toBeNull()
@@ -1324,7 +1324,7 @@ describe('Sidebar chat actions', () => {
       unread: true,
       statusSince: 3,
     }
-    const tree = (sessions: Session[]) => [{ path: '/work/harness', name: 'TasteCode', sessions }]
+    const tree = (sessions: Session[]) => [{ path: '/work/harness', name: 'TUIFT Code', sessions }]
     const view = (projects: ReturnType<typeof tree>, active?: string) => (
       <Sidebar
         projects={projects}
@@ -1360,8 +1360,8 @@ describe('Sidebar chat actions', () => {
         .getAllByRole('button')
         .map((button) => button.getAttribute('aria-label')),
     ).toEqual([
-      'Run the migration, waiting for approval, TasteCode',
-      'Build the release, failed, TasteCode',
+      'Run the migration, waiting for approval, TUIFT Code',
+      'Build the release, failed, TUIFT Code',
       'Mark Build the release as read',
     ])
     // The tree below keeps its own order and lists each chat once more.
@@ -1473,7 +1473,7 @@ describe('Sidebar chat actions', () => {
         projects={[
           {
             path: '/work/harness',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: [{ ...session('thread-1', 'Run the migration'), status: 'approval' }],
           },
         ]}
@@ -1501,7 +1501,7 @@ describe('Sidebar chat actions', () => {
     )
     const rendered = render(view(256))
     const band = screen.getByRole('region', { name: 'Needs you' })
-    expect(band.querySelector('.sess__project')?.textContent).toBe('TasteCode')
+    expect(band.querySelector('.sess__project')?.textContent).toBe('TUIFT Code')
     expect(document.querySelector('.rail__body')?.hasAttribute('data-narrow')).toBe(false)
 
     rendered.rerender(view(219))
@@ -1516,7 +1516,7 @@ describe('Sidebar chat actions', () => {
         projects={[
           {
             path: '/work/harness',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: Array.from({ length: 7 }, (_, index) =>
               session(`thread-${index + 1}`, `Chat ${index + 1}`),
             ),
@@ -1554,8 +1554,8 @@ describe('Sidebar chat actions', () => {
     expect(screen.queryByRole('button', { name: 'Chat 6, Codex' })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Show 2 more' }))
-    fireEvent.click(screen.getByRole('button', { name: 'TasteCode' }))
-    fireEvent.click(screen.getByRole('button', { name: 'TasteCode' }))
+    fireEvent.click(screen.getByRole('button', { name: 'TUIFT Code' }))
+    fireEvent.click(screen.getByRole('button', { name: 'TUIFT Code' }))
     expect(screen.queryByRole('button', { name: 'Chat 6, Codex' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Show 2 more' })).toBeTruthy()
   })
@@ -1568,7 +1568,7 @@ describe('Sidebar chat actions', () => {
     chats[7] = { ...chats[7]!, status: 'ready', unread: true }
     const content = (activeSessionId: string) => (
       <Sidebar
-        projects={[{ path: '/work/harness', name: 'TasteCode', sessions: chats }]}
+        projects={[{ path: '/work/harness', name: 'TUIFT Code', sessions: chats }]}
         activeProjectPath="/work/harness"
         activeSessionId={activeSessionId}
         account={undefined}
@@ -1627,7 +1627,7 @@ describe('Sidebar chat actions', () => {
     chats[5] = { ...chats[5]!, status: 'approval' }
     render(
       <Sidebar
-        projects={[{ path: '/work/harness', name: 'TasteCode', sessions: chats }]}
+        projects={[{ path: '/work/harness', name: 'TUIFT Code', sessions: chats }]}
         activeProjectPath="/work/harness"
         activeSessionId="thread-1"
         account={undefined}
@@ -1666,7 +1666,7 @@ describe('Sidebar chat actions', () => {
     chats[6] = { ...chats[6]!, status: 'working' }
     render(
       <Sidebar
-        projects={[{ path: '/work/harness', name: 'TasteCode', sessions: chats }]}
+        projects={[{ path: '/work/harness', name: 'TUIFT Code', sessions: chats }]}
         activeProjectPath="/work/harness"
         activeSessionId="thread-1"
         account={undefined}
@@ -1953,7 +1953,7 @@ describe('Sidebar chat actions', () => {
         projects={[
           {
             path: '/work/harness',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: [session('thread-1', 'First chat'), session('thread-2', 'Second chat')],
           },
         ]}
@@ -2037,7 +2037,7 @@ describe('Sidebar chat actions', () => {
         projects={[
           {
             path: '/work/harness',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: [session('thread-1', 'First chat'), session('thread-2', 'Second chat')],
           },
         ]}
@@ -2129,7 +2129,7 @@ describe('Sidebar chat actions', () => {
         projects={[
           {
             path: '/work/harness',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: [
               { ...session('pinned-1', 'Pinned chat'), pinned: true },
               session('thread-2', 'Other chat'),

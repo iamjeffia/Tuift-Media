@@ -95,7 +95,7 @@ export type AcpLaunchOptions = {
 }
 
 /**
- * TasteCode-managed MCP servers for an agent that advertises its transports.
+ * TUIFT-Code-managed MCP servers for an agent that advertises its transports.
  * Stdio servers always go; http servers only when the agent's initialize
  * answer says it accepts them, as ACP requires.
  */

@@ -29,7 +29,7 @@ function designAppScreenBrandPrompt(
   suppliedReferenceCatalog: ReadonlyArray<{ id: string; file: string }>,
   direction: AppDirection,
 ): string {
-  return `You are running the Brand phase of TasteCode Design Mode for an app screen.
+  return `You are running the Brand phase of TUIFT Code Design Mode for an app screen.
 
 Turn the validated design brief and the dealt app sheet below into a compact, usable brand system for one working product interface: a dashboard, admin, analytics, settings, inbox or similar screen that people work in rather than read. This phase makes visual and verbal decisions; it does not plan screens, source assets, install dependencies, or edit files.
 
@@ -82,7 +82,7 @@ export function designBrandPrompt(
     file: path.basename(filePath),
   }))
   if (appDirection) return designAppScreenBrandPrompt(brief, suppliedReferenceCatalog, appDirection)
-  return `You are running the Brand phase of TasteCode Design Mode.
+  return `You are running the Brand phase of TUIFT Code Design Mode.
 
 Turn the validated design brief into a compact, usable brand system. This phase makes visual and verbal decisions; it does not plan page sections, source assets, install dependencies, or edit website files.
 

@@ -1,5 +1,5 @@
 // A stand-in for `claude` on its stream-json pipes, shaped after claude 2.1.310.
-// It answers the control requests TasteCode sends and plays one turn per prompt:
+// It answers the control requests TUIFT Code sends and plays one turn per prompt:
 // a streamed reply, a Bash call that asks for permission ("tool"), or a turn that
 // runs until it is interrupted ("wait"). FAKE_CLAUDE_LOG receives its launch.
 import { appendFileSync } from 'node:fs'

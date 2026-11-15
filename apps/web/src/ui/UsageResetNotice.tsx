@@ -69,7 +69,7 @@ export function UsageResetNotice(props: UsageResetNoticeProps) {
               'This provider has not shared a reset time yet.'
             )}
           </span>
-          {date && <span>Keep TasteCode open, or reopen it after the reset.</span>}
+          {date && <span>Keep TUIFT Code open, or reopen it after the reset.</span>}
           {error && <span role="alert">{error}</span>}
         </span>
       </NoticeBody>

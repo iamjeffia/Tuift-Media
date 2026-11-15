@@ -8,26 +8,29 @@ import {
 } from '@harness/contracts'
 import { IconChevronRight, IconLoader2, IconX } from '@tabler/icons-react'
 import type { FeedbackRequest, FeedbackState } from '../feedback-state.js'
+import { useI18n, type I18n, type MessageKey } from '../i18n/index.js'
 import { IndeterminateRequestError, type Transport } from '../transport.js'
 import { useDialogFocus } from './dialog-focus.js'
 import '../styles/sheet.css'
 import '../styles/switch.css'
 import '../styles/feedback.css'
 
-const KINDS: ReadonlyArray<{ id: FeedbackKind; label: string }> = [
-  { id: 'bug', label: 'Bug' },
-  { id: 'idea', label: 'Idea' },
-  { id: 'question', label: 'Question' },
-  { id: 'praise', label: 'Praise' },
-  { id: 'other', label: 'Other' },
+const KINDS: ReadonlyArray<{ id: FeedbackKind; label: MessageKey }> = [
+  { id: 'bug', label: 'dialogs.feedback.kind.bug' },
+  { id: 'idea', label: 'dialogs.feedback.kind.idea' },
+  { id: 'question', label: 'dialogs.feedback.kind.question' },
+  { id: 'praise', label: 'dialogs.feedback.kind.praise' },
+  { id: 'other', label: 'dialogs.feedback.kind.other' },
 ]
 const COUNTER_FROM = FEEDBACK_MESSAGE_MAX - 500
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PREVIEW_DELAY_MS = 300
 
-function waitLabel(ms: number): string {
+function waitLabel(t: I18n['t'], ms: number): string {
   const seconds = Math.max(1, Math.ceil(ms / 1000))
-  return seconds < 90 ? `Wait ${seconds} s` : `Wait ${Math.ceil(seconds / 60)} min`
+  return seconds < 90
+    ? t('dialogs.feedback.waitSeconds', { seconds })
+    : t('dialogs.feedback.waitMinutes', { minutes: Math.ceil(seconds / 60) })
 }
 
 /**
@@ -43,6 +46,7 @@ export function FeedbackDialog(props: {
   onStatusChange: () => void
   onClose: () => void
 }) {
+  const { t, tp } = useI18n()
   const dialog = useDialogFocus<HTMLDivElement>(props.onClose)
   const titleId = useId()
   const messageId = useId()
@@ -146,7 +150,7 @@ export function FeedbackDialog(props: {
     } catch (reason) {
       // A lost reply may still have been delivered; the same id asks again safely.
       if (!(reason instanceof IndeterminateRequestError)) submissionId.current = undefined
-      setFailure("Couldn't reach TasteCode's local server. Your text is still here.")
+      setFailure(t('dialogs.feedback.unreachable'))
     } finally {
       sendingRef.current = false
       setSending(false)
@@ -154,10 +158,17 @@ export function FeedbackDialog(props: {
     }
   }
 
-  const title = props.request.source === 'error_report' ? 'Report a problem' : 'Send feedback'
+  const title =
+    props.request.source === 'error_report'
+      ? t('dialogs.feedback.titleReport')
+      : t('dialogs.feedback.titleSend')
   const placeholder =
-    kind === 'bug' ? 'What happened? What did you expect?' : "What's on your mind?"
-  const sendLabel = sending ? 'Sending…' : waiting ? waitLabel(waitUntil - now) : 'Send'
+    kind === 'bug' ? t('dialogs.feedback.placeholderBug') : t('dialogs.feedback.placeholderOther')
+  const sendLabel = sending
+    ? t('dialogs.feedback.sending')
+    : waiting
+      ? waitLabel(t, waitUntil - now)
+      : t('dialogs.feedback.send')
 
   return createPortal(
     <div
@@ -176,7 +187,7 @@ export function FeedbackDialog(props: {
         type="button"
         tabIndex={-1}
         onClick={props.onClose}
-        aria-label="Close feedback"
+        aria-label={t('dialogs.feedback.closeFeedback')}
       />
       <div
         className="sheet__panel feedback"
@@ -194,14 +205,18 @@ export function FeedbackDialog(props: {
             className="feedback__close"
             type="button"
             onClick={props.onClose}
-            aria-label="Close"
-            title="Close"
+            aria-label={t('dialogs.common.close')}
+            title={t('dialogs.common.close')}
           >
             <IconX size={14} aria-hidden />
           </button>
         </header>
 
-        <div className="feedback__kinds" role="radiogroup" aria-label="Kind of feedback">
+        <div
+          className="feedback__kinds"
+          role="radiogroup"
+          aria-label={t('dialogs.feedback.kindsLabel')}
+        >
           {KINDS.map((entry) => (
             <label key={entry.id} className={`feedback__kind${kind === entry.id ? ' is-on' : ''}`}>
               <input
@@ -211,13 +226,15 @@ export function FeedbackDialog(props: {
                 checked={kind === entry.id}
                 onChange={() => setKind(entry.id)}
               />
-              {entry.label}
+              {t(entry.label)}
             </label>
           ))}
         </div>
 
         <label className="feedback__label" htmlFor={messageId}>
-          {error && includeError ? 'Add a note (optional)' : 'Message'}
+          {error && includeError
+            ? t('dialogs.feedback.noteLabel')
+            : t('dialogs.feedback.messageLabel')}
         </label>
         <textarea
           id={messageId}
@@ -236,7 +253,7 @@ export function FeedbackDialog(props: {
         ) : null}
 
         <label className="feedback__label" htmlFor={emailId}>
-          Email <span>(optional)</span>
+          {t('dialogs.feedback.email')} <span>{t('dialogs.feedback.optional')}</span>
         </label>
         <input
           id={emailId}
@@ -245,29 +262,29 @@ export function FeedbackDialog(props: {
           value={email}
           maxLength={254}
           autoComplete="email"
-          placeholder="Only if you want a reply"
+          placeholder={t('dialogs.feedback.emailPlaceholder')}
           aria-invalid={!emailValid || undefined}
           aria-describedby={!emailValid ? emailHintId : undefined}
           onChange={(event) => setEmail(event.target.value)}
         />
         {!emailValid ? (
           <p className="feedback__hint" id={emailHintId}>
-            Enter a full email address, or leave it empty.
+            {t('dialogs.feedback.emailHint')}
           </p>
         ) : null}
 
         <div className="feedback__options">
           {error ? (
             <FeedbackToggle
-              label="Include the error message"
-              note="The error TasteCode showed, with file paths and secrets removed."
+              label={t('dialogs.feedback.includeError')}
+              note={t('dialogs.feedback.includeErrorNote')}
               checked={includeError}
               onChange={setIncludeError}
             />
           ) : null}
           <FeedbackToggle
-            label="Include app details"
-            note="TasteCode version, OS, provider and model. No prompts, files or paths."
+            label={t('dialogs.feedback.includeDetails')}
+            note={t('dialogs.feedback.includeDetailsNote')}
             checked={includeDiagnostics}
             onChange={setIncludeDiagnostics}
           />
@@ -281,24 +298,22 @@ export function FeedbackDialog(props: {
           onClick={() => setShowPayload((open) => !open)}
         >
           <IconChevronRight size={13} aria-hidden />
-          Show exactly what will be sent
+          {t('dialogs.feedback.showPayload')}
         </button>
         {showPayload ? (
           <div className="feedback__payload" id={payloadId}>
             {preview?.payload ? (
-              <pre tabIndex={0} aria-label="Feedback payload">
+              <pre tabIndex={0} aria-label={t('dialogs.feedback.payloadLabel')}>
                 {preview.payload}
               </pre>
             ) : (
               <p className="feedback__payload-empty">
-                {hasContent ? 'Preparing preview…' : 'Nothing to send yet.'}
+                {hasContent ? t('dialogs.feedback.preparing') : t('dialogs.feedback.nothingToSend')}
               </p>
             )}
             {preview && preview.redactions > 0 ? (
               <p className="feedback__redactions">
-                {preview.redactions === 1
-                  ? '1 item was redacted.'
-                  : `${preview.redactions} items were redacted.`}
+                {tp('dialogs.feedback.redacted', preview.redactions)}
               </p>
             ) : null}
           </div>
@@ -306,15 +321,15 @@ export function FeedbackDialog(props: {
 
         {failure || paused ? (
           <p className="feedback__failure" role="alert">
-            {failure ?? 'Feedback is paused right now. Try again later.'}
+            {failure ?? t('dialogs.feedback.paused')}
           </p>
         ) : null}
 
         <footer className="feedback__foot">
-          <p className="feedback__where">Goes to the TasteCode team's feedback inbox.</p>
+          <p className="feedback__where">{t('dialogs.feedback.where')}</p>
           <div className="feedback__actions">
             <button className="feedback__cancel" type="button" onClick={props.onClose}>
-              Cancel
+              {t('dialogs.common.cancel')}
             </button>
             <button
               className="feedback__send"

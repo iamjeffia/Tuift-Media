@@ -1,4 +1,5 @@
 import type { MenuItemConstructorOptions } from 'electron'
+import { translate, type Language, type MessageKey, type MessageVars } from './i18n.js'
 import type {
   NativeMenuAction,
   NativeMenuActionSource,
@@ -9,6 +10,9 @@ import type {
 type AppMenuOptions = {
   appName: string
   isMacOS: boolean
+  /** Windows names its quit item "Exit"; the other platforms say "Quit". */
+  isWindows: boolean
+  language: Language
   isDevelopment: boolean
   shortcuts: NativeMenuShortcuts
   onAction: (action: NativeMenuAction, source: NativeMenuActionSource) => void
@@ -19,10 +23,17 @@ type AppMenuOptions = {
 type MenuItem = MenuItemConstructorOptions
 
 export function createApplicationMenuTemplate(options: AppMenuOptions): MenuItem[] {
-  const action = (label: string, id: NativeMenuAction): MenuItem => {
+  const t = (key: MessageKey, vars?: MessageVars): string => translate(options.language, key, vars)
+  // A role keeps its behaviour and accelerator; the label is ours so it follows
+  // the app language and not the operating system's.
+  const role = (name: NonNullable<MenuItem['role']>, key: MessageKey): MenuItem => ({
+    role: name,
+    label: t(key, { appName: options.appName }),
+  })
+  const action = (key: MessageKey, id: NativeMenuAction): MenuItem => {
     const accelerator = electronAccelerator(options.shortcuts[id])
     return {
-      label,
+      label: t(key),
       ...(accelerator ? { accelerator } : {}),
       click: (_item, _window, event) =>
         options.onAction(id, event.triggeredByAccelerator ? 'accelerator' : 'menu'),
@@ -36,117 +47,122 @@ export function createApplicationMenuTemplate(options: AppMenuOptions): MenuItem
           {
             label: options.appName,
             submenu: [
-              { role: 'about' },
+              role('about', 'menu.about'),
               separator,
-              action('Settings…', 'settings'),
-              action('Keyboard Shortcuts…', 'keybindings'),
+              action('menu.settings', 'settings'),
+              action('menu.keyboardShortcuts', 'keybindings'),
               separator,
-              { role: 'services' },
+              role('services', 'menu.services'),
               separator,
-              { role: 'hide' },
-              { role: 'hideOthers' },
-              { role: 'unhide' },
+              role('hide', 'menu.hide'),
+              role('hideOthers', 'menu.hideOthers'),
+              role('unhide', 'menu.showAll'),
               separator,
-              { role: 'quit' },
+              role('quit', 'menu.quitApp'),
             ],
           } satisfies MenuItem,
         ]
       : []),
     {
-      label: 'File',
+      label: t('menu.file'),
       submenu: [
-        action('New Chat', 'newChat'),
-        action('Add Project…', 'newProject'),
-        action('Switch Project…', 'switchProject'),
-        action('Open Pull Requests', 'openPullRequests'),
+        action('menu.newChat', 'newChat'),
+        action('menu.addProject', 'newProject'),
+        action('menu.switchProject', 'switchProject'),
+        action('menu.openPullRequests', 'openPullRequests'),
         separator,
         ...(options.isMacOS
-          ? [{ role: 'close' } satisfies MenuItem]
-          : [action('Settings…', 'settings'), separator, { role: 'quit' } satisfies MenuItem]),
+          ? [role('close', 'menu.close')]
+          : [
+              action('menu.settings', 'settings'),
+              separator,
+              role('quit', options.isWindows ? 'menu.exit' : 'menu.quit'),
+            ]),
       ],
     },
     {
-      label: 'Edit',
+      label: t('menu.edit'),
       submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
+        role('undo', 'menu.undo'),
+        role('redo', 'menu.redo'),
         separator,
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        ...(options.isMacOS ? [{ role: 'pasteAndMatchStyle' } satisfies MenuItem] : []),
-        { role: 'delete' },
+        role('cut', 'menu.cut'),
+        role('copy', 'menu.copy'),
+        role('paste', 'menu.paste'),
+        ...(options.isMacOS ? [role('pasteAndMatchStyle', 'menu.pasteAndMatchStyle')] : []),
+        role('delete', 'menu.delete'),
         separator,
-        { role: 'selectAll' },
+        role('selectAll', 'menu.selectAll'),
       ],
     },
     {
-      label: 'View',
+      label: t('menu.view'),
       submenu: [
-        action('Command Palette…', 'commandPalette'),
-        action('Search Chats…', 'searchSessions'),
+        action('menu.commandPalette', 'commandPalette'),
+        action('menu.searchChats', 'searchSessions'),
         separator,
-        action('Toggle Sidebar', 'toggleSidebar'),
-        action('Toggle Terminal', 'toggleTerminal'),
-        action('Toggle Workspace Tools', 'toggleWorkspace'),
+        action('menu.toggleSidebar', 'toggleSidebar'),
+        action('menu.toggleTerminal', 'toggleTerminal'),
+        action('menu.toggleWorkspaceTools', 'toggleWorkspace'),
         separator,
         {
-          label: 'Actual Size',
+          label: t('menu.actualSize'),
           accelerator: 'CommandOrControl+0',
           click: () => options.onZoom('reset'),
         },
         {
-          label: 'Zoom In',
+          label: t('menu.zoomIn'),
           accelerator: 'CommandOrControl+=',
           click: () => options.onZoom('in'),
         },
         {
-          label: 'Zoom Out',
+          label: t('menu.zoomOut'),
           accelerator: 'CommandOrControl+-',
           click: () => options.onZoom('out'),
         },
         separator,
-        { role: 'togglefullscreen' },
+        role('togglefullscreen', 'menu.toggleFullScreen'),
       ],
     },
     {
-      label: 'Chat',
+      label: t('menu.chat'),
       submenu: [
-        action('Focus Composer', 'focusComposer'),
-        action('Stop Response', 'interrupt'),
+        action('menu.focusComposer', 'focusComposer'),
+        action('menu.stopResponse', 'interrupt'),
         separator,
-        action('Previous Chat', 'previousChat'),
-        action('Next Chat', 'nextChat'),
+        action('menu.previousChat', 'previousChat'),
+        action('menu.nextChat', 'nextChat'),
         separator,
-        action('Pin or Unpin Chat', 'toggleSessionPin'),
-        action('Delete Current Chat…', 'archiveSession'),
-        action('Open Restore Points…', 'rollback'),
+        action('menu.pinOrUnpinChat', 'toggleSessionPin'),
+        action('menu.deleteCurrentChat', 'archiveSession'),
+        action('menu.openRestorePoints', 'rollback'),
       ],
     },
     {
-      label: 'Workspace',
+      label: t('menu.workspace'),
       submenu: [
-        action('Toggle Fast Mode', 'toggleFastMode'),
-        action('Toggle Design Mode', 'toggleDesignMode'),
-        action('Toggle Isolated Checkout', 'toggleIsolatedSession'),
+        action('menu.toggleFastMode', 'toggleFastMode'),
+        action('menu.toggleDesignMode', 'toggleDesignMode'),
+        action('menu.toggleIsolatedCheckout', 'toggleIsolatedSession'),
       ],
     },
     {
-      label: 'Window',
+      label: t('menu.window'),
       submenu: [
-        { role: 'minimize' },
-        { role: 'zoom' },
+        role('minimize', 'menu.minimize'),
+        role('zoom', 'menu.zoom'),
         ...(options.isMacOS
-          ? [separator, { role: 'front' } satisfies MenuItem]
-          : [{ role: 'close' } satisfies MenuItem]),
+          ? [separator, role('front', 'menu.bringAllToFront')]
+          : [role('close', 'menu.close')]),
       ],
     },
     {
       role: 'help',
+      label: t('menu.help'),
       submenu: [
-        ...(!options.isMacOS ? [action('Keyboard Shortcuts…', 'keybindings')] : []),
+        ...(!options.isMacOS ? [action('menu.keyboardShortcuts', 'keybindings')] : []),
         {
-          label: 'Open Diagnostics Folder',
+          label: t('menu.openDiagnosticsFolder'),
           click: options.onOpenDiagnostics,
         },
         ...(options.isDevelopment

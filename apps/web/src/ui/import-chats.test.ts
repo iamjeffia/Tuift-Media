@@ -10,6 +10,7 @@ import {
   sourceCounts,
   toggled,
 } from './import-chats.js'
+import { setLanguage } from '../i18n/index.js'
 
 function chat(id: string, overrides: Partial<ChatImportChat> = {}): ChatImportChat {
   return {
@@ -134,5 +135,14 @@ describe('import dates', () => {
   it('names the year only when it is not this one', () => {
     expect(lastUsed(new Date('2025-03-02T12:00:00Z').getTime(), now)).toMatch(/2025/)
     expect(lastUsed(new Date('2026-03-02T12:00:00Z').getTime(), now)).not.toMatch(/2026/)
+  })
+
+  it('reads in Portuguese when the interface is in Portuguese', () => {
+    setLanguage('pt-BR', { persist: false })
+    expect(lastUsed(now - 5 * 60_000, now)).toBe('Agora há pouco')
+    expect(lastUsed(now - 3_600_000, now)).toBe('há 1 hora')
+    expect(lastUsed(now - 5 * 3_600_000, now)).toBe('há 5 horas')
+    expect(lastUsed(now - 30 * 3_600_000, now)).toBe('Ontem')
+    expect(lastUsed(now - 4 * 86_400_000, now)).toBe('há 4 dias')
   })
 })

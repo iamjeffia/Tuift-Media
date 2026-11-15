@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { IconSearch as Search } from '@tabler/icons-react'
 import '../styles/command-palette.css'
+import { useI18n, type MessageKey } from '../i18n/index.js'
 import { isComposingKey, isConfirmEnter } from '../shortcuts.js'
 import { useDialogFocus } from './dialog-focus.js'
 
@@ -21,6 +22,13 @@ export type PaletteCommand = {
 export type PaletteDeferredSearch = (terms: readonly string[], limit: number) => PaletteCommand[]
 
 export const MAX_VISIBLE_PALETTE_COMMANDS = 100
+
+/** `group` stays the English identifier; the heading is read through the catalog. */
+const GROUP_LABELS = {
+  Actions: 'sidebar.palette.groupActions',
+  Projects: 'sidebar.palette.groupProjects',
+  Chats: 'sidebar.palette.groupChats',
+} as const satisfies Record<PaletteCommand['group'], MessageKey>
 
 class PaletteCommandSearchIndex {
   readonly #searchable = new Map<PaletteCommand, string>()
@@ -76,6 +84,7 @@ function CommandPaletteComponent(props: {
   deferredSearch?: PaletteDeferredSearch | undefined
   onClose: () => void
 }) {
+  const { t } = useI18n()
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string>()
   const input = useRef<HTMLInputElement>(null)
@@ -144,17 +153,17 @@ function CommandPaletteComponent(props: {
       tabIndex={-1}
       aria-label={
         props.scope === 'projects'
-          ? 'Switch project'
+          ? t('sidebar.palette.labelProjects')
           : props.scope === 'new-thread'
-            ? 'Choose a project for the new thread'
-            : 'Command palette'
+            ? t('sidebar.palette.labelNewChat')
+            : t('sidebar.palette.labelAll')
       }
       onKeyDown={dialog.onKeyDown}
     >
       <button
         className="command-palette__scrim"
         onClick={props.onClose}
-        aria-label="Close command palette"
+        aria-label={t('sidebar.palette.close')}
         tabIndex={-1}
       />
       <div className="command-palette__panel">
@@ -187,13 +196,13 @@ function CommandPaletteComponent(props: {
             }}
             placeholder={
               props.scope === 'projects'
-                ? 'Switch project…'
+                ? t('sidebar.palette.placeholderProjects')
                 : props.scope === 'new-thread'
-                  ? 'Choose a project…'
-                  : 'Search commands, projects, chats…'
+                  ? t('sidebar.palette.placeholderNewChat')
+                  : t('sidebar.palette.placeholderAll')
             }
             spellCheck={false}
-            aria-label="Search commands"
+            aria-label={t('sidebar.palette.inputLabel')}
             aria-controls="command-palette-results"
             aria-activedescendant={
               commands[selected] ? `command-${commands[selected].id}` : undefined
@@ -208,13 +217,15 @@ function CommandPaletteComponent(props: {
           role="listbox"
         >
           {commands.length === 0 ? (
-            <p className="command-palette__empty">No matching commands.</p>
+            <p className="command-palette__empty">{t('sidebar.palette.empty')}</p>
           ) : (
             commands.map((command, index) => {
               const startsGroup = index === 0 || commands[index - 1]?.group !== command.group
               return (
                 <div key={command.id}>
-                  {startsGroup ? <p className="command-palette__group">{command.group}</p> : null}
+                  {startsGroup ? (
+                    <p className="command-palette__group">{t(GROUP_LABELS[command.group])}</p>
+                  ) : null}
                   <button
                     id={`command-${command.id}`}
                     className={`command-palette__item ${index === selected ? 'is-selected' : ''}`}

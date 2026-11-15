@@ -1,3 +1,4 @@
+import './harness-shim.js'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from '../App.js'
@@ -14,6 +15,7 @@ import {
   resolveTheme,
 } from '../theme.js'
 import { backdropColorScheme } from '../theme-colors.js'
+import { applyDocumentLanguage } from '../i18n/index.js'
 import { DemoTransport } from './demo-transport.js'
 import '../styles/tokens.css'
 import '../styles/app.css'
@@ -40,6 +42,7 @@ applyTheme(backdropColorScheme(backdrop) ?? appearanceMode)
 applyBackdropPreference(backdrop)
 applyFontPreference(readFontPreference(appearanceMode))
 applyAccentPreference(readAccentPreference(appearanceMode))
+applyDocumentLanguage()
 document.documentElement.dataset['shell'] = 'web'
 
 // `?usageReset=60&chat=demo-focus-ring` exercises a quota reset in sixty seconds.

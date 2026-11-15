@@ -26,6 +26,7 @@ import {
 } from '@tabler/icons-react'
 import type { BrowserCommand, BrowserResult, PullRequestTarget } from '@harness/contracts'
 import { isDesktop } from '../../bridge.js'
+import { useI18n, type MessageKey } from '../../i18n/index.js'
 import { receiveAgentBrowserEvents } from '../../browser-capability.js'
 import { performAppHaptic, prepareAppHaptics } from '../../haptics.js'
 import { cancelInstall, installState, subscribeInstalls } from '../../provider-install.js'
@@ -41,6 +42,7 @@ import type { AnnotationDraft } from './browser-annotations.js'
 import type { AgentBrowserLink, BrowserNavigationRequest } from './WorkspaceBrowser.js'
 import { browserPageLabel, type BrowserPageInfo } from './browser-page.js'
 import { WorkspaceTabs } from './WorkspaceTabs.js'
+import type { WorkspaceFileOpenRequest } from './WorkspaceFiles.js'
 import {
   DEFAULT_BOTTOM_PANEL_HEIGHT,
   DEFAULT_WORKSPACE_PANEL_WIDTH,
@@ -103,37 +105,37 @@ type WorkspaceTab =
 
 const TOOLS: Array<{
   kind: WorkspaceTool
-  title: string
+  title: MessageKey
   Icon: TablerIcon
 }> = [
   {
     kind: 'review',
-    title: 'Review',
+    title: 'workspace.tool.review',
     Icon: FileDiff,
   },
   {
     kind: 'terminal',
-    title: 'Terminal',
+    title: 'workspace.tool.terminal',
     Icon: SquareTerminal,
   },
   {
     kind: 'browser',
-    title: 'Browser',
+    title: 'workspace.tool.browser',
     Icon: Globe2,
   },
   {
     kind: 'files',
-    title: 'Files',
+    title: 'workspace.tool.files',
     Icon: FolderOpen,
   },
   {
     kind: 'side-chat',
-    title: 'Temporary chat',
+    title: 'workspace.tool.sideChat',
     Icon: MessageCirclePlus,
   },
   {
     kind: 'agents',
-    title: 'Agents',
+    title: 'workspace.tool.agents',
     Icon: Subtask,
   },
 ]
@@ -171,12 +173,15 @@ function WorkspacePanelComponent(props: {
   providerLogin?: WorkspaceProviderLoginRequest | undefined
   onProviderLoginClose?: ((id: number) => void) | undefined
   externalToolRequest?: { request: number; kind: WorkspaceTool } | undefined
+  /** A file the chat cited: the Files tab opens it, in a tab of its own if none is open. */
+  fileRequest?: WorkspaceFileOpenRequest | undefined
   imagesSupported?: boolean | undefined
   onAnnotationDraft?: ((draft: AnnotationDraft) => void) | undefined
   designPreviewRequest?: BrowserNavigationRequest | undefined
   /** Opens the Pull requests surface on the pull request the Review tab shows. */
   onOpenPullRequest?: ((target: PullRequestTarget) => void) | undefined
 }) {
+  const { t } = useI18n()
   const bottom = props.placement === 'bottom'
   const [tabs, setTabs] = useState<WorkspaceTab[]>([])
   const [activeId, setActiveId] = useState<string>()
@@ -219,18 +224,18 @@ function WorkspacePanelComponent(props: {
           title,
           icon: <Icon size={14} aria-hidden />,
           tooltip: page?.url || title,
-          accessibleName: `Browser: ${title}`,
+          accessibleName: t('workspace.tool.browserPage', { title }),
         }
       }
       const title =
         tab.kind === 'provider-login'
           ? tab.title
           : tab.kind === 'terminal'
-            ? `Terminal ${++terminalNumber}`
-            : definition.title
+            ? t('workspace.tool.terminalN', { number: ++terminalNumber })
+            : t(definition.title)
       return { id: tab.id, title, icon: <Icon size={14} aria-hidden /> }
     })
-  }, [tabs, browserPages])
+  }, [tabs, browserPages, t])
   // Surfaces keep an order no tab move changes; React moving an iframe or webview reloads it.
   const surfaces = useMemo(() => [...tabs].sort((a, b) => (a.id < b.id ? -1 : 1)), [tabs])
   const [designPreview, setDesignPreview] = useState<BrowserNavigationRequest>()
@@ -239,6 +244,8 @@ function WorkspacePanelComponent(props: {
   const resizeCleanup = useRef<() => void>(() => {})
   const handledTerminalRequest = useRef(0)
   const handledExternalRequest = useRef(0)
+  const handledFileRequest = useRef(0)
+  const [filesTarget, setFilesTarget] = useState<{ tabId: string } & WorkspaceFileOpenRequest>()
   const handledPreviewRequest = useRef<string | undefined>(undefined)
   toolRef.current = tool
 
@@ -360,6 +367,19 @@ function WorkspacePanelComponent(props: {
     handledExternalRequest.current = request.request
     openTool(request.kind)
   }, [openTool, props.externalToolRequest])
+
+  useEffect(() => {
+    const request = props.fileRequest
+    if (!request || request.request === handledFileRequest.current) return
+    handledFileRequest.current = request.request
+    // The newest Files tab already shows the project; a new one is opened only when none is.
+    const existing = tabsRef.current.findLast((tab) => tab.kind === 'files')
+    const tabId = existing?.id ?? crypto.randomUUID()
+    setFilesTarget({ tabId, ...request })
+    if (existing) setActiveId(existing.id)
+    else showTool({ id: tabId, kind: 'files', userOpened: true })
+    props.onOpen()
+  }, [props.fileRequest, props.onOpen, showTool])
 
   useEffect(() => {
     if (props.sideChatPromptRequest) openTool('side-chat')
@@ -612,19 +632,21 @@ function WorkspacePanelComponent(props: {
     <aside
       ref={panelElement}
       className={`workspace-panel${tool ? ' has-tool' : ''}${bottom ? ' workspace-panel--bottom' : ''}${props.open ? ' is-open' : ''}${props.expanded ? ' is-expanded' : ''}`}
-      aria-label={bottom ? 'Bottom workspace tools' : 'Workspace tools'}
+      aria-label={bottom ? t('workspace.panel.bottomLabel') : t('workspace.panel.label')}
       aria-hidden={!props.open}
       inert={props.open ? undefined : true}
     >
       <div
         className="workspace-panel__resize"
         role="separator"
-        aria-label={bottom ? 'Resize bottom workspace tools' : 'Resize workspace tools'}
+        aria-label={bottom ? t('workspace.panel.resizeBottom') : t('workspace.panel.resize')}
         aria-orientation={bottom ? 'horizontal' : 'vertical'}
         aria-valuenow={sizeNow}
         aria-valuemin={panelSizeBounds(null, bottom).min}
         aria-valuemax={sizeLimit}
-        aria-valuetext={`${sizeNow} pixels ${bottom ? 'tall' : 'wide'}`}
+        aria-valuetext={t(bottom ? 'workspace.panel.sizeTall' : 'workspace.panel.sizeWide', {
+          size: sizeNow,
+        })}
         tabIndex={props.expanded ? -1 : 0}
         onPointerEnter={() => {
           if (!props.expanded) prepareAppHaptics()
@@ -637,8 +659,8 @@ function WorkspacePanelComponent(props: {
       <button
         type="button"
         className="workspace-panel__close"
-        aria-label={bottom ? 'Close bottom panel' : 'Hide right panel'}
-        title={bottom ? undefined : 'Hide panel'}
+        aria-label={bottom ? t('workspace.panel.closeBottom') : t('workspace.panel.hideRight')}
+        title={bottom ? undefined : t('workspace.panel.hide')}
         onClick={bottom ? closeTool : hidePanel}
       >
         <X size={16} aria-hidden />
@@ -647,7 +669,7 @@ function WorkspacePanelComponent(props: {
         // Shown only in the narrow layout, where the open panel covers the chat.
         <button type="button" className="workspace-panel__back" onClick={hidePanel}>
           <ArrowLeft size={14} aria-hidden />
-          <span>Back to chat</span>
+          <span>{t('workspace.panel.back')}</span>
         </button>
       )}
       <WorkspaceTabs
@@ -668,7 +690,7 @@ function WorkspacePanelComponent(props: {
         }
       >
         <Menu
-          label="Add workspace tab"
+          label={t('workspace.panel.addTab')}
           drop={bottom ? 'up' : 'down'}
           align="left"
           triggerClassName="workspace-tabs__add-button"
@@ -679,7 +701,7 @@ function WorkspacePanelComponent(props: {
               {TOOLS.map((item) => (
                 <MenuItem
                   key={item.kind}
-                  title={item.title}
+                  title={t(item.title)}
                   icon={<item.Icon size={15} aria-hidden />}
                   onClick={() => {
                     close()
@@ -718,6 +740,7 @@ function WorkspacePanelComponent(props: {
                   imagesSupported={props.imagesSupported}
                   onAnnotationDraft={props.onAnnotationDraft}
                   browserAgent={tab.id === AGENT_BROWSER_TAB_ID ? agentLink : undefined}
+                  fileOpenRequest={tab.id === filesTarget?.tabId ? filesTarget : undefined}
                   onBrowserPage={updateBrowserPage}
                   onCloseTab={closeTabByShortcut}
                   onClose={() => closeTab(tab.id)}
@@ -773,18 +796,21 @@ function WorkspaceToolSurface(props: {
   browserNavigation?: BrowserNavigationRequest | undefined
   /** Set on the chat's agent tab: its commands, its bar and Stop. */
   browserAgent?: AgentBrowserLink | undefined
+  /** A file the chat cited, for the Files tab that is to open it. */
+  fileOpenRequest?: WorkspaceFileOpenRequest | undefined
   onBrowserPage: (tabId: string, page: BrowserPageInfo) => void
   /** Ctrl+W in a Browser tab. Stable, so a memoized Browser surface keeps its props. */
   onCloseTab: (tabId: string) => void
   onClose: () => void
 }) {
+  const { t } = useI18n()
   if (props.tab.kind === 'provider-login') {
     return (
       <div className="workspace-provider-login">
         <AttachedProviderTerminal
           transport={props.transport}
           installKey={props.tab.installKey}
-          ariaLabel={`${props.tab.title} terminal`}
+          ariaLabel={t('workspace.panel.providerTerminal', { title: props.tab.title })}
           profile="workspace"
         />
       </div>
@@ -841,6 +867,7 @@ function WorkspaceToolSurface(props: {
         projectPath={props.projectPath}
         projectName={props.projectName}
         threadId={props.threadId}
+        openRequest={props.fileOpenRequest}
       />
     )
   }
@@ -869,6 +896,7 @@ function WorkspaceToolSurface(props: {
 }
 
 function ProviderLoginCancel(props: { transport: Transport; installKey: string }) {
+  const { t } = useI18n()
   const login = useSyncExternalStore(subscribeInstalls, () => installState(props.installKey))
   const [error, setError] = useState<string>()
 
@@ -885,13 +913,14 @@ function ProviderLoginCancel(props: { transport: Transport; installKey: string }
     <div className="workspace-provider-login__actions">
       {error ? <RowIssue message={error} announce /> : null}
       <button type="button" disabled={login.canceling} onClick={cancel}>
-        {login.canceling ? 'Canceling…' : 'Cancel sign-in'}
+        {login.canceling ? t('workspace.panel.canceling') : t('workspace.panel.cancelSignIn')}
       </button>
     </div>
   )
 }
 
 function WorkspaceSelector({ onOpen }: { onOpen: (kind: WorkspaceTool) => void }) {
+  const { t } = useI18n()
   return (
     <div className="workspace-selector">
       <div className="workspace-selector__list">
@@ -900,7 +929,7 @@ function WorkspaceSelector({ onOpen }: { onOpen: (kind: WorkspaceTool) => void }
           return (
             <button type="button" key={tool.kind} onClick={() => onOpen(tool.kind)}>
               <Icon size={16} aria-hidden />
-              <span>{tool.title}</span>
+              <span>{t(tool.title)}</span>
             </button>
           )
         })}
@@ -910,8 +939,9 @@ function WorkspaceSelector({ onOpen }: { onOpen: (kind: WorkspaceTool) => void }
 }
 
 function WorkspaceLoading() {
+  const { t } = useI18n()
   return (
-    <SkeletonStatus label="Loading workspace tool" className="workspace-panel__loading">
+    <SkeletonStatus label={t('workspace.panel.loading')} className="workspace-panel__loading">
       <div className="workspace-panel__loading-bar">
         <Skeleton className="skeleton--icon" />
         <Skeleton width={128} height={9} />

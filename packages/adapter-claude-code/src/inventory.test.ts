@@ -20,7 +20,7 @@ const hints = {
 }
 
 describe('Claude Code commands', () => {
-  it('offers what the composer may run and hides what TasteCode owns', () => {
+  it('offers what the composer may run and hides what TUIFT Code owns', () => {
     const commands = mapClaudeCommands(capture.initializationResult.commands, hints)
     expect(commands.map((command) => command.name)).toEqual([
       'release-notes',
@@ -144,7 +144,7 @@ describe('Claude Code MCP servers', () => {
     ).toEqual([
       ['plugin:acme-docs:acme-docs', 'acme-docs', 'Plugin acme-docs', { state: 'starting' }],
       ['issue-tracker', undefined, 'Claude Code user settings', { state: 'stopped' }],
-      ['project-notes', undefined, 'Added by TasteCode', { state: 'ready' }],
+      ['project-notes', undefined, 'Added by TUIFT Code', { state: 'ready' }],
       ['claude.ai Claude Docs', 'Claude Docs', 'claude.ai connector', { state: 'starting' }],
       ['claude.ai Gmail', 'Gmail', 'claude.ai connector', { state: 'stopped' }],
     ])

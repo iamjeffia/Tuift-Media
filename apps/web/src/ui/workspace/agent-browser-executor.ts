@@ -6,6 +6,7 @@ import {
   type BrowserConsoleEntry,
   type BrowserResult,
 } from '@harness/contracts'
+import { translate } from '../../i18n/index.js'
 import { browserAddress } from './browser-url.js'
 
 /** The parts of an Electron <webview> the agent's commands use. */
@@ -16,7 +17,7 @@ export type AgentBrowserGuest = {
   /** Runs in the page's own world: what it returns is the page's word, which may lie. */
   executeJavaScript(code: string): Promise<unknown>
   /**
-   * Runs in a JavaScript world of TasteCode's own on the same page, where the page cannot replace
+   * Runs in a JavaScript world of TUIFT Code's own on the same page, where the page cannot replace
    * querySelector, property descriptors or labels. The field check and typing run here.
    */
   executeIsolated(code: string): Promise<unknown>
@@ -50,8 +51,8 @@ const SENSITIVE_FIELD_CHECK = `(element) => {
 }`
 
 const REFUSED_FIELD = {
-  password: 'TasteCode does not let an agent type into password or sign-in code fields.',
-  payment: 'TasteCode does not let an agent type into payment fields.',
+  password: 'TUIFT Code does not let an agent type into password or sign-in code fields.',
+  payment: 'TUIFT Code does not let an agent type into payment fields.',
   missing: 'No element matches that selector.',
 } as const
 
@@ -80,7 +81,8 @@ export async function runAgentBrowserCommand(
       case 'open':
       case 'navigate': {
         // The address bar's own rule: http(s), and plain http on this machine only.
-        const address = browserAddress(command.url)
+        // What the agent reads is not translated: it gets the refusal in English.
+        const address = browserAddress(command.url, (key) => translate('en', key))
         if (!address.url) return refuse(address.error ?? 'That is not an http or https page.')
         await guest.loadURL(address.url)
         return { commandId: command.commandId, ok: true, ...page() }
@@ -91,7 +93,7 @@ export async function runAgentBrowserCommand(
         return { commandId: command.commandId, ok: true, ...page(), png }
       }
       case 'click': {
-        // A DOM click from TasteCode's own world: native input events do not reach a guest
+        // A DOM click from TUIFT Code's own world: native input events do not reach a guest
         // whose window is in the background, which is where an agent often works.
         const target =
           command.selector === undefined

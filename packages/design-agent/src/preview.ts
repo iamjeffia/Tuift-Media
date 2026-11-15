@@ -39,25 +39,25 @@ function previewTarget(buildFiles: readonly string[]): string {
   const files = listed.length
     ? ` Build reported these files: ${listed.join(', ')}${buildFiles.length > listed.length ? `, and ${buildFiles.length - listed.length} more` : ''}.`
     : ''
-  return `Preview the page this Design run built.${files} Point the plan at the page that renders them: a static entry, or the command's url with that page's path (for example http://127.0.0.1:3000/portal.html). Do not preview another page the project also keeps, such as a legacy prototype or a demo, only because it is the root page or the default script. Follow the project's own instructions (AGENTS.md, CLAUDE.md, README) on which screens are current and how they are served; when they are served by a launcher TasteCode cannot run and are plain HTML, use a static plan with that page as its entry.`
+  return `Preview the page this Design run built.${files} Point the plan at the page that renders them: a static entry, or the command's url with that page's path (for example http://127.0.0.1:3000/portal.html). Do not preview another page the project also keeps, such as a legacy prototype or a demo, only because it is the root page or the default script. Follow the project's own instructions (AGENTS.md, CLAUDE.md, README) on which screens are current and how they are served; when they are served by a launcher TUIFT Code cannot run and are plain HTML, use a static plan with that page as its entry.`
 }
 
 export function designPreviewPrompt(buildFiles: readonly string[] = []): string {
-  return `You are running the Preview Setup phase of TasteCode Design Mode.
+  return `You are running the Preview Setup phase of TUIFT Code Design Mode.
 
 Inspect the implemented project's real package scripts and configuration. Choose the existing development or preview command that serves the built page on 127.0.0.1 with an explicit port. Do not install dependencies, start the server yourself, use a shell string, or choose a remote URL. The command is an executable name and args is its argv array. cwd is relative to the current workspace.
 
 ${previewTarget(buildFiles)}
 
-TasteCode automatically chooses another free port when the requested one is occupied and reports the actual preview URL. For package scripts, include the supported --port or -p option in args (and npm's -- separator); TasteCode updates that value and sets the PORT environment variable. A custom node server should read process.env.PORT. Do not hardcode the only usable port in a server script or require stopping another project's preview.
+TUIFT Code automatically chooses another free port when the requested one is occupied and reports the actual preview URL. For package scripts, include the supported --port or -p option in args (and npm's -- separator); TUIFT Code updates that value and sets the PORT environment variable. A custom node server should read process.env.PORT. Do not hardcode the only usable port in a server script or require stopping another project's preview.
 
 Match the project's package manager instead of copying the example: package-lock.json means npm, pnpm-lock.yaml means pnpm, yarn.lock means yarn, and bun.lock or bun.lockb means bun. When the project has no package-manager lockfile, prefer a static plan for plain HTML or the package manager already named by the project's scripts or packageManager field. Never invoke another package manager against an existing install because it may rewrite node_modules or stall Preview while reinstalling dependencies.
 
-For an existing app, use kind command. TasteCode executes only these commands: bun, node, npm, pnpm, yarn. Anything else — npx, python, deno, a path to a binary — is rejected. A package-manager command must run a script that exists in the workspace's package.json; a node command must point at a script file inside the workspace.
+For an existing app, use kind command. TUIFT Code executes only these commands: bun, node, npm, pnpm, yarn. Anything else — npx, python, deno, a path to a binary — is rejected. A package-manager command must run a script that exists in the workspace's package.json; a node command must point at a script file inside the workspace.
 
-For a static-file project with no existing preview script, use kind static and name its HTML entry file. TasteCode serves static projects itself. Do not create a server script or package manifest.
+For a static-file project with no existing preview script, use kind static and name its HTML entry file. TUIFT Code serves static projects itself. Do not create a server script or package manifest.
 
-Include one representative desktop viewport and one representative mobile viewport. Use readyPattern only when the command has a stable output fragment that indicates readiness. TasteCode will validate and execute this plan.
+Include one representative desktop viewport and one representative mobile viewport. Use readyPattern only when the command has a stable output fragment that indicates readiness. TUIFT Code will validate and execute this plan.
 
 ${PREVIEW_PROTOCOL}`
 }

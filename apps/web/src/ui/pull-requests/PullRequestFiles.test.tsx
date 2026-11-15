@@ -323,13 +323,13 @@ describe('PullRequestFiles', () => {
     ).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Comment on rendered line' }))
     const editor = await screen.findByPlaceholderText('Comment on this line')
-    fireEvent.change(editor, { target: { value: 'Inline note from TasteCode.' } })
+    fireEvent.change(editor, { target: { value: 'Inline note from TUIFT Code.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add comment' }))
 
     await waitFor(() =>
       expect(onAction).toHaveBeenCalledWith({
         type: 'inline_comment',
-        body: 'Inline note from TasteCode.',
+        body: 'Inline note from TUIFT Code.',
         commitId: 'head-oid',
         path: 'src/example.ts',
         line: 2,

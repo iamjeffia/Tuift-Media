@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { Language } from './i18n.js'
 import { ChatNotifier, type ChatNotifierHost } from './chat-notifier.js'
 
-function setup(options: { away?: boolean } = {}) {
+function setup(options: { away?: boolean; language?: Language } = {}) {
   let away = options.away ?? true
   const shown: Array<{ title: string; body: string; click: () => void; close: () => void }> = []
   const host = {
@@ -13,6 +14,7 @@ function setup(options: { away?: boolean } = {}) {
     }),
     setBadge: vi.fn(),
     openChat: vi.fn(),
+    language: () => options.language ?? 'en',
   } satisfies ChatNotifierHost
   const notifier = new ChatNotifier(host)
   return {
@@ -41,6 +43,15 @@ describe('ChatNotifier', () => {
       { title: 'Fix login', body: 'Needs your approval' },
     ])
     expect(host.setBadge).toHaveBeenLastCalledWith(1)
+  })
+
+  it('says what the chat needs in the interface language', () => {
+    const { notifier, shown } = setup({ language: 'pt-BR' })
+    notifier.report({ mode: 'needs-you', chats: [working('a', 'Corrigir login')] })
+    notifier.report({ mode: 'needs-you', chats: [waiting('a', 'approval', 'Corrigir login')] })
+    expect(shown.map(({ title, body }) => ({ title, body }))).toEqual([
+      { title: 'Corrigir login', body: 'Precisa da sua aprovação' },
+    ])
   })
 
   it('opens the chat when its notification is clicked', () => {

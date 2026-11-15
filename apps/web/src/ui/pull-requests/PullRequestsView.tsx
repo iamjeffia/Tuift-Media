@@ -24,6 +24,7 @@ import {
   IconX as X,
   type TablerIcon,
 } from '@tabler/icons-react'
+import { t as tNow, tp as tpNow, useI18n, type MessageKey } from '../../i18n/index.js'
 import type { Transport } from '../../transport.js'
 import { errorMessage as messageOf } from '../../boundary.js'
 import {
@@ -56,15 +57,15 @@ type PullRequestFilters = {
 
 const PULL_REQUEST_FILTER_CATEGORIES: ReadonlyArray<{
   value: PullRequestFilterCategory
-  label: string
+  label: MessageKey
   icon: TablerIcon
 }> = [
-  { value: 'status', label: 'State', icon: GitPullRequest },
-  { value: 'review', label: 'Review', icon: MessageSquareText },
-  { value: 'merge', label: 'Merge status', icon: GitMerge },
-  { value: 'repository', label: 'Repository', icon: FolderGit2 },
-  { value: 'author', label: 'Author', icon: UserRound },
-  { value: 'base', label: 'Base branch', icon: GitBranch },
+  { value: 'status', label: 'workspace.pr.list.category.status', icon: GitPullRequest },
+  { value: 'review', label: 'workspace.pr.list.category.review', icon: MessageSquareText },
+  { value: 'merge', label: 'workspace.pr.list.category.merge', icon: GitMerge },
+  { value: 'repository', label: 'workspace.pr.list.category.repository', icon: FolderGit2 },
+  { value: 'author', label: 'workspace.pr.list.category.author', icon: UserRound },
+  { value: 'base', label: 'workspace.pr.list.category.base', icon: GitBranch },
 ]
 
 const DEFAULT_PULL_REQUEST_FILTERS: PullRequestFilters = {
@@ -85,6 +86,7 @@ export function PullRequestsView(props: {
   onSetupTerminalOpen: (target: ProviderLoginTerminalTarget) => void
   setupRefreshRevision?: number | undefined
 }) {
+  const { t } = useI18n()
   const [result, setResult] = useState<PullRequestListResult>()
   const [error, setError] = useState<string>()
   const [loading, setLoading] = useState(true)
@@ -289,20 +291,20 @@ export function PullRequestsView(props: {
   return (
     <section
       className={selected ? 'pr-workspace' : 'pr-workspace is-unselected'}
-      aria-label="Pull requests"
+      aria-label={t('workspace.pr.list.title')}
     >
       <aside className="pr-list-pane">
         <header className="pr-list-head">
           <div className="pr-list-title-row">
             <div>
-              <h1>Pull requests</h1>
+              <h1>{t('workspace.pr.list.title')}</h1>
               <span>{result?.account.login ? `@${result.account.login}` : 'GitHub'}</span>
             </div>
             <button
               type="button"
               className="pr-icon-button"
-              aria-label="Refresh pull requests"
-              title="Refresh pull requests"
+              aria-label={t('workspace.pr.list.refresh')}
+              title={t('workspace.pr.list.refresh')}
               disabled={refreshing}
               onClick={() => void load(true)}
             >
@@ -310,7 +312,11 @@ export function PullRequestsView(props: {
             </button>
           </div>
 
-          <div className="pr-segment" role="tablist" aria-label="Pull request relationship">
+          <div
+            className="pr-segment"
+            role="tablist"
+            aria-label={t('workspace.pr.list.relationship')}
+          >
             {(['all', 'reviewing', 'authored'] as const).map((value) => (
               <button
                 key={value}
@@ -323,7 +329,7 @@ export function PullRequestsView(props: {
                   setPinnedKey(undefined)
                 }}
               >
-                {capitalize(value)}
+                {t(`workspace.pr.list.tab.${value}`)}
                 <span>{counts[value]}</span>
               </button>
             ))}
@@ -338,8 +344,8 @@ export function PullRequestsView(props: {
                   setQuery(event.target.value)
                   setPinnedKey(undefined)
                 }}
-                placeholder="Search pull requests"
-                aria-label="Search pull requests"
+                placeholder={t('workspace.pr.list.search')}
+                aria-label={t('workspace.pr.list.search')}
               />
             </label>
             <PullRequestFilterMenu
@@ -358,13 +364,13 @@ export function PullRequestsView(props: {
             <div className="pr-list-note is-error" role="alert">
               <span>{error}</span>
               <button type="button" onClick={() => void load(true)}>
-                Try again
+                {t('workspace.pr.tryAgain')}
               </button>
               <button
                 type="button"
                 className="pr-list-note-dismiss"
-                aria-label="Dismiss"
-                title="Dismiss"
+                aria-label={t('workspace.pr.list.dismiss')}
+                title={t('workspace.pr.list.dismiss')}
                 onClick={() => setError(undefined)}
               >
                 <X size={12} aria-hidden />
@@ -377,26 +383,26 @@ export function PullRequestsView(props: {
             <ListMessage
               role="alert"
               icon={<CircleAlert size={18} aria-hidden />}
-              title="Couldn't load pull requests"
+              title={t('workspace.pr.list.loadFailed')}
               detail={error}
-              action="Try again"
+              action={t('workspace.pr.tryAgain')}
               onAction={() => void load(true)}
             />
           ) : !result?.account.authenticated ? (
             <ListMessage
               icon={<GitPullRequest size={19} aria-hidden />}
-              title={result?.account.available ? 'Connect GitHub' : 'Install GitHub CLI'}
-              detail={
-                setupError ??
-                result?.account.error ??
-                'TasteCode uses your local GitHub CLI session and never reads its token.'
+              title={
+                result?.account.available
+                  ? t('workspace.pr.list.connect')
+                  : t('workspace.pr.list.install')
               }
+              detail={setupError ?? result?.account.error ?? t('workspace.pr.list.setupNote')}
               action={
                 setupStarting
-                  ? 'Starting…'
+                  ? t('workspace.pr.list.starting')
                   : result?.account.available
-                    ? 'Sign in'
-                    : 'Install GitHub CLI'
+                    ? t('workspace.pr.list.signIn')
+                    : t('workspace.pr.list.install')
               }
               actionDisabled={setupStarting}
               onAction={startGitHubSetup}
@@ -406,23 +412,23 @@ export function PullRequestsView(props: {
               icon={<Inbox size={19} aria-hidden />}
               title={
                 normalizedQuery || activeFilterCount > 0
-                  ? 'No matching pull requests'
-                  : 'No pull requests'
+                  ? t('workspace.pr.list.noMatch')
+                  : t('workspace.pr.list.none')
               }
               detail={
                 normalizedQuery
-                  ? 'Try a title, repository, author, branch, status, or pull-request number.'
+                  ? t('workspace.pr.list.noMatchQuery')
                   : activeFilterCount > 0
-                    ? 'Clear or change one of the active filters.'
+                    ? t('workspace.pr.list.noMatchFilters')
                     : filter === 'reviewing'
-                      ? 'Nothing is waiting for your review.'
-                      : 'Authored, review-requested, and reviewed pull requests will appear here.'
+                      ? t('workspace.pr.list.noneReviewing')
+                      : t('workspace.pr.list.noneAll')
               }
             />
           ) : (
             <>
               <PullRequestGroup
-                title={filter === 'all' ? undefined : capitalize(filter)}
+                title={filter === 'all' ? undefined : t(`workspace.pr.list.tab.${filter}`)}
                 items={visible}
                 selectedKey={selectedKey}
                 onSelect={setSelectedKey}
@@ -430,14 +436,12 @@ export function PullRequestsView(props: {
               {result.searchFailed ? (
                 <p className="pr-list-note">
                   {result.searchFailed === 'timeout'
-                    ? 'Some pull requests could not be loaded: GitHub did not answer in time.'
-                    : 'Some pull requests could not be loaded: a GitHub search failed.'}
+                    ? t('workspace.pr.list.searchTimeout')
+                    : t('workspace.pr.list.searchFailed')}
                 </p>
               ) : null}
               {result.truncated ? (
-                <p className="pr-list-note">
-                  GitHub capped one or more searches, so some older pull requests may be omitted.
-                </p>
+                <p className="pr-list-note">{t('workspace.pr.list.truncated')}</p>
               ) : null}
             </>
           )}
@@ -457,8 +461,8 @@ export function PullRequestsView(props: {
           <EmptyState
             className="pr-detail-empty"
             icon={<GitPullRequest aria-hidden />}
-            title="Select a pull request"
-            detail="Summary, files, review conversations, checks, and merge controls live here."
+            title={t('workspace.pr.list.select.title')}
+            detail={t('workspace.pr.list.select.detail')}
           />
         )}
       </div>
@@ -497,6 +501,7 @@ const PullRequestListRow = memo(function PullRequestListRow(props: {
   selected: boolean
   onSelect: (key: string) => void
 }) {
+  const { t } = useI18n()
   const key = pullRequestKey(props.item)
   const state = listStatus(props.item)
   const stateLabel = listStateLabel(props.item)
@@ -537,7 +542,10 @@ const PullRequestListRow = memo(function PullRequestListRow(props: {
       {props.item.headRefName ? (
         <span
           className="pr-list-stats"
-          aria-label={`${props.item.additions} additions and ${props.item.deletions} deletions`}
+          aria-label={t('workspace.pr.list.stats', {
+            additions: props.item.additions,
+            deletions: props.item.deletions,
+          })}
         >
           <span className="is-addition">+{formatCount(props.item.additions)}</span>
           <span className="is-deletion">−{formatCount(props.item.deletions)}</span>
@@ -552,6 +560,7 @@ function PullRequestFilterMenu(props: {
   items: PullRequestListItem[]
   onChange: (value: PullRequestFilters) => void
 }) {
+  const { t, tp } = useI18n()
   const [category, setCategory] = useState<PullRequestFilterCategory>()
   const activeCount = countActivePullRequestFilters(props.value)
   const selectedCategory = PULL_REQUEST_FILTER_CATEGORIES.find((entry) => entry.value === category)
@@ -564,14 +573,20 @@ function PullRequestFilterMenu(props: {
     <Menu
       align="right"
       drop="down"
-      label={`Filter pull requests: ${activeCount === 0 ? 'no active filters' : `${activeCount} active ${activeCount === 1 ? 'filter' : 'filters'}`}`}
+      label={
+        activeCount === 0
+          ? t('workspace.pr.list.filterLabel.none')
+          : tp('workspace.pr.list.filterLabel', activeCount)
+      }
       triggerClassName={`pr-list-filter${activeCount === 0 ? '' : ' is-active'}`}
-      panelLabel="Pull request filters"
+      panelLabel={t('workspace.pr.list.filterPanel')}
       panelClassName="pr-filter-menu"
       trigger={() => (
         <span>
           <ListFilter size={13} aria-hidden />
-          {activeCount === 0 ? 'Filters' : `${activeCount} active`}
+          {activeCount === 0
+            ? t('workspace.pr.list.filters')
+            : tp('workspace.pr.list.filtersActive', activeCount)}
         </span>
       )}
     >
@@ -580,8 +595,8 @@ function PullRequestFilterMenu(props: {
           {selectedCategory ? (
             <>
               <MenuItem
-                title="All filters"
-                detail={selectedCategory.label}
+                title={t('workspace.pr.list.allFilters')}
+                detail={t(selectedCategory.label)}
                 icon={<ChevronLeft size={13} aria-hidden />}
                 onClick={() => setCategory(undefined)}
               />
@@ -597,7 +612,7 @@ function PullRequestFilterMenu(props: {
                       <ListFilter size={14} aria-hidden />
                     )
                   }
-                  detail={`${option.count.toLocaleString()} pull requests`}
+                  detail={tp('workspace.pr.list.optionCount', option.count)}
                   active={option.selected}
                   onClick={() => {
                     props.onChange(option.next)
@@ -609,7 +624,7 @@ function PullRequestFilterMenu(props: {
           ) : (
             <>
               <div className="pr-filter-menu-head">
-                <strong>Filter by</strong>
+                <strong>{t('workspace.pr.list.filterBy')}</strong>
                 <button
                   type="button"
                   role="menuitem"
@@ -617,7 +632,7 @@ function PullRequestFilterMenu(props: {
                   onClick={() => props.onChange(DEFAULT_PULL_REQUEST_FILTERS)}
                 >
                   <RotateCcw size={12} aria-hidden />
-                  <span>Clear all</span>
+                  <span>{t('workspace.pr.list.clearAll')}</span>
                 </button>
               </div>
               {PULL_REQUEST_FILTER_CATEGORIES.map((entry) => {
@@ -626,7 +641,7 @@ function PullRequestFilterMenu(props: {
                 return (
                   <MenuItem
                     key={entry.value}
-                    title={entry.label}
+                    title={t(entry.label)}
                     icon={<CategoryIcon size={14} aria-hidden />}
                     detail={selection}
                     active={pullRequestFilterCategoryIsActive(entry.value, props.value)}
@@ -643,11 +658,12 @@ function PullRequestFilterMenu(props: {
 }
 
 function PullRequestListSkeleton() {
+  const { t } = useI18n()
   return (
     <div
       className="pr-list-skeleton skeleton-group"
       role="status"
-      aria-label="Loading pull requests"
+      aria-label={t('workspace.pr.list.loading')}
       aria-busy="true"
     >
       {[0, 1, 2, 3, 4, 5].map((index) => (
@@ -772,11 +788,11 @@ function listStatus(item: PullRequestListItem): string {
 }
 
 function listStateLabel(item: PullRequestListItem): string {
-  if (item.isDraft && item.state === 'CLOSED') return 'Closed draft'
-  if (item.isDraft) return 'Draft'
-  if (item.state === 'MERGED') return 'Merged'
-  if (item.state === 'CLOSED') return 'Closed'
-  return 'Open'
+  if (item.isDraft && item.state === 'CLOSED') return tNow('workspace.pr.state.closedDraft')
+  if (item.isDraft) return tNow('workspace.pr.state.draft')
+  if (item.state === 'MERGED') return tNow('workspace.pr.state.merged')
+  if (item.state === 'CLOSED') return tNow('workspace.pr.state.closed')
+  return tNow('workspace.pr.state.open')
 }
 
 function matchesPullRequestFilters(
@@ -825,9 +841,11 @@ function pullRequestFilterSelectionLabel(
   if (category === 'status') return statusFilterLabel(filters.status)
   if (category === 'review') return reviewFilterLabel(filters.review)
   if (category === 'merge') return mergeFilterLabel(filters.merge)
-  if (category === 'repository') return filters.repository ?? 'All repositories'
-  if (category === 'author') return filters.author ? `@${filters.author}` : 'Anyone'
-  return filters.base ?? 'All branches'
+  if (category === 'repository')
+    return filters.repository ?? tNow('workspace.pr.filter.repositories')
+  if (category === 'author')
+    return filters.author ? `@${filters.author}` : tNow('workspace.pr.filter.anyone')
+  return filters.base ?? tNow('workspace.pr.filter.branches')
 }
 
 function pullRequestFilterCategoryIsActive(
@@ -858,14 +876,14 @@ function pullRequestFilterOptions(
   if (category === 'status') {
     return (
       [
-        ['all', 'All states'],
-        ['open', 'Open'],
-        ['draft', 'Drafts'],
-        ['merged', 'Merged'],
-        ['closed', 'Closed'],
+        ['all', 'workspace.pr.filter.status.all'],
+        ['open', 'workspace.pr.filter.status.open'],
+        ['draft', 'workspace.pr.filter.status.draft'],
+        ['merged', 'workspace.pr.filter.status.merged'],
+        ['closed', 'workspace.pr.filter.status.closed'],
       ] as const
     ).map(([value, label]) =>
-      pullRequestFilterOption(items, label, value, filters.status === value, {
+      pullRequestFilterOption(items, tNow(label), value, filters.status === value, {
         ...filters,
         status: value,
       }),
@@ -874,14 +892,14 @@ function pullRequestFilterOptions(
   if (category === 'review') {
     return (
       [
-        ['all', 'Any review'],
-        ['required', 'Review required'],
-        ['approved', 'Approved'],
-        ['changes-requested', 'Changes requested'],
-        ['none', 'No decision'],
+        ['all', 'workspace.pr.filter.review.all'],
+        ['required', 'workspace.pr.filter.review.required'],
+        ['approved', 'workspace.pr.filter.review.approved'],
+        ['changes-requested', 'workspace.pr.filter.review.changes'],
+        ['none', 'workspace.pr.filter.review.none'],
       ] as const
     ).map(([value, label]) =>
-      pullRequestFilterOption(items, label, value, filters.review === value, {
+      pullRequestFilterOption(items, tNow(label), value, filters.review === value, {
         ...filters,
         review: value,
       }),
@@ -890,14 +908,14 @@ function pullRequestFilterOptions(
   if (category === 'merge') {
     return (
       [
-        ['all', 'Any merge status'],
-        ['ready', 'Ready to merge'],
-        ['conflicts', 'Conflicts'],
-        ['blocked', 'Blocked'],
-        ['behind', 'Behind base'],
+        ['all', 'workspace.pr.filter.merge.all'],
+        ['ready', 'workspace.pr.filter.merge.ready'],
+        ['conflicts', 'workspace.pr.filter.merge.conflicts'],
+        ['blocked', 'workspace.pr.filter.merge.blocked'],
+        ['behind', 'workspace.pr.filter.merge.behind'],
       ] as const
     ).map(([value, label]) =>
-      pullRequestFilterOption(items, label, value, filters.merge === value, {
+      pullRequestFilterOption(items, tNow(label), value, filters.merge === value, {
         ...filters,
         merge: value,
       }),
@@ -909,7 +927,7 @@ function pullRequestFilterOptions(
       filters.repository,
       { ...filters, repository: undefined },
       'repository',
-      'All repositories',
+      tNow('workspace.pr.filter.repositories'),
       (value) => value,
       (item) => item.repository,
       (value) => ({ ...filters, repository: value }),
@@ -921,7 +939,7 @@ function pullRequestFilterOptions(
       filters.author,
       { ...filters, author: undefined },
       'author',
-      'Anyone',
+      tNow('workspace.pr.filter.anyone'),
       (value) => `@${value}`,
       (item) => item.author.login,
       (value) => ({ ...filters, author: value }),
@@ -932,7 +950,7 @@ function pullRequestFilterOptions(
     filters.base,
     { ...filters, base: undefined },
     'base',
-    'All branches',
+    tNow('workspace.pr.filter.branches'),
     (value) => value,
     (item) => item.baseRefName,
     (value) => ({ ...filters, base: value }),
@@ -992,25 +1010,25 @@ function statusMatches(item: PullRequestListItem, filter: PullRequestStatusFilte
 }
 
 function statusFilterLabel(filter: PullRequestStatusFilter): string {
-  if (filter === 'all') return 'All states'
-  if (filter === 'draft') return 'Drafts'
-  return capitalize(filter)
+  if (filter === 'all') return tNow('workspace.pr.filter.status.all')
+  if (filter === 'draft') return tNow('workspace.pr.filter.status.draft')
+  return tNow(`workspace.pr.filter.status.${filter}`)
 }
 
 function reviewFilterLabel(filter: PullRequestReviewFilter): string {
-  if (filter === 'all') return 'Any review'
-  if (filter === 'required') return 'Review required'
-  if (filter === 'changes-requested') return 'Changes requested'
-  if (filter === 'none') return 'No decision'
-  return 'Approved'
+  if (filter === 'all') return tNow('workspace.pr.filter.review.all')
+  if (filter === 'required') return tNow('workspace.pr.filter.review.required')
+  if (filter === 'changes-requested') return tNow('workspace.pr.filter.review.changes')
+  if (filter === 'none') return tNow('workspace.pr.filter.review.none')
+  return tNow('workspace.pr.filter.review.approved')
 }
 
 function mergeFilterLabel(filter: PullRequestMergeFilter): string {
-  if (filter === 'all') return 'Any merge status'
-  if (filter === 'ready') return 'Ready to merge'
-  if (filter === 'conflicts') return 'Conflicts'
-  if (filter === 'behind') return 'Behind base'
-  return 'Blocked'
+  if (filter === 'all') return tNow('workspace.pr.filter.merge.all')
+  if (filter === 'ready') return tNow('workspace.pr.filter.merge.ready')
+  if (filter === 'conflicts') return tNow('workspace.pr.filter.merge.conflicts')
+  if (filter === 'behind') return tNow('workspace.pr.filter.merge.behind')
+  return tNow('workspace.pr.filter.merge.blocked')
 }
 
 function formatCount(value: number): string {
@@ -1024,17 +1042,13 @@ function formatCount(value: number): string {
 function relativeTime(value: string): string {
   const elapsed = Date.now() - Date.parse(value)
   const minutes = Math.max(0, Math.floor(elapsed / 60_000))
-  if (minutes < 1) return 'now'
-  if (minutes < 60) return `${minutes}m`
+  if (minutes < 1) return tNow('workspace.pr.time.now')
+  if (minutes < 60) return tNow('workspace.pr.time.minutes', { count: minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h`
+  if (hours < 24) return tNow('workspace.pr.time.hours', { count: hours })
   const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}d`
+  if (days < 30) return tNow('workspace.pr.time.days', { count: days })
   const months = Math.floor(days / 30)
-  if (months < 12) return `${months}mo`
-  return `${Math.floor(months / 12)}y`
-}
-
-function capitalize(value: string): string {
-  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`
+  if (months < 12) return tpNow('workspace.pr.time.months', months)
+  return tpNow('workspace.pr.time.years', Math.floor(months / 12))
 }

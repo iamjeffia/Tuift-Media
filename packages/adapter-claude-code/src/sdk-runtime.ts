@@ -52,7 +52,7 @@ export const createClaudeQuery: ClaudeQueryFactory = (input) => query(input)
 export const createClaudeUsageQuery: ClaudeUsageQueryFactory = (input) => query(input)
 
 /**
- * Let the Agent SDK own its protocol while TasteCode owns process creation.
+ * Let the Agent SDK own its protocol while TUIFT Code owns process creation.
  * `spawnCli` is the cross-platform boundary for npm `.cmd` launchers, and a
  * custom harness can replace it without losing its fixed arguments or env.
  */

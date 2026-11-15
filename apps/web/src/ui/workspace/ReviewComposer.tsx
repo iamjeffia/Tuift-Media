@@ -8,6 +8,7 @@ import {
   IconSparkles as Sparkles,
 } from '@tabler/icons-react'
 import { isMacOS } from '../../bridge.js'
+import { useI18n } from '../../i18n/index.js'
 import { shortcutLabel } from '../../shortcuts.js'
 import { IconMorph } from '../IconMorph.js'
 
@@ -48,6 +49,7 @@ export function ReviewCommitBox(props: {
   onCommit: () => void
   onCancel: () => void
 }) {
+  const { t, tp } = useI18n()
   const field = useFocusOnOpen<HTMLTextAreaElement>()
   const ready = props.message.trim().length > 0 && !props.disabled && !props.blocked
   const submit = () => {
@@ -57,7 +59,7 @@ export function ReviewCommitBox(props: {
   return (
     <form
       className="workspace-review__composer"
-      aria-label="Commit changes"
+      aria-label={t('workspace.reviewComposer.commit.label')}
       onSubmit={(event: FormEvent) => {
         event.preventDefault()
         submit()
@@ -67,8 +69,8 @@ export function ReviewCommitBox(props: {
         ref={field}
         className="workspace-review__field is-mono"
         value={props.message}
-        placeholder="Commit message"
-        aria-label="Commit message"
+        placeholder={t('workspace.reviewComposer.commit.message')}
+        aria-label={t('workspace.reviewComposer.commit.message')}
         spellCheck
         readOnly={props.generating}
         onChange={(event) => props.onMessageChange(event.target.value)}
@@ -78,8 +80,8 @@ export function ReviewCommitBox(props: {
         <button
           type="button"
           className="workspace-review__quiet"
-          aria-label="Draft commit message"
-          title="Draft a message from these changes with the background model"
+          aria-label={t('workspace.reviewComposer.commit.draftLabel')}
+          title={t('workspace.reviewComposer.commit.draftTitle')}
           disabled={props.generating || props.disabled}
           onClick={props.onGenerate}
         >
@@ -87,13 +89,13 @@ export function ReviewCommitBox(props: {
             <Sparkles size={14} aria-hidden />
             <LoaderCircle className="spinner" size={14} aria-hidden />
           </IconMorph>
-          <span>Draft</span>
+          <span>{t('workspace.reviewComposer.commit.draft')}</span>
         </button>
         <button
           type="button"
           className="workspace-review__quiet is-icon"
-          aria-label="Copy commit message"
-          title="Copy commit message"
+          aria-label={t('workspace.reviewComposer.commit.copy')}
+          title={t('workspace.reviewComposer.commit.copy')}
           disabled={!props.message}
           onClick={props.onCopy}
         >
@@ -104,16 +106,18 @@ export function ReviewCommitBox(props: {
         </button>
         <span className="workspace-review__composer-spacer" />
         <button type="button" className="ghost" onClick={props.onCancel}>
-          Cancel
+          {t('workspace.reviewComposer.cancel')}
         </button>
         <button
           type="submit"
           className="btn workspace-review__submit"
           disabled={!ready}
-          title={props.blocked ?? `Commit (${SUBMIT_KEY})`}
+          title={
+            props.blocked ?? t('workspace.reviewComposer.commit.shortcut', { key: SUBMIT_KEY })
+          }
         >
           {props.committing ? <LoaderCircle className="spinner" size={14} aria-hidden /> : null}
-          Commit {props.fileCount} {props.fileCount === 1 ? 'file' : 'files'}
+          {tp('workspace.reviewComposer.commit.files', props.fileCount)}
         </button>
       </div>
     </form>
@@ -132,6 +136,7 @@ export function ReviewPullRequestBox(props: {
   onCreate: (input: { title: string; body: string; draft: boolean }) => void
   onCancel: () => void
 }) {
+  const { t } = useI18n()
   const [title, setTitle] = useState(props.initialTitle)
   const [body, setBody] = useState(props.initialBody)
   const [draft, setDraft] = useState(false)
@@ -145,7 +150,7 @@ export function ReviewPullRequestBox(props: {
   return (
     <form
       className="workspace-review__composer"
-      aria-label="Create pull request"
+      aria-label={t('workspace.reviewComposer.pr.label')}
       onSubmit={(event: FormEvent) => {
         event.preventDefault()
         submit()
@@ -155,23 +160,23 @@ export function ReviewPullRequestBox(props: {
         <GitPullRequest size={14} aria-hidden />
         <strong title={props.branch}>{props.branch}</strong>
         <ArrowRight size={13} aria-hidden />
-        <strong>{props.base ?? 'default branch'}</strong>
+        <strong>{props.base ?? t('workspace.reviewComposer.pr.defaultBranch')}</strong>
       </div>
       <input
         ref={field}
         className="workspace-review__field"
         value={title}
         maxLength={256}
-        placeholder="Title"
-        aria-label="Pull request title"
+        placeholder={t('workspace.reviewComposer.pr.title')}
+        aria-label={t('workspace.reviewComposer.pr.titleLabel')}
         onChange={(event) => setTitle(event.target.value)}
         onKeyDown={keys}
       />
       <textarea
         className="workspace-review__field is-body"
         value={body}
-        placeholder="Description (optional)"
-        aria-label="Pull request description"
+        placeholder={t('workspace.reviewComposer.pr.description')}
+        aria-label={t('workspace.reviewComposer.pr.descriptionLabel')}
         onChange={(event) => setBody(event.target.value)}
         onKeyDown={keys}
       />
@@ -182,20 +187,22 @@ export function ReviewPullRequestBox(props: {
             checked={draft}
             onChange={(event) => setDraft(event.target.checked)}
           />
-          Draft
+          {t('workspace.reviewComposer.pr.draft')}
         </label>
         <span className="workspace-review__composer-spacer" />
         <button type="button" className="ghost" onClick={props.onCancel}>
-          Cancel
+          {t('workspace.reviewComposer.cancel')}
         </button>
         <button
           type="submit"
           className="btn workspace-review__submit"
           disabled={!ready}
-          title={props.blocked ?? `Create pull request (${SUBMIT_KEY})`}
+          title={props.blocked ?? t('workspace.reviewComposer.pr.shortcut', { key: SUBMIT_KEY })}
         >
           {props.creating ? <LoaderCircle className="spinner" size={14} aria-hidden /> : null}
-          {draft ? 'Create draft' : 'Create pull request'}
+          {draft
+            ? t('workspace.reviewComposer.pr.createDraft')
+            : t('workspace.reviewComposer.pr.label')}
         </button>
       </div>
     </form>

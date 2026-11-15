@@ -788,7 +788,7 @@ describe('one-shot provider turn options', () => {
     ).toEqual(['agent', '--model', 'grok-4.6', '--reasoning-effort', 'xhigh', 'stdio'])
   })
 
-  it('resumes Grok with separate TasteCode and provider session identities', async () => {
+  it('resumes Grok with separate TUIFT Code and provider session identities', async () => {
     const runtime = providerRuntime(
       'grok',
       () => {},

@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { IconArrowLeft as ArrowLeft } from '@tabler/icons-react'
+import { useI18n } from '../../i18n/index.js'
 import { EmptyState } from '../EmptyState.js'
 import { NoticeBody } from '../Notice.js'
 import { Skeleton, SkeletonStatus } from '../Skeleton.js'
@@ -49,6 +50,7 @@ export function SettingsPage(props: {
   back?: SettingsBack | undefined
   children: ReactNode
 }) {
+  const { t } = useI18n()
   const titleId = useId()
   const slot = useContext(SettingsBackSlot)
   const heading = useRef<HTMLHeadingElement>(null)
@@ -73,7 +75,7 @@ export function SettingsPage(props: {
     <button
       className="set-page__back"
       type="button"
-      aria-label={`Back to ${back.label}`}
+      aria-label={t('settings.layout.backTo', { label: back.label })}
       onClick={back.onBack}
     >
       <ArrowLeft size={14} aria-hidden />

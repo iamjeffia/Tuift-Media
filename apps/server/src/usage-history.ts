@@ -532,7 +532,7 @@ export class UsageHistoryService {
   /**
    * A provider's usage on accounts beyond its default one is split into a row
    * per account; with `account`, only that account's usage counts. A provider
-   * this build does not offer counts nowhere: its indexed files, TasteCode's
+   * this build does not offer counts nowhere: its indexed files, TUIFT Code's
    * own events for it and its source are all left out.
    */
   #figures(
@@ -1275,7 +1275,7 @@ async function discoverSource(
 }
 
 /**
- * Usage from TasteCode's own events, for each provider account without
+ * Usage from TUIFT Code's own events, for each provider account without
  * records of its own in the local archives, which count more.
  */
 function harnessUsageRecords(

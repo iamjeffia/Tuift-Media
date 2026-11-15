@@ -5,14 +5,14 @@ import react from '@vitejs/plugin-react'
 import { sharedGrammarPlugins } from './scripts/shared-grammars.js'
 import { shippedLanguageNames } from './src/ui/shiki-languages.js'
 
-const harnessServerUrl = process.env['VITE_HARNESS_SERVER_URL'] ?? 'ws://127.0.0.1:4311'
+const harnessServerUrl = process.env['VITE_HARNESS_SERVER_URL'] ?? 'ws://127.0.0.1:4317'
 const here = (relative: string) => fileURLToPath(new URL(relative, import.meta.url))
 const grammarPlugins = sharedGrammarPlugins(here('.'), shippedLanguageNames)
 
 /**
  * `pnpm sandbox` serves the design sandbox (sandbox.html) on the same config.
  * Its root URL goes to the sandbox too: index.html is the real app, which
- * would try to reach the local TasteCode server on port 4311.
+ * would try to reach the local TUIFT Code server on port 4317.
  */
 const sandboxRoot: Plugin = {
   name: 'harness-design-sandbox-root',
@@ -78,6 +78,8 @@ export default defineConfig({
   // complete grammar catalog into one multi-megabyte worker entry.
   worker: { format: 'es', plugins: () => [grammarPlugins.worker()] },
   test: {
+    // Every test starts in English; see the file for why.
+    setupFiles: ['./src/test-setup.ts'],
     // Vitest hands node_modules to Node untouched, which would let @pierre/diffs
     // reach the real `shiki` entry and silently bypass the alias under test.
     server: { deps: { inline: ['@pierre/diffs'] } },

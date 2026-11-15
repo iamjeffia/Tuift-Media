@@ -772,7 +772,7 @@ export function terminalEnvironment(
     ...environment,
     TERM: 'xterm-256color',
     COLORTERM: 'truecolor',
-    TERM_PROGRAM: 'TasteCode',
+    TERM_PROGRAM: 'TUIFT Code',
   }
   applyDesktopPath(env)
   return env

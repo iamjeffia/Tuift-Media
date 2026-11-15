@@ -6,6 +6,7 @@ import {
   IconSquare as Square,
   IconX as X,
 } from '@tabler/icons-react'
+import { useI18n } from '../../i18n/index.js'
 import { parseFeedbackCommand } from '../../feedback-command.js'
 import { parseSideChatCommand } from '../../side-chat-command.js'
 import {
@@ -104,6 +105,7 @@ export function WorkspaceSideChat(props: {
   startOptions: SideChatStartOptions
   promptRequest?: SideChatPromptRequest | undefined
 }) {
+  const { t } = useI18n()
   const [draft, setDraft] = useState('')
   const [draftAttachments, setDraftAttachments] = useState<string[]>([])
   const [uncertainSubmission, setUncertainSubmission] = useState<Submission>()
@@ -277,7 +279,7 @@ export function WorkspaceSideChat(props: {
     if (existing) return existing
     const parentThreadId = props.parentThreadId
     if (!parentThreadId || parentThreadId.startsWith('pending:')) {
-      throw new Error('Start the main chat before opening a side chat.')
+      throw new Error(t('workspace.sideChat.error.startMain'))
     }
 
     const generation = generationRef.current
@@ -295,7 +297,7 @@ export function WorkspaceSideChat(props: {
           if (!held) {
             void props.transport.request('sideChat.close', { threadId }).catch(() => undefined)
           }
-          throw new Error('Side chat was closed before it finished starting.')
+          throw new Error(t('workspace.sideChat.error.closedEarly'))
         }
         sideThreadIdRef.current = threadId
         setSideThreadId(threadId)
@@ -325,7 +327,7 @@ export function WorkspaceSideChat(props: {
       })
     startPromiseRef.current = pending
     return pending
-  }, [props.parentThreadId, props.startOptions, props.transport, finishHistory])
+  }, [props.parentThreadId, props.startOptions, props.transport, finishHistory, t])
 
   // Opening the tab starts its chat at once. Switching the main chat under an
   // open tab does not: each side chat is a provider process of its own (about
@@ -367,17 +369,17 @@ export function WorkspaceSideChat(props: {
         ((threadRef.current.running || uncertainSubmissionRef.current) && !retry)
       ) {
         if (!fromDraft) restoreDraft(rawText, attachments)
-        setError('Temporary chat is still working. Your message is ready when it finishes.')
+        setError(t('workspace.sideChat.error.busy'))
         return
       }
       if (parseSideChatCommand(text)) {
         if (!fromDraft) restoreDraft(rawText, attachments)
-        setError('You are already in a temporary chat. Nested temporary chats are not available.')
+        setError(t('workspace.sideChat.error.nested'))
         return
       }
       if (parseFeedbackCommand(text)) {
         if (!fromDraft) restoreDraft(rawText, attachments)
-        setError('Use /feedback in the main chat.')
+        setError(t('workspace.sideChat.error.feedback'))
         return
       }
 
@@ -434,9 +436,7 @@ export function WorkspaceSideChat(props: {
         if ((submitted && reason instanceof IndeterminateRequestError) || retry) {
           uncertainSubmissionRef.current = submission
           setUncertainSubmission(submission)
-          setError(
-            'Delivery is unconfirmed. The message may already be running. Retry safely to confirm without sending it twice.',
-          )
+          setError(t('workspace.sideChat.error.unconfirmed'))
           return
         }
         const next = removeOptimisticMessage(threadRef.current, clientSubmissionId)
@@ -461,6 +461,7 @@ export function WorkspaceSideChat(props: {
       props.transport,
       replaceThread,
       restoreDraft,
+      t,
     ],
   )
 
@@ -527,7 +528,7 @@ export function WorkspaceSideChat(props: {
   const answer = useCallback(
     async (id: string, answers: Record<string, string[]>) => {
       const threadId = sideThreadIdRef.current
-      if (!threadId) throw new Error('This temporary chat is no longer open.')
+      if (!threadId) throw new Error(t('workspace.sideChat.error.closed'))
       const generation = generationRef.current
       try {
         await props.transport.request('thread.respondToUserInput', {
@@ -541,15 +542,15 @@ export function WorkspaceSideChat(props: {
         throw reason
       }
     },
-    [props.transport],
+    [props.transport, t],
   )
 
   if (!props.parentThreadId) {
     return (
       <WorkspaceEmptyState
         kind="chat"
-        title="Start a chat first"
-        detail="Temporary chat uses the active conversation without interrupting it."
+        title={t('workspace.sideChat.noParent.title')}
+        detail={t('workspace.sideChat.noParent.detail')}
       />
     )
   }
@@ -581,7 +582,7 @@ export function WorkspaceSideChat(props: {
                   )
                 }
               >
-                Retry safely
+                {t('workspace.sideChat.retry')}
               </button>
             ) : null}
           </div>
@@ -598,7 +599,7 @@ export function WorkspaceSideChat(props: {
           />
         ) : loadingConversation ? (
           <SkeletonStatus
-            label="Starting temporary chat…"
+            label={t('workspace.sideChat.starting')}
             className="workspace-side-chat__skeleton"
           >
             <div aria-hidden>
@@ -608,21 +609,21 @@ export function WorkspaceSideChat(props: {
         ) : !hasConversation && !starting ? (
           <WorkspaceEmptyState
             kind="chat"
-            title="Start a temporary chat"
-            detail="It uses the current conversation as hidden context and is erased when this tab closes."
+            title={t('workspace.sideChat.empty.title')}
+            detail={t('workspace.sideChat.empty.detail')}
           />
         ) : null}
       </div>
 
       {draftAttachments.length > 0 ? (
-        <div className="chips" role="list" aria-label="Attached files">
+        <div className="chips" role="list" aria-label={t('workspace.sideChat.attached')}>
           {draftAttachments.map((path) => (
             <span className="chip chip--file" role="listitem" key={path} title={path}>
               <span className="chip__label">{path.split(/[\\/]/).at(-1)}</span>
               <button
                 className="chip__x"
                 type="button"
-                aria-label={`Remove ${path}`}
+                aria-label={t('workspace.sideChat.remove', { path })}
                 onClick={() =>
                   setDraftAttachments((current) => current.filter((value) => value !== path))
                 }
@@ -638,8 +639,10 @@ export function WorkspaceSideChat(props: {
           ref={textarea}
           rows={3}
           value={draft}
-          aria-label="Message temporary chat"
-          placeholder={starting ? 'Starting temporary chat…' : 'Do anything'}
+          aria-label={t('workspace.sideChat.message')}
+          placeholder={
+            starting ? t('workspace.sideChat.starting') : t('workspace.sideChat.placeholder')
+          }
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
             if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
@@ -649,7 +652,9 @@ export function WorkspaceSideChat(props: {
         />
         <button
           type="button"
-          aria-label={thread.running ? 'Stop temporary chat' : 'Send message'}
+          aria-label={
+            thread.running ? t('workspace.sideChat.stop') : t('workspace.common.sendMessage')
+          }
           disabled={
             thread.running
               ? !sideThreadId || stopping

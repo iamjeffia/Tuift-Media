@@ -8,7 +8,7 @@ import {
   decodeCurrentPeriodUsage,
 } from './limits.js'
 
-// Not captured from Cursor: TasteCode never reads a real sign-in, so these
+// Not captured from Cursor: TUIFT Code never reads a real sign-in, so these
 // bytes are encoded here from the field numbers and types in cursor-agent
 // 2026.07.23-e383d2b (index.js ~7682025, GetCurrentPeriodUsageResponse).
 function varint(value: bigint): number[] {

@@ -14,6 +14,7 @@ import { IconDice5 as Dice, IconRefresh as RefreshCw } from '@tabler/icons-react
 import type { Transport } from '../transport.js'
 import { useUsageHistory } from '../usage-history-state.js'
 import { providerPresentation } from '../provider-presentation.js'
+import { useI18n, type Language } from '../i18n/index.js'
 import { SourceIdentity } from './SourceIdentity.js'
 import {
   FALLBACK_PROFILE_NAME,
@@ -31,24 +32,28 @@ import { isComposingKey, isConfirmEnter } from '../shortcuts.js'
 import '../styles/profile-settings.css'
 
 const PROFILE_ACTIVITY_DAYS = 365
-const integer = new Intl.NumberFormat('en-US')
-const compact = new Intl.NumberFormat('en-US', {
-  notation: 'compact',
-  maximumFractionDigits: 1,
-})
-const percent = new Intl.NumberFormat('en-US', {
-  style: 'percent',
-  maximumFractionDigits: 0,
-})
-const month = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  timeZone: 'UTC',
-})
-const shortDate = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  timeZone: 'UTC',
-})
+
+/** The number and date formats of one interface language, built once and kept. */
+function createFormats(language: Language) {
+  const locale = language === 'pt-BR' ? 'pt-BR' : 'en-US'
+  return {
+    integer: new Intl.NumberFormat(locale),
+    compact: new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }),
+    percent: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }),
+    month: new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }),
+    shortDate: new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+  }
+}
+type Formats = ReturnType<typeof createFormats>
+const formatsByLanguage = new Map<Language, Formats>()
+function formatsFor(language: Language): Formats {
+  let formats = formatsByLanguage.get(language)
+  if (!formats) {
+    formats = createFormats(language)
+    formatsByLanguage.set(language, formats)
+  }
+  return formats
+}
 
 // Words to strike a seal from when experimenting: concrete, varied in
 // length and sound, so each roll looks clearly different.
@@ -134,6 +139,7 @@ export function ProfileSettings(props: {
   /** Shows the Usage tab, where the numbers behind the activity heatmap live. */
   onOpenUsage?: (() => void) | undefined
 }) {
+  const { t } = useI18n()
   const [imageError, setImageError] = useState<string>()
   // The photo last turned away from, so turning over brings it back this
   // session without choosing the file again.
@@ -222,11 +228,11 @@ export function ProfileSettings(props: {
     ? undefined
     : side === 'seal'
       ? seed
-        ? `Struck from \u201c${seed}\u201d`
-        : 'Struck from your name'
+        ? t('settings.profile.struckFromSeed', { seed })
+        : t('settings.profile.struckFromName')
       : photo
-        ? `Your photo · ${photoFacts(photo)}`
-        : 'PNG, JPEG or WebP up to 1 MB'
+        ? t('settings.profile.yourPhoto', { facts: photoFacts(photo) })
+        : t('settings.profile.photoHint')
 
   return (
     <div
@@ -258,7 +264,7 @@ export function ProfileSettings(props: {
       }}
     >
       <SettingsPage
-        title="Profile"
+        title={t('settings.profile.title')}
         actions={
           trying ? (
             <SealGuideToggle
@@ -281,7 +287,11 @@ export function ProfileSettings(props: {
               side={side}
               dropping={dropping}
               explain={guideOpen}
-              label={side === 'seal' ? 'Turn over for a photo' : 'Turn back to the seal'}
+              label={
+                side === 'seal'
+                  ? t('settings.profile.turnOverForPhoto')
+                  : t('settings.profile.turnBackToSeal')
+              }
               onTurn={side === 'seal' ? turnOver : turnBack}
             />
           </div>
@@ -292,14 +302,14 @@ export function ProfileSettings(props: {
               maxLength={64}
               spellCheck={false}
               autoComplete="off"
-              aria-label="Display name"
+              aria-label={t('settings.profile.displayName')}
               value={props.identity?.displayName ?? ''}
               placeholder={FALLBACK_PROFILE_NAME}
               onChange={(event) => props.onIdentityChange?.({ displayName: event.target.value })}
             />
             {trying ? (
               <p className="profile__facts profile__facts--trying">
-                <label htmlFor={trialId}>Struck from</label>
+                <label htmlFor={trialId}>{t('settings.profile.struckFrom')}</label>
                 <input
                   id={trialId}
                   className="profile__word"
@@ -316,8 +326,8 @@ export function ProfileSettings(props: {
                 <button
                   className="profile__roll"
                   type="button"
-                  aria-label="Another word"
-                  title="Another word"
+                  aria-label={t('settings.profile.anotherWord')}
+                  title={t('settings.profile.anotherWord')}
                   onClick={(event) => {
                     setTrial(rollWord(trial))
                     // The die tumbles a half turn with each roll.
@@ -339,7 +349,7 @@ export function ProfileSettings(props: {
                     {imageError}
                   </span>
                 ) : (
-                  <span>{dropping ? 'Drop to use this photo' : facts}</span>
+                  <span>{dropping ? t('settings.profile.dropToUse') : facts}</span>
                 )}
               </p>
             )}
@@ -347,30 +357,36 @@ export function ProfileSettings(props: {
               {trying ? (
                 <>
                   <button className="set-button" type="button" onClick={keepTrial}>
-                    Keep this seal
+                    {t('settings.profile.keepSeal')}
                   </button>
-                  <QuietAction onClick={() => setTrial(undefined)}>Cancel</QuietAction>
+                  <QuietAction onClick={() => setTrial(undefined)}>
+                    {t('settings.profile.cancel')}
+                  </QuietAction>
                 </>
               ) : side === 'seal' ? (
                 <>
                   <QuietAction onClick={turnOver}>
-                    {setAside ? 'Turn over to your photo' : 'Turn over for a photo'}
+                    {setAside
+                      ? t('settings.profile.turnOverToPhoto')
+                      : t('settings.profile.turnOverForPhoto')}
                   </QuietAction>
-                  <QuietAction onClick={() => setTrial(seed ?? '')}>Strike from a word</QuietAction>
+                  <QuietAction onClick={() => setTrial(seed ?? '')}>
+                    {t('settings.profile.strikeFromWord')}
+                  </QuietAction>
                   {seed ? (
                     <QuietAction
                       onClick={() => props.onIdentityChange?.({ avatarSeed: undefined })}
                     >
-                      Back to your name
+                      {t('settings.profile.backToName')}
                     </QuietAction>
                   ) : null}
                 </>
               ) : (
                 <>
                   <QuietAction onClick={() => fileInput.current?.click()}>
-                    {photo ? 'Replace' : 'Choose a photo'}
+                    {photo ? t('settings.profile.replace') : t('settings.profile.choosePhoto')}
                   </QuietAction>
-                  <QuietAction onClick={turnBack}>Turn back</QuietAction>
+                  <QuietAction onClick={turnBack}>{t('settings.profile.turnBack')}</QuietAction>
                 </>
               )}
             </p>
@@ -422,14 +438,16 @@ function QuietAction(props: { onClick: () => void; children: ReactNode }) {
  * shares. The numbers behind it live on Usage, which this links to.
  */
 function ProfileActivity(props: { transport: Transport; onOpenUsage?: (() => void) | undefined }) {
+  const { t, tp, language } = useI18n()
+  const { integer } = formatsFor(language)
   const { data, loading, error, refresh } = useUsageHistory(props.transport, 'all')
   const titleId = useId()
   const scanning = data?.scan.status === 'scanning'
   const indexingNotice = useIndexingNotice(data)
   const busy = loading || scanning
   const activity = useMemo(
-    () => (data ? buildActivityGrid(data.daily, data.endDate) : undefined),
-    [data],
+    () => (data ? buildActivityGrid(data.daily, data.endDate, formatsFor(language)) : undefined),
+    [data, language],
   )
   const activeDays = activity?.days.filter((day) => day.tokens > 0).length
 
@@ -441,12 +459,13 @@ function ProfileActivity(props: { transport: Transport; onOpenUsage?: (() => voi
       <div className="profile-section__head">
         <div className="profile-section__heading">
           <h2 className="profile-section__title" id={titleId}>
-            Local activity
+            {t('settings.profile.activity.title')}
           </h2>
           {activeDays !== undefined ? (
             <p className="profile-section__note">
-              {integer.format(activeDays)} {activeDays === 1 ? 'active day' : 'active days'} in the
-              last 12 months
+              {tp('settings.profile.activity.activeDays', activeDays, {
+                count: integer.format(activeDays),
+              })}
             </p>
           ) : null}
         </div>
@@ -457,14 +476,14 @@ function ProfileActivity(props: { transport: Transport; onOpenUsage?: (() => voi
               type="button"
               onClick={props.onOpenUsage}
             >
-              Open Usage
+              {t('settings.profile.activity.openUsage')}
             </button>
           ) : null}
           <button
             className="set-button set-button--quiet set-button--icon profile-activity__refresh"
             type="button"
-            aria-label="Refresh profile activity"
-            title="Refresh profile activity"
+            aria-label={t('settings.profile.activity.refresh')}
+            title={t('settings.profile.activity.refresh')}
             disabled={busy}
             onClick={refresh}
           >
@@ -475,15 +494,17 @@ function ProfileActivity(props: { transport: Transport; onOpenUsage?: (() => voi
 
       {indexingNotice && data ? (
         <SettingsNotice tone="progress">
-          Indexing local activity
           {data.scan.filesTotal > 0
-            ? ` · ${integer.format(data.scan.filesProcessed)} of ${integer.format(data.scan.filesTotal)} files`
-            : ' · discovering sessions'}
+            ? t('settings.profile.activity.indexingFiles', {
+                done: integer.format(data.scan.filesProcessed),
+                total: integer.format(data.scan.filesTotal),
+              })
+            : t('settings.profile.activity.indexingDiscovering')}
         </SettingsNotice>
       ) : null}
       {error && data ? (
         <SettingsNotice tone="error">
-          The refresh failed, so the last completed activity is still shown. {error}
+          {t('settings.profile.activity.refreshFailed', { error })}
         </SettingsNotice>
       ) : null}
       {!data && !loading ? (
@@ -491,11 +512,11 @@ function ProfileActivity(props: { transport: Transport; onOpenUsage?: (() => voi
           tone="error"
           action={
             <button className="set-button" type="button" onClick={refresh}>
-              Try again
+              {t('settings.profile.activity.tryAgain')}
             </button>
           }
         >
-          Local activity could not be loaded. {error}
+          {t('settings.profile.activity.loadFailed', { error: error ?? '' })}
         </SettingsNotice>
       ) : null}
 
@@ -503,7 +524,7 @@ function ProfileActivity(props: { transport: Transport; onOpenUsage?: (() => voi
         <ActivityHeatmap activity={activity} activeDays={activeDays} />
       ) : loading ? (
         <SkeletonStatus
-          label="Reading the local activity index…"
+          label={t('settings.profile.activity.reading')}
           className="profile-activity__skeleton"
         >
           <Skeleton className="profile-activity__skeleton-grid" />
@@ -530,6 +551,8 @@ function ActivityHeatmap(props: {
   activeDays: number
 }) {
   const { activity } = props
+  const { t, tp, language } = useI18n()
+  const { integer, shortDate, percent } = formatsFor(language)
   const [tooltip, setTooltip] = useState<ActivityTooltip>()
 
   const showTooltip = useCallback((element: HTMLElement, cell: ActivityCell) => {
@@ -550,7 +573,9 @@ function ActivityHeatmap(props: {
           <div
             className="profile-activity__heatmap"
             role="img"
-            aria-label={`${integer.format(props.activeDays)} active days in the last 12 months`}
+            aria-label={tp('settings.profile.activity.activeDays', props.activeDays, {
+              count: integer.format(props.activeDays),
+            })}
           >
             {activity.cells.map((cell, index) =>
               cell ? (
@@ -591,14 +616,16 @@ function ActivityHeatmap(props: {
           style={{ left: tooltip.x, top: tooltip.y }}
         >
           <p className="profile-activity__tooltip-title">
-            {formatTokens(tooltip.cell.tokens)} tokens on{' '}
-            {shortDate.format(dateFromKey(tooltip.cell.date))}
+            {t('settings.profile.activity.tokensOn', {
+              tokens: formatTokens(tooltip.cell.tokens, formatsFor(language)),
+              date: shortDate.format(dateFromKey(tooltip.cell.date)),
+            })}
           </p>
           {tooltip.cell.providers.length > 0 ? (
             <>
               <div className="profile-activity__tooltip-heading">
-                <strong>Usage by provider</strong>
-                <span>Tokens · share</span>
+                <strong>{t('settings.profile.activity.byProvider')}</strong>
+                <span>{t('settings.profile.activity.tokensShare')}</span>
               </div>
               <ul>
                 {tooltip.cell.providers.map((provider) => {
@@ -612,7 +639,7 @@ function ActivityHeatmap(props: {
                         />
                       </span>
                       <span className="profile-activity__tooltip-provider-value">
-                        <b>{formatTokens(provider.tokens)}</b>
+                        <b>{formatTokens(provider.tokens, formatsFor(language))}</b>
                         <small>{percent.format(share)}</small>
                       </span>
                     </li>
@@ -621,7 +648,9 @@ function ActivityHeatmap(props: {
               </ul>
             </>
           ) : (
-            <p className="profile-activity__tooltip-empty">No token records for this day.</p>
+            <p className="profile-activity__tooltip-empty">
+              {t('settings.profile.activity.noRecords')}
+            </p>
           )}
         </div>
       ) : null}
@@ -629,7 +658,7 @@ function ActivityHeatmap(props: {
   )
 }
 
-function buildActivityGrid(daily: UsageHistoryDay[], endDate: string) {
+function buildActivityGrid(daily: UsageHistoryDay[], endDate: string, formats: Formats) {
   const byDate = new Map(daily.map((day) => [day.date, day]))
   const days: ActivityCell[] = Array.from({ length: PROFILE_ACTIVITY_DAYS }, (_, index) => {
     const date = shiftDate(endDate, index - (PROFILE_ACTIVITY_DAYS - 1))
@@ -663,7 +692,7 @@ function buildActivityGrid(daily: UsageHistoryDay[], endDate: string) {
       if (months.length !== 1 || !partialStart) return
       months.pop()
     }
-    months.push({ column, text: month.format(dateFromKey(cell.date)) })
+    months.push({ column, text: formats.month.format(dateFromKey(cell.date)) })
     previousColumn = column
   })
 
@@ -681,8 +710,8 @@ function activityLevel(tokens: number, maximum: number): number {
   return Math.max(1, Math.min(4, Math.ceil((Math.log1p(tokens) / Math.log1p(maximum)) * 4)))
 }
 
-function formatTokens(value: number): string {
-  return value < 1_000 ? integer.format(Math.round(value)) : compact.format(value)
+function formatTokens(value: number, formats: Formats): string {
+  return value < 1_000 ? formats.integer.format(Math.round(value)) : formats.compact.format(value)
 }
 
 function weekday(value: string): number {

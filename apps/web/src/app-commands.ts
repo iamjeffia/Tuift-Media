@@ -14,7 +14,7 @@ import {
 } from '@tabler/icons-react'
 
 /**
- * A slash command TasteCode runs itself instead of sending it to the provider.
+ * A slash command TUIFT Code runs itself instead of sending it to the provider.
  * The composer catches it on send (`parseSideChatCommand`,
  * `parseFeedbackCommand`, `parseAppActionCommand`); this registry only puts it
  * in the "/" menu, ahead of the provider's commands and in place of any
@@ -40,15 +40,15 @@ const SIDE_CHAT_COMMAND = {
 
 const FEEDBACK_COMMAND = {
   name: 'feedback',
-  description: 'Send feedback to the TasteCode team',
+  description: 'Send feedback to the TUIFT Code team',
   argumentHint: '[details]',
   icon: IconMessage,
 } satisfies AppCommand
 
 /**
- * CLI commands that own state TasteCode keeps itself. A CLI's `/clear` or
- * `/model` would change a session TasteCode no longer matches, so the same
- * words run TasteCode's own action instead, whichever provider the chat uses.
+ * CLI commands that own state TUIFT Code keeps itself. A CLI's `/clear` or
+ * `/model` would change a session TUIFT Code no longer matches, so the same
+ * words run TUIFT Code's own action instead, whichever provider the chat uses.
  */
 const NEW_CHAT_COMMAND = {
   name: 'new',
@@ -73,7 +73,7 @@ const PERMISSIONS_COMMAND = {
 
 /**
  * Screens a CLI opens in its terminal (`/resume`, `/config`, `/mcp`, ...) and
- * cannot open through TasteCode. The same words open TasteCode's own screen
+ * cannot open through TUIFT Code. The same words open TUIFT Code's own screen
  * for it, whichever provider the chat uses.
  */
 export type AppScreen = 'resume' | 'settings' | 'mcp' | 'skills' | 'usage' | 'login'
@@ -126,7 +126,7 @@ function named(command: AppCommand, name: string): boolean {
   return command.name === name || (command.aliases?.includes(name) ?? false)
 }
 
-/** The icon of TasteCode's own command by any of its names, so its chip matches its menu row. */
+/** The icon of TUIFT Code's own command by any of its names, so its chip matches its menu row. */
 export function appCommandIcon(name: string): TablerIcon | undefined {
   const lowered = name.toLowerCase()
   return ALL_APP_COMMANDS.find((command) => named(command, lowered))?.icon

@@ -116,9 +116,9 @@ describe('feedback payload', () => {
     expect(JSON.parse(preview.payload)).toEqual({
       kind: 'bug',
       message:
-        'Codex stopped after the first tool call.\n\n---\nError shown in TasteCode (redacted):\nCodex exited unexpectedly: failed to read <path>: denied',
+        'Codex stopped after the first tool call.\n\n---\nError shown in TUIFT Code (redacted):\nCodex exited unexpectedly: failed to read <path>: denied',
       metadata: {
-        app: 'TasteCode',
+        app: 'TUIFT Code',
         app_version: '0.1.2',
         platform: 'Windows 10.0.26200 x64',
         source: 'Error report',
@@ -141,7 +141,7 @@ describe('feedback payload', () => {
       headers: {
         'content-type': 'application/json',
         'x-trecko-key': KEY,
-        'user-agent': 'TasteCode-Feedback',
+        'user-agent': 'TUIFT-Code-Feedback',
       },
     })
     expect(init?.signal).toBeInstanceOf(AbortSignal)
@@ -155,7 +155,7 @@ describe('feedback payload', () => {
     expect(payload).toEqual({
       kind: 'bug',
       message: 'Codex stopped after the first tool call.',
-      metadata: { app: 'TasteCode' },
+      metadata: { app: 'TUIFT Code' },
     })
   })
 
@@ -177,7 +177,7 @@ describe('feedback payload', () => {
   it('lets an attached error stand alone but refuses an empty report', async () => {
     const { service, fetch } = setup()
     const errorOnly = JSON.parse(service.preview(draft({ message: '   ' })).payload)
-    expect(errorOnly.message.startsWith('Error shown in TasteCode (redacted):\n')).toBe(true)
+    expect(errorOnly.message.startsWith('Error shown in TUIFT Code (redacted):\n')).toBe(true)
     expect(
       await service.submit(submission({ message: ' \n ', includeError: false })),
     ).toMatchObject({ ok: false, code: 'empty' })

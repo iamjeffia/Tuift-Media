@@ -627,6 +627,7 @@ export class DemoServer {
     }
     return {
       path: folder,
+      root: project.path,
       entries: [...entries.values()].sort((a, b) =>
         a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'directory' ? -1 : 1,
       ),
@@ -638,7 +639,7 @@ export class DemoServer {
       name: path.split('/').at(-1) ?? path,
       path,
       kind: file ? 'file' : 'directory',
-      size: file ? file.content.length : 0,
+      size: file ? (file.size ?? file.content.length) : 0,
       modifiedAt: this.#now() - DAY,
       restricted: false,
     }

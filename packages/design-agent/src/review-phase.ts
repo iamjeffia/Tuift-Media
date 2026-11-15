@@ -97,9 +97,9 @@ function designAppScreenReviewPrompt(
   suppliedReferenceCatalog: ReadonlyArray<{ id: string; file: string }>,
   direction: AppDirection,
 ): string {
-  return `You are running the visual Review phase of TasteCode Design Mode for an app screen.
+  return `You are running the visual Review phase of TUIFT Code Design Mode for an app screen.
 
-Inspect every supplied screenshot, and any user mockup listed below, with image-viewing tools. Judge the result as one working product interface built from the dealt app sheet, brand.json, page.json and the tasteskill app-screen rules, not as a marketing page. Screenshot DOM audits are objective TasteCode evidence: include repairs for their failures and never dismiss them from visual judgment. A screenshot whose capturedHeight is smaller than its documentHeight ends before the page does; judge only what it shows and never describe the omitted part as passing.
+Inspect every supplied screenshot, and any user mockup listed below, with image-viewing tools. Judge the result as one working product interface built from the dealt app sheet, brand.json, page.json and the tasteskill app-screen rules, not as a marketing page. Screenshot DOM audits are objective TUIFT Code evidence: include repairs for their failures and never dismiss them from visual judgment. A screenshot whose capturedHeight is smaller than its documentHeight ends before the page does; judge only what it shows and never describe the omitted part as passing.
 
 Answer the seven questions of the app-screen critique (§2.7) for every screenshot and report a finding for each failure. Then hold the screen against the house rules (§13) and the tells of generated dashboards (§14): report every banned item that is visibly present and every tell left in place, the sheet's move broken or applied where it carries no meaning, and a face that does not show on the first screen. Recompute only the totals, changes and repeated facts whose parts are all visible; use confidence "unknown" for what the screenshots cannot show.
 
@@ -165,9 +165,9 @@ export function designReviewPrompt(
     id: `user-reference-${index + 1}`,
     file: path.basename(filePath),
   }))
-  return `You are running the visual Review phase of TasteCode Design Mode.
+  return `You are running the visual Review phase of TUIFT Code Design Mode.
 
-Inspect every supplied screenshot and reference image with image-viewing tools. Screenshot paths are listed in <screenshots>; user mockups and internal direction images are listed separately below. Compare visible evidence against the primary reference for each section as well as the brief, brand system, page contract, section questions and evidence, composition rule, responsive transformations, and acceptance criteria. Review hierarchy, composition, spacing, typography, color roles, imagery, content fit, interaction affordance, responsive behavior, overflow, clipping, and visually observable accessibility failures. Flag component-demo assembly, cardification without discrete content, accidental responsive stacking, several primary focal points, or signature-device wallpaper when visible. Screenshot DOM audits are objective TasteCode evidence: include repairs for their failures and never dismiss them from visual judgment. A screenshot whose capturedHeight is smaller than its documentHeight ends before the page does; judge only what it shows and never describe the omitted part as passing.
+Inspect every supplied screenshot and reference image with image-viewing tools. Screenshot paths are listed in <screenshots>; user mockups and internal direction images are listed separately below. Compare visible evidence against the primary reference for each section as well as the brief, brand system, page contract, section questions and evidence, composition rule, responsive transformations, and acceptance criteria. Review hierarchy, composition, spacing, typography, color roles, imagery, content fit, interaction affordance, responsive behavior, overflow, clipping, and visually observable accessibility failures. Flag component-demo assembly, cardification without discrete content, accidental responsive stacking, several primary focal points, or signature-device wallpaper when visible. Screenshot DOM audits are objective TUIFT Code evidence: include repairs for their failures and never dismiss them from visual judgment. A screenshot whose capturedHeight is smaller than its documentHeight ends before the page does; judge only what it shows and never describe the omitted part as passing.
 
 For every visible section, compare its screenshot geometry first against referenceDirectionId, then its declared layoutFamily, layoutCases, content-specific layout, and viewport transformation. The reference must remain recognizably present in macro geometry, hierarchy, relative proportions, alignment, overlap, density, negative-space rhythm, media count and placement, and intended movement. Identity content, image subjects and styling change: every section must render in the page's one design language from brand.json (approved font families, palette, designTokens type scale, radius family, spacing scale, button, label, card and surface treatment), even where its reference looked different. Compare normalized heading and media boxes, column structure, section height proportions, line count, media count and crop, whitespace and overlaps against the reference; require repair when these drift without a concrete content, accessibility or responsive reason. Never require a section to copy its own reference's radii, heading size, typeface, label style or surface colors when that would break the page's one design language. Report a major finding when Build substitutes an unrelated default such as a centered heading with interchangeable cards, repeats the same composition in adjacent sections, loses the reference at a breakpoint, or adds a signature motif absent from the reference.
 
@@ -332,7 +332,7 @@ export function enforceDomAuditFindings(
   return {
     ...review,
     verdict: 'repair',
-    summary: `${review.summary} TasteCode DOM audit found ${h1Failures.length + targetFailures.length} blocking accessibility group${h1Failures.length + targetFailures.length === 1 ? '' : 's'}.`,
+    summary: `${review.summary} TUIFT Code DOM audit found ${h1Failures.length + targetFailures.length} blocking accessibility group${h1Failures.length + targetFailures.length === 1 ? '' : 's'}.`,
     findings,
   }
 }
@@ -398,7 +398,7 @@ ${appSheetGuidance(appDirection)}
 
 ${appScreenRules(['13'])}`
     : `Fix only the validated visual findings below. Inspect the existing implementation and every attached reference image. The approved referenceDirectionId and artifacts remain immutable during repair: restore their composition instead of inventing a replacement motif. Restore each section's reference geometry, but fix design-language findings through the shared tokens block: move the section onto the brand's font families, type scale, radius family, spacing scale, buttons, labels and surfaces, and never re-diverge a section toward its own reference's styling. Preserve unrelated user work and prefer the smallest shared correction that resolves each root cause across viewports. Remove invented SVG filler and off-reference card-edge rails; preserve borders and rules visible in the reference. Run relevant local checks. Do not start a preview server or expand the design direction.`
-  return `You are running repair attempt ${attempt} of ${limit} in TasteCode Design Mode.
+  return `You are running repair attempt ${attempt} of ${limit} in TUIFT Code Design Mode.
 
 ${scope}
 

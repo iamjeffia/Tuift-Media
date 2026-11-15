@@ -1,8 +1,10 @@
+import type { MessageKey } from '../../i18n/index.js'
+
 export type BrowserViewportId = 'fluid' | 'desktop' | 'tablet' | 'mobile'
 
 export type BrowserViewport = {
   id: BrowserViewportId
-  label: string
+  label: MessageKey
   width?: number | undefined
   height?: number | undefined
   deviceScaleFactor?: number | undefined
@@ -10,10 +12,10 @@ export type BrowserViewport = {
 }
 
 export const BROWSER_VIEWPORTS: readonly BrowserViewport[] = [
-  { id: 'fluid', label: 'Fit available space' },
+  { id: 'fluid', label: 'workspace.browser.viewport.fluid' },
   {
     id: 'desktop',
-    label: 'Desktop · 1280 × 800',
+    label: 'workspace.browser.viewport.desktop',
     width: 1280,
     height: 800,
     deviceScaleFactor: 1,
@@ -21,7 +23,7 @@ export const BROWSER_VIEWPORTS: readonly BrowserViewport[] = [
   },
   {
     id: 'tablet',
-    label: 'Tablet · 768 × 1024',
+    label: 'workspace.browser.viewport.tablet',
     width: 768,
     height: 1024,
     deviceScaleFactor: 2,
@@ -29,7 +31,7 @@ export const BROWSER_VIEWPORTS: readonly BrowserViewport[] = [
   },
   {
     id: 'mobile',
-    label: 'Mobile · 390 × 844',
+    label: 'workspace.browser.viewport.mobile',
     width: 390,
     height: 844,
     deviceScaleFactor: 3,

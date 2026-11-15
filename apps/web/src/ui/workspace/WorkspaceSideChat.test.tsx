@@ -58,7 +58,7 @@ describe('WorkspaceSideChat', () => {
         active
         parentThreadId="main-1"
         parentStatus="working"
-        projectName="TasteCode"
+        projectName="TUIFT Code"
         transport={transport}
         startOptions={{ model: 'model-1', effort: 'high', approval: 'ask' }}
         promptRequest={{

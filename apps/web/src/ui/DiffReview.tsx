@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { DiffDecision, DiffHunk, DiffLine, SessionDiff } from '@harness/contracts'
 import { IconCheck as Check, IconRefresh as RefreshCw, IconX as X } from '@tabler/icons-react'
+import { useI18n } from '../i18n/index.js'
 import type { Transport } from '../transport.js'
 import { SkeletonCode, SkeletonStatus } from './Skeleton.js'
 
@@ -21,6 +22,7 @@ export function DiffReview({
   /** Shown instead of the review when the chat has no isolated checkout. */
   fallback?: ReactNode | undefined
 }) {
+  const { t, tp } = useI18n()
   const [diff, setDiff] = useState<SessionDiff>()
   const [sharedCheckout, setSharedCheckout] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -75,7 +77,7 @@ export function DiffReview({
       const detail = message(cause)
       if (detail.includes('Refresh the diff')) {
         await refresh()
-        setStatus('The diff changed and was refreshed. Choose again.')
+        setStatus(t('workspace.diffReview.changed'))
       } else {
         setStatus(detail)
       }
@@ -92,7 +94,7 @@ export function DiffReview({
   if (!diff && !status) {
     if (!showSlowLoad) return null
     return (
-      <SkeletonStatus label="Loading review…" className="diff-review__skeleton">
+      <SkeletonStatus label={t('workspace.diffReview.loading')} className="diff-review__skeleton">
         <SkeletonCode lines={8} gutter />
       </SkeletonStatus>
     )
@@ -103,8 +105,8 @@ export function DiffReview({
       <div className="diff-review__toolbar">
         <span>
           {diff
-            ? `${diff.files.length} file${diff.files.length === 1 ? '' : 's'} in current snapshot`
-            : 'Review unavailable'}
+            ? tp('workspace.diffReview.snapshot', diff.files.length)
+            : t('workspace.diffReview.unavailable')}
         </span>
         <button
           className="diff__review"
@@ -112,7 +114,7 @@ export function DiffReview({
           disabled={busy}
           onClick={() => void refresh()}
         >
-          <RefreshCw size={13} aria-hidden /> Refresh
+          <RefreshCw size={13} aria-hidden /> {t('workspace.diffReview.refresh')}
         </button>
       </div>
       {status ? (
@@ -121,15 +123,25 @@ export function DiffReview({
         </p>
       ) : null}
       {diff?.files.length === 0 ? (
-        <p className="diff-review__status">No changed files remain.</p>
+        <p className="diff-review__status">{t('workspace.diffReview.none')}</p>
       ) : null}
       {diff?.files.map((file) => (
-        <section className="diff-file" key={file.path} aria-label={`Review ${file.path}`}>
+        <section
+          className="diff-file"
+          key={file.path}
+          aria-label={t('workspace.diffReview.file', { path: file.path })}
+        >
           <header className="diff-file__head">
             <strong>{file.path}</strong>
-            <span>{file.previousPath ? `${file.previousPath} → ${file.status}` : file.status}</span>
+            <span>
+              {file.previousPath
+                ? `${file.previousPath} → ${t(`workspace.diffReview.status.${file.status}`)}`
+                : t(`workspace.diffReview.status.${file.status}`)}
+            </span>
           </header>
-          {file.binary ? <p className="diff-review__status">Binary file</p> : null}
+          {file.binary ? (
+            <p className="diff-review__status">{t('workspace.diffReview.binary')}</p>
+          ) : null}
           {file.hunks.map((hunk) => (
             <Hunk
               key={hunk.id}
@@ -156,29 +168,33 @@ function Hunk({
   busy: boolean
   onDecision: (decision: DiffDecision) => void
 }) {
+  const { t } = useI18n()
   const highlights = wordHighlights(hunk.lines)
   return (
     <section className={`diff-hunk${hunk.decision ? ' is-reviewed' : ''}`}>
       <header className="diff-hunk__head">
         <code>{hunk.header}</code>
-        <div className="diff-decisions" aria-label={`Decision for ${hunk.header} in ${path}`}>
+        <div
+          className="diff-decisions"
+          aria-label={t('workspace.diffReview.decision', { header: hunk.header, path })}
+        >
           <button
             type="button"
             className={`diff__review${hunk.decision === 'accept' ? ' is-selected' : ''}`}
-            aria-label={`Accept ${hunk.header} in ${path}`}
+            aria-label={t('workspace.diffReview.acceptLabel', { header: hunk.header, path })}
             disabled={busy || hunk.decision === 'accept'}
             onClick={() => onDecision('accept')}
           >
-            <Check size={13} aria-hidden /> Accept
+            <Check size={13} aria-hidden /> {t('workspace.diffReview.accept')}
           </button>
           <button
             type="button"
             className={`diff__review${hunk.decision === 'reject' ? ' is-selected is-reject' : ''}`}
-            aria-label={`Reject ${hunk.header} in ${path}`}
+            aria-label={t('workspace.diffReview.rejectLabel', { header: hunk.header, path })}
             disabled={busy || hunk.decision === 'reject'}
             onClick={() => onDecision('reject')}
           >
-            <X size={13} aria-hidden /> Reject
+            <X size={13} aria-hidden /> {t('workspace.diffReview.reject')}
           </button>
         </div>
       </header>

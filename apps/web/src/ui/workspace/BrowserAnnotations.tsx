@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { savePastedFile } from '../../bridge.js'
+import { useI18n } from '../../i18n/index.js'
 import { browserCommentChipText } from '../composer-chips.js'
 import {
   browserCommentImageName,
@@ -115,6 +116,7 @@ export function BrowserAnnotations({
   onDraft: (draft: AnnotationDraft) => void
   onExit: () => void
 }) {
+  const { t, tp } = useI18n()
   const [pins, setPins] = useState<BrowserAnnotation[]>([])
   const [hover, setHover] = useState<AnnotationTarget>()
   const [boxes, setBoxes] = useState<ReadonlyMap<number, AnnotationBox | null>>(new Map())
@@ -358,16 +360,16 @@ export function BrowserAnnotations({
       : pins.length
     : 0
   const status = addFailed
-    ? 'Could not add these. They are still here.'
+    ? t('workspace.annotate.status.addFailed')
     : unreadable
-      ? 'Cannot read this page right now'
+      ? t('workspace.annotate.status.unreadable')
       : pins.length >= MAX_PINS
-        ? `${MAX_PINS} comments is the most for one round`
+        ? t('workspace.annotate.status.max', { max: MAX_PINS })
         : pins.length === 0
-          ? 'Click anything to comment'
+          ? t('workspace.annotate.status.click')
           : !imagesSupported
-            ? 'Text only: this model cannot take images'
-            : `${pins.length} ${pins.length === 1 ? 'comment' : 'comments'}`
+            ? t('workspace.annotate.status.textOnly')
+            : tp('workspace.annotate.status.count', pins.length)
 
   return (
     <>
@@ -375,7 +377,7 @@ export function BrowserAnnotations({
         ref={overlay}
         className="browser-annotations__overlay"
         tabIndex={-1}
-        aria-label="Annotate page"
+        aria-label={t('workspace.annotate.label')}
         data-busy={busy || undefined}
         onPointerMove={(event) => {
           pointer.current = toPoint(event.clientX, event.clientY)
@@ -436,7 +438,7 @@ export function BrowserAnnotations({
                 top: `clamp(13px, ${(box.y / viewport.height) * 100}%, calc(100% - 13px))`,
               }}
               title={pin.comment}
-              aria-label={`Comment ${index + 1}: ${pin.comment}`}
+              aria-label={t('workspace.annotate.pin', { number: index + 1, comment: pin.comment })}
               onClick={(event) => {
                 event.stopPropagation()
                 setEditing(pin)
@@ -466,8 +468,8 @@ export function BrowserAnnotations({
           <textarea
             maxLength={2000}
             rows={2}
-            placeholder="What should change?"
-            aria-label={`Comment ${editingIndex + 1}`}
+            placeholder={t('workspace.annotate.placeholder')}
+            aria-label={t('workspace.annotate.comment', { number: editingIndex + 1 })}
             value={editing.comment}
             onChange={(event) => setEditing({ ...editing, comment: event.target.value })}
             onKeyDown={(event) => {
@@ -494,20 +496,24 @@ export function BrowserAnnotations({
                   closeEditor()
                 }}
               >
-                Delete
+                {t('workspace.annotate.delete')}
               </button>
             ) : null}
             <button type="button" className="ghost" onClick={closeEditor}>
-              Cancel
+              {t('workspace.annotate.cancel')}
             </button>
             <button className="btn" disabled={!annotationCommentReady(editing.comment)}>
-              {editingExisting ? 'Save' : 'Comment'}
+              {editingExisting ? t('workspace.annotate.save') : t('workspace.annotate.add')}
             </button>
           </div>
         </form>
       ) : null}
 
-      <div className="browser-annotations__bar" role="group" aria-label="Page comments">
+      <div
+        className="browser-annotations__bar"
+        role="group"
+        aria-label={t('workspace.annotate.bar')}
+      >
         {pins.length > 0 ? (
           <ol className="browser-annotations__list">
             {pins.map((pin, index) => (
@@ -520,7 +526,9 @@ export function BrowserAnnotations({
                   <span className="browser-annotations__number">{index + 1}</span>
                   <span className="browser-annotations__comment">{pin.comment}</span>
                   {boxes.get(pin.number) === null ? (
-                    <span className="browser-annotations__gone">Element gone</span>
+                    <span className="browser-annotations__gone">
+                      {t('workspace.annotate.gone')}
+                    </span>
                   ) : null}
                 </button>
               </li>
@@ -530,7 +538,7 @@ export function BrowserAnnotations({
         <div className="browser-annotations__actions">
           <p role="status">{status}</p>
           <button type="button" className="ghost" onClick={onExit}>
-            Done
+            {t('workspace.annotate.done')}
           </button>
           {pins.length > 0 ? (
             <button
@@ -539,7 +547,7 @@ export function BrowserAnnotations({
               disabled={busy || Boolean(editing)}
               onClick={() => void addToChat()}
             >
-              Add to chat
+              {t('workspace.annotate.addToChat')}
             </button>
           ) : null}
         </div>

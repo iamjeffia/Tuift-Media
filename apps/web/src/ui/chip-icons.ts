@@ -101,7 +101,7 @@ function hasCommandIcon(name: string): name is keyof typeof COMMAND_ICONS {
 
 export function commandIcon(name: string): TablerIcon {
   const key = name.toLowerCase()
-  // TasteCode's own commands keep the icon their feature uses elsewhere.
+  // TUIFT Code's own commands keep the icon their feature uses elsewhere.
   const own = appCommandIcon(key)
   if (own) return own
   if (hasCommandIcon(key)) return COMMAND_ICONS[key]

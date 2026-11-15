@@ -20,11 +20,11 @@ figma.com and x.ai are the bar (in words: `layout-v4.md` section 1).
 `<skill>` is this folder. It needs Node 22+ and Chrome, Edge or Chromium (ffmpeg optional). Copy `<skill>/assets` into the project's
 `assets` and start from `assets/starter.html`.
 
-## In TasteCode: no picture library
+## In TUIFT Code: no picture library
 
-TasteCode ships this skill without its photo library and without the sample pictures of its demos
+TUIFT Code ships this skill without its photo library and without the sample pictures of its demos
 and hero templates. There are no default, library or stock images. Every picture on a page comes
-from the brief or the user's own files. In a Design mode run, it can also come from TasteCode's own
+from the brief or the user's own files. In a Design mode run, it can also come from TUIFT Code's own
 Asset phase. `scripts/photos.mjs` is switched off and says so. When this skill or a reference speaks
 of library frames, dealt photographs, the draft path or stand-in frames, use the user's own
 pictures. When there are none, the section's frame becomes a named slot for the client's file

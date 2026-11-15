@@ -221,7 +221,7 @@
 /* The working rail's own label already names the design phase; replacing the
    timer with a second copy of it was a relic from when the rail only knew
    "Working". */
-.shell:has(.composer__design.is-active) .aux--reasoning.aux--live,
+.shell:has(.composer__design.is-active:not(.composer__motion)) .aux--reasoning.aux--live,
 .stage__body:has(.brief-input) .activity--working {
   display: none;
 }

@@ -49,7 +49,7 @@ export type ProjectInventoryService = {
   watchPaths?: (projectPath: string) => InventoryWatchTarget[] | Promise<InventoryWatchTarget[]>
 }
 
-/** The provider's own servers, before TasteCode's project overrides. */
+/** The provider's own servers, before TUIFT Code's project overrides. */
 type McpList = { capabilities: McpCapabilities; servers: McpServer[]; loading?: boolean }
 type CommandList = ResultOf<'commands.list'>
 type SkillList = ResultOf<'skills.list'>
@@ -216,7 +216,7 @@ export class ProjectInventoryCache {
     return { capabilities, skills: value ?? [], errors: [] }
   }
 
-  /** A live answer about servers TasteCode added is wrong once that list changes. */
+  /** A live answer about servers TUIFT Code added is wrong once that list changes. */
   forgetLiveServers(projectPath: string): void {
     const entry = this.#entries.get(projectPath)
     if (entry?.servers?.live) entry.servers = undefined

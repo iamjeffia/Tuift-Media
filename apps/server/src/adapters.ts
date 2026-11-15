@@ -72,13 +72,13 @@ export type StartOptions = {
   mcpCredentials?: Record<string, string> | undefined
   /**
    * Server-owned, opaque provider resume identity. It is intentionally
-   * separate from the stable TasteCode thread id passed to `resume`.
+   * separate from the stable TUIFT Code thread id passed to `resume`.
    */
   providerSessionId?: string | undefined
   /** Opaque local state, validated only by the adapter that owns it. */
   resumeState?: unknown
   /**
-   * The folder of the skills that ship with TasteCode, laid out as a Claude
+   * The folder of the skills that ship with TUIFT Code, laid out as a Claude
    * Code plugin. Passed only to providers that declare `defaultSkillsPlugin`.
    */
   skillPlugin?: string | undefined
@@ -424,7 +424,7 @@ async function probeCustomHarnessProtocol(
         label,
         status: advertisesStreaming ? 'passed' : 'warning',
         detail: advertisesStreaming
-          ? 'The CLI advertises the stream-json transport TasteCode uses.'
+          ? 'The CLI advertises the stream-json transport TUIFT Code uses.'
           : 'The CLI runs, but its help does not advertise stream-json; the first turn may still fail.',
       }
     }
@@ -477,7 +477,7 @@ function modelProbeCheck(
     : {
         label,
         status: 'warning',
-        detail: `${success}, but no models were reported. TasteCode will use the provider default.`,
+        detail: `${success}, but no models were reported. TUIFT Code will use the provider default.`,
       }
 }
 
@@ -640,7 +640,7 @@ function grokRuntime(
       }
       if (!options.providerSessionId) {
         throw new Error(
-          'This Grok chat cannot resume because TasteCode restarted before Grok returned a native session id. Start a new Grok chat; the local history of this chat is still available.',
+          'This Grok chat cannot resume because TUIFT Code restarted before Grok returned a native session id. Start a new Grok chat; the local history of this chat is still available.',
         )
       }
       const { GrokAdapter } = await loadGrokAdapter()

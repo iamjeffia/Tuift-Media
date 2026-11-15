@@ -14,7 +14,7 @@ import {
 /**
  * `GET /command`, `/skill` and `/mcp?directory=` of opencode 1.18.13 serve,
  * sanitized: invented paths and skills, templates and skill bodies replaced
- * by markers that must never reach TasteCode.
+ * by markers that must never reach TUIFT Code.
  */
 const captured = JSON.parse(
   readFileSync(new URL('./fixtures/inventory-opencode-1.18.13.json', import.meta.url), 'utf8'),

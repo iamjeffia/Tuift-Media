@@ -90,9 +90,9 @@ describe('Grok native history', () => {
     },
   )
 
-  it('replays the first prompt as the user sent it, without TasteCode instructions', async () => {
+  it('replays the first prompt as the user sent it, without TUIFT Code instructions', async () => {
     const { source, directory } = await fixture()
-    const block = withInstructions('Read the README', 'Use TasteCode conventions.')
+    const block = withInstructions('Read the README', 'Use TUIFT Code conventions.')
     await save(directory, 'updates.jsonl', [
       // The CLI may split the prompt anywhere, the block included.
       update('user_message_chunk', { content: { type: 'text', text: block.slice(0, 30) } }, 1),
@@ -106,7 +106,7 @@ describe('Grok native history', () => {
     expect(user.map((item) => item.text)).toEqual(['Read the README'])
   })
 
-  it('replays chat-history prompts without TasteCode instructions too', async () => {
+  it('replays chat-history prompts without TUIFT Code instructions too', async () => {
     const { source, directory } = await fixture()
     await save(directory, 'chat_history.jsonl', [
       { type: 'user', content: withInstructions('hello', 'Be brief.'), prompt_index: 0 },

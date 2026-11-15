@@ -5,6 +5,7 @@ import {
   IconChevronLeft as ChevronLeft,
   IconSquare as Square,
 } from '@tabler/icons-react'
+import { useI18n } from '../../i18n/index.js'
 import { providerDisplayName } from '../../provider-presentation.js'
 import type { Transport } from '../../transport.js'
 import { SubagentStatus } from '../SubagentRow.js'
@@ -15,7 +16,7 @@ import { NativeSubagentTranscript } from './NativeSubagentTranscript.js'
 import { SubagentAvatar } from './SubagentAvatar.js'
 
 /**
- * One sub-agent, opened from the Agents tab. A sub-agent TasteCode started
+ * One sub-agent, opened from the Agents tab. A sub-agent TUIFT Code started
  * shows its own chat, read-only, where its approvals and questions can be
  * answered and its run stopped. An engine's own sub-agent shows its saved
  * transcript when available, otherwise its last snapshot.
@@ -28,6 +29,7 @@ export function AgentDetail(props: {
   subagentTranscript?: boolean | undefined
   onBack: () => void
 }) {
+  const { t } = useI18n()
   const { entry, transport } = props
   const { subagent } = entry
   const childId = subagent.threadId
@@ -46,7 +48,7 @@ export function AgentDetail(props: {
       .catch((error: unknown) =>
         setStop({
           pending: false,
-          error: error instanceof Error ? error.message : 'Could not stop it.',
+          error: error instanceof Error ? error.message : t('workspace.agentDetail.stopFailed'),
         }),
       )
   }
@@ -57,15 +59,17 @@ export function AgentDetail(props: {
         <button
           type="button"
           className="agent-detail__back"
-          aria-label="All subagents"
-          title="All subagents"
+          aria-label={t('workspace.agentDetail.all')}
+          title={t('workspace.agentDetail.all')}
           onClick={props.onBack}
         >
           <ChevronLeft size={14} aria-hidden />
         </button>
         <SubagentAvatar seed={entry.itemId} running={running} size={20} />
         <span className="agent-detail__title">
-          <span className="agent-detail__name">{subagent.name ?? 'Subagent'}</span>
+          <span className="agent-detail__name">
+            {subagent.name ?? t('workspace.agents.subagent')}
+          </span>
           {engine ? <span className="agent-detail__engine">{engine}</span> : null}
         </span>
         {running && childId ? (
@@ -76,7 +80,7 @@ export function AgentDetail(props: {
             onClick={stopRun}
           >
             <Square size={10} aria-hidden />
-            {stop.pending ? 'Stopping…' : 'Stop'}
+            {stop.pending ? t('workspace.agentDetail.stopping') : t('workspace.agentDetail.stop')}
           </button>
         ) : null}
       </header>
@@ -157,35 +161,36 @@ function SnapshotDetail({
   /** The engine saves its sub-agents' conversations, but this one's was not found. */
   transcriptSupported?: boolean
 }) {
+  const { t } = useI18n()
   const running = subagent.state === 'running'
-  // A TasteCode sub-agent gets its chat once it starts; one that never started has none.
+  // A TUIFT Code sub-agent gets its chat once it starts; one that never started has none.
   // A running native one may not have written its file yet.
   const note = subagent.provider
     ? running
-      ? 'Its transcript shows here once it starts.'
+      ? t('workspace.agentDetail.note.starting')
       : undefined
     : transcriptSupported
       ? running
         ? undefined
-        : "This subagent's conversation was not saved."
-      : 'Transcript not available for this engine yet'
+        : t('workspace.agentDetail.note.notSaved')
+      : t('workspace.agentDetail.note.unsupported')
   return (
     <div className="agent-detail__snapshot">
       {subagent.description ? (
         <section className="agent-detail__section">
-          <h4 className="agent-detail__label">Task</h4>
+          <h4 className="agent-detail__label">{t('workspace.agentDetail.task')}</h4>
           <p className="agent-detail__text">{subagent.description}</p>
         </section>
       ) : null}
       {running && subagent.lastTool ? (
         <section className="agent-detail__section">
-          <h4 className="agent-detail__label">Now</h4>
+          <h4 className="agent-detail__label">{t('workspace.agentDetail.now')}</h4>
           <p className="agent-detail__text">{subagent.lastTool}</p>
         </section>
       ) : null}
       {subagent.summary ? (
         <section className="agent-detail__section">
-          <h4 className="agent-detail__label">Report</h4>
+          <h4 className="agent-detail__label">{t('workspace.agentDetail.report')}</h4>
           <p className="agent-detail__text agent-detail__text--report">{subagent.summary}</p>
         </section>
       ) : null}
@@ -195,10 +200,11 @@ function SnapshotDetail({
 }
 
 /**
- * A follow-up for a sub-agent TasteCode started, written like a Side chat
+ * A follow-up for a sub-agent TUIFT Code started, written like a Side chat
  * message. While the sub-agent works the prompt waits behind its turn, as in any chat.
  */
 function ChildComposer({ threadId, transport }: { threadId: string; transport: Transport }) {
+  const { t } = useI18n()
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string>()
@@ -217,7 +223,7 @@ function ChildComposer({ threadId, transport }: { threadId: string; transport: T
       })
       .catch((reason: unknown) => {
         setDraft((current) => current || text)
-        setError(reason instanceof Error ? reason.message : 'Could not send it.')
+        setError(reason instanceof Error ? reason.message : t('workspace.agentDetail.sendFailed'))
       })
       .finally(() => setSending(false))
   }
@@ -233,8 +239,8 @@ function ChildComposer({ threadId, transport }: { threadId: string; transport: T
         <textarea
           rows={3}
           value={draft}
-          aria-label="Message subagent"
-          placeholder="Ask for follow-up changes"
+          aria-label={t('workspace.agentDetail.message')}
+          placeholder={t('workspace.agentDetail.placeholder')}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
             if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
@@ -244,7 +250,7 @@ function ChildComposer({ threadId, transport }: { threadId: string; transport: T
         />
         <button
           type="button"
-          aria-label="Send message"
+          aria-label={t('workspace.common.sendMessage')}
           disabled={!draft.trim() || sending}
           onClick={send}
         >

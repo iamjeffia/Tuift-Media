@@ -45,6 +45,7 @@ import { z } from 'zod'
 import type { TurnOptions } from './adapters.js'
 import { canonicalDataPath } from './data-lease.js'
 import type { HistoryCarry } from './history-page.js'
+import { boundItemEvent } from './item-output-bounds.js'
 import {
   historyIndexKeys,
   HISTORY_STATE_EVENT_TYPES,
@@ -130,7 +131,7 @@ export type StoredThread = {
   connectionId?: string | undefined
   /** The provider account this chat is pinned to. Absent means the default account. */
   accountId?: string | undefined
-  /** Opaque provider-owned resume identity. Never used as the TasteCode id. */
+  /** Opaque provider-owned resume identity. Never used as the TUIFT Code id. */
   providerSessionId?: string | undefined
   title: string
   pinned: boolean
@@ -294,7 +295,7 @@ type InterruptedThreadState = {
 }
 
 const RESTART_INTERRUPTION_MESSAGE =
-  'Turn interrupted: TasteCode restarted. Send a new message to continue.'
+  'Turn interrupted: TUIFT Code restarted. Send a new message to continue.'
 
 // v2 bounds indexed tool output; the rebuild shrinks rows written before the bound.
 const SEARCH_INDEX_VERSION = 'session_search_v2'
@@ -2055,7 +2056,7 @@ export class Store {
 
   /**
    * Saves a provider session as the thread's only history row. A Side chat's
-   * tombstone is keyed by its TasteCode id until the provider reports its own
+   * tombstone is keyed by its TUIFT Code id until the provider reports its own
    * session id, and `thread_id` is unique, so the new key replaces the old row.
    */
   replaceProviderHistory(
@@ -2162,7 +2163,9 @@ export class Store {
         threadId,
       )?.restored_at
       let turnAt = this.thread(threadId)?.createdAt ?? 0
-      for (const { key, event } of entries) {
+      for (const { key, event: imported } of entries) {
+        // Saved transcripts hold whatever a tool printed; bound it like a live one.
+        const event = boundItemEvent(imported)
         const payload = JSON.stringify(event)
         const existing = previous.get(key)
         if (event.type === 'turn.started') turnAt = event.turn.createdAt

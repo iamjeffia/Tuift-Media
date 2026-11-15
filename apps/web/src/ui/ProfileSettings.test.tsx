@@ -6,6 +6,7 @@ import type { Transport } from '../transport.js'
 import { TestTransport } from '../test-transport.js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CELL, generatedAvatar } from '../generated-avatar.js'
+import { setLanguage } from '../i18n/index.js'
 import { STRIKE_DELAY_MS } from './ProfileCoin.js'
 import { ProfileSettings } from './ProfileSettings.js'
 
@@ -491,7 +492,7 @@ describe('profile settings', () => {
               id: 'work-1a2b3c',
               provider: 'codex',
               label: 'Work',
-              home: 'C:\\TasteCode\\accounts\\codex\\work-1a2b3c',
+              home: 'C:\\TUIFT Code\\accounts\\codex\\work-1a2b3c',
               managed: true,
               email: 'work@example.com',
               plan: 'Pro',
@@ -539,6 +540,21 @@ describe('profile settings', () => {
       providers: [{ id: 'acp', displayName: 'ACP agents', installed: true, auth: 'unknown' }],
     })
     expect(within(accounts).getByText('No provider is set up yet')).toBeTruthy()
+  })
+
+  it('speaks Portuguese: the page, the coin actions and the accounts', () => {
+    setLanguage('pt-BR', { persist: false })
+    renderProfile({
+      onManageAccounts: vi.fn(),
+      providers: [{ id: 'acp', displayName: 'ACP agents', installed: true, auth: 'unknown' }],
+    })
+    expect(screen.getByRole('heading', { name: 'Perfil' })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: 'Nome de exibição' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Cunhar de uma palavra' })).toBeTruthy()
+    const accounts = screen.getByRole('region', { name: 'Contas' })
+    expect(within(accounts).getByRole('button', { name: 'Gerenciar' })).toBeTruthy()
+    expect(within(accounts).getByText('Nenhum provedor configurado ainda')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Atividade local' })).toBeTruthy()
   })
 
   it('shows the local identity without the account email or provider', async () => {

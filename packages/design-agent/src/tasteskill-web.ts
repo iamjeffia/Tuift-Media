@@ -81,13 +81,13 @@ export const WEBSITE_RULE_SECTIONS = {
   ],
 } as const satisfies Record<WebsitePhase, readonly (readonly [TasteskillChapter, string])[]>
 
-const ADAPTATIONS = `The text below is quoted unchanged from tasteskill v2.5.0, the anti-slop frontend skill (references/tasteskill-web/, MIT). Read it with these TasteCode adaptations, which win where they differ:
-1. No kit. TasteCode does not install or run the skill's kit: no system.css, starter.html, assets/ folder, deal.mjs, start.mjs, photos.mjs, icons.mjs, consistency.mjs, check.mjs or perf.mjs. Where the text names a kit class, token, file, script or dealer, apply the rule it states with the page's own markup and the approved brand system. Ids in brackets and braces name checks; Review and TasteCode's preview audit verify those rules instead.
+const ADAPTATIONS = `The text below is quoted unchanged from tasteskill v2.5.0, the anti-slop frontend skill (references/tasteskill-web/, MIT). Read it with these TUIFT Code adaptations, which win where they differ:
+1. No kit. TUIFT Code does not install or run the skill's kit: no system.css, starter.html, assets/ folder, deal.mjs, start.mjs, photos.mjs, icons.mjs, consistency.mjs, check.mjs or perf.mjs. Where the text names a kit class, token, file, script or dealer, apply the rule it states with the page's own markup and the approved brand system. Ids in brackets and braces name checks; Review and TUIFT Code's preview audit verify those rules instead.
 2. Composition and design language. The selected references decide each section's composition, and the brand system decides type, colour, radius and spacing. tasteskill's dealt heroes, palettes, pairings and section recipes do not apply. Its rules govern inside that composition: plain copy, one section per screen, equal edges, real pictures, no captions, contacts. Where a reference shows a section that breaks a quoted rule (two sections on one screen, a caption under a picture), keep its composition and follow the rule.
-3. No picture library. There are no stock, library, template or sample pictures. Pictures come from the brief, the user's files and TasteCode's Asset phase, which records each picture's source and licence; credits follow that record, never photos.mjs. Where a picture is missing, its frame stays a named slot for the client's file and the report lists it. Where the text says library frames, the draft path or stand-ins, read: the user's pictures, or a client slot.
+3. No picture library. There are no stock, library, template or sample pictures. Pictures come from the brief, the user's files and TUIFT Code's Asset phase, which records each picture's source and licence; credits follow that record, never photos.mjs. Where a picture is missing, its frame stays a named slot for the client's file and the report lists it. Where the text says library frames, the draft path or stand-ins, read: the user's pictures, or a client slot.
 4. Motion follows the website motion block in this prompt wherever the quoted text speaks of motion.`
 
-/** tasteskill's rules for one website phase, with TasteCode's adaptations first. */
+/** tasteskill's rules for one website phase, with TUIFT Code's adaptations first. */
 export function tasteskillWebsiteRules(phase: WebsitePhase): string {
   if (!TASTESKILL_WEBSITE_ENABLED) return ''
   const quoted = WEBSITE_RULE_SECTIONS[phase].map(

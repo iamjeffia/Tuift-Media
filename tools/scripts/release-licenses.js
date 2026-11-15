@@ -442,7 +442,7 @@ export async function auditInstalledProductionGraph(
 }
 
 function renderLicenseBundle(sections) {
-  const output = ['TasteCode third-party license texts', '']
+  const output = ['TUIFT Code third-party license texts', '']
   for (const { name, version, licenseTexts } of sections) {
     output.push('='.repeat(80), `${name}@${version}`, '')
     for (const { file, contents } of licenseTexts) {

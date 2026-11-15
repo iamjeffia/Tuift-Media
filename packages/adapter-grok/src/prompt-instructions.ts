@@ -1,9 +1,9 @@
 /**
  * The Grok CLI takes no separate system prompt, so a session's first prompt
- * carries TasteCode's instructions ahead of what the user typed. History
+ * carries TUIFT Code's instructions ahead of what the user typed. History
  * replays that prompt as the user's message; the block is taken off again
  * there, so the transcript shows what the user sent and matches the turn
- * TasteCode stored for it.
+ * TUIFT Code stored for it.
  */
 const OPEN = '<system-instructions>\n'
 const CLOSE = '\n</system-instructions>\n\n'

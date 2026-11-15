@@ -29,6 +29,7 @@ import {
   type ProviderRoster,
 } from '../provider-roster.js'
 import { DARK_THEME_QUERY, type ThemePreference } from '../theme.js'
+import { t, useI18n, type MessageKey } from '../i18n/index.js'
 import { GeneratedAvatar } from './GeneratedAvatar.js'
 import { OnboardingPreview, type PreviewAgent, type PreviewHint } from './OnboardingPreview.js'
 import { ProviderIcon } from './ProviderIcon.js'
@@ -38,13 +39,17 @@ import { catchIn, fly, flyText, morphInto, prefersReducedMotion } from './onboar
 import type { Transport } from '../transport.js'
 
 const STEPS = [
-  { id: 'welcome', label: 'Welcome', hint: undefined },
-  { id: 'name', label: 'Your name', hint: 'profile' },
-  { id: 'appearance', label: 'Appearance', hint: undefined },
-  { id: 'providers', label: 'Coding agents', hint: 'model' },
-  { id: 'subagents', label: 'Sub-agents', hint: undefined },
-  { id: 'project', label: 'First project', hint: undefined },
-] as const satisfies ReadonlyArray<{ id: string; label: string; hint: PreviewHint | undefined }>
+  { id: 'welcome', label: 'onboarding.step.welcome', hint: undefined },
+  { id: 'name', label: 'onboarding.step.name', hint: 'profile' },
+  { id: 'appearance', label: 'onboarding.step.appearance', hint: undefined },
+  { id: 'providers', label: 'onboarding.step.agents', hint: 'model' },
+  { id: 'subagents', label: 'onboarding.step.subagents', hint: undefined },
+  { id: 'project', label: 'onboarding.step.project', hint: undefined },
+] as const satisfies ReadonlyArray<{
+  id: string
+  label: MessageKey
+  hint: PreviewHint | undefined
+}>
 type StepId = (typeof STEPS)[number]['id']
 
 /** One provider or ACP agent the agents page offers, keyed as the roster keys it. */
@@ -58,31 +63,37 @@ type PickEntry = {
 }
 
 const THEME_CHOICES = [
-  { value: 'system', label: 'System', note: 'Matches your OS' },
-  { value: 'light', label: 'Light', note: 'Bright, high contrast' },
-  { value: 'dark', label: 'Dark', note: 'Dimmed, low glare' },
-] as const satisfies ReadonlyArray<{ value: ThemePreference; label: string; note: string }>
+  { value: 'system', label: 'onboarding.theme.system', note: 'onboarding.theme.systemNote' },
+  { value: 'light', label: 'onboarding.theme.light', note: 'onboarding.theme.lightNote' },
+  { value: 'dark', label: 'onboarding.theme.dark', note: 'onboarding.theme.darkNote' },
+] as const satisfies ReadonlyArray<{
+  value: ThemePreference
+  label: MessageKey
+  note: MessageKey
+}>
 
 const PREVIEW = '.onboarding__preview'
 
 const SUBAGENT_CHOICES = [
-  { allowed: true, label: 'Allow', note: 'Agents pick the best provider for each sub-agent.' },
-  {
-    allowed: false,
-    label: 'Only when I ask',
-    note: "Sub-agents use the chat's provider unless you name another one.",
-  },
-] as const
+  { allowed: true, label: 'onboarding.subagents.allow', note: 'onboarding.subagents.allowNote' },
+  { allowed: false, label: 'onboarding.subagents.ask', note: 'onboarding.subagents.askNote' },
+] as const satisfies ReadonlyArray<{ allowed: boolean; label: MessageKey; note: MessageKey }>
 
 type Readiness = { label: string; tone: 'ready' | 'pending' | 'checking' }
 
 /** One honest line per plan, derived from what the vendor binary told us. */
 export function providerReadiness(status: ProviderStatus | undefined): Readiness {
-  if (!status) return { label: 'Checking…', tone: 'checking' }
-  if (!status.installed) return { label: 'Not installed', tone: 'pending' }
-  if (status.problem) return { label: 'Needs attention', tone: 'pending' }
-  if (status.auth === 'unauthenticated') return { label: 'Sign in needed', tone: 'pending' }
-  return { label: status.auth === 'authenticated' ? 'Signed in' : 'Installed', tone: 'ready' }
+  if (!status) return { label: t('onboarding.readiness.checking'), tone: 'checking' }
+  if (!status.installed) return { label: t('onboarding.readiness.notInstalled'), tone: 'pending' }
+  if (status.problem) return { label: t('onboarding.readiness.attention'), tone: 'pending' }
+  if (status.auth === 'unauthenticated') {
+    return { label: t('onboarding.readiness.signIn'), tone: 'pending' }
+  }
+  const signedIn = status.auth === 'authenticated'
+  return {
+    label: t(signedIn ? 'onboarding.readiness.signedIn' : 'onboarding.readiness.installed'),
+    tone: 'ready',
+  }
 }
 
 const prefersDark = () => window.matchMedia?.(DARK_THEME_QUERY).matches ?? false
@@ -148,6 +159,7 @@ export function Onboarding(props: {
   /** Setup is no longer needed — a project arrived — so the page plays its way out. */
   finished?: boolean | undefined
 }) {
+  const { t, tp } = useI18n()
   const [index, setIndex] = useState(0)
   // The furthest page visited: the progress dots let the user jump back to
   // any page already seen.
@@ -226,7 +238,9 @@ export function Onboarding(props: {
     name: agent.name,
     maker: agent.maker,
     mark: agentMark(agent.id),
-    state: agent.installed ? 'Installed' : 'Not installed',
+    state: t(
+      agent.installed ? 'onboarding.readiness.installed' : 'onboarding.readiness.notInstalled',
+    ),
     installed: agent.installed,
   }))
   const offered = [...direct, ...agents]
@@ -532,13 +546,13 @@ export function Onboarding(props: {
 
       <header className="onboarding__bar">
         <div className="onboarding__brand">
-          <TasteCodeMark size={15} />
-          <span>TasteCode</span>
+          <TuiftMark size={15} />
+          <span>TUIFT Code</span>
         </div>
-        <ol className="onboarding__progress" aria-label="Setup progress">
+        <ol className="onboarding__progress" aria-label={t('onboarding.progress.label')}>
           {STEPS.map((entry, position) => {
             const current = position === index
-            const label = <span className="visually-hidden">{entry.label}</span>
+            const label = <span className="visually-hidden">{t(entry.label)}</span>
             return (
               <li
                 key={entry.id}
@@ -546,7 +560,7 @@ export function Onboarding(props: {
                 aria-current={current ? 'step' : undefined}
               >
                 {!current && position <= reached ? (
-                  <button type="button" data-label={entry.label} onClick={() => go(position)}>
+                  <button type="button" data-label={t(entry.label)} onClick={() => go(position)}>
                     {label}
                   </button>
                 ) : (
@@ -559,7 +573,7 @@ export function Onboarding(props: {
         <div className="onboarding__bar-end">
           {step !== 'project' ? (
             <button className="ghost onboarding__skip" type="button" onClick={dismiss}>
-              Skip setup
+              {t('onboarding.skip')}
             </button>
           ) : null}
         </div>
@@ -580,22 +594,19 @@ export function Onboarding(props: {
           >
             {step === 'welcome' ? (
               <>
-                <TasteCodeMark className="onboarding__mark" size={40} />
+                <TuiftMark className="onboarding__mark" size={40} />
                 <h1
                   className="onboarding__title onboarding__title--display"
                   id={titleId}
                   ref={setFocusTarget}
                   tabIndex={-1}
                 >
-                  <Words text="Welcome to TasteCode" />
+                  <Words text={t('onboarding.welcome.title')} />
                 </h1>
-                <p className="onboarding__lead">
-                  One window for the coding agents already on this machine. A few quick choices and
-                  you&rsquo;re in.
-                </p>
+                <p className="onboarding__lead">{t('onboarding.welcome.lead')}</p>
                 <footer className="onboarding__actions">
                   <PrimaryButton onClick={advance} pressed={enterHeld}>
-                    Get started
+                    {t('onboarding.welcome.start')}
                   </PrimaryButton>
                 </footer>
               </>
@@ -605,14 +616,12 @@ export function Onboarding(props: {
               <>
                 <AvatarMorph name={profileName} />
                 <h1 className="onboarding__title" id={titleId}>
-                  What should we call you?
+                  {t('onboarding.name.title')}
                 </h1>
-                <p className="onboarding__lead">
-                  Shown on your profile, with every provider. You can leave it empty.
-                </p>
+                <p className="onboarding__lead">{t('onboarding.name.lead')}</p>
                 <div className="onboarding__field">
                   <label className="visually-hidden" htmlFor={nameId}>
-                    Your name
+                    {t('onboarding.name.label')}
                   </label>
                   <input
                     id={nameId}
@@ -632,13 +641,11 @@ export function Onboarding(props: {
             {step === 'appearance' ? (
               <>
                 <h1 className="onboarding__title" id={titleId} ref={setFocusTarget} tabIndex={-1}>
-                  Choose your look
+                  {t('onboarding.appearance.title')}
                 </h1>
-                <p className="onboarding__lead">
-                  Applied as you choose. Fonts, accents and backdrops wait in Settings › Appearance.
-                </p>
+                <p className="onboarding__lead">{t('onboarding.appearance.lead')}</p>
                 <fieldset className="onboarding__themes">
-                  <legend className="visually-hidden">Theme</legend>
+                  <legend className="visually-hidden">{t('onboarding.appearance.legend')}</legend>
                   {THEME_CHOICES.map((choice) => {
                     const selected = selectedTheme === choice.value
                     return (
@@ -676,8 +683,8 @@ export function Onboarding(props: {
                             <Check size={11} stroke={3} />
                           </span>
                         </span>
-                        <span className="onboarding__theme-label">{choice.label}</span>
-                        <span className="onboarding__theme-note">{choice.note}</span>
+                        <span className="onboarding__theme-label">{t(choice.label)}</span>
+                        <span className="onboarding__theme-note">{t(choice.note)}</span>
                       </label>
                     )
                   })}
@@ -689,7 +696,7 @@ export function Onboarding(props: {
             {step === 'providers' ? (
               <>
                 <h1 className="onboarding__title" id={titleId} ref={setFocusTarget} tabIndex={-1}>
-                  Choose your coding agents
+                  {t('onboarding.agents.title')}
                 </h1>
                 {/* Counted from what is added, which is known from the first
                     frame, so the line stays put while the list loads. */}
@@ -697,8 +704,8 @@ export function Onboarding(props: {
                   {listState === 'failed'
                     ? props.providersError
                     : addedCount === 0
-                      ? 'Pick the ones you use. Nothing is added until you do.'
-                      : `${addedCount} added. Change this any time in Settings › Providers.`}
+                      ? t('onboarding.agents.empty')
+                      : tp('onboarding.agents.added', addedCount)}
                 </p>
                 <div className="onboarding__pick">
                   {listState === 'loading'
@@ -706,7 +713,7 @@ export function Onboarding(props: {
                         (group, index) => (
                           <PickGroupSkeleton
                             key={group.title}
-                            title={group.title}
+                            title={t(group.title)}
                             rows={group.rows}
                             announce={index === 0}
                           />
@@ -716,13 +723,13 @@ export function Onboarding(props: {
                   {listState === 'ready' ? (
                     <>
                       <PickGroup
-                        title="Providers"
+                        title={t('onboarding.agents.providers')}
                         entries={direct}
                         roster={props.providerRoster}
                         onToggle={toggleAgent}
                       />
                       <PickGroup
-                        title="ACP agents"
+                        title={t('onboarding.agents.acp')}
                         entries={agents}
                         roster={props.providerRoster}
                         onToggle={toggleAgent}
@@ -737,12 +744,9 @@ export function Onboarding(props: {
             {step === 'subagents' ? (
               <>
                 <h1 className="onboarding__title" id={titleId} ref={setFocusTarget} tabIndex={-1}>
-                  Sub-agents on other providers
+                  {t('onboarding.subagents.title')}
                 </h1>
-                <p className="onboarding__lead">
-                  TasteCode may use your other subscriptions for sub-agents when another model fits
-                  a task better. Change this any time in Settings › Models.
-                </p>
+                <p className="onboarding__lead">{t('onboarding.subagents.lead')}</p>
                 {subagentError ? (
                   <p className="onboarding__lead" role="alert">
                     {subagentError}
@@ -752,7 +756,7 @@ export function Onboarding(props: {
                   <ul
                     className="onboarding__picks onboarding__picks--notes"
                     role="radiogroup"
-                    aria-label="Sub-agents on other providers"
+                    aria-label={t('onboarding.subagents.title')}
                   >
                     {SUBAGENT_CHOICES.map((choice) => {
                       // Unanswered counts as not allowed, so that choice shows as the one in
@@ -772,9 +776,9 @@ export function Onboarding(props: {
                               checked={selected}
                               onChange={() => void chooseSubagents(choice.allowed)}
                             />
-                            <span className="onboarding__pick-name">{choice.label}</span>
+                            <span className="onboarding__pick-name">{t(choice.label)}</span>
                             <span className="onboarding__pick-wire" aria-hidden />
-                            <span className="onboarding__pick-state">{choice.note}</span>
+                            <span className="onboarding__pick-state">{t(choice.note)}</span>
                             <span className="onboarding__pick-socket" aria-hidden />
                           </label>
                         </li>
@@ -789,23 +793,18 @@ export function Onboarding(props: {
             {step === 'project' ? (
               <>
                 <h1 className="onboarding__title" id={titleId} ref={setFocusTarget} tabIndex={-1}>
-                  Open your first project
+                  {t('onboarding.project.title')}
                 </h1>
-                <p className="onboarding__lead">
-                  Pick the folder you&rsquo;re working in &mdash; a git repository or any plain
-                  directory.
-                </p>
+                <p className="onboarding__lead">{t('onboarding.project.lead')}</p>
                 <p className="onboarding__note">
                   <Lock size={15} aria-hidden />
-                  <span>
-                    Projects and chats stay on this machine. Sign-in stays with each provider.
-                  </span>
+                  <span>{t('onboarding.project.note')}</span>
                 </p>
                 <footer className="onboarding__actions onboarding__actions--split">
                   <BackButton onClick={() => go(index - 1)} />
                   <div className="onboarding__actions-end">
                     <button className="ghost onboarding__ghost" type="button" onClick={dismiss}>
-                      Skip for now
+                      {t('onboarding.project.skip')}
                     </button>
                     <PrimaryButton
                       onClick={props.onAddProject}
@@ -813,7 +812,7 @@ export function Onboarding(props: {
                       icon={<FolderOpen size={15} aria-hidden />}
                       pressed={enterHeld}
                     >
-                      Choose a folder
+                      {t('onboarding.project.choose')}
                     </PrimaryButton>
                   </div>
                 </footer>
@@ -919,16 +918,18 @@ function PickGroup(props: {
   )
 }
 
-type PickSkeletonGroup = { title: string; rows: number }
+type PickSkeletonGroup = { title: MessageKey; rows: number }
 // A release build lists five providers and no ACP library, so its answer
 // fills these lines in without moving the page.
-const RELEASE_PICK_SKELETON: readonly PickSkeletonGroup[] = [{ title: 'Providers', rows: 5 }]
+const RELEASE_PICK_SKELETON: readonly PickSkeletonGroup[] = [
+  { title: 'onboarding.agents.providers', rows: 5 },
+]
 // Every other build lists every provider and then the ACP library, which
 // runs past the list's tallest max height. Eight agent lines do as well, so
 // the list area already has the height the answer keeps.
 const FULL_PICK_SKELETON: readonly PickSkeletonGroup[] = [
-  { title: 'Providers', rows: DIRECT_PROVIDERS.length },
-  { title: 'ACP agents', rows: 8 },
+  { title: 'onboarding.agents.providers', rows: DIRECT_PROVIDERS.length },
+  { title: 'onboarding.agents.acp', rows: 8 },
 ]
 // Fixed widths: a placeholder that reshuffles between renders jitters.
 const PICK_SKELETON_NAME_WIDTHS = [52, 88, 40] as const
@@ -940,6 +941,7 @@ const PICK_SKELETON_STATE_WIDTHS = [48, 60, 40] as const
  * group announces the loading line in place of the list.
  */
 function PickGroupSkeleton(props: { title: string; rows: number; announce: boolean }) {
+  const { t } = useI18n()
   const titleId = useId()
   const lines = Array.from({ length: props.rows }, (_, index) => (
     <div className="onboarding__pick-row" key={index} aria-hidden>
@@ -964,10 +966,7 @@ function PickGroupSkeleton(props: { title: string; rows: number; announce: boole
         {props.title}
       </h2>
       {props.announce ? (
-        <SkeletonStatus
-          label="Looking for the coding agents installed on this machine…"
-          className="onboarding__picks"
-        >
+        <SkeletonStatus label={t('onboarding.agents.loading')} className="onboarding__picks">
           {lines}
         </SkeletonStatus>
       ) : (
@@ -978,21 +977,23 @@ function PickGroupSkeleton(props: { title: string; rows: number; announce: boole
 }
 
 function StepActions(props: { onBack: () => void; onNext: () => void; pressed: boolean }) {
+  const { t } = useI18n()
   return (
     <footer className="onboarding__actions onboarding__actions--split">
       <BackButton onClick={props.onBack} />
       <PrimaryButton onClick={props.onNext} pressed={props.pressed}>
-        Continue
+        {t('onboarding.continue')}
       </PrimaryButton>
     </footer>
   )
 }
 
 function BackButton(props: { onClick: () => void }) {
+  const { t } = useI18n()
   return (
     <button className="ghost onboarding__ghost" type="button" onClick={props.onClick}>
       <ArrowLeft size={14} aria-hidden />
-      Back
+      {t('onboarding.back')}
     </button>
   )
 }
@@ -1024,22 +1025,51 @@ function PrimaryButton(props: {
   )
 }
 
-/** The desktop icon reduced to its silhouette, in the current text colour. */
-function TasteCodeMark(props: { size?: number | undefined; className?: string | undefined }) {
+/**
+ * The TUIFT Code T mark reduced to its silhouette, in the current text colour.
+ * Children order matters to the welcome animation: path 1 drops in (the play
+ * seal) and path 3 rises (the T); the mask sits between them. The T is drawn
+ * already tilted, so the seal's cut-out and the eyes share one coordinate space.
+ */
+function TuiftMark(props: { size?: number | undefined; className?: string | undefined }) {
   const size = props.size ?? 16
+  const maskId = `tuift-mark-${useId().replace(/[^\w-]/g, '')}`
   return (
     <svg
       className={props.className}
       width={size}
       height={size}
-      viewBox="0 0 150 149.6"
+      viewBox="4 4 96 96"
       fill="currentColor"
       aria-hidden
     >
-      <path d="m75 144.6c-11.2 0-21.4-9.2-21.4-20.4 0-13.5 10-22.6 21.4-22.6 9.1 0 20.8 7.5 21.4 20.3 0.7 12.8-9.8 22.7-21.4 22.7z" />
-      <path d="m68.7 42.9c-9.4 5.8-17.7 12.1-34.5 16.3-3.6 1-10.9 2.6-19.1 3.1-2.2 0.1-3.1 1.5-3.1 3.3l0.1 10.8c0 1.9 1.3 2.9 3.8 2.8 8.1-0.5 16.5-1.6 29.8-6.2 1.2-0.6 2.3-0.9 3.4-0.9 2.9 0 4.6 1 4.8 4.2v24.4c0 1.7 1.1 2.3 2.4 1.2 2.7-2.2 7-5.2 13.7-7 1.1-0.3 1.7-1 1.7-2.2v-47.7c0-1.6-1.7-2.7-3-2.1z" />
-      <path d="m134.7 39.1c-22.8-1.5-40.1-11.4-54.8-30.1-1.3-1.7-2.3-5.1-4.9-5.1-2.1 0-3.1 2.8-4.4 4.4-7.7 9.6-21.7 23.1-43 28.6l-12 2c-2.5 0.1-4.2 1.4-4.2 3.5v10.6c0 2.3 1.3 3.4 3.7 3.1 16.8-1 27.8-4.5 35.8-8.2 6.8-3 13-6.3 20.7-14.2 0.5-0.7 2-1.8 3.5-2.1 1.3 0 2.2 0.5 3.3 1.7 9.3 8.6 19 13.1 27.5 16.7 10.7 3.7 20.7 5.4 29.1 5.9 2.3 0.2 3.4-0.3 3.4-2.3v-11.2c0-1.8-0.8-3.1-3.7-3.3z" />
-      <path d="m134.4 62.7c-18.8-0.8-27.4-4.1-32.5-6.3-8.3-3.1-15.3-7.5-20.8-12.8-1.5-1.3-3.2-0.9-3.2 1.4l0.4 48c0 1 0.7 1.6 1.6 1.7 3.1 0.6 8.7 2.4 13.4 6.3 1.3 1.4 3.3 2 3.3 0v-25c-0.2-2 2.1-4.4 4.5-4.3l1.6 0.3c7.9 3.3 17.3 5.9 31.4 7.3 2.2 0.3 3.8-0.3 3.8-2.7v-10.7c0.1-2.3-1.3-3-3.5-3.2z" />
+      <path fillRule="evenodd" d="M53 69a13 13 0 1 1 0 26a13 13 0 1 1 0-26zM49.5 75.5v13l10-6.5z" />
+      <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="110" height="110">
+        <rect width="110" height="110" fill="#fff" />
+        <rect
+          x="38.9"
+          y="18"
+          width="7.2"
+          height="15"
+          rx="3.6"
+          transform="rotate(-6 50 50) rotate(-10 42.5 25.5)"
+          fill="#000"
+        />
+        <rect
+          x="53.9"
+          y="18"
+          width="7.2"
+          height="15"
+          rx="3.6"
+          transform="rotate(-6 50 50) rotate(-10 57.5 25.5)"
+          fill="#000"
+        />
+        <circle cx="53" cy="82" r="17" fill="#000" />
+      </mask>
+      <path
+        mask={`url(#${maskId})`}
+        d="M18.18 15.13L73.87 9.28A10 10 0 0 1 84.87 18.18L85.60 25.14A10 10 0 0 1 76.70 36.13L21.00 41.99A10 10 0 0 1 10.01 33.09L9.28 26.13A10 10 0 0 1 18.18 15.13ZM43.17 18.54L50.14 17.81A10 10 0 0 1 61.13 26.71L65.31 66.49A10 10 0 0 1 56.41 77.48L49.45 78.21A10 10 0 0 1 38.46 69.31L34.27 29.53A10 10 0 0 1 43.17 18.54Z"
+      />
     </svg>
   )
 }

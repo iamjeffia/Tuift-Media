@@ -33,6 +33,7 @@ import { errorMessage } from '../boundary.js'
 import { ignoreSignIn, unignoreSignIn } from '../ignored-sign-ins.js'
 import { isDesktop, pickFolder, revealPath } from '../bridge.js'
 import { providerMark } from '../model-catalog.js'
+import { t as translateNow, useI18n } from '../i18n/index.js'
 import { accountsOf, activeAccountOf, useProviderAccounts } from '../provider-accounts-state.js'
 import {
   beginLogin,
@@ -90,7 +91,7 @@ function useAccountActions() {
 /**
  * A provider's further sign-ins, under its own row in Settings › Providers,
  * which is its default account. Each has the roster's minus in the margin;
- * removing keeps its folder, and deleting a folder TasteCode created is its
+ * removing keeps its folder, and deleting a folder TUIFT Code created is its
  * own, confirmed action in the row's menu.
  */
 export function ProviderAccountRows(props: {
@@ -104,6 +105,7 @@ export function ProviderAccountRows(props: {
   /** The account's own defaults for new chats, under its row. */
   renderTuning?: ((account: ProviderAccount) => ReactNode) | undefined
 }) {
+  const { t } = useI18n()
   const { store, snapshot } = useProviderAccounts(props.transport, true)
   const { busy, issues, run, clear } = useAccountActions()
   const [renaming, setRenaming] = useState<string>()
@@ -116,7 +118,7 @@ export function ProviderAccountRows(props: {
   const error =
     props.reportsErrors && snapshot.phase === 'error' ? (
       <p className="set-form__error provider-accounts__error" role="alert">
-        Could not load accounts. {snapshot.error}
+        {t('settings.providerAccounts.loadFailed', { error: snapshot.error ?? '' })}
       </p>
     ) : null
   if (accounts.length === 0) return error
@@ -131,8 +133,12 @@ export function ProviderAccountRows(props: {
             <button
               className="provider-roster__remove"
               type="button"
-              aria-label={`Remove ${accountName(props.provider, account)}`}
-              title={`Remove ${accountName(props.provider, account)}`}
+              aria-label={t('settings.providerAccounts.remove', {
+                name: accountName(props.provider, account),
+              })}
+              title={t('settings.providerAccounts.remove', {
+                name: accountName(props.provider, account),
+              })}
               disabled={busy === key}
               onClick={() => setConfirm({ account, deleteHome: false })}
             >
@@ -227,8 +233,12 @@ export function useDetectedAccounts(
 function foundWhere(entry: DetectedAccountHome, now: number): ReactNode {
   return (
     <span title={entry.home}>
-      Found in {folderName(entry.home)}
-      {entry.lastUsed === undefined ? null : ` · used ${indexedAgo(entry.lastUsed, now)}`}
+      {entry.lastUsed === undefined
+        ? translateNow('settings.providerAccounts.foundIn', { folder: folderName(entry.home) })
+        : translateNow('settings.providerAccounts.foundInUsed', {
+            folder: folderName(entry.home),
+            ago: indexedAgo(entry.lastUsed, now),
+          })}
     </span>
   )
 }
@@ -245,6 +255,7 @@ export function FoundAccountsSection(props: {
   found: readonly DetectedAccountHome[]
   onAdded: (provider: ProviderId) => void
 }) {
+  const { t } = useI18n()
   const { store } = useProviderAccounts(props.transport, props.providers.length > 0)
   const { busy, issues, run } = useAccountActions()
   const [added, setAdded] = useState<readonly string[]>([])
@@ -257,8 +268,8 @@ export function FoundAccountsSection(props: {
 
   return (
     <SettingsSection
-      title="Found on this computer"
-      note="Sign-ins kept in folders of their own, by you or another tool. Add one to use it here as a separate account."
+      title={t('settings.providerAccounts.foundTitle')}
+      note={t('settings.providerAccounts.foundNote')}
     >
       {offered.map(({ entry, provider }) => {
         const name = `${provider.displayName} · ${entry.label}`
@@ -276,17 +287,20 @@ export function FoundAccountsSection(props: {
               done || busy === entry.home
                 ? undefined
                 : {
-                    label: 'Ignore',
-                    ariaLabel: `Ignore ${name}`,
+                    label: t('settings.providerAccounts.ignore'),
+                    ariaLabel: t('settings.providerAccounts.ignoreLabel', { name }),
                     onClick: () => ignoreSignIn(entry),
                   }
             }
             primary={
               done
-                ? { label: 'Added', done: true }
+                ? { label: t('settings.providerAccounts.added'), done: true }
                 : {
-                    label: busy === entry.home ? 'Adding…' : 'Add',
-                    ariaLabel: `Add ${name}`,
+                    label:
+                      busy === entry.home
+                        ? t('settings.providerAccounts.adding')
+                        : t('settings.providerAccounts.add'),
+                    ariaLabel: t('settings.providerAccounts.addLabel', { name }),
                     disabled: busy !== undefined,
                     onClick: () =>
                       void run(entry.home, () =>
@@ -316,6 +330,7 @@ export function IgnoredSignInsSection(props: {
   providers: readonly ProviderStatus[]
   ignored: readonly DetectedAccountHome[]
 }) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const titleId = useId()
   const listId = useId()
@@ -337,7 +352,7 @@ export function IgnoredSignInsSection(props: {
           onClick={() => setOpen((current) => !current)}
         >
           <ChevronRight className={open ? 'is-open' : undefined} size={14} aria-hidden />
-          Ignored
+          {t('settings.providerAccounts.ignored')}
           <span className="provider-ignored__count">{offered.length}</span>
         </button>
       </h2>
@@ -352,8 +367,8 @@ export function IgnoredSignInsSection(props: {
                   status={foundWhere(entry, now)}
                   link="none"
                   primary={{
-                    label: 'Unignore',
-                    ariaLabel: `Unignore ${name}`,
+                    label: t('settings.providerAccounts.unignore'),
+                    ariaLabel: t('settings.providerAccounts.unignoreLabel', { name }),
                     onClick: () => unignoreSignIn(entry),
                   }}
                 />
@@ -376,16 +391,19 @@ export function AddAccountSection(props: {
   providers: readonly ProviderStatus[]
   onAdded: (provider: ProviderId) => void
 }) {
+  const { t } = useI18n()
   const { store } = useProviderAccounts(props.transport, props.providers.length > 0)
   const { busy, issues, run, clear } = useAccountActions()
   const [adding, setAdding] = useState(false)
   if (props.providers.length === 0) return null
-  const names = props.providers.map((status) => status.displayName).join(' or ')
+  const names = props.providers
+    .map((status) => status.displayName)
+    .join(t('settings.providerAccounts.or'))
 
   return (
     <SettingsSection
-      title="Accounts"
-      note={`Sign in to ${names} more than once. Each account keeps its own folder, and a chat stays on the account it started on.`}
+      title={t('settings.providerAccounts.accountsTitle')}
+      note={t('settings.providerAccounts.accountsNote', { names })}
     >
       {adding ? (
         <AddAccountForm
@@ -411,7 +429,7 @@ export function AddAccountSection(props: {
           onClick={() => setAdding(true)}
         >
           <UserPlus size={15} aria-hidden />
-          Add account
+          {t('settings.providerAccounts.addAccount')}
         </button>
       )}
     </SettingsSection>
@@ -427,26 +445,35 @@ function confirmCopy(confirm: Confirm) {
   const label = confirm.account.label
   return confirm.deleteHome
     ? {
-        title: `Delete ${label} and its folder?`,
-        body: 'This removes the account and deletes its folder, which signs it out and erases its local sessions. Its chats cannot continue. This cannot be undone.',
-        action: 'Delete folder',
+        title: translateNow('settings.providerAccounts.deleteTitle', { label }),
+        body: translateNow('settings.providerAccounts.deleteBody'),
+        action: translateNow('settings.providerAccounts.deleteAction'),
         destructive: true,
       }
     : {
-        title: `Remove ${label}?`,
-        body: 'TasteCode stops using this account. The folder stays as it is, with its sign-in and sessions. Its chats cannot continue.',
-        action: 'Remove account',
+        title: translateNow('settings.providerAccounts.removeTitle', { label }),
+        body: translateNow('settings.providerAccounts.removeBody'),
+        action: translateNow('settings.providerAccounts.removeAction'),
         destructive: false,
       }
 }
 
 /** Who an account last signed in as, with the email behind the usual reveal. */
 function AccountIdentityText(props: { account: ProviderAccount; active?: boolean }) {
+  const { t } = useI18n()
   const { email, plan } = props.account
-  if (!email && !plan) return <>{props.active ? 'Active · Not signed in' : 'Not signed in'}</>
+  if (!email && !plan) {
+    return (
+      <>
+        {props.active
+          ? t('settings.providerAccounts.activeNotSignedIn')
+          : t('settings.providerAccounts.notSignedIn')}
+      </>
+    )
+  }
   return (
     <span className="settings__account">
-      {email ? <AccountEmail email={email} /> : 'Signed in'}
+      {email ? <AccountEmail email={email} /> : t('settings.providerAccounts.signedIn')}
       {plan ? <span className="settings__account-plan"> · {plan}</span> : null}
     </span>
   )
@@ -463,9 +490,10 @@ function AccountRow(props: {
   renaming: boolean
   onRenamingChange: (renaming: boolean) => void
   onRename: (label: string) => Promise<unknown>
-  /** Deletes a folder TasteCode created; removing is the roster's minus. */
+  /** Deletes a folder TUIFT Code created; removing is the roster's minus. */
   onDeleteFolder: () => void
 }) {
+  const { t } = useI18n()
   const { account } = props
   const signedIn = account.email !== undefined || account.plan !== undefined
   return (
@@ -491,7 +519,13 @@ function AccountRow(props: {
       </div>
       <span className="set-leader" aria-hidden />
       <div className="provider-row__status set-entity__status">
-        {props.issue ? <RowIssue message={props.issue} announce label="Problem details" /> : null}
+        {props.issue ? (
+          <RowIssue
+            message={props.issue}
+            announce
+            label={t('settings.providerRow.problemDetails')}
+          />
+        ) : null}
         <span className="provider-row__status-text">
           {/* Sign in takes the action slot, so an account still waiting for
               one says here that new chats start on it. */}
@@ -502,7 +536,7 @@ function AccountRow(props: {
         <Menu
           align="right"
           drop="down"
-          label={`${account.label} account actions`}
+          label={t('settings.providerAccounts.actions', { label: account.label })}
           disabled={props.busy}
           triggerClassName="set-button set-button--quiet set-button--icon"
           panelClassName="menu--compact"
@@ -512,7 +546,7 @@ function AccountRow(props: {
             <>
               {!signedIn && !props.active ? (
                 <MenuItem
-                  title="Set active"
+                  title={t('settings.providerAccounts.setActive')}
                   icon={<Check size={14} aria-hidden />}
                   onClick={() => {
                     close()
@@ -521,7 +555,7 @@ function AccountRow(props: {
                 />
               ) : null}
               <MenuItem
-                title="Rename"
+                title={t('settings.providerAccounts.rename')}
                 icon={<Pencil size={14} aria-hidden />}
                 onClick={() => {
                   close()
@@ -530,7 +564,7 @@ function AccountRow(props: {
               />
               {isDesktop && account.home ? (
                 <MenuItem
-                  title="Open in Explorer"
+                  title={t('settings.providerAccounts.openInExplorer')}
                   icon={<FolderOpen size={14} aria-hidden />}
                   onClick={() => {
                     close()
@@ -540,7 +574,7 @@ function AccountRow(props: {
               ) : null}
               {account.managed ? (
                 <MenuItem
-                  title="Delete folder"
+                  title={t('settings.providerAccounts.deleteAction')}
                   icon={<Trash size={14} aria-hidden />}
                   className="menu__item--danger"
                   onClick={() => {
@@ -558,16 +592,19 @@ function AccountRow(props: {
       <div className="provider-row__primary provider-account__action">
         {props.signIn}
         {!signedIn ? null : props.active ? (
-          <span className="provider-account__current">Active</span>
+          <span className="provider-account__current">{t('settings.providerAccounts.active')}</span>
         ) : (
           <button
             className="set-button set-button--quiet"
             type="button"
             disabled={props.busy}
-            aria-label={`Use ${account.label} for new ${props.provider.displayName} chats`}
+            aria-label={t('settings.providerAccounts.useFor', {
+              label: account.label,
+              provider: props.provider.displayName,
+            })}
             onClick={props.onSetActive}
           >
-            Set active
+            {t('settings.providerAccounts.setActive')}
           </button>
         )}
       </div>
@@ -588,6 +625,7 @@ function AccountSignIn(props: {
   onSignedIn: () => void
   onOpenTerminal?: ((target: ProviderLoginTerminalTarget) => void) | undefined
 }) {
+  const { t } = useI18n()
   const { account, provider, transport, onSignedIn, onOpenTerminal } = props
   const target = { provider: account.provider, accountId: account.id }
   const key = loginKey(target)
@@ -651,20 +689,39 @@ function AccountSignIn(props: {
   const failed = login?.phase === 'failed' || startError !== undefined
   return (
     <>
-      {startError ? <RowIssue message={startError} announce label="Sign-in problem" /> : null}
+      {startError ? (
+        <RowIssue
+          message={startError}
+          announce
+          label={t('settings.providerAccounts.signInProblem')}
+        />
+      ) : null}
       {running && onOpenTerminal ? (
         <button className="set-button set-button--quiet" type="button" onClick={openTerminal}>
-          Show terminal
+          {t('settings.providerAccounts.showTerminal')}
         </button>
       ) : null}
       <button
         className="set-button"
         type="button"
         disabled={stopping}
-        aria-label={busy ? `Cancel signing in to ${account.label}` : `Sign in to ${account.label}`}
+        aria-label={t(
+          busy
+            ? 'settings.providerAccounts.cancelSignInLabel'
+            : 'settings.providerAccounts.signInLabel',
+          {
+            label: account.label,
+          },
+        )}
         onClick={busy ? cancel : start}
       >
-        {stopping ? 'Canceling…' : busy ? 'Cancel sign-in' : failed ? 'Retry sign-in' : 'Sign in'}
+        {stopping
+          ? t('settings.providerAccounts.canceling')
+          : busy
+            ? t('settings.providerAccounts.cancelSignIn')
+            : failed
+              ? t('settings.providerAccounts.retrySignIn')
+              : t('settings.providerAccounts.signIn')}
       </button>
     </>
   )
@@ -684,6 +741,7 @@ export function AccountName(props: {
   onEditingChange?: ((editing: boolean) => void) | undefined
   onRename: (label: string) => Promise<unknown>
 }) {
+  const { t } = useI18n()
   const [ownEditing, setOwnEditing] = useState(false)
   const editing = props.editing ?? ownEditing
   const setEditing = props.onEditingChange ?? setOwnEditing
@@ -735,7 +793,9 @@ export function AccountName(props: {
             // focus, and Escape after a refusal would then close Settings.
             readOnly={saving}
             spellCheck={false}
-            aria-label={`Name of ${props.provider.displayName} account`}
+            aria-label={t('settings.providerAccounts.nameLabel', {
+              provider: props.provider.displayName,
+            })}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? errorId : undefined}
             onChange={(event) => {
@@ -772,8 +832,8 @@ export function AccountName(props: {
           <button
             className="account-name__edit"
             type="button"
-            aria-label={`Rename ${props.account.label}`}
-            title="Rename"
+            aria-label={t('settings.providerAccounts.renameLabel', { label: props.account.label })}
+            title={t('settings.providerAccounts.rename')}
             onClick={() => setEditing(true)}
           >
             <Pencil size={13} aria-hidden />
@@ -784,11 +844,6 @@ export function AccountName(props: {
   )
 }
 
-const HOME_OPTIONS = [
-  { value: 'managed', label: 'New folder' },
-  { value: 'existing', label: 'Existing folder' },
-] as const
-
 function AddAccountForm(props: {
   providers: readonly ProviderStatus[]
   busy: boolean
@@ -796,6 +851,11 @@ function AddAccountForm(props: {
   onCancel: () => void
   onSubmit: (provider: ProviderId, label: string, home: ProviderAccountHome) => void
 }) {
+  const { t } = useI18n()
+  const homeOptions = [
+    { value: 'managed', label: t('settings.providerAccounts.newFolder') },
+    { value: 'existing', label: t('settings.providerAccounts.existingFolder') },
+  ] as const
   const pathId = useId()
   const [provider, setProvider] = useState<ProviderId>(props.providers[0]!.id)
   const [label, setLabel] = useState('')
@@ -821,7 +881,7 @@ function AddAccountForm(props: {
   return (
     <form
       className="set-form provider-accounts__form"
-      aria-label="Add account"
+      aria-label={t('settings.providerAccounts.addAccount')}
       onSubmit={submit}
       onKeyDown={(event) => {
         if (event.key !== 'Escape' || props.busy) return
@@ -831,12 +891,12 @@ function AddAccountForm(props: {
     >
       {props.providers.length > 1 ? (
         <div className="set-form__field">
-          <span>Provider</span>
+          <span>{t('settings.providerAccounts.provider')}</span>
           <Menu
             align="left"
             drop="down"
-            label={`Provider, ${chosen.displayName}`}
-            panelLabel="Provider"
+            label={t('settings.providerAccounts.providerLabel', { name: chosen.displayName })}
+            panelLabel={t('settings.providerAccounts.provider')}
             panelClassName="provider-form__menu"
             triggerClassName="provider-form__select set-select"
             trigger={(open) => (
@@ -867,28 +927,28 @@ function AddAccountForm(props: {
         </div>
       ) : null}
       <label className={props.providers.length > 1 ? undefined : 'set-form__wide'}>
-        <span>Name</span>
+        <span>{t('settings.providerAccounts.name')}</span>
         <input
           className="set-input"
           value={label}
           maxLength={80}
-          placeholder="Work"
+          placeholder={t('settings.providerAccounts.namePlaceholder')}
           autoFocus
           onChange={(event) => setLabel(event.target.value)}
         />
       </label>
       <div className="set-form__field set-form__wide">
-        <span>Folder</span>
+        <span>{t('settings.providerAccounts.folder')}</span>
         <SettingsSegmented
-          ariaLabel="Account folder"
+          ariaLabel={t('settings.providerAccounts.accountFolder')}
           value={kind}
-          options={HOME_OPTIONS}
+          options={homeOptions}
           onChange={(value) => setKind(value === 'existing' ? 'existing' : 'managed')}
         />
       </div>
       {kind === 'existing' ? (
         <div className="set-form__field set-form__wide">
-          <label htmlFor={pathId}>Folder path</label>
+          <label htmlFor={pathId}>{t('settings.providerAccounts.folderPath')}</label>
           <div className="provider-accounts__path">
             <input
               id={pathId}
@@ -899,7 +959,7 @@ function AddAccountForm(props: {
             />
             {isDesktop ? (
               <button className="set-button" type="button" onClick={() => void browse()}>
-                Choose…
+                {t('settings.providerAccounts.choose')}
               </button>
             ) : null}
           </div>
@@ -907,8 +967,8 @@ function AddAccountForm(props: {
       ) : null}
       <p className="set-form__note">
         {kind === 'managed'
-          ? `TasteCode makes a new, empty folder for this account, so ${chosen.displayName} starts there with its default settings. Sign in once it is added.`
-          : `A folder that already holds a ${chosen.displayName} sign-in. TasteCode uses it as it is and never deletes it.`}
+          ? t('settings.providerAccounts.managedNote', { name: chosen.displayName })
+          : t('settings.providerAccounts.existingNote', { name: chosen.displayName })}
       </p>
       {props.error ? (
         <p className="set-form__error" role="alert">
@@ -922,14 +982,16 @@ function AddAccountForm(props: {
           disabled={props.busy}
           onClick={props.onCancel}
         >
-          Cancel
+          {t('settings.providerAccounts.cancel')}
         </button>
         <button
           className="set-button set-button--primary"
           type="submit"
           disabled={props.busy || !ready}
         >
-          {props.busy ? 'Adding…' : 'Add account'}
+          {props.busy
+            ? t('settings.providerAccounts.adding')
+            : t('settings.providerAccounts.addAccount')}
         </button>
       </div>
     </form>

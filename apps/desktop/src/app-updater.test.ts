@@ -304,10 +304,10 @@ describe('app update controller', () => {
     })
 
     await expect(controller.check('background')).resolves.toMatchObject({ status: 'ready' })
-    updater.emit('error', new Error('The update is not signed by TasteCode.'))
+    updater.emit('error', new Error('The update is not signed by TUIFT Code.'))
     expect(controller.state()).toMatchObject({
       status: 'error',
-      error: 'The update is not signed by TasteCode.',
+      error: 'The update is not signed by TUIFT Code.',
     })
   })
 

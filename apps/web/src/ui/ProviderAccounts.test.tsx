@@ -58,7 +58,7 @@ const work: ProviderAccount = {
   id: 'work-1a2b3c',
   provider: 'codex',
   label: 'Work',
-  home: 'C:\\TasteCode\\accounts\\codex\\work-1a2b3c',
+  home: 'C:\\TUIFT Code\\accounts\\codex\\work-1a2b3c',
   managed: true,
   createdAt: 2,
 }
@@ -86,7 +86,7 @@ function serve(initial: ProviderAccount[], found: DetectedAccountHome[] = []) {
           id: 'new-000000',
           provider: p.provider as ProviderAccount['provider'],
           label: String(p.label),
-          home: 'C:\\TasteCode\\accounts\\codex\\new-000000',
+          home: 'C:\\TUIFT Code\\accounts\\codex\\new-000000',
           managed: true,
         }
         accounts = [...accounts, created]
@@ -240,7 +240,7 @@ describe('Provider accounts in Settings', () => {
     const form = screen.getByRole('form', { name: 'Add account' })
     expect(
       within(form).getByText(
-        'TasteCode makes a new, empty folder for this account, so Codex starts there with its default settings. Sign in once it is added.',
+        'TUIFT Code makes a new, empty folder for this account, so Codex starts there with its default settings. Sign in once it is added.',
       ),
     ).toBeTruthy()
     fireEvent.change(within(form).getByRole('textbox', { name: 'Name' }), {

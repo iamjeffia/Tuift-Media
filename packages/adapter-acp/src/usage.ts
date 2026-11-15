@@ -22,7 +22,7 @@ export const AcpSessionUsageUpdateSchema = z.object({
 export type AcpTurnTokenUsage = z.infer<typeof AcpTurnTokenUsageSchema>
 export type AcpSessionUsageUpdate = z.infer<typeof AcpSessionUsageUpdateSchema>
 
-/** Maps the optional ACP end-turn usage extension onto TasteCode accounting. */
+/** Maps the optional ACP end-turn usage extension onto TUIFT Code accounting. */
 export function acpTurnUsage(
   value: AcpTurnTokenUsage | null | undefined,
   model?: string,

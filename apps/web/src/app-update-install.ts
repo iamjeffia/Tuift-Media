@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
 import { installAppUpdate, reportRunningAgents } from './bridge.js'
+import { t, tp } from './i18n/index.js'
 import type { Transport } from './transport.js'
 import type { Project, Session } from './ui/Sidebar.js'
 
 /**
- * Installing an app update quits TasteCode, and quitting cuts off every chat
+ * Installing an app update quits TUIFT Code, and quitting cuts off every chat
  * that is still working. So Update asks first while chats run: stop them and
  * install now, or wait and install by itself once the last one ends.
  *
@@ -81,16 +82,16 @@ export function subscribeAppUpdateInstall(listener: () => void): () => void {
 }
 
 export function chatCount(running: number): string {
-  return `${running} ${running === 1 ? 'chat' : 'chats'}`
+  return tp('dialogs.appUpdate.chats', running)
 }
 
 /** The chats a restart would stop, while Update asks about them. */
 export function runningLabel(running: number): string {
-  return `${chatCount(running)} still running`
+  return t('dialogs.appUpdate.stillRunning', { chats: chatCount(running) })
 }
 
 export function waitingLabel(running: number): string {
-  return `Installs when ${chatCount(running)} ${running === 1 ? 'finishes' : 'finish'}`
+  return tp('dialogs.appUpdate.waiting', running)
 }
 
 const projectCounts = new WeakMap<Project, string[]>()

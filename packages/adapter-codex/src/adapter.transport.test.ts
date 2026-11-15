@@ -5,7 +5,7 @@ import { CodexAdapter } from './adapter.js'
 describe('Codex history transport', () => {
   it('resumes a history larger than 16 MiB and accepts the next turn', async () => {
     // The local wire capture returned 18.29 MiB for thread/read. The resume
-    // response carries the same history, although TasteCode only needs identity.
+    // response carries the same history, although TUIFT Code only needs identity.
     const peer = `
       const { createInterface } = require('node:readline');
       createInterface({ input: process.stdin }).on('line', line => {

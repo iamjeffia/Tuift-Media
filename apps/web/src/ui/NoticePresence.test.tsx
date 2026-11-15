@@ -395,7 +395,7 @@ describe('NoticePresence', () => {
       dockComposer()
       render(
         <NoticePresence className="notice" role="status" visible followComposer={false}>
-          TasteCode 0.5.0 is ready
+          TUIFT Code 0.5.0 is ready
         </NoticePresence>,
       )
 

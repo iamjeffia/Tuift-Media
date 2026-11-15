@@ -56,7 +56,7 @@ describe('database location migration', () => {
     const current = path.join(root, 'tastecode.db')
     const release = acquireDataLease(owner === 'legacy' ? legacy : current)
     try {
-      expect(() => storeLocation({ HARNESS_DATA_DIR: root })).toThrow(/Close TasteCode/)
+      expect(() => storeLocation({ HARNESS_DATA_DIR: root })).toThrow(/Close TUIFT Code/)
       expect(existsSync(legacy)).toBe(true)
       expect(existsSync(current)).toBe(false)
     } finally {

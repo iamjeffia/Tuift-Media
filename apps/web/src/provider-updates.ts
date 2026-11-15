@@ -7,6 +7,7 @@ import {
   subscribeInstalls,
   updateKey,
 } from './provider-install.js'
+import { t } from './i18n/index.js'
 import type { Transport } from './transport.js'
 
 export type UpdateOperation = {
@@ -159,7 +160,7 @@ export class ProviderUpdatesStore {
         }
       })
       .catch(() => {
-        this.#state = { ...this.#state, error: 'Could not check for updates. Try again.' }
+        this.#state = { ...this.#state, error: t('dialogs.providerUpdates.error.check') }
       })
       .finally(() => {
         this.#request = undefined
@@ -236,7 +237,7 @@ export class ProviderUpdatesStore {
     this.#after(SIMULATED_START_MS, () => {
       operation('running')
       this.#after(SIMULATED_INSTALL_MS, () => {
-        if (fails) return operation('failed', 'Simulated update failure. Try again.')
+        if (fails) return operation('failed', t('dialogs.providerUpdates.error.simulated'))
         operation('verifying')
         this.#after(SIMULATED_VERIFY_MS, () => {
           // As after a real install, the check reports the new version first.
@@ -275,7 +276,7 @@ export class ProviderUpdatesStore {
           this.#operation(provider, {
             run,
             phase: 'failed',
-            error: 'Update failed. Open details and try again.',
+            error: t('dialogs.providerUpdates.error.failed'),
           })
           return
         }
@@ -299,7 +300,7 @@ export class ProviderUpdatesStore {
             this.#operation(provider, {
               run,
               phase: 'failed',
-              error: 'The new version could not be confirmed. Check details or try again.',
+              error: t('dialogs.providerUpdates.error.unconfirmed'),
             })
           }
         })()
@@ -310,7 +311,7 @@ export class ProviderUpdatesStore {
       this.#operation(provider, {
         run,
         phase: 'failed',
-        error: error instanceof Error ? error.message : 'Could not start the update.',
+        error: error instanceof Error ? error.message : t('dialogs.providerUpdates.error.start'),
       })
     }
   }

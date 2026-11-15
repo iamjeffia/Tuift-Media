@@ -78,3 +78,18 @@ and a license or notice file for every package in the resolved production graph.
 metadata; it never copies license bodies. The reviewed license files themselves must be bundled
 with each Windows and macOS distribution. When an npm package omits that file, the exact reviewed
 fallback and its upstream source are recorded in `licenses/direct-runtime-dependencies.json`.
+
+## Workspace Agent Skills (`.agents/skills/`)
+
+The workspace skills are plain files read by coding agents. They are not part of the app bundle and
+are not shipped in the installer. Each third-party skill keeps the licence of its authors as a
+`LICENSE` file inside its folder, unmodified, and `.agents/skills/SOURCES.json` records the exact
+commit and every change. Skills written by TUIFT Media carry their own Apache-2.0 `LICENSE`.
+
+<!-- prettier-ignore -->
+| Source repository | Skills in `.agents/skills/` | License | Notes |
+| --- | --- | --- | --- |
+| [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes) | `hyperframes`, `hyperframes-core`, `hyperframes-animation`, `hyperframes-audio`, `hyperframes-cli`, `hyperframes-creative`, `hyperframes-keyframes`, `hyperframes-registry`, `hyperframes-studio`, `media-use`, `motion-graphics`, `figma` | Apache-2.0 | Commit `b20f3f7`. The 19 bundled `.mp3` sound effects of `media-use` (Pixabay Content License) are left out. `hyperframes-creative` includes Inter, EB Garamond and JetBrains Mono (`.woff2`), each with its SIL Open Font License 1.1 text. |
+| [bradautomates/claude-video](https://github.com/bradautomates/claude-video) | `watch` | MIT | Commit `03ceb42`. |
+| [blader/humanizer](https://github.com/blader/humanizer) | `humanizer` | MIT | Adapted. |
+| [benjitaylor/skills](https://github.com/benjitaylor/skills) | `stageshow` | MIT | Its own `LICENSE` and `NOTICE.md` stay in the skill folder. |

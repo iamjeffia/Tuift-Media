@@ -7,6 +7,9 @@ import { IconCopy as Copy, IconRotate as RotateCcw, IconX as X } from '@tabler/i
 import { memo, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { isMacOS, writeClipboardText } from '../bridge.js'
 import { prepareAppHaptics } from '../haptics.js'
+// `tNow` reads the language when it runs: for the connection effect and the status text,
+// which must not restart the terminal when the language changes.
+import { t as tNow, useI18n } from '../i18n/index.js'
 import type { Transport, ConnectionState } from '../transport.js'
 import { errorMessage } from '../boundary.js'
 import { beginPanelResize } from './panel-resize.js'
@@ -35,6 +38,7 @@ export type TerminalPaneProps = {
 } & ({ threadId: string; projectPath?: never } | { threadId?: never; projectPath: string })
 
 export const TerminalPane = memo(function TerminalPane(props: TerminalPaneProps) {
+  const { t } = useI18n()
   const pane = useRef<HTMLElement>(null)
   const host = useRef<HTMLDivElement>(null)
   const terminal = useRef<Terminal>(null)
@@ -267,7 +271,7 @@ export const TerminalPane = memo(function TerminalPane(props: TerminalPaneProps)
             earlyExits.clear()
             setStatus({
               state: 'error',
-              message: 'This terminal is no longer available. The server may have restarted.',
+              message: tNow('workspace.terminalPane.gone'),
             })
             return
           }
@@ -443,13 +447,13 @@ export const TerminalPane = memo(function TerminalPane(props: TerminalPaneProps)
       ref={pane}
       className={`terminal-pane${workspace ? ' terminal-pane--workspace' : ''}`}
       style={workspace ? undefined : { height }}
-      aria-label="Session terminal"
+      aria-label={t('workspace.terminalPane.label')}
     >
       {!workspace ? (
         <div
           className="terminal-pane__resize"
           role="separator"
-          aria-label="Resize terminal"
+          aria-label={t('workspace.terminalPane.resize')}
           aria-orientation="horizontal"
           onPointerEnter={prepareAppHaptics}
           onPointerDown={beginResize}
@@ -461,7 +465,7 @@ export const TerminalPane = memo(function TerminalPane(props: TerminalPaneProps)
         </span>
       ) : (
         <header className="terminal-pane__header">
-          <span className="terminal-pane__title">Terminal</span>
+          <span className="terminal-pane__title">{t('workspace.terminalPane.title')}</span>
           <span
             className={`terminal-pane__status is-${status.state}${status.state === 'open' ? ' visually-hidden' : ''}`}
             aria-live="polite"
@@ -472,7 +476,7 @@ export const TerminalPane = memo(function TerminalPane(props: TerminalPaneProps)
             {status.state === 'error' ? (
               <button
                 className="icon-btn icon-btn--always"
-                title="Restart terminal"
+                title={t('workspace.terminalPane.restart')}
                 onClick={() => reconnect.current()}
               >
                 <RotateCcw size={13} aria-hidden />
@@ -480,7 +484,7 @@ export const TerminalPane = memo(function TerminalPane(props: TerminalPaneProps)
             ) : null}
             <button
               className="icon-btn icon-btn--always"
-              title="Copy selection"
+              title={t('workspace.terminalPane.copy')}
               disabled={!hasSelection}
               onClick={() => terminal.current && copyTerminalSelection(terminal.current)}
             >
@@ -488,7 +492,7 @@ export const TerminalPane = memo(function TerminalPane(props: TerminalPaneProps)
             </button>
             <button
               className="icon-btn icon-btn--always"
-              title="Hide terminal"
+              title={t('workspace.terminalPane.hide')}
               onClick={props.onClose}
             >
               <X size={14} aria-hidden />
@@ -502,7 +506,10 @@ export const TerminalPane = memo(function TerminalPane(props: TerminalPaneProps)
         aria-busy={workspace ? status.state === 'connecting' : undefined}
       >
         {workspace && status.state === 'connecting' ? (
-          <SkeletonStatus label="Connecting terminal…" className="terminal-pane__skeleton">
+          <SkeletonStatus
+            label={t('workspace.terminalPane.connectingTo')}
+            className="terminal-pane__skeleton"
+          >
             <div className="terminal-pane__skeleton-prompt">
               <Skeleton width={8} height={9} />
               <Skeleton width="24%" height={9} />
@@ -531,9 +538,9 @@ function terminalTarget(props: TerminalPaneProps): TerminalTarget {
 }
 
 function statusText(status: TerminalStatus): string {
-  if (status.state === 'open') return 'Connected'
-  if (status.state === 'connecting') return 'Connecting…'
-  if (status.state === 'reconnecting') return 'Reconnecting…'
+  if (status.state === 'open') return tNow('workspace.terminalPane.connected')
+  if (status.state === 'connecting') return tNow('workspace.terminalPane.connecting')
+  if (status.state === 'reconnecting') return tNow('workspace.terminalPane.reconnecting')
   return status.message
 }
 

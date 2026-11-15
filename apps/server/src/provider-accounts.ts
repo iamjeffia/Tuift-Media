@@ -127,7 +127,7 @@ export type ProviderAccountsOptions = {
  * The accounts each provider can run as. An account is a config folder of
  * its own, which the provider's adapter points its CLI at; the default
  * account is the CLI's own folder and is never removed. A managed folder is
- * created under the TasteCode data folder and starts with copies of the
+ * created under the TUIFT Code data folder and starts with copies of the
  * files its adapter seeds, never the sign-in; Codex and Claude Code seed
  * none, since their settings can hold the default account's keys. Nothing
  * here opens a file inside an account's folder.
@@ -268,7 +268,7 @@ export class ProviderAccounts implements AccountDirectory {
 
   /**
    * Unregister an account; its folder stays. `deleteHome` also deletes a
-   * folder TasteCode created, which signs that account out and erases its
+   * folder TUIFT Code created, which signs that account out and erases its
    * local sessions. A folder the user brought is never deleted.
    */
   async remove(provider: ProviderId, accountId: AccountId, deleteHome = false): Promise<void> {
@@ -291,7 +291,7 @@ export class ProviderAccounts implements AccountDirectory {
     const account = this.#require(provider, accountId)
     const folder = deleteHome ? account.home : undefined
     if (deleteHome && (!account.managed || folder === undefined || !this.#isManagedHome(folder))) {
-      throw new Error('TasteCode deletes only folders it created. This folder stays as it is.')
+      throw new Error('TUIFT Code deletes only folders it created. This folder stays as it is.')
     }
     let unregistered = false
     return {
@@ -525,7 +525,7 @@ export class ProviderAccounts implements AccountDirectory {
     // for; that names the data folder itself better than a managed folder in it.
     const toData = relation(path.dirname(this.#root))
     if (toData)
-      throw new Error(`That folder ${RELATION_WORDS[toData]} TasteCode's own data folder.`)
+      throw new Error(`That folder ${RELATION_WORDS[toData]} TUIFT Code's own data folder.`)
     const overlapping = inUse.find((account) => account.relation !== undefined)
     if (overlapping?.relation) {
       throw new Error(

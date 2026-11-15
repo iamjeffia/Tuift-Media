@@ -151,6 +151,6 @@ describe('surface recovery', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(screen.getByText('Chat')).toBeTruthy()
     expect(screen.getByRole('heading').textContent).toBe('Settings ran into a problem')
-    expect(screen.queryByText('TasteCode couldn’t display this window')).toBeNull()
+    expect(screen.queryByText('TUIFT Code couldn’t display this window')).toBeNull()
   })
 })

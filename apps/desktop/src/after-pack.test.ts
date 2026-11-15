@@ -40,12 +40,12 @@ describe('after-pack default skills', () => {
   })
 
   it('finds the resources folder on Windows and inside the macOS app bundle', () => {
-    const packager = { appInfo: { productFilename: 'Taste Code' } }
+    const packager = { appInfo: { productFilename: 'TUIFT Code' } }
     expect(resourcesDirectory({ electronPlatformName: 'win32', appOutDir: 'out', packager })).toBe(
       path.join('out', 'resources'),
     )
     expect(resourcesDirectory({ electronPlatformName: 'darwin', appOutDir: 'out', packager })).toBe(
-      path.join('out', 'Taste Code.app', 'Contents', 'Resources'),
+      path.join('out', 'TUIFT Code.app', 'Contents', 'Resources'),
     )
   })
 })

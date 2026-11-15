@@ -170,3 +170,9 @@ Each of these cost someone hours. They are not preferences.
 
 Ambiguity that changes the shape of the work → ask. Ambiguity that does not → decide,
 proceed, state the assumption in the PR. Don't stall with nothing delivered.
+
+## TUIFT Code skills
+
+The workspace skills live in `.agents/skills/`; [`.agents/skills/README.md`](./.agents/skills/README.md)
+lists them. For design and interface work, motion and video, HyperFrames and writing,
+use the skill that fits the task instead of improvising: read its `SKILL.md` first and follow it.

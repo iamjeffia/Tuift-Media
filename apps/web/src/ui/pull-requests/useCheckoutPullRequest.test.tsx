@@ -8,10 +8,10 @@ import { publishCheckoutPullRequest, useCheckoutPullRequest } from './useCheckou
 afterEach(cleanup)
 
 const pullRequest: CheckoutPullRequest = {
-  repository: 'Leonxlnx/tastecode',
+  repository: 'iamjeffia/Tuift-Media',
   number: 1778,
   title: "feat(server): find the pull request for a chat's checkout",
-  url: 'https://github.com/Leonxlnx/tastecode/pull/1778',
+  url: 'https://github.com/iamjeffia/Tuift-Media/pull/1778',
   state: 'OPEN',
   isDraft: false,
   checks: 'passing',
@@ -22,7 +22,7 @@ function found(overrides: Partial<CheckoutPullRequest> = {}): CheckoutPullReques
   return {
     available: true,
     branch: 'n16/agents-j3-pr-for-checkout',
-    repository: 'Leonxlnx/tastecode',
+    repository: 'iamjeffia/Tuift-Media',
     pullRequest: { ...pullRequest, ...overrides },
     fetchedAt: 1,
   }

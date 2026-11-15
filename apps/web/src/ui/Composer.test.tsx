@@ -149,7 +149,7 @@ describe('composer resource triggers', () => {
     })
   })
 
-  it('rejects embedded markers and lists TasteCode commands like any other', () => {
+  it('rejects embedded markers and lists TUIFT Code commands like any other', () => {
     expect(composerResourceTriggerAt('email@example.com', 17)).toBeUndefined()
     expect(composerResourceTriggerAt('Run /side', 9)).toBeUndefined()
     expect(composerResourceTriggerAt('/btw', 4)).toEqual({
@@ -545,7 +545,7 @@ describe('Composer draft state', () => {
     ['/status', 'usage'],
     ['/cost', 'usage'],
     ['/logout', 'login'],
-  ])('opens TasteCode’s own screen for %s instead of sending it', (text, screenName) => {
+  ])('opens TUIFT Code’s own screen for %s instead of sending it', (text, screenName) => {
     const onSend = vi.fn()
     const onAppScreenCommand = vi.fn()
     renderComposer(onSend, { onAppScreenCommand })
@@ -1960,7 +1960,7 @@ describe('Composer provider commands', () => {
     expect(onSend).toHaveBeenCalledWith('/compact keep the plan', [])
   })
 
-  it("lists TasteCode's own commands first and in place of a provider's namesake", async () => {
+  it("lists TUIFT Code's own commands first and in place of a provider's namesake", async () => {
     renderComposer(vi.fn(), {
       transport: commandResourceTransport(),
       provider: 'claude-code',
@@ -1978,7 +1978,7 @@ describe('Composer provider commands', () => {
         .map((option) => option.querySelector('.composer-resource-picker__name')?.textContent),
     ).toEqual(['/permissions', '/side', '/feedback', '/code-review', '/context', '/compact'])
     expect(screen.getByRole('option', { name: /\/feedback/ }).textContent).toContain(
-      'Send feedback to the TasteCode team',
+      'Send feedback to the TUIFT Code team',
     )
   })
 
@@ -1995,7 +1995,7 @@ describe('Composer provider commands', () => {
     )
   })
 
-  it('runs an exactly typed TasteCode command on the first Enter', async () => {
+  it('runs an exactly typed TUIFT Code command on the first Enter', async () => {
     const onSend = vi.fn()
     const onFeedbackCommand = vi.fn()
     renderComposer(onSend, {
@@ -2366,6 +2366,51 @@ describe('Composer Design mode', () => {
   })
 })
 
+describe('Composer Motion mode', () => {
+  it('exposes a pressed toggle through its callback, like Design', () => {
+    const onMotionModeChange = vi.fn()
+    const onDesignModeChange = vi.fn()
+    const view = renderComposer(vi.fn(), { onMotionModeChange, onDesignModeChange })
+
+    const motion = screen.getByRole('button', { name: 'Motion' })
+    expect(motion.getAttribute('aria-pressed')).toBe('false')
+    expect(motion.getAttribute('title')).toBe('Turn on Motion mode')
+    const beam = motion.closest('.composer__design-button-beam')
+    expect(beam?.hasAttribute('data-active')).toBe(false)
+    expect(beam?.querySelector('[data-beam-bloom]')).toBeNull()
+    fireEvent.click(motion)
+    expect(onMotionModeChange).toHaveBeenCalledWith(true)
+    expect(onDesignModeChange).not.toHaveBeenCalled()
+
+    view.unmount()
+    renderComposer(vi.fn(), { motionMode: true })
+    const active = screen.getByRole('button', { name: 'Motion' })
+    const activeBeam = active.closest('.composer__design-button-beam')
+    expect(active.getAttribute('aria-pressed')).toBe('true')
+    expect(active.getAttribute('title')).toBe('Turn off Motion mode')
+    expect(activeBeam?.hasAttribute('data-active')).toBe(true)
+    expect(activeBeam?.querySelector('[data-beam-bloom]')).toBeTruthy()
+    // The prompt beam belongs to Design alone, and Design stays off.
+    expect(document.querySelector('.composer__design-beam')?.hasAttribute('data-active')).toBe(
+      false,
+    )
+    expect(screen.getByRole('button', { name: 'Design' }).getAttribute('aria-pressed')).toBe(
+      'false',
+    )
+  })
+
+  it('shares the Design chip and beam classes, so size, hover and narrow layout match', () => {
+    renderComposer(vi.fn())
+    const design = screen.getByRole('button', { name: 'Design' })
+    const motion = screen.getByRole('button', { name: 'Motion' })
+    expect(motion.classList.contains('composer__design')).toBe(true)
+    expect(motion.classList.contains('composer__motion')).toBe(true)
+    expect(motion.parentElement?.className).toContain('composer__design-button-beam')
+    expect(motion.parentElement?.className).toContain('composer__motion-beam')
+    expect(design.parentElement?.nextElementSibling).toBe(motion.parentElement)
+  })
+})
+
 describe('Composer project requirement', () => {
   it('keeps the draft when send is blocked without a project', () => {
     const onSend = vi.fn()
@@ -2407,7 +2452,7 @@ describe('Composer project requirement', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Choose project' }))
 
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
-      expect.stringContaining('TasteCode'),
+      expect.stringContaining('TUIFT Code'),
       'New project',
     ])
   })
@@ -3244,9 +3289,9 @@ function renderComposer(
     <Component
       transport={transport}
       provider="codex"
-      projects={[{ path: '/work/harness', name: 'TasteCode' }]}
+      projects={[{ path: '/work/harness', name: 'TUIFT Code' }]}
       projectPath="/work/harness"
-      projectName="TasteCode"
+      projectName="TUIFT Code"
       branch="main"
       branches={['main']}
       models={[]}
@@ -3264,6 +3309,7 @@ function renderComposer(
       newSession
       isolate={false}
       designMode={false}
+      motionMode={false}
       focusRequest={0}
       queuedTurns={[]}
       canSteerQueue={false}
@@ -3273,6 +3319,7 @@ function renderComposer(
       onApprovalChange={vi.fn()}
       onIsolateChange={vi.fn()}
       onDesignModeChange={vi.fn()}
+      onMotionModeChange={vi.fn()}
       onTranscribeVoice={vi.fn()}
       onCancelVoice={vi.fn()}
       onProjectChange={vi.fn()}

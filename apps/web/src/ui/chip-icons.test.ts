@@ -24,7 +24,7 @@ describe('chip icons', () => {
     expect(commandIcon('security-review')).toBe(IconShieldSearch)
   })
 
-  it("keeps TasteCode's own commands on their feature icons, aliases included", () => {
+  it("keeps TUIFT Code's own commands on their feature icons, aliases included", () => {
     expect(commandIcon('side')).toBe(IconMessageCirclePlus)
     expect(commandIcon('btw')).toBe(IconMessageCirclePlus)
     expect(commandIcon('status')).toBe(IconChartBar)

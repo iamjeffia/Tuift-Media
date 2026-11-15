@@ -4,6 +4,7 @@ import {
   type DataOf,
   type ProviderId,
 } from '@harness/contracts'
+import { t } from './i18n/index.js'
 import type { Transport } from './transport.js'
 
 /**
@@ -415,7 +416,7 @@ async function attachJob(
         installs.set(key, {
           ...current,
           phase: 'failed',
-          lastLine: 'This terminal is no longer available. Start again.',
+          lastLine: t('dialogs.providerInstall.terminalGone'),
         })
         detachTransportListeners(key)
         notify()

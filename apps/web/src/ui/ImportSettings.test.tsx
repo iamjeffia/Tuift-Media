@@ -226,7 +226,7 @@ describe('Import chats settings', () => {
       }),
     )
     await screen.findByText('Imported 2 chats, adding 1 project.')
-    await screen.findByText('Every chat here is already in TasteCode.')
+    await screen.findByText('Every chat here is already in TUIFT Code.')
     fireEvent.click(screen.getByRole('button', { name: 'Open newest chat' }))
     expect(onOpenChat).toHaveBeenCalledWith('external:codex:two')
   })
@@ -253,7 +253,7 @@ describe('Import chats settings', () => {
       { sources: [codex], chats: [chat('one', { imported: true })], folders },
     ])
     page(transport)
-    await screen.findByText('Every chat here is already in TasteCode.')
+    await screen.findByText('Every chat here is already in TUIFT Code.')
     expect(screen.queryByRole('button', { name: 'Import' })).toBeNull()
   })
 

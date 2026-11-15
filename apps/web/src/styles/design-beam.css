@@ -80,6 +80,84 @@
     radial-gradient(ellipse 11px 12px at 100% 27%, rgb(255 50 100 / 30%), transparent);
 }
 
+/* Motion keeps Design's geometry, masks and timing; only the colours change to
+   the TUIFT Media palette. Design's beam is rotated 30deg backwards by its
+   hue filter, so the base hue is set back to leave these colours as written. */
+.composer__design-button-beam.composer__motion-beam {
+  --beam-hue-base: 30deg;
+  --design-beam-border-gradients:
+    radial-gradient(ellipse 9px 18px at 2% 68%, var(--composer-motion-lime), transparent),
+    radial-gradient(ellipse 4px 8px at 2% 68%, var(--composer-motion-yellow), transparent),
+    radial-gradient(ellipse 59px 9px at 72% -3%, var(--composer-motion-accent), transparent),
+    radial-gradient(ellipse 42px 7px at 74% 100%, var(--composer-motion-blue), transparent),
+    radial-gradient(ellipse 10px 17px at 100% 27%, var(--composer-motion-pink), transparent),
+    radial-gradient(ellipse 10px 18px at 100% 27%, var(--composer-motion-orange), transparent),
+    radial-gradient(ellipse 5px 10px at 100% 27%, var(--composer-motion-blue), transparent),
+    radial-gradient(ellipse 11px 12px at 100% 27%, var(--composer-motion-yellow), transparent);
+  --design-beam-inner-gradients:
+    radial-gradient(
+      ellipse 9px 18px at 2% 68%,
+      color-mix(in srgb, var(--composer-motion-lime) 50%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 4px 8px at 2% 68%,
+      color-mix(in srgb, var(--composer-motion-yellow) 45%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 59px 9px at 72% -3%,
+      color-mix(in srgb, var(--composer-motion-accent) 40%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 42px 7px at 74% 100%,
+      color-mix(in srgb, var(--composer-motion-blue) 35%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 10px 17px at 100% 27%,
+      color-mix(in srgb, var(--composer-motion-pink) 30%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 10px 18px at 100% 27%,
+      color-mix(in srgb, var(--composer-motion-orange) 40%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 5px 10px at 100% 27%,
+      color-mix(in srgb, var(--composer-motion-blue) 30%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 11px 12px at 100% 27%,
+      color-mix(in srgb, var(--composer-motion-yellow) 30%, transparent),
+      transparent
+    );
+}
+
+/* The chip itself: Design's, with the accent on the border and icon while on.
+   Kept here, not in app.css, because the active look only exists once the
+   beam stylesheet has loaded, and app.css is at its startup budget. */
+.tools .composer__motion.is-active {
+  border-color: var(--composer-motion-border-active);
+}
+
+.tools .composer__motion.is-active svg {
+  color: var(--composer-motion-accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tools .composer__motion.is-active:hover:not(:disabled) {
+    border-color: var(--composer-motion-border-active);
+  }
+
+  .tools .composer__motion.is-active:hover:not(:disabled) svg {
+    color: var(--composer-motion-accent);
+  }
+}
+
 :is(.composer__design-beam, .composer__design-button-beam)[data-active] {
   animation:
     composer-design-beam-spin 2.4s linear infinite,

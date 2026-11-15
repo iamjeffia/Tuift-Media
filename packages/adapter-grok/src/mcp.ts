@@ -2,7 +2,7 @@ import type { McpCapabilities } from '@harness/contracts'
 
 /**
  * Grok reports the servers its own configuration loads (including the Claude
- * and Cursor settings it reads) once a session starts. TasteCode adds project
+ * and Cursor settings it reads) once a session starts. TUIFT Code adds project
  * servers to MCP chats over ACP; inherited ones stay read-only, because ACP
  * cannot hide a server Grok loads itself.
  */

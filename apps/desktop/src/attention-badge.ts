@@ -1,3 +1,5 @@
+import { translatePlural, type Language } from './i18n.js'
+
 /**
  * The Windows taskbar has no badge count of its own; an overlay icon carries
  * it instead. The overlay is drawn here as raw pixels so the shell ships no
@@ -59,6 +61,6 @@ export function badgeBitmap(count: number, size: number): Buffer | undefined {
 }
 
 /** What a screen reader and the taskbar tooltip say about the badge. */
-export function badgeDescription(count: number): string {
-  return count === 1 ? '1 chat needs you' : `${count} chats need you`
+export function badgeDescription(count: number, language: Language): string {
+  return translatePlural(language, 'badge.chatsNeedYou', count)
 }

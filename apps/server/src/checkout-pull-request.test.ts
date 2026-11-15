@@ -113,7 +113,7 @@ describe('reading a checkout with git', () => {
 
   it('treats an upstream deleted on the remote as no upstream', async () => {
     const root = await repository()
-    git(root, 'remote', 'add', 'origin', 'https://github.com/Leonxlnx/tastecode.git')
+    git(root, 'remote', 'add', 'origin', 'https://github.com/iamjeffia/Tuift-Media.git')
     commit(root, 'first')
     git(root, 'switch', '-q', '-c', 'merged-feature')
     git(root, 'config', 'branch.merged-feature.remote', 'origin')
@@ -121,7 +121,7 @@ describe('reading a checkout with git', () => {
 
     expect(await readCheckoutGit(root, runGit)).toEqual({
       branch: 'merged-feature',
-      repository: 'Leonxlnx/tastecode',
+      repository: 'iamjeffia/Tuift-Media',
     })
   })
   // Every step spawns git, which takes a while on a busy Windows machine.
@@ -156,7 +156,7 @@ function listed(overrides: Record<string, unknown> = {}) {
     state: 'OPEN',
     statusCheckRollup: [],
     title: 'feat(web): glide the transcript end into view while a turn streams',
-    url: 'https://github.com/Leonxlnx/tastecode/pull/1676',
+    url: 'https://github.com/iamjeffia/Tuift-Media/pull/1676',
     ...overrides,
   }
 }
@@ -241,10 +241,10 @@ describe('the pull request for a checkout', () => {
       }),
     ])
     expect((await lookups.forCheckout('/work/project')).pullRequest).toEqual({
-      repository: 'Leonxlnx/tastecode',
+      repository: 'iamjeffia/Tuift-Media',
       number: 1676,
       title: 'feat(web): glide the transcript end into view while a turn streams',
-      url: 'https://github.com/Leonxlnx/tastecode/pull/1676',
+      url: 'https://github.com/iamjeffia/Tuift-Media/pull/1676',
       state: 'OPEN',
       isDraft: true,
       reviewDecision: 'REVIEW_REQUIRED',
@@ -268,7 +268,7 @@ describe('the pull request for a checkout', () => {
   })
 
   it("ignores a fork's pull request from a branch of the same name", async () => {
-    // Captured: `gh pr list --head main` on Leonxlnx/tastecode lists a fork's #1237.
+    // Captured: `gh pr list --head main` on iamjeffia/Tuift-Media lists a fork's #1237.
     const fork = listed({ number: 1237, state: 'OPEN', isCrossRepository: true })
     const own = listed({ number: 7, state: 'MERGED' })
     expect((await service([fork, own]).lookups.forCheckout('/p')).pullRequest?.number).toBe(7)
@@ -407,7 +407,7 @@ describe('the pull request for a checkout', () => {
 })
 
 describe('opening a pull request for a checkout', () => {
-  const created = 'https://github.com/Leonxlnx/tastecode/pull/1801\n'
+  const created = 'https://github.com/iamjeffia/Tuift-Media/pull/1801\n'
 
   function creator(
     output: (args: string[]) => Promise<string>,
@@ -433,9 +433,9 @@ describe('opening a pull request for a checkout', () => {
     const { lookups, run } = creator(async (args) => (args[1] === 'create' ? created : '[]'))
 
     expect(await lookups.create('/p', request)).toEqual({
-      repository: 'Leonxlnx/tastecode',
+      repository: 'iamjeffia/Tuift-Media',
       number: 1801,
-      url: 'https://github.com/Leonxlnx/tastecode/pull/1801',
+      url: 'https://github.com/iamjeffia/Tuift-Media/pull/1801',
     })
     expect(run).toHaveBeenCalledWith(
       [

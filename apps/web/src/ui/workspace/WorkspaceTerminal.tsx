@@ -1,4 +1,5 @@
 import { memo } from 'react'
+import { useI18n } from '../../i18n/index.js'
 import type { Transport } from '../../transport.js'
 import { TerminalPane } from '../TerminalPane.js'
 import { WorkspaceEmptyState } from './WorkspaceEmptyState.js'
@@ -11,6 +12,7 @@ export const WorkspaceTerminal = memo(function WorkspaceTerminal(props: {
   projectPath?: string | undefined
   onClose: () => void
 }) {
+  const { t } = useI18n()
   // The server does not know a chat's provisional id while its first message
   // creates it; stay in the project checkout until the real id arrives.
   const threadId = props.threadId?.startsWith('pending:') ? undefined : props.threadId
@@ -23,8 +25,8 @@ export const WorkspaceTerminal = memo(function WorkspaceTerminal(props: {
     return (
       <WorkspaceEmptyState
         kind="terminal"
-        title="Choose a project"
-        detail="The terminal opens in the selected project's current checkout."
+        title={t('workspace.terminal.chooseProject.title')}
+        detail={t('workspace.terminal.chooseProject.detail')}
       />
     )
   }

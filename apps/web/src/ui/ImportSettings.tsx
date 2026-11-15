@@ -12,6 +12,7 @@ import {
   IconSearch as Search,
 } from '@tabler/icons-react'
 import { providerMark, type ProviderMark } from '../model-catalog.js'
+import { getLanguage, useI18n, type I18n } from '../i18n/index.js'
 import type { Transport } from '../transport.js'
 import {
   ALL_SOURCES,
@@ -19,7 +20,6 @@ import {
   checkState,
   folderGroups,
   lastUsed,
-  plural,
   selectionSummary,
   sourceCounts,
   toggled,
@@ -51,6 +51,7 @@ export function ImportSettings(props: {
   transport: Transport
   onOpenChat: (threadId: string) => void
 }) {
+  const { t } = useI18n()
   const { transport } = props
   const [scan, setScan] = useState<ChatImportScan>()
   const [failure, setFailure] = useState<string>()
@@ -126,15 +127,15 @@ export function ImportSettings(props: {
       onClick={() => void rescan()}
     >
       <Refresh size={14} aria-hidden />
-      Scan again
+      {t('settings.import.scanAgain')}
     </button>
   )
 
   return (
     <SettingsPage
       className="import-page"
-      title="Import chats"
-      description="Bring in chats from other coding apps. Their originals are never changed."
+      title={t('settings.import.title')}
+      description={t('settings.import.description')}
       actions={refresh}
     >
       {failure ? (
@@ -142,15 +143,15 @@ export function ImportSettings(props: {
           tone="error"
           action={
             <button className="set-button" type="button" onClick={() => void rescan()}>
-              Try again
+              {t('settings.import.tryAgain')}
             </button>
           }
         >
-          Could not look for chats. {failure}
+          {t('settings.import.scanFailed', { error: failure })}
         </SettingsNotice>
       ) : null}
       {scan === undefined && !failure ? (
-        <SettingsEntitySkeleton label="Looking for chats on this computer…" rows={4} />
+        <SettingsEntitySkeleton label={t('settings.import.looking')} rows={4} />
       ) : null}
       {scan ? (
         <ImportList
@@ -196,6 +197,7 @@ function ImportList(props: {
   onStart: (ids: string[]) => void
   onOpenChat: (threadId: string) => void
 }) {
+  const { t, tp } = useI18n()
   const { scan, selected, open, job } = props
   // A source that left the list since it was picked falls back to all of them.
   const source = scan.sources.some(({ id }) => id === props.source) ? props.source : ALL_SOURCES
@@ -218,8 +220,8 @@ function ImportList(props: {
     return (
       <SettingsEmpty
         icon={<FileImport size={20} aria-hidden />}
-        title="No chats to import"
-        detail="TasteCode found nothing from T3 Code, Claude Code, Codex, Grok or OpenCode on this computer."
+        title={t('settings.import.empty.title')}
+        detail={t('settings.import.empty.detail')}
       />
     )
   }
@@ -237,8 +239,9 @@ function ImportList(props: {
       ) : null}
       {failed.length ? (
         <SettingsNotice tone="error">
-          {failed.map(({ name }) => name).join(' and ')} could not be read. Other apps are not
-          affected.
+          {t('settings.import.sourcesFailed', {
+            names: failed.map(({ name }) => name).join(` ${t('settings.import.and')} `),
+          })}
         </SettingsNotice>
       ) : null}
 
@@ -254,8 +257,8 @@ function ImportList(props: {
           <input
             className="set-input"
             type="search"
-            placeholder="Search chats"
-            aria-label="Search chats and folders"
+            placeholder={t('settings.import.search.placeholder')}
+            aria-label={t('settings.import.search.label')}
             value={props.query}
             onChange={(event) => props.onQuery(event.target.value)}
           />
@@ -263,13 +266,13 @@ function ImportList(props: {
             <button
               className="set-button set-button--quiet import-search__clear"
               type="button"
-              aria-label="Clear search"
+              aria-label={t('settings.import.search.clearLabel')}
               onClick={(event) => {
                 props.onQuery('')
                 event.currentTarget.parentElement?.querySelector('input')?.focus()
               }}
             >
-              Clear
+              {t('settings.import.search.clear')}
             </button>
           ) : null}
         </div>
@@ -281,7 +284,7 @@ function ImportList(props: {
               checked={props.archived}
               onChange={(event) => props.onArchived(event.target.checked)}
             />
-            Include {plural(hidden, 'archived chat')}
+            {tp('settings.import.includeArchived', hidden)}
           </label>
         ) : null}
       </div>
@@ -294,7 +297,7 @@ function ImportList(props: {
             disabled={running}
             onChange={props.onSelected}
           />
-          <ul className="import-folders" aria-label="Folders with chats to import">
+          <ul className="import-folders" aria-label={t('settings.import.foldersLabel')}>
             {groups.map((group) => (
               <FolderRow
                 key={group.folder.path}
@@ -314,10 +317,10 @@ function ImportList(props: {
       ) : (
         <p className="import-none" role="status">
           {searching
-            ? 'No chats match that search.'
+            ? t('settings.import.noMatch')
             : props.scanning
-              ? 'Still looking through saved chats…'
-              : 'Every chat here is already in TasteCode.'}
+              ? t('settings.import.stillLooking')
+              : t('settings.import.allImported')}
         </p>
       )}
 
@@ -327,11 +330,7 @@ function ImportList(props: {
           chats={summary.chats}
           folders={summary.folders}
           newProjects={summary.newProjects}
-          note={
-            copies
-              ? 'A chat marked Copy starts a new session that gets its transcript with your next message. The others pick up their own saved session.'
-              : undefined
-          }
+          note={copies ? t('settings.import.copyNote') : undefined}
           onStart={() => props.onStart(summary.ids)}
           onOpenChat={props.onOpenChat}
         />
@@ -340,12 +339,18 @@ function ImportList(props: {
   )
 }
 
-function finishedLine(job: ChatImportJob): string {
-  const unread = job.failed ? `${plural(job.failed, 'chat')} could not be read.` : ''
+function finishedLine(job: ChatImportJob, { t, tp }: I18n): string {
+  const unread = job.failed ? tp('settings.import.unread', job.failed) : ''
   if (!job.imported) return unread
   const projects = job.projects.length
-  const added = projects ? `, adding ${plural(projects, 'project')}` : ''
-  return `Imported ${plural(job.imported, 'chat')}${added}.${unread ? ` ${unread}` : ''}`
+  const chats = tp('settings.import.count.chats', job.imported)
+  const imported = projects
+    ? t('settings.import.finishedWithProjects', {
+        chats,
+        projects: tp('settings.import.count.projects', projects),
+      })
+    : t('settings.import.finished', { chats })
+  return `${imported}${unread ? ` ${unread}` : ''}`
 }
 
 /** What is on this computer, and the list's filter: one figure per app. */
@@ -355,8 +360,12 @@ function SourceStrip(props: {
   counts: ReadonlyMap<string, number>
   onChange: (source: string) => void
 }) {
+  const { t } = useI18n()
   const buttons = useRef<Array<HTMLButtonElement | null>>([])
-  const options = [{ id: ALL_SOURCES, name: 'All apps' } as const, ...props.sources]
+  const options = [
+    { id: ALL_SOURCES, name: t('settings.import.allApps') } as const,
+    ...props.sources,
+  ]
   const chosen = Math.max(
     0,
     options.findIndex(({ id }) => id === props.value),
@@ -375,7 +384,11 @@ function SourceStrip(props: {
     props.onChange(options[next]!.id)
   }
   return (
-    <div className="set-segmented import-sources" role="radiogroup" aria-label="Filter by app">
+    <div
+      className="set-segmented import-sources"
+      role="radiogroup"
+      aria-label={t('settings.import.filterLabel')}
+    >
       {options.map((option, index) => {
         const state = 'state' in option ? option.state : 'ready'
         const mark = 'state' in option ? sourceMark(option) : undefined
@@ -401,7 +414,9 @@ function SourceStrip(props: {
               <Skeleton className="import-source__pending" width={20} height={9} />
             ) : (
               <span className="import-source__count" data-failed={state === 'failed' || undefined}>
-                {state === 'failed' ? '–' : (props.counts.get(option.id) ?? 0).toLocaleString()}
+                {state === 'failed'
+                  ? '–'
+                  : (props.counts.get(option.id) ?? 0).toLocaleString(getLanguage())}
               </span>
             )}
           </button>
@@ -440,28 +455,36 @@ function SelectAll(props: {
   disabled: boolean
   onChange: (selected: ReadonlySet<string>) => void
 }) {
+  const { t, tp } = useI18n()
   const { state, chosen } = checkState(props.chats, props.selected)
   return (
     <label className="import-row import-all">
       <TriCheck
-        label={`Select all ${plural(props.chats.length, 'chat')}`}
+        label={t('settings.import.selectAllLabel', {
+          chats: tp('settings.import.count.chats', props.chats.length),
+        })}
         state={state}
         disabled={props.disabled}
         onChange={() => props.onChange(toggled(props.selected, props.chats))}
       />
-      <span className="import-all__label">Select all</span>
+      <span className="import-all__label">{t('settings.import.selectAll')}</span>
       <span className="import-row__count import-all__count">
         {chosen
-          ? `${chosen.toLocaleString()} of ${plural(props.chats.length, 'chat')}`
-          : plural(props.chats.length, 'chat')}
+          ? t('settings.import.chosenOf', {
+              chosen: chosen.toLocaleString(getLanguage()),
+              chats: tp('settings.import.count.chats', props.chats.length),
+            })
+          : tp('settings.import.count.chats', props.chats.length)}
       </span>
     </label>
   )
 }
 
-function folderState(group: ImportFolderGroup): string {
-  if (group.folder.missing) return 'Folder is gone'
-  return group.folder.isProject ? 'In your projects' : 'New project'
+function folderState(group: ImportFolderGroup, { t }: I18n): string {
+  if (group.folder.missing) return t('settings.import.folder.gone')
+  return group.folder.isProject
+    ? t('settings.import.folder.inProjects')
+    : t('settings.import.folder.new')
 }
 
 function FolderRow(props: {
@@ -475,6 +498,8 @@ function FolderRow(props: {
   onToggleOpen: () => void
   onChange: (selected: ReadonlySet<string>) => void
 }) {
+  const i18n = useI18n()
+  const { t, tp } = i18n
   const { group, open, selected } = props
   const { state, chosen } = checkState(group.chats, selected)
   const panel = useId()
@@ -492,7 +517,7 @@ function FolderRow(props: {
       <div className="import-row import-folder__row">
         <ChevronRight className="import-folder__chevron" size={14} aria-hidden />
         <TriCheck
-          label={`Select all chats in ${group.folder.name}`}
+          label={t('settings.import.selectAllIn', { name: group.folder.name })}
           state={state}
           disabled={props.disabled}
           onChange={() => props.onChange(toggled(selected, group.chats))}
@@ -514,9 +539,11 @@ function FolderRow(props: {
               className="import-folder__state"
               data-state={group.folder.missing ? 'missing' : undefined}
             >
-              {folderState(group)}
+              {folderState(group, i18n)}
             </span>
-            {allCopies ? <span className="import-folder__state">Copy</span> : null}
+            {allCopies ? (
+              <span className="import-folder__state">{t('settings.import.copy')}</span>
+            ) : null}
             {marks.length ? (
               <span
                 className="import-folder__marks"
@@ -531,8 +558,11 @@ function FolderRow(props: {
         </button>
         <span className="import-row__count import-folder__count">
           {chosen
-            ? `${chosen.toLocaleString()} of ${plural(group.chats.length, 'chat')}`
-            : plural(group.chats.length, 'chat')}
+            ? t('settings.import.chosenOf', {
+                chosen: chosen.toLocaleString(getLanguage()),
+                chats: tp('settings.import.count.chats', group.chats.length),
+              })
+            : tp('settings.import.count.chats', group.chats.length)}
         </span>
         <span className="import-row__when">{lastUsed(group.updatedAt, props.now)}</span>
       </div>
@@ -569,23 +599,26 @@ function ChatRow(props: {
   disabled: boolean
   onChange: () => void
 }) {
+  const { t } = useI18n()
   const { chat } = props
   // The folder names its app once; a chat says so itself when its folder mixes
   // apps or another app saved it too.
   const mark = props.showSource || chat.alsoIn?.length ? sourceMark(props.source) : undefined
-  const title = chat.title || 'Untitled chat'
-  const savedBy = [props.source?.name, ...(props.alsoIn ?? [])].filter(Boolean).join(' and ')
+  const title = chat.title || t('settings.import.untitled')
+  const savedBy = [props.source?.name, ...(props.alsoIn ?? [])]
+    .filter(Boolean)
+    .join(` ${t('settings.import.and')} `)
   const tags = [
-    ...(chat.archived ? ['Archived'] : []),
-    ...(props.showCopy && chat.continuation === 'copy' ? ['Copy'] : []),
+    ...(chat.archived ? [t('settings.import.archived')] : []),
+    ...(props.showCopy && chat.continuation === 'copy' ? [t('settings.import.copy')] : []),
   ]
   const when = lastUsed(chat.updatedAt, props.now)
   // What the row shows besides the title, said once for a screen reader; the folder's
   // own app and Copy count too when the row leaves them to the folder.
   const description = [
     savedBy,
-    ...(chat.archived ? ['Archived'] : []),
-    ...(chat.continuation === 'copy' ? ['Copy'] : []),
+    ...(chat.archived ? [t('settings.import.archived')] : []),
+    ...(chat.continuation === 'copy' ? [t('settings.import.copy')] : []),
     when,
   ]
     .filter(Boolean)
@@ -632,17 +665,22 @@ function ImportBar(props: {
   onStart: () => void
   onOpenChat: (threadId: string) => void
 }) {
+  const i18n = useI18n()
+  const { t, tp } = i18n
   const { job } = props
   if (job?.state === 'running') {
     return (
       <div className="import-bar" role="status">
         <span className="import-bar__summary">
-          Importing {job.done.toLocaleString()} of {plural(job.total, 'chat')}
+          {t('settings.import.importing', {
+            done: job.done.toLocaleString(getLanguage()),
+            chats: tp('settings.import.count.chats', job.total),
+          })}
         </span>
         <span
           className="import-bar__track"
           role="progressbar"
-          aria-label="Import progress"
+          aria-label={t('settings.import.progressLabel')}
           aria-valuemin={0}
           aria-valuemax={job.total}
           aria-valuenow={job.done}
@@ -659,14 +697,14 @@ function ImportBar(props: {
     const thread = job.thread
     return (
       <div className="import-bar" role="status">
-        <span className="import-bar__summary">{finishedLine(job)}</span>
+        <span className="import-bar__summary">{finishedLine(job, i18n)}</span>
         {thread ? (
           <button
             className="set-button set-button--primary"
             type="button"
             onClick={() => props.onOpenChat(thread)}
           >
-            Open newest chat
+            {t('settings.import.openNewest')}
           </button>
         ) : null}
       </div>
@@ -674,10 +712,13 @@ function ImportBar(props: {
   }
   const parts = props.chats
     ? [
-        `${plural(props.chats, 'chat')} from ${plural(props.folders, 'folder')}`,
-        ...(props.newProjects ? [plural(props.newProjects, 'new project')] : []),
+        t('settings.import.summary', {
+          chats: tp('settings.import.count.chats', props.chats),
+          folders: tp('settings.import.count.folders', props.folders),
+        }),
+        ...(props.newProjects ? [tp('settings.import.count.newProjects', props.newProjects)] : []),
       ]
-    : ['Choose the chats to bring in']
+    : [t('settings.import.choose')]
   return (
     <div className="import-bar">
       <div className="import-bar__text">
@@ -692,7 +733,9 @@ function ImportBar(props: {
         disabled={!props.chats}
         onClick={props.onStart}
       >
-        {props.chats ? `Import ${plural(props.chats, 'chat')}` : 'Import'}
+        {props.chats
+          ? t('settings.import.start', { chats: tp('settings.import.count.chats', props.chats) })
+          : t('settings.import.startEmpty')}
       </button>
     </div>
   )

@@ -14,7 +14,15 @@ import { providerDisplayName, type ProviderMark } from '../../provider-presentat
 import { limitKey, limitTargetOf, USAGE_LOW_PERCENT } from '../../usage-limits-state.js'
 import type { UsageSummaryState } from '../../usage-summary-state.js'
 import { limitSource, remaining, sourceStatus } from '../AccountLimits.js'
-import { dateFromKey, formatMoney, resetText } from './usage-format.js'
+import { getLanguage, t, tp, type MessageKey } from '../../i18n/index.js'
+import {
+  dateFormat,
+  dateFromKey,
+  formatInteger,
+  formatMoney,
+  numberFormat,
+  resetText,
+} from './usage-format.js'
 
 type History = ResultOf<'usage.history'>
 type Limit = ResultOf<'usage.summary'>['limits'][number]
@@ -162,7 +170,9 @@ function sum<T>(items: readonly T[], read: (item: T) => number): number {
 }
 
 const defaultLabel: AccountLabel = (_provider, accountId) =>
-  accountId === undefined || accountId === DEFAULT_ACCOUNT_ID ? 'Default' : 'Account'
+  accountId === undefined || accountId === DEFAULT_ACCOUNT_ID
+    ? t('settings.usageSheets.accountDefault')
+    : t('settings.usageSheets.accountOther')
 
 /**
  * A provider's accounts: each one with usage in the period or plan limits to
@@ -274,13 +284,15 @@ export function deriveSheets(
   return { sheets, slots, span }
 }
 
-const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short' })
-const monthDay = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
-const monthName = new Intl.DateTimeFormat('en-US', { month: 'short' })
+const weekdayOptions: Intl.DateTimeFormatOptions = { weekday: 'short' }
+const monthDayOptions: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+const monthNameOptions: Intl.DateTimeFormatOptions = { month: 'short' }
 
 /** "Mar", and the year in January's place so a long axis keeps its years. */
 function monthText(date: Date): string {
-  return date.getMonth() === 0 ? String(date.getFullYear()) : monthName.format(date)
+  return date.getMonth() === 0
+    ? String(date.getFullYear())
+    : dateFormat(monthNameOptions).format(date)
 }
 
 /**
@@ -300,9 +312,10 @@ export function axisTicks(slots: readonly PeriodSlot[], span: 1 | 7): AxisTick[]
         start.getDate() === 1 ? start : end.getDate() < start.getDate() ? end : undefined
       if (first) ticks.push({ index, label: monthText(first) })
     } else if (slots.length <= 14) {
-      ticks.push({ index, label: weekday.format(start) })
+      ticks.push({ index, label: dateFormat(weekdayOptions).format(start) })
     } else if (slots.length <= 45) {
-      if (start.getDay() === 1) ticks.push({ index, label: monthDay.format(start) })
+      if (start.getDay() === 1)
+        ticks.push({ index, label: dateFormat(monthDayOptions).format(start) })
     } else if (start.getDate() === 1) {
       ticks.push({ index, label: monthText(start) })
     }
@@ -341,24 +354,26 @@ export function providerShares(sheets: readonly ProviderSheet[]): ProviderShare[
 /** "81%", "0.4%" under one percent, and "under 0.1%" below that. */
 export function shareText(share: number): string {
   const percent = share * 100
-  if (percent >= 1) return `${Math.round(percent)}%`
-  if (percent >= 0.1) return `${percent.toFixed(1)}%`
-  return 'under 0.1%'
+  if (percent >= 1) return `${formatInteger(percent)}%`
+  if (percent >= 0.1)
+    return `${numberFormat({ minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(percent)}%`
+  return t('settings.usageSheets.underTenth')
 }
 
 /** "$1,234.56", and "under $0.01" for a value that would round to nothing. */
 export function formatValue(value: number): string {
-  return value > 0 && value < 0.005 ? 'under $0.01' : formatMoney(value)
+  return value > 0 && value < 0.005 ? t('settings.usageSheets.underCent') : formatMoney(value)
 }
 
 const PERIODS = {
-  '7d': { label: 'Last 7 days', within: 'in the last 7 days' },
-  '30d': { label: 'Last 30 days', within: 'in the last 30 days' },
-  '90d': { label: 'Last 90 days', within: 'in the last 90 days' },
-  '365d': { label: 'Last year', within: 'in the last year' },
-  all: { label: 'All time', within: 'yet' },
-} as const satisfies Record<UsageHistoryRange, { label: string; within: string }>
+  '7d': { label: 'settings.usageSheets.period7d', empty: 'settings.usageSheets.empty7d' },
+  '30d': { label: 'settings.usageSheets.period30d', empty: 'settings.usageSheets.empty30d' },
+  '90d': { label: 'settings.usageSheets.period90d', empty: 'settings.usageSheets.empty90d' },
+  '365d': { label: 'settings.usageSheets.period365d', empty: 'settings.usageSheets.empty365d' },
+  all: { label: 'settings.usageSheets.periodAll', empty: 'settings.usageSheets.emptyAll' },
+} as const satisfies Record<UsageHistoryRange, { label: MessageKey; empty: MessageKey }>
 
+/** The periods to choose from; `label` is a catalog key, translated where it is shown. */
 export const PERIOD_OPTIONS = Object.entries(PERIODS).map(([value, period]) => ({
   value: value as UsageHistoryRange,
   label: period.label,
@@ -369,7 +384,7 @@ export function isPeriod(value: string): value is UsageHistoryRange {
 }
 
 export function emptySheetText(range: UsageHistoryRange): string {
-  return `No sessions ${PERIODS[range].within}`
+  return t(PERIODS[range].empty)
 }
 
 /**
@@ -385,10 +400,20 @@ export function limitAlert(sheets: readonly ProviderSheet[], now: number): strin
       for (const limit of account.limits.rows) {
         if (limit.state === 'ok') continue
         const reset = limit.resetsAt === undefined ? undefined : resetText(limit.resetsAt, now)
-        const name = `${owner} ${limit.label.toLowerCase()} limit`
-        const tail = reset ? `, ${reset.label}` : ''
-        if (limit.state === 'reached') reached.push(`${name} reached${tail}`)
-        else low.push(`${name} at ${limit.left}% left${tail}`)
+        const vars = { owner, label: limit.label.toLowerCase(), left: limit.left }
+        if (limit.state === 'reached') {
+          reached.push(
+            reset
+              ? t('settings.usageSheets.limitReachedReset', { ...vars, reset: reset.label })
+              : t('settings.usageSheets.limitReached', vars),
+          )
+        } else {
+          low.push(
+            reset
+              ? t('settings.usageSheets.limitLowReset', { ...vars, reset: reset.label })
+              : t('settings.usageSheets.limitLow', vars),
+          )
+        }
       }
     }
   }
@@ -402,8 +427,13 @@ export function rangeText(start: string, end: string, referenceYear: number): st
   const from = dateFromKey(start)
   const to = dateFromKey(end)
   if (from.getFullYear() === to.getFullYear() && from.getMonth() === to.getMonth()) {
-    const year = to.getFullYear() === referenceYear ? '' : `, ${to.getFullYear()}`
-    return `${monthDay.format(from)} – ${to.getDate()}${year}`
+    const year = to.getFullYear() === referenceYear ? {} : { year: 'numeric' as const }
+    // Portuguese names the month after the days ("6 – 12 de out."), which the browser knows.
+    if (getLanguage() !== 'en') {
+      return dateFormat({ ...monthDayOptions, ...year }).formatRange(from, to)
+    }
+    const yearText = to.getFullYear() === referenceYear ? '' : `, ${to.getFullYear()}`
+    return `${dateFormat(monthDayOptions).format(from)} – ${to.getDate()}${yearText}`
   }
   // Within one year, the year is named once, at the end.
   const head = dayText(
@@ -416,7 +446,7 @@ export function rangeText(start: string, end: string, referenceYear: number): st
 /** "Oct 3", "Sat, Oct 3", with the year when it is not the reference year. */
 export function dayText(key: string, referenceYear: number, withWeekday = false): string {
   const date = dateFromKey(key)
-  return new Intl.DateTimeFormat('en-US', {
+  return dateFormat({
     ...(withWeekday ? { weekday: 'short' } : {}),
     month: 'short',
     day: 'numeric',
@@ -435,16 +465,18 @@ export function dayKey(at: number): string {
 /** "just now", "5 min ago", "3 h ago", "2 days ago". */
 export function indexedAgo(at: number, now: number): string {
   const minutes = Math.floor(Math.max(0, now - at) / 60_000)
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes} min ago`
+  if (minutes < 1) return t('settings.usageSheets.agoNow')
+  if (minutes < 60) return t('settings.usageSheets.agoMinutes', { minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} h ago`
-  const days = Math.floor(hours / 24)
-  return `${days} ${days === 1 ? 'day' : 'days'} ago`
+  if (hours < 24) return t('settings.usageSheets.agoHours', { hours })
+  return tp('settings.usageSheets.agoDays', Math.floor(hours / 24))
 }
 
 /** "Codex", "Codex and Grok", "Claude Code, Codex and Grok". */
 export function listText(items: readonly string[]): string {
   if (items.length < 2) return items.join('')
-  return `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`
+  return t('settings.usageSheets.listAnd', {
+    head: items.slice(0, -1).join(', '),
+    last: items.at(-1) ?? '',
+  })
 }

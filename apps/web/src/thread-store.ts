@@ -508,6 +508,7 @@ export function reduceDeltas(state: ThreadState, deltas: ItemDeltaEvent[]): Thre
     const textDelta = chunks.length === 1 ? chunks[0]! : chunks.join('')
     if (index < 0) {
       if (state.activeTurn && turnId !== state.activeTurn.id) continue
+      if (itemIndex(items, itemId) >= 0) continue
       if (liveItemUpdates) {
         liveItems = applyLiveItemUpdates(liveItems, liveItemUpdates)
         liveItemUpdates = undefined
@@ -579,6 +580,9 @@ function reduceSingleItemDeltas(
 
   if (index < 0) {
     if (state.activeTurn && turnId !== state.activeTurn.id) return state
+    // Not live, but already in the transcript: output that outlives its item, such as a
+    // background server still logging after its turn, belongs to nothing new.
+    if (itemIndex(state.items, itemId) >= 0) return state
     const items = copyMaterializedItems(state)
     const liveStart = state.running ? state.liveStart : items.length
     const item: Item = {

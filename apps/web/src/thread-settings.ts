@@ -8,6 +8,7 @@ export type LocalThreadSelection = {
   effort?: string
   serviceTier?: string
   designMode?: boolean
+  motionMode?: boolean
 }
 
 type SessionSource = {
@@ -80,6 +81,7 @@ export function adoptedSelection(
     ...(settings.effort ? { effort: settings.effort } : {}),
     ...(settings.serviceTier ? { serviceTier: settings.serviceTier } : {}),
     ...(saved?.designMode !== undefined ? { designMode: saved.designMode } : {}),
+    ...(saved?.motionMode !== undefined ? { motionMode: saved.motionMode } : {}),
   }
 }
 

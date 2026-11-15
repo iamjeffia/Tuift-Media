@@ -103,7 +103,7 @@ describe('TerminalManager', () => {
     expect(environment.CUSTOM).toBe('kept')
     expect(environment.TERM).toBe('xterm-256color')
     expect(environment.COLORTERM).toBe('truecolor')
-    expect(environment.TERM_PROGRAM).toBe('TasteCode')
+    expect(environment.TERM_PROGRAM).toBe('TUIFT Code')
     expect(environment.PATH?.split(path.delimiter)[0]).toBe('/system/bin')
     expect(environment.PATH?.split(path.delimiter)).toContain(
       path.join(os.homedir(), '.local', 'bin'),

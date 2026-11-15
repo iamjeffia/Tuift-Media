@@ -108,6 +108,16 @@ describe('native subagent transcripts', () => {
     expect(source.readSubagentTranscript).toHaveBeenCalledWith(session, latest)
   })
 
+  it('bounds what a child tool printed, since it never passes through the log', async () => {
+    const printed: Item = { ...items[1]!, text: `Bash\n${'x'.repeat(1_000_000)}` }
+    source.readSubagentTranscript = vi.fn(async () => [printed, items[2]!])
+
+    const [tool, answer] = await history.readSubagentTranscript('parent', call.id)
+    expect(tool!.text!.length).toBeLessThan(66_000)
+    expect(tool!.text!.startsWith('Bash\n')).toBe(true)
+    expect(answer).toEqual(items[2])
+  })
+
   it('returns no items for an adapter without the optional capability', async () => {
     delete source.readSubagentTranscript
     await expect(history.readSubagentTranscript('parent', call.id)).resolves.toEqual([])
@@ -196,7 +206,7 @@ describe('native subagent transcripts', () => {
     expect(source.readSubagentTranscript).not.toHaveBeenCalled()
   })
 
-  it("rejects another chat's item, missing chats, and a TasteCode-owned child", async () => {
+  it("rejects another chat's item, missing chats, and a TUIFT-Code-owned child", async () => {
     store.addThread({ id: 'other', provider: 'codex', projectPath: process.cwd(), title: 'Other' })
     await expect(history.readSubagentTranscript('missing', call.id)).rejects.toThrow(
       'Thread not found',

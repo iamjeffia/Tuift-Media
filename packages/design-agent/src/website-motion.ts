@@ -8,7 +8,7 @@ import { tasteskillSection } from './tasteskill-web.js'
  *   load motion in the hero and one creative moment in its own section on every kind of page.
  * - `tasteskill` (A): tasteskill's motion chapter as written: other pages move only on hover.
  * - `reveals` (B): the earlier Design guidance: a hero entrance and scroll reveals in at least two
- *   later sections, with TasteCode's tested reveal helper.
+ *   later sections, with TUIFT Code's tested reveal helper.
  *
  * Every motion sentence in the Page, Build and Review prompts for a website comes from here, so
  * changing this value changes all of them together. Dashboards keep their own rules.
@@ -61,7 +61,7 @@ ${REFERENCE_REVEAL_SOURCE}
 
 /** The motion chapter's numbers: hover, press, focus and loop timings every mode except B uses. */
 function quotedMotion(sections: readonly string[]): string {
-  return `The text below is quoted unchanged from tasteskill v2.5's motion chapter (references/motion.md, MIT). TasteCode does not install its kit: where it names \`motion.css\`, \`motion.js\`, \`ui.js\`, \`system.js\`, a \`.btn\`, \`.card\`, \`.m-*\` or \`data-*\` hook, implement the stated motion with the page's own markup, CSS and script, at the stated numbers.
+  return `The text below is quoted unchanged from tasteskill v2.5's motion chapter (references/motion.md, MIT). TUIFT Code does not install its kit: where it names \`motion.css\`, \`motion.js\`, \`ui.js\`, \`system.js\`, a \`.btn\`, \`.card\`, \`.m-*\` or \`data-*\` hook, implement the stated motion with the page's own markup, CSS and script, at the stated numbers.
 
 <tasteskill-motion>
 ${sections.map((heading) => tasteskillSection('motion.md', heading)).join('\n\n')}
@@ -70,7 +70,7 @@ ${sections.map((heading) => tasteskillSection('motion.md', heading)).join('\n\n'
 
 const KINDS = `Tech means a page about software, a game or hardware (tasteskill's kinds software, gaming and tech); every other page (a physical product, a service, a place people visit) is other. Decide the kind from the brief and record it in the page plan.`
 
-const HYBRID_GUIDANCE = `WEBSITE MOTION (TasteCode Design, hybrid):
+const HYBRID_GUIDANCE = `WEBSITE MOTION (TUIFT Code Design, hybrid):
 Every page moves in three ways, and in no other:
 1. The hover and focus layer on every kind, at the numbers quoted below: buttons step and press, a linked card lifts 2px, a photograph in a link zooms 1.02 to 1.03 inside its frame, links draw their underline, focus rings settle. Every change is the visitor's. It works by tap and keyboard as well, and only for a fine pointer on hover.
 2. One load motion in the hero on every kind, 600 to 1200ms, settled by 1.5s: the hero's visual assembles, its media opens through its own frame, or its object turns into place. The hero text is in place on the first frame and is never faded or moved. There is no gate, loader or intro.

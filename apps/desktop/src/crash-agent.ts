@@ -41,7 +41,7 @@ const PROMPT_FILE = 'prompt.txt'
  * The detail lives in the report file next to it.
  */
 export const CRASH_AGENT_PROMPT =
-  `TasteCode, a desktop app that runs AI coding agents, just crashed while drawing its window. ` +
+  `TUIFT Code, a desktop app that runs AI coding agents, just crashed while drawing its window. ` +
   `Read ${REPORT_FILE} in this folder, then explain to me in plain language what happened ` +
   `and walk me through fixing it or working around it. ` +
   `Before you change anything outside this folder, tell me what you will change and why.`
@@ -63,7 +63,7 @@ export function crashAgentCommand(
       return { command: 'codex', args: ['--dangerously-bypass-approvals-and-sandbox'] }
     case 'grok': {
       // Same fallback as the Grok adapter: its installer's fixed home survives
-      // a stale PATH inherited from the shell that started TasteCode.
+      // a stale PATH inherited from the shell that started TUIFT Code.
       const installed = path.join(
         home,
         '.grok',
@@ -108,16 +108,16 @@ export function crashReport(details: CrashDetails, environment: CrashEnvironment
   const section = (title: string, value: string) =>
     value.trim() ? [`## ${title}`, '', block(value.trim()), ''] : []
   return [
-    '# TasteCode crash report',
+    '# TUIFT Code crash report',
     '',
-    'The TasteCode window hit a React render exception and replaced the app with its',
+    'The TUIFT Code window hit a React render exception and replaced the app with its',
     'recovery screen. The background server and any running agent sessions are separate',
     'processes and keep running. The "Reload window" button on that screen restarts the',
     'interface. Secrets, email addresses and home folder paths below are redacted.',
     '',
     '## Environment',
     '',
-    `- TasteCode: ${environment.appVersion}`,
+    `- TUIFT Code: ${environment.appVersion}`,
     `- Electron: ${environment.electronVersion} (Chromium ${environment.chromeVersion})`,
     `- OS: ${environment.platform} ${environment.osRelease} (${environment.arch})`,
     `- Time: ${environment.time}`,

@@ -171,6 +171,52 @@ describe('a Codex turn that ends while its work still runs', () => {
     expect(lifecycle(events).filter((entry) => entry === 'turn completed')).toHaveLength(1)
   })
 
+  it('keeps a running command output on the command, before and after the reply and the turn', async () => {
+    const { rpc, events, started, completed, endTurn } = await runningTurn()
+    const output = (itemId: string, delta: string) =>
+      rpc.emitNotification('item/commandExecution/outputDelta', {
+        threadId: THREAD,
+        turnId: TURN,
+        itemId,
+        delta,
+      })
+    const said = (delta: string) =>
+      rpc.emitNotification('item/agentMessage/delta', {
+        threadId: THREAD,
+        turnId: TURN,
+        itemId: 'answer',
+        delta,
+      })
+    started(command('inProgress'), 1_000)
+    output('exec-server', 'Serving HTTP on 127.0.0.1 port 8891\r\n')
+    started(message('answer', 'final_answer', ''), 1_100)
+    said('The page ')
+    output('exec-server', '127.0.0.1 - - "GET /pesquisa.html HTTP/1.1" 200 -\r\n')
+    said('is ready.')
+    completed(message('answer', 'final_answer', 'The page is ready.'), 1_200)
+    endTurn('completed')
+    // The server keeps logging after the turn settled it.
+    output('exec-server', '127.0.0.1 - - "GET /frames/f_01160.png HTTP/1.1" 200 -\r\n')
+    output('exec-server', '127.0.0.1 - - "GET /frames/f_01161.png HTTP/1.1" 200 -\r\n')
+
+    const streamed = (itemId: string) =>
+      events.flatMap((event) =>
+        event.type === 'item.delta' && event.itemId === itemId ? [event.textDelta] : [],
+      )
+    expect(streamed('answer').join('')).toBe('The page is ready.')
+    expect(streamed('exec-server')).toHaveLength(4)
+    expect(streamed('exec-server').join('')).not.toContain('The page')
+    // Nothing else was made of it: no item other than the two the turn started.
+    expect(events.flatMap((event) => (event.type === 'item.delta' ? [event.itemId] : []))).toEqual([
+      'exec-server',
+      'answer',
+      'exec-server',
+      'answer',
+      'exec-server',
+      'exec-server',
+    ])
+  })
+
   it('settles only what is still open, and a failed turn as failed', async () => {
     const { events, started, completed, endTurn } = await runningTurn()
     started(command('inProgress', { id: 'exec-build', command: 'npm run build' }), 1_000)

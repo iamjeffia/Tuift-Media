@@ -72,6 +72,7 @@ import {
   sessionSourcePresentation,
 } from '../provider-presentation.js'
 import { avatarSeedName, type ProfileIdentityPreferences } from '../profile-preferences.js'
+import { t, tp, useI18n } from '../i18n/index.js'
 import {
   foldedProjectSessions,
   needsYouSessions,
@@ -88,6 +89,7 @@ import {
   shortcutAria,
   type Keybindings,
 } from '../shortcuts.js'
+import { findSession } from '../project-store.js'
 import { USAGE_LOW_PERCENT } from '../usage-limits-state.js'
 import { GeneratedAvatar } from './GeneratedAvatar.js'
 import { AppUpdateNotice } from './AppUpdateNotice.js'
@@ -99,7 +101,18 @@ import { SplitSidebarContext, type SplitSidebar } from './split-view-context.js'
 import { activeIndicatorRef } from './active-indicator.js'
 import { compactRelativeTime, readSessionClock, subscribeSessionClock } from './session-clock.js'
 import { rememberProjectOpen, wasProjectOpen } from './project-open-memory.js'
+import {
+  bulkDeleteCopy,
+  createSessionSelection,
+  isTextEntryTarget,
+  nearestSurvivor,
+  runningStopLabel,
+  SessionSelectionContext,
+  useSessionSelected,
+  type SessionSelectionActions,
+} from './session-selection.js'
 import '../styles/account-card.css'
+import '../styles/session-selection.css'
 import '../styles/rail-motion.css'
 import { InboxRailSkeleton, SidebarTreeSkeleton } from './SurfaceSkeletons.js'
 
@@ -116,6 +129,7 @@ const loadAccountLimits = (): Promise<LazyAccountLimitsModule> =>
 const AccountLimits = lazy(loadAccountLimits)
 
 function AccountLimitsLoading(props: { states: AccountLimitsState[] }) {
+  const { t } = useI18n()
   const panel = useRef<HTMLElement>(null)
   const visible = props.states.some((state) =>
     state.status !== 'ready' && state.gaveUp
@@ -130,11 +144,11 @@ function AccountLimitsLoading(props: { states: AccountLimitsState[] }) {
     <section
       ref={panel}
       className="account-menu__usage"
-      aria-label="Plan limits"
+      aria-label={t('sidebar.account.planLimits')}
       aria-busy
       tabIndex={0}
     >
-      <p className="account-menu__usage-note">Checking plan limits…</p>
+      <p className="account-menu__usage-note">{t('sidebar.account.checkingLimits')}</p>
     </section>
   )
 }
@@ -305,8 +319,10 @@ function SidebarComponent(props: {
   /** Present only when this build can send feedback. */
   onSendFeedback?: (() => void) | undefined
 }) {
+  const { t } = useI18n()
   const keybindings = props.keybindings ?? DEFAULT_KEYBINDINGS
-  const profileDisplayName = props.profileIdentity?.displayName.trim() || 'Local profile'
+  const profileDisplayName =
+    props.profileIdentity?.displayName.trim() || t('sidebar.account.localProfile')
   const cardStates = props.usageCardStates ?? props.usageStates
   const usageLimit = useMemo(() => tightestUsageLimit(cardStates), [cardStates])
   const usageRemaining = usageLimit
@@ -562,6 +578,78 @@ function SidebarComponent(props: {
       animateArchive(sessionIds, (ids) => actionsRef.current.onArchiveProject(ids)),
     [animateArchive],
   )
+
+  // Ctrl+click and Shift+click gather chats; the rows read it from context.
+  const [selection] = useState(createSessionSelection)
+  const [deletingSelection, setDeletingSelection] = useState<{ ids: string[]; running: number }>()
+  const selectedSessions = useCallback(
+    () =>
+      selection
+        .selectedIds()
+        .map((id) => findSession(actionsRef.current.projects, id)?.session)
+        .filter((session): session is Session => session !== undefined),
+    [selection],
+  )
+  const selectionActions = useMemo<SessionSelectionActions>(
+    () => ({
+      store: selection,
+      activeSessionId: () => actionsRef.current.activeSessionId,
+      archivableCount: () =>
+        actionsRef.current.onArchiveSession
+          ? selectedSessions().filter((session) => !isLiveStatus(session.status)).length
+          : 0,
+      archiveSelected: () => {
+        for (const session of selectedSessions()) {
+          if (!isLiveStatus(session.status)) actionsRef.current.onArchiveSession?.(session.id)
+        }
+        selection.clear()
+      },
+      deleteSelected: () => {
+        const sessions = selectedSessions()
+        if (sessions.length === 0) return
+        setDeletingSelection({
+          ids: sessions.map((session) => session.id),
+          running: sessions.filter((session) => isLiveStatus(session.status)).length,
+        })
+      },
+    }),
+    [selectedSessions, selection],
+  )
+  const deleteSelection = useCallback(
+    (ids: string[]) => {
+      // The chat that takes focus is the nearest one that stays.
+      const next = nearestSurvivor(selection.visibleIds(), new Set(ids))
+      selection.clear()
+      animateArchive(ids, (committed) => {
+        for (const id of committed) actionsRef.current.onDeleteSession(id)
+      })
+      if (next) {
+        window.setTimeout(() => {
+          const rows = railBody.current?.querySelectorAll<HTMLElement>('[data-archive-session-id]')
+          const row = Array.from(rows ?? []).find(
+            (node) => node.dataset['archiveSessionId'] === next,
+          )
+          row?.querySelector<HTMLElement>('.sess')?.focus()
+        }, 0)
+      }
+    },
+    [animateArchive, selection],
+  )
+  const onRailKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLElement>) => {
+      if (event.defaultPrevented || isComposingKey(event) || isTextEntryTarget(event.target)) return
+      if (selection.count() === 0) return
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        selection.clear()
+      } else if (event.key === 'Delete') {
+        event.preventDefault()
+        selectionActions.deleteSelected()
+      }
+    },
+    [selection, selectionActions],
+  )
   const reorderSession = useCallback(
     (projectPath: string, sourceId: string, targetId: string, position: DropPosition) =>
       actionsRef.current.onReorderSession(projectPath, sourceId, targetId, position),
@@ -629,6 +717,8 @@ function SidebarComponent(props: {
   // Pinned chats keep their order, but can still be dragged out to the chat area.
   const { dragOut } = useContext(SplitSidebarContext)
   const pinnedList = useRef<HTMLUListElement>(null)
+  const pinnedIds = useMemo(() => pinnedSessions.map(({ session }) => session.id), [pinnedSessions])
+  useChatListSelection(selection, pinnedList, pinnedIds)
   const pinnedDrag = useRowDrag({
     attribute: 'data-archive-session-id',
     rows: () =>
@@ -709,7 +799,7 @@ function SidebarComponent(props: {
     })
   }
 
-  return (
+  const rail = (
     <div
       ref={slotRef}
       className={`rail-slot ${props.collapsed ? 'is-collapsed' : ''}`}
@@ -732,7 +822,7 @@ function SidebarComponent(props: {
         <button
           type="button"
           className="rail__backdrop"
-          aria-label="Close sidebar"
+          aria-label={t('sidebar.rail.close')}
           tabIndex={-1}
           onPointerDown={props.onClose}
         />
@@ -751,10 +841,11 @@ function SidebarComponent(props: {
         onDragLeave={hideFolderDropTarget}
         onDrop={addDroppedProjects}
       >
+        <SelectionAnnouncer store={selection} />
         {folderDropActive ? (
           <div className="rail__folder-drop" role="status">
             <FolderOpen size={18} aria-hidden />
-            <span>Drop folders to add projects</span>
+            <span>{t('sidebar.rail.dropFolders')}</span>
           </div>
         ) : null}
         {inbox ? (
@@ -800,14 +891,14 @@ function SidebarComponent(props: {
                   }}
                 >
                   <SquarePen size={13} aria-hidden />
-                  <span>New chat</span>
+                  <span>{t('sidebar.rail.newChat')}</span>
                 </button>
                 <button
                   type="button"
                   className="rail__search"
                   onClick={() => props.onOpenSearch()}
-                  aria-label="Search chats"
-                  title="Search chats"
+                  aria-label={t('sidebar.rail.searchChats')}
+                  title={t('sidebar.rail.searchChats')}
                   aria-keyshortcuts={shortcutAria(keybindings.searchSessions)}
                 >
                   <Search size={14} aria-hidden />
@@ -822,7 +913,7 @@ function SidebarComponent(props: {
                 aria-keyshortcuts={shortcutAria(keybindings.newProject)}
               >
                 <FolderPen size={13} aria-hidden />
-                <span>New project</span>
+                <span>{t('sidebar.rail.newProject')}</span>
               </button>
               {props.onOpenPullRequests ? (
                 <button
@@ -833,7 +924,7 @@ function SidebarComponent(props: {
                   onClick={openPullRequests}
                 >
                   <GitPullRequest size={13} aria-hidden />
-                  <span>Pull requests</span>
+                  <span>{t('sidebar.rail.pullRequests')}</span>
                 </button>
               ) : null}
             </div>
@@ -844,6 +935,7 @@ function SidebarComponent(props: {
               data-narrow={props.width < NARROW_RAIL_WIDTH ? '' : undefined}
               onScroll={(event) => setBodyScrolled(event.currentTarget.scrollTop > 0)}
               onClickCapture={projectDrag.onClickCapture}
+              onKeyDown={onRailKeyDown}
             >
               {needsYou.length > 0 ? (
                 <NeedsYouBand
@@ -855,7 +947,7 @@ function SidebarComponent(props: {
               ) : null}
               {pinnedSessions.length > 0 ? (
                 <>
-                  <p className="section">Pinned</p>
+                  <p className="section">{t('sidebar.rail.pinned')}</p>
                   <ul
                     ref={pinnedList}
                     className="proj__sessions pinned-sessions"
@@ -879,12 +971,12 @@ function SidebarComponent(props: {
                 </>
               ) : null}
               <div className="section section--row">
-                <span>Projects</span>
+                <span>{t('sidebar.rail.projects')}</span>
                 <button
                   type="button"
                   className="section__add"
-                  aria-label="New project"
-                  title="New project"
+                  aria-label={t('sidebar.rail.newProject')}
+                  title={t('sidebar.rail.newProject')}
                   onClick={() => {
                     props.onAddProject()
                     closeOnNarrowViewport()
@@ -897,7 +989,7 @@ function SidebarComponent(props: {
                 props.projectsLoading ? (
                   <SidebarTreeSkeleton />
                 ) : (
-                  <p className="rail__hint">Nothing here yet.</p>
+                  <p className="rail__hint">{t('sidebar.rail.empty')}</p>
                 )
               ) : (
                 renderedProjects.map((project) => (
@@ -942,11 +1034,11 @@ function SidebarComponent(props: {
             <Menu
               drop="up"
               gap={8}
-              label="Account"
+              label={t('sidebar.account.menuLabel')}
               triggerClassName="account-card__trigger"
               panelClassName="menu--compact menu--settings menu--account"
               panelRole="dialog"
-              panelLabel="Account and plan limits"
+              panelLabel={t('sidebar.account.panelLabel')}
               trigger={() => (
                 <span className="account">
                   <span className="account__avatar">
@@ -964,7 +1056,7 @@ function SidebarComponent(props: {
                         title={[
                           providerDisplayName(usageLimit.provider),
                           usageLimit.label,
-                          `${usageRemaining}% left`,
+                          t('sidebar.account.percentLeft', { percent: usageRemaining }),
                           ...(usageLimit.unknown.length > 0
                             ? [unknownLimitsLabel(usageLimit.unknown)]
                             : []),
@@ -982,7 +1074,9 @@ function SidebarComponent(props: {
                         >
                           <span style={{ transform: `scaleX(${usageRemaining / 100})` }} />
                         </span>
-                        <span className="account__usage-value">{usageRemaining}% left</span>
+                        <span className="account__usage-value">
+                          {t('sidebar.account.percentLeft', { percent: usageRemaining })}
+                        </span>
                         {usageLimit.unknown.length > 0 ? (
                           <span className="account__usage-unknown" aria-hidden />
                         ) : null}
@@ -1022,7 +1116,7 @@ function SidebarComponent(props: {
                       >
                         <DialogAction
                           icon={<UserRound size={14} aria-hidden />}
-                          title="Edit profile"
+                          title={t('sidebar.account.editProfile')}
                         />
                       </button>
                       {props.onSendFeedback ? (
@@ -1037,7 +1131,7 @@ function SidebarComponent(props: {
                         >
                           <DialogAction
                             icon={<MessageSquare size={14} aria-hidden />}
-                            title="Send feedback"
+                            title={t('sidebar.account.sendFeedback')}
                           />
                         </button>
                       ) : null}
@@ -1051,7 +1145,10 @@ function SidebarComponent(props: {
                           close()
                         }}
                       >
-                        <DialogAction icon={<Settings size={14} aria-hidden />} title="Settings" />
+                        <DialogAction
+                          icon={<Settings size={14} aria-hidden />}
+                          title={t('settings.title')}
+                        />
                       </button>
                     </div>
                   </>
@@ -1061,8 +1158,8 @@ function SidebarComponent(props: {
             <button
               type="button"
               className="account-card__settings"
-              aria-label="Settings"
-              title="Settings"
+              aria-label={t('settings.title')}
+              title={t('settings.title')}
               aria-keyshortcuts={shortcutAria(keybindings.settings)}
               onClick={() => {
                 props.onOpenSettings()
@@ -1094,7 +1191,70 @@ function SidebarComponent(props: {
           props.onClose()
         }}
       />
+      {deletingSelection ? (
+        <Suspense fallback={null}>
+          <SidebarConfirmDialog
+            {...bulkDeleteCopy(deletingSelection.ids.length, deletingSelection.running)}
+            onConfirm={() => {
+              deleteSelection(deletingSelection.ids)
+              setDeletingSelection(undefined)
+            }}
+            onClose={() => setDeletingSelection(undefined)}
+          />
+        </Suspense>
+      ) : null}
     </div>
+  )
+  return (
+    <SessionSelectionContext.Provider value={selectionActions}>
+      {rail}
+    </SessionSelectionContext.Provider>
+  )
+}
+
+/** Says the selection out loud: a change in the count is the only news. */
+function SelectionAnnouncer(props: { store: ReturnType<typeof createSessionSelection> }) {
+  const [message, setMessage] = useState('')
+  useEffect(() => {
+    let previous = 0
+    return props.store.subscribe(() => {
+      const count = props.store.count()
+      setMessage(
+        count > 0
+          ? tp('sidebar.selection.selected', count)
+          : previous > 0
+            ? t('sidebar.selection.cleared')
+            : '',
+      )
+      previous = count
+    })
+  }, [props.store])
+  return (
+    <p className="visually-hidden" aria-live="polite">
+      {message}
+    </p>
+  )
+}
+
+/** Reports a chat list's visible ids to the selection, and drops them when it unmounts. */
+function useChatListSelection(
+  store: ReturnType<typeof createSessionSelection> | undefined,
+  list: RefObject<HTMLUListElement | null>,
+  ids: readonly string[],
+) {
+  const registered = useRef<Element | null>(null)
+  useLayoutEffect(() => {
+    const node = list.current
+    if (registered.current && registered.current !== node) store?.removeList(registered.current)
+    registered.current = node
+    if (node) store?.setList(node, ids)
+  }, [ids, list, store])
+  useLayoutEffect(
+    () => () => {
+      if (registered.current) store?.removeList(registered.current)
+      registered.current = null
+    },
+    [store],
   )
 }
 
@@ -1108,6 +1268,7 @@ function RailResizeHandle(props: {
   onResizingChange: (active: boolean) => void
   onCollapse: (releaseX: number) => void
 }) {
+  const { t } = useI18n()
   const hapticsPreference = useSyncExternalStore(
     subscribeAppHaptics,
     readAppHaptics,
@@ -1204,7 +1365,7 @@ function RailResizeHandle(props: {
       hidden={props.hidden}
       className="rail__resize"
       role="separator"
-      aria-label="Resize sidebar"
+      aria-label={t('sidebar.rail.resize')}
       aria-orientation="vertical"
       aria-valuemin={MIN_RAIL_WIDTH}
       aria-valuemax={MAX_RAIL_WIDTH}
@@ -1325,6 +1486,7 @@ const ProjectRow = memo(function ProjectRow(props: {
     position: DropPosition,
   ) => void
 }) {
+  const { t, tp } = useI18n()
   const count = props.project.sessions.length
   const projectPath = props.project.path
   const attention = useMemo(() => projectAttention(props.project), [props.project])
@@ -1406,7 +1568,7 @@ const ProjectRow = memo(function ProjectRow(props: {
         {renaming ? (
           <InlineRename
             value={displayName(props.project)}
-            ariaLabel={`Rename ${displayName(props.project)}`}
+            ariaLabel={t('sidebar.project.rename', { name: displayName(props.project) })}
             onCommit={(name, fromKeyboard) => {
               props.onRenameProject(props.project.path, name)
               finishRename(fromKeyboard)
@@ -1429,7 +1591,9 @@ const ProjectRow = memo(function ProjectRow(props: {
               aria-expanded={expanded}
               aria-label={
                 folded
-                  ? `${displayName(props.project)}, ${folded.count} ${folded.count === 1 ? 'needs' : 'need'} you`
+                  ? tp('sidebar.project.attention', folded.count, {
+                      name: displayName(props.project),
+                    })
                   : undefined
               }
               title={props.project.path}
@@ -1448,7 +1612,7 @@ const ProjectRow = memo(function ProjectRow(props: {
             <Menu
               drop="down"
               align="right"
-              label="Project options"
+              label={t('sidebar.project.options')}
               panelClassName="menu--sidebar"
               contextMenuTargetRef={contextMenuTarget}
               {...(actionsReady
@@ -1458,7 +1622,9 @@ const ProjectRow = memo(function ProjectRow(props: {
               {(close) => (
                 <>
                   <MenuItem
-                    title={props.project.pinned ? 'Unpin' : 'Pin to top'}
+                    title={
+                      props.project.pinned ? t('sidebar.project.unpin') : t('sidebar.project.pin')
+                    }
                     icon={
                       props.project.pinned ? (
                         <PinOff size={14} aria-hidden />
@@ -1473,7 +1639,7 @@ const ProjectRow = memo(function ProjectRow(props: {
                   />
                   {isDesktop ? (
                     <MenuItem
-                      title="Open in Explorer"
+                      title={t('sidebar.chat.openInExplorer')}
                       icon={<FolderOpen size={14} aria-hidden />}
                       onClick={() => {
                         void revealPath(props.project.path)
@@ -1482,7 +1648,7 @@ const ProjectRow = memo(function ProjectRow(props: {
                     />
                   ) : null}
                   <MenuItem
-                    title="Edit name"
+                    title={t('sidebar.project.editName')}
                     icon={<Pencil size={14} aria-hidden />}
                     onClick={() => {
                       setRenaming(true)
@@ -1490,7 +1656,7 @@ const ProjectRow = memo(function ProjectRow(props: {
                     }}
                   />
                   <MenuItem
-                    title="Delete chats"
+                    title={t('sidebar.project.deleteChats')}
                     icon={<Trash size={14} aria-hidden />}
                     onClick={() => {
                       setConfirming('archive')
@@ -1498,7 +1664,7 @@ const ProjectRow = memo(function ProjectRow(props: {
                     }}
                   />
                   <MenuItem
-                    title="Remove from sidebar"
+                    title={t('sidebar.project.removeFromSidebar')}
                     icon={<PanelLeftClose size={14} aria-hidden />}
                     className="menu__item--danger"
                     onClick={() => {
@@ -1513,7 +1679,7 @@ const ProjectRow = memo(function ProjectRow(props: {
             <button
               className="icon-btn"
               onClick={() => props.onNewSession(props.project.path)}
-              title="New chat here"
+              title={t('sidebar.project.newChatHere')}
             >
               {actionsReady ? <SquarePen size={15} aria-hidden /> : null}
             </button>
@@ -1595,6 +1761,7 @@ const ProjectSessions = memo(function ProjectSessions(props: {
     position: DropPosition,
   ) => void
 }) {
+  const { t } = useI18n()
   const count = props.project.sessions.length
   const virtualSessionList = useRef<HTMLUListElement>(null)
   const { dragOut } = useContext(SplitSidebarContext)
@@ -1636,6 +1803,8 @@ const ProjectSessions = memo(function ProjectSessions(props: {
     },
     [listedCount],
   )
+  const listedIds = useMemo(() => listedSessions.map((session) => session.id), [listedSessions])
+  useChatListSelection(useContext(SessionSelectionContext)?.store, virtualSessionList, listedIds)
   const visibleStart = virtualized ? virtualRange.start : 0
   const visibleSessions = virtualized
     ? listedSessions.slice(virtualRange.start, virtualRange.end)
@@ -1681,13 +1850,17 @@ const ProjectSessions = memo(function ProjectSessions(props: {
       className={`proj__sessions${virtualized ? ' proj__sessions--virtual' : ''}`}
       style={virtualListStyle}
       tabIndex={virtualized ? 0 : undefined}
-      aria-label={virtualized ? `${displayName(props.project)} chats` : undefined}
+      aria-label={
+        virtualized
+          ? t('sidebar.rail.projectChats', { project: displayName(props.project) })
+          : undefined
+      }
       onScroll={
         virtualized ? (event) => updateVirtualRange(event.currentTarget.scrollTop) : undefined
       }
       onClickCapture={sessionDrag.onClickCapture}
     >
-      {count === 0 ? <li className="rail__hint">No chats</li> : null}
+      {count === 0 ? <li className="rail__hint">{t('sidebar.rail.noChats')}</li> : null}
       {visibleSessions.map((session, visibleIndex) => {
         const sessionIndex = visibleStart + visibleIndex
         return (
@@ -1723,7 +1896,9 @@ const ProjectSessions = memo(function ProjectSessions(props: {
             aria-expanded={props.showAll}
             onClick={() => props.onShowAllChange(!props.showAll)}
           >
-            {props.showAll ? 'Show less' : `Show ${hiddenCount} more`}
+            {props.showAll
+              ? t('sidebar.rail.showLess')
+              : t('sidebar.rail.showMore', { count: hiddenCount })}
           </button>
         </li>
       ) : null}
@@ -1781,6 +1956,7 @@ function SessionRow(props: {
   virtualPosition?: number | undefined
   virtualSetSize?: number | undefined
 }) {
+  const { t, tp } = useI18n()
   const [renaming, setRenaming] = useState(false)
   const contextMenuTarget = useRef<HTMLButtonElement>(null)
   const finishRename = useRenameFocusReturn(renaming, setRenaming, contextMenuTarget)
@@ -1789,6 +1965,8 @@ function SessionRow(props: {
   const archive =
     props.onArchive && !isLiveStatus(props.session.status) ? props.onArchive : undefined
   const archiveOnHover = archive && props.session.status !== 'failed' ? archive : undefined
+  const selection = useContext(SessionSelectionContext)
+  const selected = useSessionSelected(props.session.id)
   const split = useContext(SplitSidebarContext)
   const beside = !props.active && split.besideSessionId === props.session.id
   const openBeside =
@@ -1808,7 +1986,7 @@ function SessionRow(props: {
         <InlineRename
           value={props.session.title}
           className="rename--chat rename--session"
-          ariaLabel={`Rename ${props.session.title}`}
+          ariaLabel={t('sidebar.chat.rename', { title: props.session.title })}
           onCommit={(title, fromKeyboard) => {
             props.onRename(title)
             finishRename(fromKeyboard)
@@ -1823,8 +2001,10 @@ function SessionRow(props: {
     <li
       className={`sessrow ${props.active ? 'is-active' : ''} ${beside ? 'is-beside' : ''} ${props.standalone ? 'is-pinned' : ''} ${
         props.drag ? 'is-reorderable' : ''
-      } ${props.session.unread ? 'is-unread' : ''} ${archiveOnHover ? 'has-action' : ''}`}
+      } ${props.session.unread ? 'is-unread' : ''} ${archiveOnHover ? 'has-action' : ''}${selected ? ' is-selected' : ''}`}
       data-archive-session-id={props.session.id}
+      // A right-click outside the selection ends it, so the menu acts on one chat.
+      onContextMenuCapture={selection && !selected ? () => selection.store.clear() : undefined}
       onPointerDown={
         props.drag ? (event) => props.drag?.onPointerDown(props.session.id, event) : undefined
       }
@@ -1843,10 +2023,26 @@ function SessionRow(props: {
         onClick={(event) => {
           // Alt+click opens the chat beside the active one, as in Claude desktop.
           if (event.altKey && openBeside) openBeside()
-          else props.onSelect()
+          else if (selection && (event.shiftKey || event.ctrlKey || event.metaKey)) {
+            // Ctrl+click toggles a chat, Shift+click takes the range from the anchor.
+            selection.store.click(
+              props.session.id,
+              { shift: event.shiftKey, toggle: event.ctrlKey || event.metaKey },
+              selection.activeSessionId(),
+            )
+          } else {
+            selection?.store.clear()
+            props.onSelect()
+          }
         }}
-        onDoubleClick={() => setRenaming(true)}
-        aria-label={sessionLabel(props.session)}
+        onDoubleClick={(event) => {
+          if (!event.shiftKey && !event.ctrlKey && !event.metaKey) setRenaming(true)
+        }}
+        aria-label={
+          selected
+            ? t('sidebar.chat.selected', { label: sessionLabel(props.session) })
+            : sessionLabel(props.session)
+        }
         title={sessionLabel(props.session)}
       >
         <span className="sess__provider" aria-hidden>
@@ -1870,8 +2066,8 @@ function SessionRow(props: {
             type="button"
             className="sess__action"
             onClick={archiveOnHover}
-            aria-label={`Archive ${props.session.title}`}
-            title="Archive chat"
+            aria-label={t('sidebar.chat.archiveNamed', { title: props.session.title })}
+            title={t('sidebar.chat.archive')}
           >
             <Archive size={14} aria-hidden />
           </button>
@@ -1881,76 +2077,107 @@ function SessionRow(props: {
       <Menu
         drop="down"
         align="right"
-        label={`Options for ${props.session.title}`}
+        label={t('sidebar.chat.options', { title: props.session.title })}
         panelClassName="menu--sidebar"
         contextMenuTargetRef={contextMenuTarget}
         contextMenuOnly
       >
-        {(close) => (
-          <>
-            {openBeside ? (
+        {(close) => {
+          const bulk = selection && selected ? selection.store.count() : 0
+          const archivable = bulk > 1 ? (selection?.archivableCount() ?? 0) : 0
+          // With several chats selected the menu acts on all of them, and
+          // offers only what applies to all of them.
+          if (bulk > 1 && selection) {
+            return (
+              <>
+                {selection.archiveSelected && archivable > 0 ? (
+                  <MenuItem
+                    title={tp('sidebar.selection.archive', archivable)}
+                    icon={<Archive size={14} aria-hidden />}
+                    onClick={() => {
+                      selection.archiveSelected?.()
+                      close()
+                    }}
+                  />
+                ) : null}
+                <MenuItem
+                  title={tp('sidebar.selection.delete', bulk)}
+                  icon={<Trash size={14} aria-hidden />}
+                  className="menu__item--danger"
+                  onClick={() => {
+                    selection.deleteSelected()
+                    close()
+                  }}
+                />
+              </>
+            )
+          }
+          return (
+            <>
+              {openBeside ? (
+                <MenuItem
+                  title={t('sidebar.chat.openBeside')}
+                  icon={<SplitColumns size={14} aria-hidden />}
+                  onClick={() => {
+                    openBeside()
+                    close()
+                  }}
+                />
+              ) : null}
               <MenuItem
-                title="Open beside"
-                icon={<SplitColumns size={14} aria-hidden />}
+                title={props.session.pinned ? t('sidebar.chat.unpin') : t('sidebar.chat.pin')}
+                icon={
+                  props.session.pinned ? (
+                    <PinOff size={14} aria-hidden />
+                  ) : (
+                    <Pin size={14} aria-hidden />
+                  )
+                }
                 onClick={() => {
-                  openBeside()
+                  props.onTogglePin()
                   close()
                 }}
               />
-            ) : null}
-            <MenuItem
-              title={props.session.pinned ? 'Unpin chat' : 'Pin chat'}
-              icon={
-                props.session.pinned ? (
-                  <PinOff size={14} aria-hidden />
-                ) : (
-                  <Pin size={14} aria-hidden />
-                )
-              }
-              onClick={() => {
-                props.onTogglePin()
-                close()
-              }}
-            />
-            <MenuItem
-              title="Rename chat"
-              icon={<Pencil size={14} aria-hidden />}
-              onClick={() => {
-                setRenaming(true)
-                close()
-              }}
-            />
-            {archive ? (
               <MenuItem
-                title="Archive chat"
-                icon={<Archive size={14} aria-hidden />}
+                title={t('sidebar.chat.renameAction')}
+                icon={<Pencil size={14} aria-hidden />}
                 onClick={() => {
-                  archive()
+                  setRenaming(true)
                   close()
                 }}
               />
-            ) : null}
-            {isDesktop ? (
+              {archive ? (
+                <MenuItem
+                  title={t('sidebar.chat.archive')}
+                  icon={<Archive size={14} aria-hidden />}
+                  onClick={() => {
+                    archive()
+                    close()
+                  }}
+                />
+              ) : null}
+              {isDesktop ? (
+                <MenuItem
+                  title={t('sidebar.chat.openInExplorer')}
+                  icon={<FolderOpen size={14} aria-hidden />}
+                  onClick={() => {
+                    props.onOpenInExplorer()
+                    close()
+                  }}
+                />
+              ) : null}
               <MenuItem
-                title="Open in Explorer"
-                icon={<FolderOpen size={14} aria-hidden />}
+                title={t('sidebar.chat.delete')}
+                icon={<Trash size={14} aria-hidden />}
+                className="menu__item--danger"
                 onClick={() => {
-                  props.onOpenInExplorer()
+                  props.onDelete()
                   close()
                 }}
               />
-            ) : null}
-            <MenuItem
-              title="Delete chat"
-              icon={<Trash size={14} aria-hidden />}
-              className="menu__item--danger"
-              onClick={() => {
-                props.onDelete()
-                close()
-              }}
-            />
-          </>
-        )}
+            </>
+          )
+        }}
       </Menu>
     </li>
   )
@@ -1983,6 +2210,7 @@ const ArchivedSection = memo(function ArchivedSection(props: {
   onRestoreSession: ((id: string) => void) | undefined
   onDeleteSession: (id: string) => void
 }) {
+  const { t, tp } = useI18n()
   const [open, setOpen] = useState(false)
   const [limit, setLimit] = useState(ARCHIVED_BATCH)
   const activeIndex = props.entries.findIndex(({ session }) => session.id === props.activeSessionId)
@@ -1990,18 +2218,18 @@ const ArchivedSection = memo(function ArchivedSection(props: {
   const expanded = open || activeIndex >= 0
   const shown = props.entries.slice(0, Math.max(limit, activeIndex + 1))
   return (
-    <section className="archived" aria-label="Archived">
+    <section className="archived" aria-label={t('sidebar.archived.title')}>
       <button
         type="button"
         className="section archived__toggle"
         aria-expanded={expanded}
-        aria-label={`Archived, ${chatCount(props.entries.length)}`}
+        aria-label={tp('sidebar.archived.label', props.entries.length)}
         onClick={() => {
           setOpen(!expanded)
           setLimit(ARCHIVED_BATCH)
         }}
       >
-        <span>Archived</span>
+        <span>{t('sidebar.archived.title')}</span>
         <span className="archived__count">{props.entries.length}</span>
         <ChevronRight className="archived__chevron" size={12} aria-hidden />
       </button>
@@ -2026,7 +2254,7 @@ const ArchivedSection = memo(function ArchivedSection(props: {
                 className="proj__sessions-toggle"
                 onClick={() => setLimit(shown.length + ARCHIVED_BATCH)}
               >
-                Show more
+                {t('sidebar.rail.showMoreBare')}
               </button>
             </li>
           ) : null}
@@ -2045,10 +2273,14 @@ const ArchivedRow = memo(function ArchivedRow(props: {
   onRestoreSession: ((id: string) => void) | undefined
   onDeleteSession: (id: string) => void
 }) {
+  const { t } = useI18n()
   const { session } = props
   const contextMenuTarget = useRef<HTMLButtonElement>(null)
   const restore = props.onRestoreSession
-  const label = `${sessionLabel(session)}, archived, ${props.projectName}`
+  const label = t('sidebar.archived.row', {
+    label: sessionLabel(session),
+    project: props.projectName,
+  })
   return (
     <li
       className={`sessrow archived__row${props.active ? ' is-active' : ''}${session.unread ? ' is-unread' : ''}${restore ? ' has-action' : ''}`}
@@ -2079,8 +2311,8 @@ const ArchivedRow = memo(function ArchivedRow(props: {
             type="button"
             className="sess__action"
             onClick={() => restore(session.id)}
-            aria-label={`Restore ${session.title}`}
-            title="Restore to project"
+            aria-label={t('sidebar.archived.restoreNamed', { title: session.title })}
+            title={t('sidebar.archived.restore')}
           >
             <Restore size={14} aria-hidden />
           </button>
@@ -2089,7 +2321,7 @@ const ArchivedRow = memo(function ArchivedRow(props: {
       <Menu
         drop="down"
         align="right"
-        label={`Options for ${session.title}`}
+        label={t('sidebar.chat.options', { title: session.title })}
         panelClassName="menu--sidebar"
         contextMenuTargetRef={contextMenuTarget}
         contextMenuOnly
@@ -2098,7 +2330,7 @@ const ArchivedRow = memo(function ArchivedRow(props: {
           <>
             {restore ? (
               <MenuItem
-                title="Restore to project"
+                title={t('sidebar.archived.restore')}
                 icon={<Restore size={14} aria-hidden />}
                 onClick={() => {
                   restore(session.id)
@@ -2107,7 +2339,7 @@ const ArchivedRow = memo(function ArchivedRow(props: {
               />
             ) : null}
             <MenuItem
-              title="Delete chat"
+              title={t('sidebar.chat.delete')}
               icon={<Trash size={14} aria-hidden />}
               className="menu__item--danger"
               onClick={() => {
@@ -2150,15 +2382,16 @@ const NeedsYouBand = memo(function NeedsYouBand(props: {
   onSelectSession: (id: string) => void
   onMarkSessionRead: ((id: string) => void) | undefined
 }) {
+  const { t } = useI18n()
   const [expanded, setExpanded] = useState(false)
   const short = useSyncExternalStore(subscribeShortWindow, readShortWindow, () => false)
   const visible = short ? NEEDS_YOU_VISIBLE_SHORT : NEEDS_YOU_VISIBLE
   const shown = expanded ? props.entries : props.entries.slice(0, visible)
   const folded = props.entries.length - shown.length
   return (
-    <section className="needs-band" aria-label="Needs you">
+    <section className="needs-band" aria-label={t('sidebar.needsYou.title')}>
       <p className="section" aria-hidden>
-        Needs you
+        {t('sidebar.needsYou.title')}
       </p>
       <ul className="proj__sessions needs-band__list">
         {shown.map((entry) => (
@@ -2178,7 +2411,9 @@ const NeedsYouBand = memo(function NeedsYouBand(props: {
               aria-expanded={expanded}
               onClick={() => setExpanded(!expanded)}
             >
-              {expanded ? 'Show less' : `+${folded} more`}
+              {expanded
+                ? t('sidebar.rail.showLess')
+                : t('sidebar.needsYou.more', { count: folded })}
             </button>
           </li>
         ) : null}
@@ -2193,11 +2428,16 @@ const NeedsYouRow = memo(function NeedsYouRow(props: {
   onSelectSession: (id: string) => void
   onMarkSessionRead: ((id: string) => void) | undefined
 }) {
+  const { t } = useI18n()
   const { session, attention } = props.entry
   // Approvals and questions leave only once they are answered, in the chat.
   const markRead =
     props.onMarkSessionRead && attention === 'failed' ? props.onMarkSessionRead : undefined
-  const label = `${session.title}, ${attentionLabel(attention)}, ${props.projectName}`
+  const label = t('sidebar.needsYou.row', {
+    title: session.title,
+    state: attentionLabel(attention),
+    project: props.projectName,
+  })
   return (
     <li
       className={`sessrow needs-band__row${session.unread ? ' is-unread' : ''}${markRead ? ' has-action' : ''}`}
@@ -2222,8 +2462,8 @@ const NeedsYouRow = memo(function NeedsYouRow(props: {
             type="button"
             className="sess__action"
             onClick={() => markRead(session.id)}
-            aria-label={`Mark ${session.title} as read`}
-            title="Mark as read"
+            aria-label={t('sidebar.needsYou.markReadNamed', { title: session.title })}
+            title={t('sidebar.needsYou.markRead')}
           >
             <Check size={14} aria-hidden />
           </button>
@@ -2249,19 +2489,15 @@ function attentionTone(attention: Attention): string {
 function attentionLabel(attention: Attention): string {
   switch (attention) {
     case 'approval':
-      return 'waiting for approval'
+      return t('sidebar.needsYou.approval')
     case 'input':
-      return 'waiting for an answer'
+      return t('sidebar.needsYou.input')
     case 'failed':
-      return 'failed'
+      return t('sidebar.needsYou.failed')
   }
 }
 
 type ConfirmCopy = { title: string; body: string; action: string; destructive: boolean }
-
-function chatCount(count: number): string {
-  return `${count} chat${count === 1 ? '' : 's'}`
-}
 
 /** Removing only forgets the sidebar entry, so it is not styled as destructive.
  *  It does stop live turns, which is the one consequence worth naming. */
@@ -2271,16 +2507,11 @@ function removeProjectCopy(project: Project): ConfirmCopy {
     ['starting', 'working', 'queued', 'approval', 'input'].includes(session.status),
   ).length
   const kept =
-    chats === 0
-      ? 'The folder stays where it is.'
-      : `The folder and its ${chatCount(chats)} stay where they are. Add the folder again to bring them back.`
+    chats === 0 ? t('sidebar.removeProject.keptEmpty') : tp('sidebar.removeProject.kept', chats)
   return {
-    title: `Remove ${displayName(project)} from the sidebar?`,
-    body:
-      live === 0
-        ? kept
-        : `${kept} ${live === 1 ? 'The running chat' : `${live} running chats`} will stop.`,
-    action: 'Remove',
+    title: t('sidebar.removeProject.title', { project: displayName(project) }),
+    body: live === 0 ? kept : `${kept} ${runningStopLabel(live)}`,
+    action: t('sidebar.removeProject.action'),
     destructive: false,
   }
 }
@@ -2290,10 +2521,11 @@ function deleteChatsCopy(project: Project): ConfirmCopy {
   return {
     title:
       chats === 0
-        ? `Delete all chats in ${displayName(project)}?`
-        : `Delete ${chatCount(chats)} in ${displayName(project)}?`,
-    body: 'Their restore points go with them once the Undo window closes. Files in the folder stay untouched.',
-    action: chats === 0 ? 'Delete chats' : `Delete ${chatCount(chats)}`,
+        ? t('sidebar.deleteChats.titleAll', { project: displayName(project) })
+        : tp('sidebar.deleteChats.title', chats, { project: displayName(project) }),
+    body: t('sidebar.deleteChats.body'),
+    action:
+      chats === 0 ? t('sidebar.project.deleteChats') : tp('sidebar.deleteChats.action', chats),
     destructive: true,
   }
 }
@@ -2333,6 +2565,7 @@ function SessionStatus(props: { status: Session['status']; since: number }) {
 }
 
 function SessionTime(props: { at: number }) {
+  useI18n() // re-render when the language changes: the label is read at call time
   const now = useSyncExternalStore(subscribeSessionClock, readSessionClock, readSessionClock)
   if (!(props.at > 0)) return null
   return (
@@ -2342,26 +2575,38 @@ function SessionTime(props: { at: number }) {
   )
 }
 
+/** A list of facts for a screen reader: title, source, state, unread, checkout. */
 function sessionLabel(session: Session): string {
   const source = sessionSourcePresentation(session.provider, session.agent).label
-  const unread = session.unread ? ', unread' : ''
-  const branch = session.worktreeBranch ? `, isolated on ${session.worktreeBranch}` : ''
-  switch (session.status) {
+  const state = sessionStateLabel(session.status)
+  return [
+    session.title,
+    source,
+    ...(state ? [state] : []),
+    ...(session.unread ? [t('sidebar.chatLabel.unread')] : []),
+    ...(session.worktreeBranch
+      ? [t('sidebar.chatLabel.isolated', { branch: session.worktreeBranch })]
+      : []),
+  ].join(', ')
+}
+
+function sessionStateLabel(status: Session['status']): string | undefined {
+  switch (status) {
     case 'starting':
     case 'working':
-      return `${session.title}, ${source}, working${unread}${branch}`
+      return t('sidebar.chatLabel.working')
     case 'queued':
-      return `${session.title}, ${source}, queued${unread}${branch}`
+      return t('sidebar.chatLabel.queued')
     case 'approval':
-      return `${session.title}, ${source}, waiting for approval${unread}${branch}`
+      return t('sidebar.chatLabel.approval')
     case 'input':
-      return `${session.title}, ${source}, needs attention${unread}${branch}`
+      return t('sidebar.chatLabel.input')
     case 'failed':
-      return `${session.title}, ${source}, failed${unread}${branch}`
+      return t('sidebar.chatLabel.failed')
     case 'ready':
-      return `${session.title}, ${source}, ready${unread}${branch}`
+      return t('sidebar.chatLabel.ready')
     default:
-      return `${session.title}, ${source}${unread}${branch}`
+      return undefined
   }
 }
 
@@ -2512,8 +2757,13 @@ function limitsUnknown(state: AccountLimitsState): boolean {
 function unknownLimitsLabel(providers: readonly ProviderId[]): string {
   const names = providers.map(providerDisplayName)
   const listed =
-    names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : (names[0] ?? '')
-  return `${listed} limits unknown`
+    names.length > 1
+      ? t('sidebar.account.listLast', {
+          list: names.slice(0, -1).join(', '),
+          last: names.at(-1) ?? '',
+        })
+      : (names[0] ?? '')
+  return t('sidebar.account.limitsUnknown', { providers: listed })
 }
 
 function DialogAction(props: { icon: ReactNode; title: string }) {

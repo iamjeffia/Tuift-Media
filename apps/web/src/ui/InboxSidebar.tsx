@@ -33,6 +33,7 @@ import {
   IconX as X,
 } from '@tabler/icons-react'
 import { writeClipboardText } from '../bridge.js'
+import { getLanguage, t, tp, useI18n, type Language } from '../i18n/index.js'
 import { sessionSourcePresentation } from '../provider-presentation.js'
 import { findSession, takeProjectSessionChanges } from '../project-store.js'
 import {
@@ -48,6 +49,7 @@ import {
 import { AppSelect } from './AppSelect.js'
 import { isComposingKey, isConfirmEnter } from '../shortcuts.js'
 import { Menu, MenuItem } from './Menu.js'
+import { isTextEntryTarget, nearestSurvivor } from './session-selection.js'
 import type { Project, Session } from './Sidebar.js'
 import { SourceIdentity } from './SourceIdentity.js'
 import { InboxCardsSkeleton } from './SurfaceSkeletons.js'
@@ -168,6 +170,7 @@ function InboxSidebarComponent(props: {
   pullRequestsActive?: boolean | undefined
   onOpenPullRequests?: (() => void) | undefined
 }) {
+  const { t, tp } = useI18n()
   const [query, setQuery] = useState('')
   const [snoozedOpen, setSnoozedOpen] = useState(false)
   const [settledOpen, setSettledOpen] = useState(true)
@@ -353,6 +356,43 @@ function InboxSidebarComponent(props: {
     },
     [props.onArchiveSession, props.onArchiveSessions],
   )
+  // Escape ends the selection and Delete acts on all of it, as the row menu does.
+  const onBodyKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLElement>) => {
+      const selected = selectedIdsRef.current
+      if (event.defaultPrevented || isComposingKey(event) || isTextEntryTarget(event.target)) return
+      if (selected.size === 0) return
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        setSelectedIds(new Set())
+      } else if (event.key === 'Delete') {
+        event.preventDefault()
+        const next = nearestSurvivor(
+          orderedRef.current.map((entry) => entry.session.id),
+          selected,
+        )
+        archiveSessions([...selected])
+        setSelectedIds(new Set())
+        // The rows leave once the delete lands; focus goes to the nearest one that stays.
+        if (next) window.setTimeout(() => rowRefs.current.get(next)?.focus(), 0)
+      }
+    },
+    [archiveSessions],
+  )
+  const [announcement, setAnnouncement] = useState('')
+  const announcedCount = useRef(0)
+  useEffect(() => {
+    const count = selectedIds.size
+    setAnnouncement(
+      count > 0
+        ? tp('sidebar.inbox.announce', count)
+        : announcedCount.current > 0
+          ? t('sidebar.selection.cleared')
+          : '',
+    )
+    announcedCount.current = count
+  }, [selectedIds.size])
   const unsnooze = useCallback((id: string) => props.actions.onUnsnooze(id), [props.actions])
   const unsettle = useCallback((id: string) => props.actions.onUnsettle(id), [props.actions])
   const preferredProject =
@@ -384,12 +424,16 @@ function InboxSidebarComponent(props: {
                 event.preventDefault()
                 focusBoundary(event.key === 'ArrowDown' ? 1 : -1)
               }}
-              placeholder="Search threads"
-              aria-label="Search threads"
+              placeholder={t('sidebar.inbox.search')}
+              aria-label={t('sidebar.inbox.search')}
               spellCheck={false}
             />
             {query ? (
-              <button type="button" aria-label="Clear thread search" onClick={() => setQuery('')}>
+              <button
+                type="button"
+                aria-label={t('sidebar.inbox.clearSearch')}
+                onClick={() => setQuery('')}
+              >
                 <X size={12} aria-hidden />
               </button>
             ) : null}
@@ -403,19 +447,19 @@ function InboxSidebarComponent(props: {
             }}
           >
             <SquarePen size={16} aria-hidden />
-            <span>New chat</span>
+            <span>{t('sidebar.rail.newChat')}</span>
           </button>
         </div>
 
         <div className="inbox-toolbar__projects">
           <label className="inbox__scope">
-            <span className="visually-hidden">Project filter</span>
+            <span className="visually-hidden">{t('sidebar.inbox.projectFilter')}</span>
             <AppSelect
-              ariaLabel="Sidebar project filter"
+              ariaLabel={t('sidebar.inbox.projectFilterLabel')}
               value={props.scope}
               onChange={props.onScopeChange}
               options={[
-                { value: '', label: 'All projects' },
+                { value: '', label: t('sidebar.inbox.allProjects') },
                 ...props.projects.map((project) => ({
                   value: project.path,
                   label: projectName(project),
@@ -425,7 +469,7 @@ function InboxSidebarComponent(props: {
           </label>
           <button className="inbox-toolbar__add" type="button" onClick={props.onAddProject}>
             <FolderPlus size={13} aria-hidden />
-            <span>Add Project</span>
+            <span>{t('sidebar.inbox.addProject')}</span>
           </button>
         </div>
         {props.onOpenPullRequests ? (
@@ -436,25 +480,30 @@ function InboxSidebarComponent(props: {
             onClick={props.onOpenPullRequests}
           >
             <GitPullRequest size={14} aria-hidden />
-            <span>Pull requests</span>
+            <span>{t('sidebar.rail.pullRequests')}</span>
           </button>
         ) : null}
       </div>
 
-      <div className="rail__body inbox__body">
+      <div className="rail__body inbox__body" onKeyDown={onBodyKeyDown}>
+        <p className="visually-hidden" aria-live="polite">
+          {announcement}
+        </p>
         {props.loading && props.projects.length === 0 ? (
           <InboxCardsSkeleton />
         ) : (
           <div className="inbox">
             {selectedIds.size > 1 ? (
-              <p className="inbox__selection-count">{selectedIds.size} threads selected</p>
+              <p className="inbox__selection-count">
+                {tp('sidebar.inbox.selectedCount', selectedIds.size)}
+              </p>
             ) : null}
 
             {!normalizedQuery || active.length > 0 ? (
               <>
-                <SectionHeading title="Active" count={active.length} />
+                <SectionHeading title={t('sidebar.inbox.active')} count={active.length} />
                 {active.length > 0 ? (
-                  <ul className="inbox__list" aria-label="Active threads">
+                  <ul className="inbox__list" aria-label={t('sidebar.inbox.activeThreads')}>
                     {visibleActive.map((entry) => {
                       const selected = selectedIds.has(entry.session.id)
                       return (
@@ -487,19 +536,19 @@ function InboxSidebarComponent(props: {
                           type="button"
                           onClick={() => setActiveLimit((limit) => limit + PAGE_SIZE)}
                         >
-                          Show {PAGE_SIZE} more
+                          {t('sidebar.rail.showMore', { count: PAGE_SIZE })}
                         </button>
                       </li>
                     ) : null}
                   </ul>
                 ) : (
-                  <p className="inbox__empty">No active threads in this project.</p>
+                  <p className="inbox__empty">{t('sidebar.inbox.activeEmpty')}</p>
                 )}
               </>
             ) : null}
 
             <Shelf
-              title="Snoozed"
+              title={t('sidebar.inbox.snoozed')}
               count={snoozed.length}
               open={snoozedExpanded}
               onToggle={() => setSnoozedOpen((open) => !open)}
@@ -516,7 +565,6 @@ function InboxSidebarComponent(props: {
                         selected={selected}
                         eagerActions={eagerRowActions}
                         menuEntries={selected && selectedIds.size > 1 ? selectedEntries : undefined}
-                        action="Wake now"
                         actionIcon="wake"
                         actions={props.actions}
                         onChoose={chooseEntry}
@@ -539,7 +587,7 @@ function InboxSidebarComponent(props: {
                         type="button"
                         onClick={() => setSnoozedLimit((limit) => limit + PAGE_SIZE)}
                       >
-                        Show {PAGE_SIZE} more
+                        {t('sidebar.rail.showMore', { count: PAGE_SIZE })}
                       </button>
                     </li>
                   ) : null}
@@ -548,7 +596,7 @@ function InboxSidebarComponent(props: {
             </Shelf>
 
             <Shelf
-              title="Settled"
+              title={t('sidebar.inbox.settled')}
               count={settled.length}
               open={settledExpanded}
               onToggle={() => setSettledOpen((open) => !open)}
@@ -565,7 +613,6 @@ function InboxSidebarComponent(props: {
                         selected={selected}
                         eagerActions={eagerRowActions}
                         menuEntries={selected && selectedIds.size > 1 ? selectedEntries : undefined}
-                        action="Un-settle"
                         actionIcon="unsettle"
                         actions={props.actions}
                         onChoose={chooseEntry}
@@ -588,7 +635,7 @@ function InboxSidebarComponent(props: {
                         type="button"
                         onClick={() => setSettledLimit((limit) => limit + PAGE_SIZE)}
                       >
-                        Show {PAGE_SIZE} more
+                        {t('sidebar.rail.showMore', { count: PAGE_SIZE })}
                       </button>
                     </li>
                   ) : null}
@@ -598,7 +645,7 @@ function InboxSidebarComponent(props: {
 
             {normalizedQuery && !hasMatches ? (
               <p className="inbox__empty inbox__empty--search">
-                No threads match “{query.trim()}”.
+                {t('sidebar.inbox.noMatch', { query: query.trim() })}
               </p>
             ) : null}
           </div>
@@ -638,6 +685,7 @@ const ActiveRow = memo(function ActiveRow(
     onClearSelection: () => void
   },
 ) {
+  const { t } = useI18n()
   const [renaming, setRenaming] = useState(false)
   const [actionsRequested, setActionsRequested] = useState(false)
   const contextMenuTarget = useRef<HTMLButtonElement>(null)
@@ -685,6 +733,7 @@ const ActiveRow = memo(function ActiveRow(
         onKeyDown={(event) =>
           navigateRows(event, (direction) => props.onNavigate(props.session.id, direction))
         }
+        aria-description={props.selected ? t('sidebar.inbox.selected') : undefined}
         aria-label={rowLabel(props.project, props.session, initialNow)}
         title={threadSummary(props.project, props.session, initialNow)}
       >
@@ -707,7 +756,7 @@ const ActiveRow = memo(function ActiveRow(
               {props.session.worktreeBranch}
             </span>
           ) : (
-            <span>Default checkout</span>
+            <span>{t('sidebar.inbox.defaultCheckout')}</span>
           )}
           <span aria-hidden>·</span>
           <SourceIdentity
@@ -717,11 +766,11 @@ const ActiveRow = memo(function ActiveRow(
           {props.session.pinned ? (
             <>
               <span aria-hidden>·</span>
-              <span>Pinned</span>
+              <span>{t('sidebar.rail.pinned')}</span>
             </>
           ) : null}
           {lifecycle.wokeAt && props.session.status !== 'idle' ? (
-            <span className="inbox-card__woke">Woke</span>
+            <span className="inbox-card__woke">{t('sidebar.inbox.woke')}</span>
           ) : null}
         </span>
       </button>
@@ -730,13 +779,13 @@ const ActiveRow = memo(function ActiveRow(
         {eligible && actionsReady ? (
           <>
             <SnoozeMenu
-              label={`Snooze ${props.session.title}`}
+              label={t('sidebar.inbox.snoozeNamed', { title: props.session.title })}
               onSnooze={(wakeAt) => props.actions.onSnooze(props.session.id, wakeAt)}
             />
             <button
               type="button"
-              title="Settle"
-              aria-label={`Settle ${props.session.title}`}
+              title={t('sidebar.inbox.settle')}
+              aria-label={t('sidebar.inbox.settleNamed', { title: props.session.title })}
               onClick={() => props.actions.onSettle(props.session.id)}
             >
               <CheckCheck size={13} aria-hidden />
@@ -798,12 +847,13 @@ function ClockedActiveRow(props: {
   target: RefObject<HTMLButtonElement | null>
   now: number
 }) {
+  const { language } = useI18n()
   useLayoutEffect(() => {
     const target = props.target.current
     if (!target) return
     target.setAttribute('aria-label', rowLabel(props.project, props.session, props.now))
     target.title = threadSummary(props.project, props.session, props.now)
-  }, [props.now, props.project, props.session, props.target])
+  }, [language, props.now, props.project, props.session, props.target])
   return <Status session={props.session} now={props.now} />
 }
 
@@ -838,7 +888,6 @@ const ShelfRow = memo(function ShelfRow(
     selected: boolean
     eagerActions: boolean
     menuEntries: Entry[] | undefined
-    action: string
     actionIcon: 'wake' | 'unsettle'
     actions: InboxActions
     onChoose: (event: ReactMouseEvent, id: string) => void
@@ -853,6 +902,7 @@ const ShelfRow = memo(function ShelfRow(
     onClearSelection: () => void
   },
 ) {
+  const { t } = useI18n()
   const [renaming, setRenaming] = useState(false)
   const [actionsRequested, setActionsRequested] = useState(false)
   const contextMenuTarget = useRef<HTMLButtonElement>(null)
@@ -889,6 +939,7 @@ const ShelfRow = memo(function ShelfRow(
           onKeyDown={(event) =>
             navigateRows(event, (direction) => props.onNavigate(props.session.id, direction))
           }
+          aria-description={props.selected ? t('sidebar.inbox.selected') : undefined}
           title={threadSummary(props.project, props.session, initialNow)}
         >
           <span>{props.session.title}</span>
@@ -902,7 +953,12 @@ const ShelfRow = memo(function ShelfRow(
       <button
         className="inbox-shelf__action"
         type="button"
-        aria-label={`${props.action} ${props.session.title}`}
+        aria-label={t(
+          props.actionIcon === 'wake'
+            ? 'sidebar.inbox.wakeNowNamed'
+            : 'sidebar.inbox.unsettleNamed',
+          { title: props.session.title },
+        )}
         onClick={() => props.onAction(props.session.id)}
       >
         {props.actionIcon === 'wake' ? (
@@ -965,10 +1021,11 @@ function ClockedShelfRow(props: {
   target: RefObject<HTMLButtonElement | null>
   now: number
 }) {
+  const { language } = useI18n()
   useLayoutEffect(() => {
     const target = props.target.current
     if (target) target.title = threadSummary(props.project, props.session, props.now)
-  }, [props.now, props.project, props.session, props.target])
+  }, [language, props.now, props.project, props.session, props.target])
   const detail =
     props.session.lifecycle.state === 'snoozed'
       ? formatWakeTime(wakeAt(props.session), props.now)
@@ -988,6 +1045,7 @@ function ThreadMenu(props: {
   onArchiveMany: (ids: string[]) => void
   onClearSelection: () => void
 }) {
+  const { t, tp } = useI18n()
   const multiple = props.entries.length > 1
   const lifecycle =
     props.entry.session.lifecycle.state === 'active' ? props.entry.session.lifecycle : undefined
@@ -1002,7 +1060,7 @@ function ThreadMenu(props: {
     <Menu
       drop="down"
       align="right"
-      label={`Thread options for ${props.entry.session.title}`}
+      label={t('sidebar.inbox.threadOptions', { title: props.entry.session.title })}
       triggerClassName="inbox-card__menu"
       panelClassName="menu--sidebar"
       contextMenuTargetRef={props.contextMenuTarget}
@@ -1026,12 +1084,18 @@ function ThreadMenu(props: {
         return (
           <>
             {multiple ? (
-              <div className="inbox-menu__selection">{props.entries.length} selected</div>
+              <div className="inbox-menu__selection">
+                {tp('sidebar.inbox.menuSelected', props.entries.length)}
+              </div>
             ) : null}
             {active.length > 0 ? (
               <>
                 <MenuItem
-                  title={multiple ? `Settle ${threadCount(active.length)}` : 'Settle'}
+                  title={
+                    multiple
+                      ? tp('sidebar.inbox.settleMany', active.length)
+                      : t('sidebar.inbox.settle')
+                  }
                   icon={<CheckCheck size={13} aria-hidden />}
                   onClick={() =>
                     finish(close, () => {
@@ -1045,7 +1109,12 @@ function ThreadMenu(props: {
                   <MenuItem
                     key={preset.label}
                     title={
-                      multiple ? `${preset.label} · ${threadCount(active.length)}` : preset.label
+                      multiple
+                        ? t('sidebar.inbox.snoozeMany', {
+                            preset: preset.label,
+                            threads: threadCount(active.length),
+                          })
+                        : preset.label
                     }
                     icon={<Clock3 size={13} aria-hidden />}
                     onClick={() =>
@@ -1064,7 +1133,11 @@ function ThreadMenu(props: {
             ) : null}
             {snoozed.length > 0 ? (
               <MenuItem
-                title={multiple ? `Wake ${threadCount(snoozed.length)}` : 'Wake now'}
+                title={
+                  multiple
+                    ? tp('sidebar.inbox.wakeMany', snoozed.length)
+                    : t('sidebar.inbox.wakeNow')
+                }
                 icon={<Bell size={13} aria-hidden />}
                 onClick={() =>
                   finish(close, () => {
@@ -1077,7 +1150,11 @@ function ThreadMenu(props: {
             ) : null}
             {settled.length > 0 ? (
               <MenuItem
-                title={multiple ? `Un-settle ${threadCount(settled.length)}` : 'Un-settle'}
+                title={
+                  multiple
+                    ? tp('sidebar.inbox.unsettleMany', settled.length)
+                    : t('sidebar.inbox.unsettle')
+                }
                 icon={<CheckCheck size={13} aria-hidden />}
                 onClick={() =>
                   finish(close, () => {
@@ -1092,7 +1169,11 @@ function ThreadMenu(props: {
               <>
                 {lifecycle && canHide(props.entry.session) ? (
                   <MenuItem
-                    title={lifecycle.keepActive ? 'Allow auto-settle' : 'Keep active'}
+                    title={
+                      lifecycle.keepActive
+                        ? t('sidebar.inbox.allowAutoSettle')
+                        : t('sidebar.inbox.keepActive')
+                    }
                     icon={
                       lifecycle.keepActive ? (
                         <Clock3 size={13} aria-hidden />
@@ -1109,12 +1190,16 @@ function ThreadMenu(props: {
                 ) : null}
                 <div className="menu__rule" />
                 <MenuItem
-                  title="Rename"
+                  title={t('sidebar.inbox.rename')}
                   icon={<Pencil size={13} aria-hidden />}
                   onClick={() => finish(close, props.onRename)}
                 />
                 <MenuItem
-                  title={props.entry.session.pinned ? 'Unpin thread' : 'Pin thread'}
+                  title={
+                    props.entry.session.pinned
+                      ? t('sidebar.inbox.unpinThread')
+                      : t('sidebar.inbox.pinThread')
+                  }
                   icon={
                     props.entry.session.pinned ? (
                       <PinOff size={13} aria-hidden />
@@ -1125,13 +1210,13 @@ function ThreadMenu(props: {
                   onClick={() => finish(close, props.onTogglePin)}
                 />
                 <MenuItem
-                  title="Copy project path"
+                  title={t('sidebar.inbox.copyPath')}
                   icon={<Copy size={13} aria-hidden />}
                   onClick={() => finish(close, () => void copyText(props.entry.project.path))}
                 />
                 {props.entry.session.worktreeBranch ? (
                   <MenuItem
-                    title="Copy branch"
+                    title={t('sidebar.inbox.copyBranch')}
                     icon={<GitBranch size={13} aria-hidden />}
                     onClick={() =>
                       finish(close, () => void copyText(props.entry.session.worktreeBranch ?? ''))
@@ -1142,7 +1227,11 @@ function ThreadMenu(props: {
             ) : null}
             <div className="menu__rule" />
             <MenuItem
-              title={multiple ? `Delete ${props.entries.length} threads` : 'Delete thread'}
+              title={
+                multiple
+                  ? tp('sidebar.inbox.deleteMany', props.entries.length)
+                  : t('sidebar.inbox.deleteThread')
+              }
               icon={<Trash2 size={13} aria-hidden />}
               className="menu__item--danger"
               onClick={() =>
@@ -1165,6 +1254,7 @@ function ThreadMenu(props: {
 const threadMenuTrigger = () => <Ellipsis size={13} aria-hidden />
 
 function SnoozeMenu(props: { label: string; onSnooze: (wakeAt: number) => void }) {
+  useI18n() // re-render when the language changes: the presets are read at call time
   return (
     <Menu
       drop="down"
@@ -1193,6 +1283,7 @@ function SnoozeMenu(props: { label: string; onSnooze: (wakeAt: number) => void }
 }
 
 function Rename(props: { value: string; onCommit: (value: string) => void; onCancel: () => void }) {
+  const { t } = useI18n()
   const [value, setValue] = useState(props.value)
   const ref = useRef<HTMLInputElement>(null)
   useEffect(() => ref.current?.select(), [])
@@ -1206,7 +1297,7 @@ function Rename(props: { value: string; onCommit: (value: string) => void; onCan
       ref={ref}
       className="rename rename--chat"
       value={value}
-      aria-label={`Rename ${props.value}`}
+      aria-label={t('sidebar.chat.rename', { title: props.value })}
       onChange={(event) => setValue(event.currentTarget.value)}
       onBlur={commit}
       onKeyDown={(event) => {
@@ -1219,6 +1310,7 @@ function Rename(props: { value: string; onCommit: (value: string) => void; onCan
 }
 
 function Status(props: { session: Session; now: number }) {
+  useI18n() // re-render when the language changes: the label is read at call time
   const status = statusPresentation(props.session, props.now)
   return <span className={`inbox-status is-${status.tone}`}>{status.label}</span>
 }
@@ -1230,18 +1322,25 @@ type StatusPresentation = {
 
 function statusPresentation(session: Session, now: number): StatusPresentation {
   const woke = session.lifecycle.state === 'active' && session.lifecycle.wokeAt !== undefined
-  if (session.status === 'approval') return { label: 'Approval', tone: 'attention' }
-  if (session.status === 'input') return { label: 'Needs input', tone: 'attention' }
-  if (session.status === 'failed') return { label: 'Failed', tone: 'failed' }
-  if (session.status === 'ready') return { label: 'Done', tone: 'done' }
-  if (session.status === 'queued') return { label: 'Queued', tone: 'attention' }
+  if (session.status === 'approval') {
+    return { label: t('sidebar.inbox.status.approval'), tone: 'attention' }
+  }
+  if (session.status === 'input')
+    return { label: t('sidebar.inbox.status.input'), tone: 'attention' }
+  if (session.status === 'failed')
+    return { label: t('sidebar.inbox.status.failed'), tone: 'failed' }
+  if (session.status === 'ready') return { label: t('sidebar.inbox.status.done'), tone: 'done' }
+  if (session.status === 'queued')
+    return { label: t('sidebar.inbox.status.queued'), tone: 'attention' }
   if (session.status === 'starting' || session.status === 'working') {
     return {
-      label: `Working · ${elapsedTime(session.statusSince ?? session.createdAt, now)}`,
+      label: t('sidebar.inbox.status.working', {
+        time: elapsedTime(session.statusSince ?? session.createdAt, now),
+      }),
       tone: 'working',
     }
   }
-  if (woke) return { label: 'Woke', tone: 'woke' }
+  if (woke) return { label: t('sidebar.inbox.woke'), tone: 'woke' }
   return { label: relativeTime(session.statusSince ?? session.createdAt, now), tone: 'quiet' }
 }
 
@@ -1250,7 +1349,7 @@ function canHide(session: Session): boolean {
 }
 
 function threadCount(count: number): string {
-  return `${count} ${count === 1 ? 'thread' : 'threads'}`
+  return tp('sidebar.inbox.threadCount', count)
 }
 
 function navigateRows(
@@ -1555,10 +1654,10 @@ function withSelected(entries: Entry[], selected: Entry | undefined): Entry[] {
 
 function snoozePresets(now: number): Array<{ label: string; at: number }> {
   return [
-    { label: 'In one hour', at: now + 60 * 60 * 1_000 },
-    { label: 'This evening', at: thisEvening(now) },
-    { label: 'Tomorrow morning', at: tomorrowMorning(now) },
-    { label: 'Next week', at: nextWeek(now) },
+    { label: t('sidebar.inbox.snoozeHour'), at: now + 60 * 60 * 1_000 },
+    { label: t('sidebar.inbox.snoozeEvening'), at: thisEvening(now) },
+    { label: t('sidebar.inbox.snoozeMorning'), at: tomorrowMorning(now) },
+    { label: t('sidebar.inbox.snoozeWeek'), at: nextWeek(now) },
   ]
 }
 
@@ -1589,10 +1688,11 @@ function formatWakeTime(at: number, now: number): string {
   const today = new Date(now)
   const tomorrow = new Date(now)
   tomorrow.setDate(tomorrow.getDate() + 1)
-  const time = target.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-  if (sameDay(target, today)) return `Today · ${time}`
-  if (sameDay(target, tomorrow)) return `Tomorrow · ${time}`
-  return target.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+  const language = getLanguage()
+  const time = target.toLocaleTimeString(language, { hour: 'numeric', minute: '2-digit' })
+  if (sameDay(target, today)) return t('sidebar.time.today', { time })
+  if (sameDay(target, tomorrow)) return t('sidebar.time.tomorrow', { time })
+  return target.toLocaleString(language, { weekday: 'short', hour: 'numeric', minute: '2-digit' })
 }
 
 function sameDay(a: Date, b: Date): boolean {
@@ -1605,20 +1705,24 @@ function sameDay(a: Date, b: Date): boolean {
 
 function elapsedTime(from: number, now: number): string {
   const seconds = Math.max(0, Math.floor((now - from) / 1_000))
-  if (seconds < 60) return `${seconds}s`
+  if (seconds < 60) return t('sidebar.time.seconds', { count: seconds })
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m`
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
+  if (minutes < 60) return t('sidebar.time.minutes', { count: minutes })
+  return t('sidebar.time.hoursMinutes', { hours: Math.floor(minutes / 60), minutes: minutes % 60 })
+}
+
+function ago(time: string): string {
+  return t('sidebar.time.ago', { time })
 }
 
 function relativeTime(at: number, now: number): string {
   const seconds = Math.max(0, Math.round((now - at) / 1_000))
-  if (seconds < 60) return 'now'
+  if (seconds < 60) return t('sidebar.time.now')
   const minutes = Math.round(seconds / 60)
-  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 60) return ago(t('sidebar.time.minutes', { count: minutes }))
   const hours = Math.round(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.round(hours / 24)}d ago`
+  if (hours < 24) return ago(t('sidebar.time.hours', { count: hours }))
+  return ago(t('sidebar.time.days', { count: Math.round(hours / 24) }))
 }
 
 function providerName(session: Session): string {
@@ -1630,6 +1734,7 @@ function projectName(project: ProjectMetadata): string {
 }
 
 type StaticThreadPresentation = {
+  language: Language
   project: ProjectMetadata
   rowLabelPrefix: string
   summaryPrefix: string[]
@@ -1642,21 +1747,33 @@ function staticThreadPresentation(
   project: ProjectMetadata,
   session: Session,
 ): StaticThreadPresentation {
+  const language = getLanguage()
   const cached = staticThreadPresentations.get(session)
-  if (cached?.project.path === project.path && cached.project.name === project.name) return cached
+  if (
+    cached?.language === language &&
+    cached.project.path === project.path &&
+    cached.project.name === project.name
+  ) {
+    return cached
+  }
   const projectLabel = projectName(project)
   const provider = providerName(session)
   const presentation = {
+    language,
     project: projectMetadata(project),
     rowLabelPrefix: `${session.title}, ${projectLabel}, ${provider}`,
     summaryPrefix: [
       session.title,
-      `Project: ${projectLabel}`,
-      `Environment: ${project.path}`,
-      `Branch: ${session.worktreeBranch ?? 'default checkout'}`,
-      `Provider: ${provider}`,
+      t('sidebar.inbox.summary.project', { value: projectLabel }),
+      t('sidebar.inbox.summary.environment', { value: project.path }),
+      t('sidebar.inbox.summary.branch', {
+        value: session.worktreeBranch ?? t('sidebar.inbox.summary.defaultCheckout'),
+      }),
+      t('sidebar.inbox.summary.provider', { value: provider }),
     ],
-    created: `Created: ${new Date(session.createdAt).toLocaleString()}`,
+    created: t('sidebar.inbox.summary.created', {
+      value: new Date(session.createdAt).toLocaleString(language),
+    }),
   }
   staticThreadPresentations.set(session, presentation)
   return presentation
@@ -1670,15 +1787,19 @@ function rowLabel(project: ProjectMetadata, session: Session, now: number): stri
 function threadSummary(project: ProjectMetadata, session: Session, now: number): string {
   const lifecycle =
     session.lifecycle.state === 'active'
-      ? 'Active'
+      ? t('sidebar.inbox.lifecycle.active')
       : session.lifecycle.state === 'snoozed'
-        ? `Snoozed until ${formatWakeTime(session.lifecycle.wakeAt, now)}`
-        : `Settled ${relativeTime(session.lifecycle.settledAt, now)}`
+        ? t('sidebar.inbox.lifecycle.snoozed', {
+            when: formatWakeTime(session.lifecycle.wakeAt, now),
+          })
+        : t('sidebar.inbox.lifecycle.settled', {
+            when: relativeTime(session.lifecycle.settledAt, now),
+          })
   const presentation = staticThreadPresentation(project, session)
   return [
     ...presentation.summaryPrefix,
-    `Status: ${statusPresentation(session, now).label}`,
-    `Lifecycle: ${lifecycle}`,
+    t('sidebar.inbox.summary.status', { value: statusPresentation(session, now).label }),
+    t('sidebar.inbox.summary.lifecycle', { value: lifecycle }),
     presentation.created,
   ].join('\n')
 }

@@ -27,7 +27,7 @@ const work: ProviderAccount = {
   id: 'work-1a2b3c',
   provider: 'codex',
   label: 'Work',
-  home: 'C:\\Users\\leon\\AppData\\Roaming\\TasteCode\\accounts\\codex\\work-1a2b3c',
+  home: 'C:\\Users\\leon\\AppData\\Roaming\\TUIFT Code\\accounts\\codex\\work-1a2b3c',
   managed: true,
   createdAt: 1,
 }

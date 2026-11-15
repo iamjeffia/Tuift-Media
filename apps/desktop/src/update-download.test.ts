@@ -87,7 +87,7 @@ beforeEach(async () => {
   directory = await mkdtemp(path.join(os.tmpdir(), 'tastecode-download-'))
   server = createServer(send)
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/TasteCode-0.1.3-mac-arm64.dmg`
+  url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/TUIFT-Code-0.1.3-mac-arm64.dmg`
 })
 
 afterEach(async () => {
@@ -266,7 +266,7 @@ describe('resumable update downloads', () => {
   })
 
   it('creates a missing download folder', async () => {
-    const nested = path.join(directory, 'Caches', 'TasteCode', 'update-downloads')
+    const nested = path.join(directory, 'Caches', 'TUIFT Code', 'update-downloads')
     const file = await downloadVerified(options({ directory: nested }))
     expect(path.dirname(file)).toBe(nested)
   })

@@ -18,6 +18,7 @@ import {
   IconSearch as Search,
 } from '@tabler/icons-react'
 import { type CSSProperties, Fragment } from 'react'
+import { useI18n } from '../i18n/index.js'
 import type { ProviderMark } from '../model-catalog.js'
 import { GeneratedAvatar } from './GeneratedAvatar.js'
 import { ProviderIcon } from './ProviderIcon.js'
@@ -30,9 +31,6 @@ export type PreviewAgent = {
   mark: ProviderMark
   arriving?: boolean | undefined
 }
-
-const ANSWER =
-  'Done. The toggle sits in Settings › Appearance and follows the system until someone picks a side.'
 
 const DIFF = [
   { kind: 'removed', code: "const theme = 'dark'" },
@@ -65,7 +63,10 @@ export function OnboardingPreview(props: {
    */
   newProject?: 'open' | 'ready' | undefined
 }) {
+  const { t } = useI18n()
+  // The avatar is drawn from the stored fallback name, whatever language shows it.
   const name = props.name.trim() || 'Local profile'
+  const shownName = props.name.trim() || t('onboarding.preview.localProfile')
   const lead = props.agents.find((agent) => !agent.arriving)
   const hint = (part: PreviewHint) => (props.hint === part ? '' : undefined)
 
@@ -88,18 +89,18 @@ export function OnboardingPreview(props: {
           </span>
           <span className="preview__nav" data-morph="new-chat">
             <SquarePen />
-            New chat
+            {t('onboarding.preview.newChat')}
           </span>
           <span className="preview__nav" data-morph="new-project">
             <FolderPlus />
-            New project
+            {t('onboarding.preview.newProject')}
           </span>
           <span className="preview__nav" data-morph="pull-requests">
             <GitPullRequest />
             Pull requests
           </span>
           <span className="preview__group">
-            Projects
+            {t('onboarding.preview.projects')}
             <span className="preview__icon" data-morph="add-project">
               <Plus />
             </span>
@@ -111,7 +112,7 @@ export function OnboardingPreview(props: {
                 data-morph={props.newProject ? 'project' : undefined}
               >
                 {props.newProject === 'ready' ? <FolderOpen /> : <Folder />}
-                Your project
+                {t('onboarding.preview.yourProject')}
               </span>
             </span>
           </span>
@@ -120,14 +121,14 @@ export function OnboardingPreview(props: {
             my-app
           </span>
           <span className="preview__chat is-active">
-            <span>Add a theme toggle</span>
+            <span>{t('onboarding.preview.chatTheme')}</span>
           </span>
           <span className="preview__chat">
-            <span>Fix the flaky upload test</span>
+            <span>{t('onboarding.preview.chatUpload')}</span>
             <time>2h</time>
           </span>
           <span className="preview__chat">
-            <span>Bump dependencies</span>
+            <span>{t('onboarding.preview.chatDeps')}</span>
             <time>1d</time>
           </span>
           <span className="preview__project">
@@ -144,7 +145,7 @@ export function OnboardingPreview(props: {
               <GeneratedAvatar name={name} />
             </span>
             <span className="preview__profile-name" data-land="name">
-              {name}
+              {shownName}
             </span>
             <span className="preview__icon" data-morph="account-menu">
               <ChevronUp />
@@ -154,7 +155,7 @@ export function OnboardingPreview(props: {
 
         <span className="preview__main">
           <span className="preview__topbar" data-morph="topbar">
-            <span className="preview__title">Add a theme toggle</span>
+            <span className="preview__title">{t('onboarding.preview.chatTheme')}</span>
             <Dots />
             <span className="preview__spacer" />
             <span className="preview__icon" data-morph="bottom-panel">
@@ -167,13 +168,9 @@ export function OnboardingPreview(props: {
 
           <span className="preview__thread">
             <span className="preview__answer preview__answer--earlier">
-              All 214 tests pass. The upload retry now waits for the socket to close before it opens
-              a new one.
+              {t('onboarding.preview.earlierAnswer')}
             </span>
-            <span className="preview__said">
-              Add a light and dark toggle to Settings. It should follow the system until someone
-              picks one.
-            </span>
+            <span className="preview__said">{t('onboarding.preview.said')}</span>
             <span className="preview__activity preview__activity--first">
               <span className="preview__activity-icon">
                 <span className="preview__spinner" />
@@ -206,12 +203,14 @@ export function OnboardingPreview(props: {
               ))}
             </span>
             <span className="preview__answer">
-              {ANSWER.split(' ').map((word, index) => (
-                <Fragment key={index}>
-                  {index > 0 ? ' ' : null}
-                  <span style={{ '--word': index } as CSSProperties}>{word}</span>
-                </Fragment>
-              ))}
+              {t('onboarding.preview.answer')
+                .split(' ')
+                .map((word, index) => (
+                  <Fragment key={index}>
+                    {index > 0 ? ' ' : null}
+                    <span style={{ '--word': index } as CSSProperties}>{word}</span>
+                  </Fragment>
+                ))}
             </span>
           </span>
 

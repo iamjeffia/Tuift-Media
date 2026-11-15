@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
 
+import { useI18n } from '../i18n/index.js'
 import { Skeleton, SkeletonGroup, SkeletonStatus } from './Skeleton.js'
 import '../styles/surface-skeleton.css'
 
@@ -20,8 +21,9 @@ const SIDEBAR_TREE: readonly { name: number; sessions: readonly string[] }[] = [
 
 /** Project rows with their chats, drawn with the rail's own row classes. */
 export function SidebarTreeSkeleton() {
+  const { t } = useI18n()
   return (
-    <SkeletonStatus label="Loading projects…" className="rail-skeleton">
+    <SkeletonStatus label={t('dialogs.skeleton.projects')} className="rail-skeleton">
       {SIDEBAR_TREE.map((project, index) => (
         <div className="proj" key={index}>
           <div className="proj__head">
@@ -56,8 +58,9 @@ const INBOX_CARDS: readonly { project: number; title: string; meta: string }[] =
 
 /** Inbox thread cards: project and state, a title, one line of detail. */
 export function InboxCardsSkeleton() {
+  const { t } = useI18n()
   return (
-    <SkeletonStatus label="Loading threads…" className="inbox-skeleton">
+    <SkeletonStatus label={t('dialogs.skeleton.threads')} className="inbox-skeleton">
       <Skeleton className="inbox-skeleton__heading" width={34} />
       {INBOX_CARDS.map((card, index) => (
         <div className="inbox-skeleton__card" key={index}>
@@ -135,6 +138,7 @@ function SettingsProvidersSkeleton() {
 
 /** Settings' two columns: the category rail and the page it opens on. */
 export function SettingsSkeleton(props: { section?: string | undefined }) {
+  const { t } = useI18n()
   return (
     <div className="settings-skeleton">
       <div className="settings-skeleton__titlebar" />
@@ -154,7 +158,10 @@ export function SettingsSkeleton(props: { section?: string | undefined }) {
         </SkeletonGroup>
       </aside>
       <main className="settings-skeleton__main">
-        <SkeletonStatus label="Loading settings…" className="settings-skeleton__content">
+        <SkeletonStatus
+          label={t('dialogs.skeleton.settings')}
+          className="settings-skeleton__content"
+        >
           <Skeleton className="settings-skeleton__title" />
           {props.section === 'providers' ? (
             <SettingsProvidersSkeleton />
@@ -185,6 +192,7 @@ const PULL_REQUEST_TITLES: readonly string[] = ['74%', '62%', '80%', '56%', '70%
 
 /** The pull request workspace: list header and rows, an empty detail pane. */
 export function PullRequestsSkeleton() {
+  const { t } = useI18n()
   return (
     <div className="pr-shell-skeleton">
       <div className="pr-shell-skeleton__list">
@@ -202,7 +210,10 @@ export function PullRequestsSkeleton() {
             <Skeleton className="skeleton--block" width={74} height={34} />
           </span>
         </SkeletonGroup>
-        <SkeletonStatus label="Loading pull requests" className="pr-shell-skeleton__rows">
+        <SkeletonStatus
+          label={t('dialogs.skeleton.pullRequests')}
+          className="pr-shell-skeleton__rows"
+        >
           {PULL_REQUEST_TITLES.map((width, index) => (
             <span className="pr-shell-skeleton__row" key={index}>
               <Skeleton className="skeleton--circle" width={16} height={16} />
@@ -225,6 +236,7 @@ const WORKSPACE_TOOL_LABELS: readonly number[] = [42, 50, 46, 30, 94]
  * picker. Tool tiles are framed like the real buttons, with bars for content.
  */
 export function WorkspacePanelSkeleton(props: { placement: 'right' | 'bottom'; open: boolean }) {
+  const { t } = useI18n()
   return (
     <div
       className={`workspace-panel-skeleton${props.placement === 'bottom' ? ' workspace-panel-skeleton--bottom' : ''}`}
@@ -238,7 +250,10 @@ export function WorkspacePanelSkeleton(props: { placement: 'right' | 'bottom'; o
           <Skeleton className="skeleton--icon" />
         </span>
       </SkeletonGroup>
-      <SkeletonStatus label="Loading workspace tools…" className="workspace-panel-skeleton__picker">
+      <SkeletonStatus
+        label={t('dialogs.skeleton.workspaceTools')}
+        className="workspace-panel-skeleton__picker"
+      >
         <span className="workspace-panel-skeleton__tools">
           {WORKSPACE_TOOL_LABELS.map((width, index) => (
             <span className="workspace-panel-skeleton__tool" key={index}>
@@ -254,6 +269,7 @@ export function WorkspacePanelSkeleton(props: { placement: 'right' | 'bottom'; o
 
 /** Chat search before its chunk arrives: the dialog frame with its intro. */
 export function ChatSearchSkeleton() {
+  const { t } = useI18n()
   return (
     <div className="search-skeleton">
       <div className="search-skeleton__scrim" />
@@ -275,7 +291,7 @@ export function ChatSearchSkeleton() {
             <Skeleton className="skeleton--block" width={91} height={28} />
           </span>
         </SkeletonGroup>
-        <SkeletonStatus label="Opening search…" className="search-skeleton__intro">
+        <SkeletonStatus label={t('dialogs.skeleton.search')} className="search-skeleton__intro">
           <Skeleton className="skeleton--circle" width={28} height={28} />
           <span className="search-skeleton__heading">
             <Skeleton width={176} height={12} />
@@ -292,8 +308,9 @@ export function ChatSearchSkeleton() {
 
 /** The thread's find bar: the frame is thread.css's own, the controls are bars. */
 export function FindBarSkeleton() {
+  const { t } = useI18n()
   return (
-    <SkeletonStatus label="Opening find…" className="find find-skeleton">
+    <SkeletonStatus label={t('dialogs.skeleton.find')} className="find find-skeleton">
       <span className="find-skeleton__input">
         <Skeleton width={88} height={9} />
       </span>
@@ -309,6 +326,7 @@ export function FindBarSkeleton() {
 
 /** The media viewer's backdrop and a frame where the image will land. */
 export function MediaViewerSkeleton(props: { mediaType: 'image' | 'video' }) {
+  const { t } = useI18n()
   return createPortal(
     <div className={`media-skeleton media-skeleton--${props.mediaType}`}>
       <SkeletonGroup className="media-skeleton__actions">
@@ -316,7 +334,7 @@ export function MediaViewerSkeleton(props: { mediaType: 'image' | 'video' }) {
         <Skeleton className="skeleton--icon" />
         <Skeleton className="skeleton--icon" />
       </SkeletonGroup>
-      <SkeletonStatus label="Opening viewer…" className="media-skeleton__viewport">
+      <SkeletonStatus label={t('dialogs.skeleton.viewer')} className="media-skeleton__viewport">
         <Skeleton className="media-skeleton__frame" />
       </SkeletonStatus>
     </div>,

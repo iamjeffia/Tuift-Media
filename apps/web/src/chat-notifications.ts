@@ -1,7 +1,7 @@
 import type { Project, Session } from './ui/Sidebar.js'
 
 /**
- * When the desktop shell tells the user about a chat while TasteCode is not
+ * When the desktop shell tells the user about a chat while TUIFT Code is not
  * in front. The shell decides what to show (apps/desktop/src/chat-attention.ts);
  * this side keeps the setting and reports which chats are not at rest, read
  * from the status the sidebar draws, so every provider and API connection

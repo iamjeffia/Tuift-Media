@@ -87,7 +87,7 @@ describe('Agent Skills settings', () => {
     })
   })
 
-  it('lists the skills included with TasteCode read-only, also without a provider inventory', async () => {
+  it('lists the skills included with TUIFT Code read-only, also without a provider inventory', async () => {
     const included = {
       ...skill,
       id: 'tastecode:cook',
@@ -114,11 +114,64 @@ describe('Agent Skills settings', () => {
       />,
     )
 
-    expect(await screen.findByRole('heading', { name: 'Included with TasteCode' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Included with TUIFT Code' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'cook', level: 2 })).toBeTruthy()
     expect(screen.getByText('Runs the Cook Loop.')).toBeTruthy()
     expect(screen.queryByText('skill-creator')).toBeNull()
     expect(screen.queryByRole('switch')).toBeNull()
+  })
+
+  it('names the three origins and keeps each skill under its own group', async () => {
+    const mine = { ...skill, dependencyErrors: [] }
+    const everywhere = {
+      ...mine,
+      id: '/home/me/.agents/skills/pdf/SKILL.md',
+      name: 'pdf',
+      displayName: undefined,
+      description: 'Read and fill PDF files.',
+      source: { type: 'folder' as const, path: '/home/me/.agents/skills/pdf' },
+      scope: 'user' as const,
+    }
+    const included = {
+      ...mine,
+      id: 'tastecode:cook',
+      name: 'cook',
+      displayName: undefined,
+      description: 'Runs the Cook Loop.',
+      source: { type: 'folder' as const, path: '/app/resources/default-skills/skills/cook' },
+      scope: 'system' as const,
+    }
+    const transport = client(async () => ({
+      capabilities: { inventory: true, configure: true, install: false },
+      skills: [included, everywhere, mine],
+      errors: [],
+    }))
+    render(
+      <SkillsSettings
+        transport={transport}
+        provider="codex"
+        providerName="Codex"
+        projectPath="/work/project"
+        projectName="Project"
+      />,
+    )
+
+    await screen.findByRole('heading', { name: 'Global' })
+    const groups = screen
+      .getAllByRole('region')
+      .filter((section) => section.classList.contains('set-section'))
+      .map((section) => [
+        section.querySelector('.set-section__title')?.textContent,
+        [...section.querySelectorAll('.set-entity__name')].map((name) => name.textContent),
+      ])
+    expect(groups).toEqual([
+      ['In this project', ['Design Taste']],
+      ['Global', ['pdf']],
+      ['Included with TUIFT Code', ['cook']],
+    ])
+    // Global skills switch like project ones; the bundled ones are read-only.
+    expect(screen.getByRole('switch', { name: 'Disable pdf' })).toBeTruthy()
+    expect(screen.queryByRole('switch', { name: 'Disable cook' })).toBeNull()
   })
 
   it('hides unsupported-provider actions', async () => {

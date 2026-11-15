@@ -1,0 +1,225 @@
+{
+  "description": "Third-party Agent Skills vendored in this folder. Skills written by TUIFT Media are not listed here.",
+  "skills": [
+    {
+      "name": "hyperframes",
+      "repository": "https://github.com/heygen-com/hyperframes",
+      "commit": "b20f3f7ad956018cd18c6be0ac6c8ff9ddcf2a18",
+      "path": "skills/hyperframes",
+      "license": "Apache-2.0",
+      "licenseFile": "hyperframes/LICENSE",
+      "licenseFileNote": "copy of the repository root LICENSE (the upstream skill folder has none)",
+      "modified": false
+    },
+    {
+      "name": "hyperframes-core",
+      "repository": "https://github.com/heygen-com/hyperframes",
+      "commit": "b20f3f7ad956018cd18c6be0ac6c8ff9ddcf2a18",
+      "path": "skills/hyperframes-core",
+      "license": "Apache-2.0",
+      "licenseFile": "hyperframes-core/LICENSE",
+      "licenseFileNote": "copy of the repository root LICENSE (the upstream skill folder has none)",
+      "modified": false
+    },
+    {
+      "name": "hyperframes-animation",
+      "repository": "https://github.com/heygen-com/hyperframes",
+      "commit": "b20f3f7ad956018cd18c6be0ac6c8ff9ddcf2a18",
+      "path": "skills/hyperframes-animation",
+      "license": "Apache-2.0",
+      "licenseFile": "hyperframes-animation/LICENSE",
+      "licenseFileNote": "copy of the repository root LICENSE (the upstream skill folder has none)",
+      "modified": false
+    },
+    {
+      "name": "hyperframes-audio",
+      "repository": "https://github.com/heygen-com/hyperframes",
+      "commit": "b20f3f7ad956018cd18c6be0ac6c8ff9ddcf2a18",
+      "path": "skills/hyperframes-audio",
+      "license": "Apache-2.0",
+      "licenseFile": "hyperframes-audio/LICENSE",
+      "licenseFileNote": "copy of the repository root LICENSE (the upstream skill folder has none)",
+      "modified": false
+    },
+    {
+      "name": "hyperframes-cli",
+      "repository": "https://github.com/heygen-com/hyperframes",
+      "commit": "b20f3f7ad956018cd18c6be0ac6c8ff9ddcf2a18",
+      "path": "skills/hyperframes-cli",
+      "license": "Apache-2.0",
+      "licenseFile": "hyperframes-cli/LICENSE",
+      "licenseFileNote": "copy of the repository root LICENSE (the upstream skill folder has none)",
+      "modified": false
+    },
+    {
+      "name": "hyperframes-creative",
+      "repository": "https://github.com/heygen-com/hyperframes",
+      "commit": "b20f3f7ad956018cd18c6be0ac6c8ff9ddcf2a18",
+      "path": "skills/hyperframes-creative",
+      "license": "Apache-2.0",
+      "licenseFile": "hyperframes-creative/LICENSE",
+      "licenseFileNote": "copy of the repository root LICENSE (the upstream skill folder has none)",
+      "modified": false
+    },
+    {
+      "name": "hyperframes-keyframes",
+      "repository": "https://github.com/heygen-com/hyperframes",
+      "commit": "b20f3f7ad956018cd18c6be0ac6c8ff9ddcf2a18",
+      "path": "skills/hyperframes-keyframes",
+      "license": "Apache-2.0",
+      "licenseFile": "hyperframes-keyframes/LICENSE",
+      "licenseFileNote": "copy of the repository root LICENSE (the upstream skill folder has none)",
+      "modified": false
+    },
+    {
+      "name": "hyperframes-registry",
+      "repository": "https://github.com/heygen-com/hyperframes",
+      "commit": "b20f3f7ad956018cd18c6be0ac6c8ff9ddcf2a18",
+      "path": "skills/hyperframes-registry",
+      "license": "Apache-2.0",
+      "licenseFile": "hyperframes-registry/LICENSE",
+      "licenseFileNote": "copy of the repository root LICENSE (the upstream skill folder has none)",
+      "modified": false
+    },
+    {
+      "name": "hyperframes-studio",
+      "repository": "https://github.com/heygen-com/hyperframes",
+      "commit": "b20f3f7ad956018cd18c6be0ac6c8ff9ddcf2a18",
+      "path": "skills/hyperframes-studio",
+      "license": "Apache-2.0",
+      "licenseFile": "hyperframes-studio/LICENSE",
+      "licenseFileNote": "copy of the repository root LICENSE (the upstream skill folder has none)",
+      "modified": false
+    },
+    {
+      "name": "media-use",
+      "repository": "https://github.com/heygen-com/hyperframes",
+      "commit": "b20f3f7ad956018cd18c6be0ac6c8ff9ddcf2a18",
+      "path": "skills/media-use",
+      "license": "Apache-2.0",
+      "licenseFile": "media-use/LICENSE",
+      "licenseFileNote": "copy of the repository root LICENSE (the upstream skill folder has none)",
+      "modified": "removed the 19 bundled .mp3 sound effects (Pixabay Content License, not redistributable as standalone files); added audio/assets/sfx/OMITTED.md"
+    },
+    {
+      "name": "motion-graphics",
+      "repository": "https://github.com/heygen-com/hyperframes",
+      "commit": "b20f3f7ad956018cd18c6be0ac6c8ff9ddcf2a18",
+      "path": "skills/motion-graphics",
+      "license": "Apache-2.0",
+      "licenseFile": "motion-graphics/LICENSE",
+      "licenseFileNote": "copy of the repository root LICENSE (the upstream skill folder has none)",
+      "modified": false
+    },
+    {
+      "name": "figma",
+      "repository": "https://github.com/heygen-com/hyperframes",
+      "commit": "b20f3f7ad956018cd18c6be0ac6c8ff9ddcf2a18",
+      "path": "skills/figma",
+      "license": "Apache-2.0",
+      "licenseFile": "figma/LICENSE",
+      "licenseFileNote": "copy of the repository root LICENSE (the upstream skill folder has none)",
+      "modified": false
+    },
+    {
+      "name": "watch",
+      "repository": "https://github.com/bradautomates/claude-video",
+      "commit": "03ceb42f7fa2c4439aca01752118044baabffb8f",
+      "path": "skills/watch",
+      "license": "MIT",
+      "licenseFile": "watch/LICENSE",
+      "licenseFileNote": "copy of the repository root LICENSE (the upstream skill folder has none)",
+      "modified": "omitted the upstream packaging files .gitattributes, .skillignore and scripts/build-skill.sh (export-ignore in the upstream repository); skill content unchanged"
+    },
+    {
+      "name": "ui-profissional",
+      "repository": "TUIFT Media",
+      "path": ".agents/skills/ui-profissional",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "modified": "Written by the TUIFT Media team. Private paths, names, brands and internal cases removed; rules rewritten as a generic method, without verbatim quotes from third-party videos."
+    },
+    {
+      "name": "gravar-janela",
+      "repository": "TUIFT Media",
+      "path": ".agents/skills/gravar-janela",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "modified": "Written by the TUIFT Media team. Owner name, private paths and local tool references removed; requirements section and a friendly missing-package message added to scripts/gravar.py."
+    },
+    {
+      "name": "humanizer",
+      "repository": "blader/humanizer",
+      "commit": "b48c832f0f809c1b5658edbb838c2521b72f2413",
+      "ref": "v4.0.0",
+      "path": ".",
+      "license": "MIT",
+      "licenseFile": "LICENSE",
+      "modified": "Unmodified upstream skill files (SKILL.md, LICENSE, README.md, CHANGELOG.md, agents/openai.yaml). The package, CI and plugin manifests are not copied. The hub-specific adaptations of the older local copy (v2.11.2) are not included."
+    },
+    {
+      "name": "stageshow",
+      "repository": "benjitaylor/skills",
+      "commit": "299140fafd08df55a9c234e610c3f64af3f45531",
+      "ref": "stageshow-v1.1.0-1-g299140f",
+      "path": "stageshow",
+      "license": "MIT",
+      "licenseFile": "LICENSE",
+      "modified": "assets/app-icons.ts replaced by neutral placeholders with the same exports; kit/brands/{linear,linear-dark,amex,amex-tile,usdc}.svg removed with their registry entries and docs rows; kit-extras example uses the figma mark; OMISSIONS.md added; one pointer line in SKILL.md and one comment in examples/bento."
+    },
+    {
+      "name": "animacao-saas",
+      "repository": "TUIFT Media",
+      "path": ".agents/skills/animacao-saas",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "modified": "Written by the TUIFT Media team as its own method."
+    },
+    {
+      "name": "captura-de-movimento",
+      "repository": "TUIFT Media",
+      "path": ".agents/skills/captura-de-movimento",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "modified": "Written by the TUIFT Media team as its own method."
+    },
+    {
+      "name": "motion-narrado",
+      "repository": "TUIFT Media",
+      "path": ".agents/skills/motion-narrado",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "modified": "Written by the TUIFT Media team as its own method."
+    },
+    {
+      "name": "video-referencias",
+      "repository": "TUIFT Media",
+      "path": ".agents/skills/video-referencias",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "modified": "Written by the TUIFT Media team as its own method."
+    },
+    {
+      "name": "motion-app-ae",
+      "repository": "TUIFT Media",
+      "path": ".agents/skills/motion-app-ae",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "modified": "Written by the TUIFT Media team as its own method."
+    },
+    {
+      "name": "composicao-trilha",
+      "repository": "TUIFT Media",
+      "path": ".agents/skills/composicao-trilha",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "modified": "Written by the TUIFT Media team as its own method."
+    }
+  ],
+  "notBrought": [
+    {
+      "name": "better-portuguese",
+      "reason": "Third-party skill by Rafael Quintanilha (github.com/rafaelquintanilha/skills, folder skills/better-portuguese, commit c5b73abf2b57d7a90afa0fc343561611a8bc1959, recorded in the local skill lock). The public repository has no LICENSE file, no license field in package.json, README or SKILL.md, and the GitHub licence API returns 404. Redistribution cannot be established."
+    }
+  ]
+}

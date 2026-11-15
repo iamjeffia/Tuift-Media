@@ -251,7 +251,7 @@ describe('Grok adapter', () => {
     adapter.dispose()
   })
 
-  it('resumes a stable TasteCode thread through its separate Grok session id', async () => {
+  it('resumes a stable TUIFT Code thread through its separate Grok session id', async () => {
     const child = new FakeChild()
     let args: string[] = []
     const adapter = new GrokAdapter({

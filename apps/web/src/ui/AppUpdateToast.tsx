@@ -11,6 +11,7 @@ import {
   subscribeAppUpdateInstall,
 } from '../app-update-install.js'
 import { appUpdateState, onAppUpdateState, type AppUpdateState } from '../bridge.js'
+import { useI18n } from '../i18n/index.js'
 import { NoticeBody } from './Notice.js'
 import { NoticePresence } from './NoticePresence.js'
 
@@ -61,6 +62,7 @@ export function AppUpdateToast(props: {
   /** Another notice holds this spot; the good news can wait, a question cannot. */
   quiet?: boolean
 }) {
+  const { t } = useI18n()
   const state = useAppUpdateState()
   const install = useSyncExternalStore(
     subscribeAppUpdateInstall,
@@ -166,7 +168,7 @@ export function AppUpdateToast(props: {
                 type="button"
                 onClick={() => void stopChatsAndInstall()}
               >
-                Stop and update
+                {t('dialogs.appUpdate.stopAndUpdate')}
               </button>
               <button
                 ref={waitButton}
@@ -174,20 +176,20 @@ export function AppUpdateToast(props: {
                 type="button"
                 onClick={installWhenChatsFinish}
               >
-                When they finish
+                {t('dialogs.appUpdate.whenTheyFinish')}
               </button>
             </>
           }
           onDismiss={closeQuestion}
-          dismissLabel="Cancel update"
+          dismissLabel={t('dialogs.appUpdate.cancel')}
         >
           {runningLabel(running)}
         </NoticeBody>
       ) : progress ? (
         <NoticeBody tone="progress">
           {install.phase === 'stopping'
-            ? `Stopping ${chatCount(running)}…`
-            : 'Restarting TasteCode…'}
+            ? t('dialogs.appUpdate.stopping', { chats: chatCount(running) })
+            : t('dialogs.appUpdate.restarting')}
         </NoticeBody>
       ) : (
         <NoticeBody
@@ -205,13 +207,15 @@ export function AppUpdateToast(props: {
                 void requestAppUpdateInstall()
               }}
             >
-              Update
+              {t('dialogs.appUpdate.update')}
             </button>
           }
           onDismiss={dismiss}
-          dismissLabel="Dismiss update notice"
+          dismissLabel={t('dialogs.appUpdate.dismissNotice')}
         >
-          {version ? `TasteCode ${version} is ready` : 'A TasteCode update is ready'}
+          {version
+            ? t('dialogs.appUpdate.readyVersion', { version })
+            : t('dialogs.appUpdate.ready')}
         </NoticeBody>
       )}
     </NoticePresence>

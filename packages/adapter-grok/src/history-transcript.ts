@@ -172,7 +172,7 @@ class Replay {
       this.#activeText = item
     }
     item.text = (item.text ?? '') + parsed.text
-    // The session's first prompt carried TasteCode's instructions; the user
+    // The session's first prompt carried TUIFT Code's instructions; the user
     // sent only what follows them, and the stored turn says so too.
     if (role === 'user') item.text = withoutInstructions(item.text)
     if (parsed.attachments.length)

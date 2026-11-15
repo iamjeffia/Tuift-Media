@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import qrcode from 'qrcode-generator'
 import type { PhoneAccessStatus, PhoneAddress, PhonePairing } from '@harness/contracts'
 import { writeClipboardText } from '../bridge.js'
+import { getLanguage, t, useI18n, type MessageKey } from '../i18n/index.js'
 import type { Transport } from '../transport.js'
 import { RowIssue } from './RowIssue.js'
 import { Skeleton, SkeletonStatus } from './Skeleton.js'
+import { withStrong } from './settings/rich-message.js'
 import {
   SettingsEmpty,
   SettingsNotice,
@@ -15,10 +17,10 @@ import {
 import '../styles/phone-settings.css'
 
 const ADDRESS_LABELS = {
-  hostname: 'Local name',
-  lan: 'Wi-Fi',
-  tailscale: 'Tailscale',
-} as const satisfies Record<PhoneAddress['kind'], string>
+  hostname: 'settings.phone.addressHostname',
+  lan: 'settings.phone.addressLan',
+  tailscale: 'settings.phone.addressTailscale',
+} as const satisfies Record<PhoneAddress['kind'], MessageKey>
 
 /**
  * Pairing a phone and the phones already paired. The pairing code is the page:
@@ -26,6 +28,7 @@ const ADDRESS_LABELS = {
  * gives way to that phone's name the moment it pairs.
  */
 export function PhoneSettings(props: { transport: Transport }) {
+  const { t } = useI18n()
   const { transport } = props
   const [status, setStatus] = useState<PhoneAccessStatus>()
   const [pairing, setPairing] = useState<PhonePairing>()
@@ -97,15 +100,12 @@ export function PhoneSettings(props: { transport: Transport }) {
     })
 
   return (
-    <SettingsPage
-      title="Phone"
-      description="Use TasteCode from your iPhone. Agents keep running here; the phone follows the same chats, models and access levels, live."
-    >
+    <SettingsPage title={t('settings.nav.phone')} description={t('settings.phone.description')}>
       {status === undefined ? (
         error ? (
           <SettingsNotice tone="error">{error}</SettingsNotice>
         ) : (
-          <SkeletonStatus label="Loading phone access…">
+          <SkeletonStatus label={t('settings.phone.loading')}>
             <Skeleton width={260} height={11} />
           </SkeletonStatus>
         )
@@ -113,15 +113,15 @@ export function PhoneSettings(props: { transport: Transport }) {
         <>
           <SettingsRow
             searchId="phone-access"
-            name="Phone access"
-            note="Phones reach this computer over your Wi-Fi or Tailscale. Every link is end-to-end encrypted and pinned to this computer's key; nothing passes through a server."
+            name={t('settings.phone.access.name')}
+            note={t('settings.phone.access.note')}
             tone={status.enabled ? 'active' : undefined}
           >
             <button
               className={`switch${status.enabled ? ' is-on' : ''}`}
               type="button"
               role="switch"
-              aria-label="Phone access"
+              aria-label={t('settings.phone.access.name')}
               aria-checked={status.enabled}
               disabled={busy}
               onClick={() => void toggle()}
@@ -130,10 +130,13 @@ export function PhoneSettings(props: { transport: Transport }) {
             </button>
           </SettingsRow>
           {status.enabled && status.addresses.length > 0 ? (
-            <SettingsRow name="Reachable at" note={`Port ${status.port}`}>
+            <SettingsRow
+              name={t('settings.phone.reachable')}
+              note={t('settings.phone.port', { port: status.port })}
+            >
               <span className="phone-addresses">
                 {status.addresses.map((address) => (
-                  <span key={address.host} title={ADDRESS_LABELS[address.kind]}>
+                  <span key={address.host} title={t(ADDRESS_LABELS[address.kind])}>
                     {address.host}
                   </span>
                 ))}
@@ -144,12 +147,8 @@ export function PhoneSettings(props: { transport: Transport }) {
           {error ? <RowIssue message={error} /> : null}
 
           <SettingsSection
-            title="Pair a phone"
-            note={
-              pairing
-                ? undefined
-                : 'Open TasteCode on your iPhone and scan the code shown here, or copy its link and paste it in the app. One code pairs one phone.'
-            }
+            title={t('settings.phone.pair.title')}
+            note={pairing ? undefined : t('settings.phone.pair.note')}
           >
             {pairing ? (
               <PairingCode
@@ -162,7 +161,7 @@ export function PhoneSettings(props: { transport: Transport }) {
               <div className="phone-pair">
                 {paired ? (
                   <p className="phone-pair__done" role="status">
-                    Paired with <strong>{paired}</strong>
+                    {withStrong((name) => t('settings.phone.pair.done', { name }), paired)}
                   </p>
                 ) : null}
                 <button
@@ -171,15 +170,15 @@ export function PhoneSettings(props: { transport: Transport }) {
                   disabled={busy}
                   onClick={() => void startPairing()}
                 >
-                  {paired ? 'Pair another phone' : 'Show pairing code'}
+                  {paired ? t('settings.phone.pair.another') : t('settings.phone.pair.show')}
                 </button>
               </div>
             )}
           </SettingsSection>
 
-          <SettingsSection title="Paired phones">
+          <SettingsSection title={t('settings.phone.devices.title')}>
             {status.devices.length === 0 ? (
-              <SettingsEmpty title="No phone is paired yet." />
+              <SettingsEmpty title={t('settings.phone.devices.empty')} />
             ) : (
               status.devices.map((device) => (
                 <article
@@ -195,20 +194,24 @@ export function PhoneSettings(props: { transport: Transport }) {
                         className="set-entity__status"
                         data-connected={device.connected || undefined}
                       >
-                        {device.connected ? 'Connected' : lastSeen(device.lastSeenAt)}
+                        {device.connected
+                          ? t('settings.phone.devices.connected')
+                          : lastSeen(device.lastSeenAt)}
                       </span>
                     </div>
-                    <p className="set-entity__detail">Paired {formatDate(device.pairedAt)}</p>
+                    <p className="set-entity__detail">
+                      {t('settings.phone.devices.paired', { date: formatDate(device.pairedAt) })}
+                    </p>
                   </div>
                   <div className="set-entity__actions">
                     <button
                       className="set-button set-button--quiet"
                       type="button"
                       disabled={busy}
-                      aria-label={`Remove ${device.name}`}
+                      aria-label={t('settings.phone.devices.removeLabel', { name: device.name })}
                       onClick={() => void removeDevice(device.id)}
                     >
-                      Remove
+                      {t('settings.phone.devices.remove')}
                     </button>
                   </div>
                 </article>
@@ -227,6 +230,7 @@ function PairingCode(props: {
   busy: boolean
   onCancel: () => void
 }) {
+  const { t } = useI18n()
   const path = useMemo(() => qrPath(props.pairing.uri), [props.pairing.uri])
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
@@ -256,22 +260,21 @@ function PairingCode(props: {
         className="phone-code__qr"
         viewBox={`0 0 ${path.size} ${path.size}`}
         role="img"
-        aria-label="Pairing code for the TasteCode phone app"
+        aria-label={t('settings.phone.code.label')}
         shapeRendering="crispEdges"
       >
         <rect width={path.size} height={path.size} fill="#fff" />
         <path d={path.d} fill="#111" />
       </svg>
       <div className="phone-code__copy">
-        <p className="phone-code__title">Scan with TasteCode on your iPhone</p>
+        <p className="phone-code__title">{t('settings.phone.code.title')}</p>
         <p className="phone-code__note">
-          The phone pairs with <strong>{props.serverName}</strong> and remembers it. No camera at
-          hand? Copy the link and paste it in the app; Universal Clipboard or AirDrop take it to the
-          phone. Anyone who gets the code or the link in the next minutes can pair, so keep both to
-          yourself.
+          {withStrong((name) => t('settings.phone.code.note', { name }), props.serverName)}
         </p>
         <p className="phone-code__expiry">
-          Expires in {minutes}:{String(seconds).padStart(2, '0')}
+          {t('settings.phone.code.expires', {
+            time: `${minutes}:${String(seconds).padStart(2, '0')}`,
+          })}
         </p>
         <div className="phone-code__actions">
           <button
@@ -280,7 +283,7 @@ function PairingCode(props: {
             disabled={props.busy}
             onClick={() => void copyLink()}
           >
-            {copy === 'copied' ? 'Copied' : 'Copy link'}
+            {copy === 'copied' ? t('settings.phone.code.copied') : t('settings.phone.code.copy')}
           </button>
           <button
             className="set-button set-button--quiet"
@@ -288,11 +291,11 @@ function PairingCode(props: {
             disabled={props.busy}
             onClick={props.onCancel}
           >
-            Cancel
+            {t('settings.phone.code.cancel')}
           </button>
           {copy === 'failed' ? (
             <span className="phone-code__issue" role="alert">
-              Copy failed
+              {t('settings.phone.code.copyFailed')}
             </span>
           ) : null}
         </div>
@@ -325,15 +328,18 @@ function qrPath(text: string): QrPath {
 }
 
 function formatDate(at: number): string {
-  return new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  return new Date(at).toLocaleDateString(getLanguage() === 'en' ? undefined : 'pt-BR', {
+    month: 'short',
+    day: 'numeric',
+  })
 }
 
 function lastSeen(at: number | undefined): string {
-  if (at === undefined) return 'Not connected'
+  if (at === undefined) return t('settings.phone.seen.never')
   const minutes = Math.round((Date.now() - at) / 60_000)
-  if (minutes < 1) return 'Seen just now'
-  if (minutes < 60) return `Seen ${minutes} min ago`
+  if (minutes < 1) return t('settings.phone.seen.now')
+  if (minutes < 60) return t('settings.phone.seen.minutes', { minutes })
   const hours = Math.round(minutes / 60)
-  if (hours < 24) return `Seen ${hours} h ago`
-  return `Seen ${formatDate(at)}`
+  if (hours < 24) return t('settings.phone.seen.hours', { hours })
+  return t('settings.phone.seen.date', { date: formatDate(at) })
 }

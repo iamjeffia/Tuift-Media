@@ -103,7 +103,7 @@ describe('reviewed reference library', () => {
     vi.stubEnv('TASTECODE_REFERENCE_LIBRARY', custom)
     expect(loadReviewedReferences().map(({ id }) => id)).toEqual(['studio-hero'])
     vi.stubEnv('TASTECODE_REFERENCE_LIBRARY', undefined)
-    const configDirectory = path.join(os.homedir(), '.tastecode')
+    const configDirectory = path.join(os.homedir(), '.tuift-code')
     mkdirSync(configDirectory)
     writeFileSync(
       path.join(configDirectory, 'design-references.json'),

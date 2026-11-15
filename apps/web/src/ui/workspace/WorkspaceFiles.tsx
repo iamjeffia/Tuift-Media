@@ -1,11 +1,14 @@
 import {
+  createContext,
   memo,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
+  type RefObject,
 } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { ResultOf } from '@harness/contracts'
@@ -21,13 +24,18 @@ import {
   IconRefresh as Refresh,
 } from '@tabler/icons-react'
 import { canRevealProjectFile, revealProjectFile } from '../../bridge.js'
+import { useI18n } from '../../i18n/index.js'
+import { relativeToRoot } from '../../project-file-link.js'
 import type { Transport } from '../../transport.js'
+import { FileContextMenu } from '../FileContextMenu.js'
 import { FileTypeIcon } from '../FileTypeIcon.js'
 import { IconMorph } from '../IconMorph.js'
 import { Skeleton, SkeletonCode, SkeletonRows, SkeletonStatus } from '../Skeleton.js'
-import { indexedTextLine, indexTextLines } from '../text-line-index.js'
+import { FileViewer } from './FileViewer.js'
 import { WorkspaceEmptyState } from './WorkspaceEmptyState.js'
+import { fileViewerKind, isMediaKind } from './file-viewer-kind.js'
 import { useWorkspaceRefresh } from './useWorkspaceRefresh.js'
+import { lastPathPart, rootedPath } from './workspace-paths.js'
 
 type Entry = ResultOf<'workspace.listDirectory'>['entries'][number]
 type FileContents = ResultOf<'workspace.readFile'>
@@ -36,6 +44,8 @@ type FileSearch = {
   result?: ResultOf<'workspace.searchFiles'>
   error?: string
 }
+/** A file the chat asked to open: the absolute path it cited, and which ask it is. */
+export type WorkspaceFileOpenRequest = { request: number; path: string }
 const EMPTY_WORKSPACE_ENTRIES: Entry[] = []
 const EMPTY_WORKSPACE_DIRECTORIES = new Map<string, Entry[]>()
 const WORKSPACE_TREE_INDENT = 18
@@ -78,12 +88,44 @@ class FileSelectionStore {
   }
 }
 
+/** What a row's context menu needs from the tab, so the memoized rows keep their props. */
+type FileActions = {
+  root: string | undefined
+  open: (entry: Entry) => void
+  reveal: ((relative: string) => void) | undefined
+}
+const FileActionsContext = createContext<FileActions | undefined>(undefined)
+
+/** Changes when the file does, so an unchanged file is not read again. */
+function entryStamp(entry: Entry): string {
+  return `${entry.size}:${entry.modifiedAt}`
+}
+
+function parentPath(path: string): string {
+  const end = path.lastIndexOf('/')
+  return end < 0 ? '' : path.slice(0, end)
+}
+
+function sameFile(left: FileContents | undefined, right: FileContents): boolean {
+  return (
+    left !== undefined &&
+    left.path === right.path &&
+    left.size === right.size &&
+    left.binary === right.binary &&
+    left.truncated === right.truncated &&
+    left.content === right.content
+  )
+}
+
 export const WorkspaceFiles = memo(function WorkspaceFiles(props: {
   transport: Transport
   projectPath?: string | undefined
   projectName?: string | undefined
   threadId?: string | undefined
+  /** A file the chat cited: it opens here, in its folder. */
+  openRequest?: WorkspaceFileOpenRequest | undefined
 }) {
+  const { t } = useI18n()
   // The server does not know a chat's provisional id while its first message
   // creates it; stay in the project checkout until the real id arrives.
   const threadId = props.threadId?.startsWith('pending:') ? undefined : props.threadId
@@ -101,12 +143,19 @@ export const WorkspaceFiles = memo(function WorkspaceFiles(props: {
   /** The folder the listed paths belong to (the project or the chat's own checkout). */
   const [root, setRoot] = useState<string>()
   const [revealFailed, setRevealFailed] = useState<string>()
+  /** Bumped when the open image or video changed on disk, so it is fetched again. */
+  const [mediaRevision, setMediaRevision] = useState(0)
   const [fileSelection] = useState(() => new FileSelectionStore())
   const directoryGeneration = useRef(0)
   const directoryRequests = useRef(new Map<string, number>())
   const expandedRef = useRef(expanded)
   expandedRef.current = expanded
   const fileGeneration = useRef(0)
+  const fileRef = useRef<FileContents>(undefined)
+  fileRef.current = file
+  /** The open file's size and time when listed: a refresh reads it again only if they moved. */
+  const selectedStamp = useRef<{ path: string; stamp: string }>(undefined)
+  const handledOpenRequest = useRef(0)
 
   const context = useCallback(
     () => ({
@@ -114,6 +163,74 @@ export const WorkspaceFiles = memo(function WorkspaceFiles(props: {
       ...(threadId ? { threadId } : {}),
     }),
     [props.projectPath, threadId],
+  )
+
+  const readFile = useCallback(
+    async (path: string, reread = false, size?: number) => {
+      if (!props.projectPath) return
+      const mine = ++fileGeneration.current
+      if (isMediaKind(fileViewerKind(path))) {
+        // Images, video and audio stream from disk and a PDF is not shown: nothing to read as text.
+        setError(undefined)
+        setLoadingFile(false)
+        setFile({
+          name: lastPathPart(path),
+          path,
+          size: size ?? fileRef.current?.size ?? 0,
+          binary: true,
+          truncated: false,
+        })
+        return
+      }
+      // A reread keeps the open file, and with it the reader's scroll position, until it resolves.
+      if (!reread) {
+        setFile(undefined)
+        setLoadingFile(true)
+      }
+      setError(undefined)
+      try {
+        const result = await props.transport.request('workspace.readFile', {
+          ...context(),
+          path,
+        })
+        // The same file again is not a new file: the viewer keeps its rows and highlighting.
+        if (fileGeneration.current === mine)
+          setFile((current) => (sameFile(current, result) ? current : result))
+      } catch (cause) {
+        if (fileGeneration.current === mine) {
+          setFile(undefined)
+          setError(cause instanceof Error ? cause.message : String(cause))
+        }
+      } finally {
+        if (fileGeneration.current === mine) setLoadingFile(false)
+      }
+    },
+    [context, props.projectPath, props.transport],
+  )
+
+  // A listing says whether the open file changed on disk, which costs far less than reading it.
+  const noteListedFile = useCallback(
+    (directory: string, entries: Entry[]) => {
+      const selected = selectedPathRef.current
+      if (!selected || parentPath(selected) !== directory) return
+      const media = isMediaKind(fileViewerKind(selected))
+      const entry = entries.find((candidate) => candidate.path === selected)
+      if (!entry) {
+        // Deleted or renamed: say so instead of keeping a file that is gone on screen.
+        if (media) {
+          setFile(undefined)
+          setError(t('workspace.files.error.gone'))
+        } else void readFile(selected, true)
+        return
+      }
+      const stamp = entryStamp(entry)
+      const seen = selectedStamp.current
+      selectedStamp.current = { path: selected, stamp }
+      if (seen?.path !== selected || seen.stamp === stamp) return
+      if (media) setMediaRevision((current) => current + 1)
+      void readFile(selected, true, entry.size)
+    },
+    [readFile, t],
   )
 
   const loadDirectory = useCallback(
@@ -133,6 +250,7 @@ export const WorkspaceFiles = memo(function WorkspaceFiles(props: {
         if (isCurrent()) {
           if (result.root) setRoot(result.root)
           setDirectories((current) => new Map(current).set(directory, result.entries))
+          noteListedFile(directory, result.entries)
           return result.entries
         }
       } catch (cause) {
@@ -150,7 +268,7 @@ export const WorkspaceFiles = memo(function WorkspaceFiles(props: {
       }
       return undefined
     },
-    [context, props.projectPath, props.transport],
+    [context, noteListedFile, props.projectPath, props.transport],
   )
 
   useEffect(() => {
@@ -251,84 +369,122 @@ export const WorkspaceFiles = memo(function WorkspaceFiles(props: {
     [loadDirectory],
   )
 
-  const readFile = useCallback(
-    async (path: string, reread = false) => {
-      if (!props.projectPath) return
-      const mine = ++fileGeneration.current
-      // A reread keeps the open file, and with it the reader's scroll position, until it resolves.
-      if (!reread) {
-        setFile(undefined)
-        setLoadingFile(true)
-      }
-      setError(undefined)
-      try {
-        const result = await props.transport.request('workspace.readFile', {
-          ...context(),
-          path,
-        })
-        if (fileGeneration.current === mine) setFile(result)
-      } catch (cause) {
-        if (fileGeneration.current === mine) {
-          setFile(undefined)
-          setError(cause instanceof Error ? cause.message : String(cause))
-        }
-      } finally {
-        if (fileGeneration.current === mine) setLoadingFile(false)
-      }
+  const selectPath = useCallback(
+    (path: string, entry?: Entry) => {
+      selectedPathRef.current = path
+      selectedStamp.current = entry ? { path, stamp: entryStamp(entry) } : undefined
+      fileSelection.select(path)
+      setSelectedPath(path)
+      setMediaRevision(0)
+      void readFile(path, false, entry?.size)
     },
-    [context, props.projectPath, props.transport],
+    [fileSelection, readFile],
   )
   const selectTreeFile = useCallback(
     (entry: Entry) => {
       if (entry.restricted) return
-      selectedPathRef.current = entry.path
-      fileSelection.select(entry.path)
-      setSelectedPath(entry.path)
-      void readFile(entry.path)
+      selectPath(entry.path, entry)
     },
-    [fileSelection, readFile],
+    [selectPath],
   )
 
-  const refreshDirectories = useCallback(() => {
-    setError(undefined)
-    // A folder left open inside a collapsed one still refreshes, so its ancestors do too.
-    const open = new Set([''])
-    for (const directory of expandedRef.current)
-      for (let end = directory.length; end > 0; end = directory.lastIndexOf('/', end - 1))
-        open.add(directory.slice(0, end))
-    const generation = directoryGeneration.current
-    // Parents refresh before their children. A folder missing from its parent's new
-    // listing was deleted or replaced: it is closed rather than requested, since
-    // listing it would only fail and keep reporting the error on every refresh.
-    const refresh = async (directory: string) => {
-      const entries = await loadDirectory(directory)
-      if (!entries || directoryGeneration.current !== generation) return
-      const folders = new Set<string>()
-      for (const entry of entries)
-        if (entry.kind === 'directory' && !entry.restricted) folders.add(entry.path)
-      const prefix = directory ? `${directory}/` : ''
-      const gone = new Set<string>()
-      for (const path of open) {
-        if (path === directory || !path.startsWith(prefix)) continue
-        const end = path.indexOf('/', prefix.length)
-        if (!folders.has(end < 0 ? path : path.slice(0, end))) gone.add(path)
+  // `force` is the Refresh button: it reads the open file again whatever its listing says.
+  const refreshDirectories = useCallback(
+    (force = false) => {
+      setError(undefined)
+      // A folder left open inside a collapsed one still refreshes, so its ancestors do too.
+      const open = new Set([''])
+      for (const directory of expandedRef.current)
+        for (let end = directory.length; end > 0; end = directory.lastIndexOf('/', end - 1))
+          open.add(directory.slice(0, end))
+      const generation = directoryGeneration.current
+      // Parents refresh before their children. A folder missing from its parent's new
+      // listing was deleted or replaced: it is closed rather than requested, since
+      // listing it would only fail and keep reporting the error on every refresh.
+      const refresh = async (directory: string) => {
+        const entries = await loadDirectory(directory)
+        if (!entries || directoryGeneration.current !== generation) return
+        const folders = new Set<string>()
+        for (const entry of entries)
+          if (entry.kind === 'directory' && !entry.restricted) folders.add(entry.path)
+        const prefix = directory ? `${directory}/` : ''
+        const gone = new Set<string>()
+        for (const path of open) {
+          if (path === directory || !path.startsWith(prefix)) continue
+          const end = path.indexOf('/', prefix.length)
+          if (!folders.has(end < 0 ? path : path.slice(0, end))) gone.add(path)
+        }
+        if (gone.size > 0) {
+          setExpanded((current) => new Set([...current].filter((path) => !gone.has(path))))
+          setDirectories((current) => {
+            const next = new Map(current)
+            for (const path of gone) next.delete(path)
+            return next
+          })
+        }
+        for (const folder of folders) if (open.has(folder)) void refresh(folder)
       }
-      if (gone.size > 0) {
-        setExpanded((current) => new Set([...current].filter((path) => !gone.has(path))))
-        setDirectories((current) => {
-          const next = new Map(current)
-          for (const path of gone) next.delete(path)
-          return next
-        })
-      }
-      for (const folder of folders) if (open.has(folder)) void refresh(folder)
-    }
-    void refresh('')
-    if (selectedPathRef.current) void readFile(selectedPathRef.current, true)
-    setSearchRevision((current) => current + 1)
-  }, [loadDirectory, readFile])
+      void refresh('')
+      // A file in an open folder is read again only when its listing says it changed (see
+      // noteListedFile). One outside them, or one that failed to open, has no listing to ask.
+      const selected = selectedPathRef.current
+      if (selected && (force || !open.has(parentPath(selected)) || !fileRef.current))
+        void readFile(selected, true)
+      setSearchRevision((current) => current + 1)
+    },
+    [loadDirectory, readFile],
+  )
 
   useWorkspaceRefresh(props.transport, threadId, refreshDirectories)
+
+  // A file the chat cited: open its folders, then select it, or say why it cannot be shown.
+  const openRelative = useCallback(
+    async (relative: string) => {
+      const folders: string[] = []
+      // Workspace entry paths are slash-separated protocol paths on every platform.
+      for (let end = relative.lastIndexOf('/'); end > 0; end = relative.lastIndexOf('/', end - 1))
+        folders.unshift(relative.slice(0, end))
+      setFilter('')
+      setExpanded((current) => new Set([...current, ...folders]))
+      const listings = await Promise.all(['', ...folders].map((folder) => loadDirectory(folder)))
+      const entry = listings.at(-1)?.find((candidate) => candidate.path === relative)
+      fileSelection.select(undefined)
+      selectedPathRef.current = relative
+      setSelectedPath(relative)
+      setFile(undefined)
+      if (!entry || entry.restricted) {
+        setError(entry ? t('workspace.files.error.protected') : t('workspace.files.error.removed'))
+        return
+      }
+      if (entry.kind === 'directory') {
+        setExpanded((current) => new Set(current).add(relative))
+        void loadDirectory(relative)
+        selectedPathRef.current = undefined
+        setSelectedPath(undefined)
+        setError(undefined)
+        return
+      }
+      selectPath(relative, entry)
+    },
+    [fileSelection, loadDirectory, selectPath, t],
+  )
+  const request = props.openRequest
+  const listed = directories.has('')
+  useEffect(() => {
+    if (!request || !listed || request.request === handledOpenRequest.current) return
+    handledOpenRequest.current = request.request
+    // The listing's folder is the chat's own checkout when it has one; the cited path may
+    // name the project's copy instead.
+    const relative = [root, props.projectPath]
+      .map((folder) => (folder ? relativeToRoot(request.path, folder) : undefined))
+      .find((candidate) => candidate !== undefined)
+    if (relative) void openRelative(relative)
+    else {
+      setSelectedPath(request.path)
+      setFile(undefined)
+      setError(t('workspace.files.error.outside'))
+    }
+  }, [listed, openRelative, props.projectPath, request, root, t])
 
   const rootEntries = directories.get('') ?? EMPTY_WORKSPACE_ENTRIES
   const visibleRoot = useMemo(
@@ -363,12 +519,17 @@ export const WorkspaceFiles = memo(function WorkspaceFiles(props: {
     [root],
   )
 
+  const fileActions = useMemo<FileActions>(
+    () => ({ root, open: selectTreeFile, reveal }),
+    [reveal, root, selectTreeFile],
+  )
+
   if (!props.projectPath) {
     return (
       <WorkspaceEmptyState
         kind="files"
-        title="Choose a project"
-        detail="Files are read from the active project or its isolated session checkout."
+        title={t('workspace.files.chooseProject.title')}
+        detail={t('workspace.files.chooseProject.detail')}
       />
     )
   }
@@ -393,8 +554,8 @@ export const WorkspaceFiles = memo(function WorkspaceFiles(props: {
         <button
           type="button"
           className="icon-btn icon-btn--always"
-          aria-label="Refresh files"
-          onClick={refreshDirectories}
+          aria-label={t('workspace.files.refresh')}
+          onClick={() => refreshDirectories(true)}
         >
           <Refresh size={14} aria-hidden />
         </button>
@@ -404,7 +565,7 @@ export const WorkspaceFiles = memo(function WorkspaceFiles(props: {
         <main className="workspace-files__viewer">
           {loadingFile ? (
             <SkeletonStatus
-              label="Opening file…"
+              label={t('workspace.files.opening')}
               className="workspace-files__document workspace-files__document-skeleton"
             >
               <header>
@@ -414,7 +575,13 @@ export const WorkspaceFiles = memo(function WorkspaceFiles(props: {
               <SkeletonCode lines={26} gutter />
             </SkeletonStatus>
           ) : file ? (
-            <FileViewer file={file} />
+            <FileViewer
+              file={file}
+              projectPath={props.projectPath}
+              root={root}
+              revision={mediaRevision}
+              onReveal={reveal ? () => reveal(file.path) : undefined}
+            />
           ) : error && selectedPath ? (
             <div className="workspace-files__loading" role="alert">
               <FileWarning size={18} aria-hidden /> {error}
@@ -422,44 +589,27 @@ export const WorkspaceFiles = memo(function WorkspaceFiles(props: {
           ) : (
             <WorkspaceEmptyState
               kind="files"
-              title="Open file"
-              detail="Select a file from the workspace tree."
+              title={t('workspace.files.openFile.title')}
+              detail={t('workspace.files.openFile.detail')}
             />
           )}
         </main>
 
-        <aside
-          className="workspace-files__tree"
-          aria-label="Workspace file tree"
-          // One handler for every row, so the rows (and their memo) stay as they are. The
-          // context-menu key on a focused row lands here too.
-          onContextMenu={
-            reveal
-              ? (event) => {
-                  const row = (event.target as HTMLElement).closest<HTMLElement>(
-                    '[data-reveal-path]',
-                  )
-                  if (!row) return
-                  event.preventDefault()
-                  reveal(row.dataset['revealPath'] ?? '')
-                }
-              : undefined
-          }
-        >
+        <aside className="workspace-files__tree" aria-label={t('workspace.files.tree')}>
           <label className="workspace-tree-search">
             <Search size={14} aria-hidden />
             <input
               value={filter}
               maxLength={256}
               onChange={(event) => setFilter(event.target.value)}
-              placeholder="Filter files…"
-              aria-label="Filter workspace files"
+              placeholder={t('workspace.files.filter.placeholder')}
+              aria-label={t('workspace.files.filter.label')}
             />
           </label>
 
           {revealFailed ? (
             <div className="workspace-files__tree-error" role="alert">
-              Could not show {revealFailed}
+              {t('workspace.files.revealFailed', { path: revealFailed })}
             </div>
           ) : null}
 
@@ -472,32 +622,34 @@ export const WorkspaceFiles = memo(function WorkspaceFiles(props: {
           {query ? (
             <div className="workspace-files__tree-error" role="status">
               {currentSearch?.error
-                ? `Search unavailable. Showing matches in loaded folders only. ${currentSearch.error}`
+                ? t('workspace.files.search.unavailable', { error: currentSearch.error })
                 : !searchResult
-                  ? 'Searching files…'
+                  ? t('workspace.files.search.searching')
                   : searchResult.truncated
-                    ? 'More files match. Refine your search to see them.'
+                    ? t('workspace.files.search.more')
                     : searchResult.entries.length === 0
-                      ? 'No matching files.'
+                      ? t('workspace.files.search.none')
                       : null}
             </div>
           ) : null}
 
-          <WorkspaceFileTree
-            entries={searchResult?.entries ?? visibleRoot}
-            directories={searchResult ? EMPTY_WORKSPACE_DIRECTORIES : directories}
-            expanded={expanded}
-            loadingDirectories={loadingDirectories}
-            filter={filter}
-            virtual={
-              searchResult
-                ? searchResult.entries.length >= WORKSPACE_TREE_VIRTUAL_ROW_THRESHOLD
-                : virtualFileTree
-            }
-            selection={fileSelection}
-            onToggle={searchResult ? openSearchDirectory : toggleDirectory}
-            onSelect={selectTreeFile}
-          />
+          <FileActionsContext.Provider value={fileActions}>
+            <WorkspaceFileTree
+              entries={searchResult?.entries ?? visibleRoot}
+              directories={searchResult ? EMPTY_WORKSPACE_DIRECTORIES : directories}
+              expanded={expanded}
+              loadingDirectories={loadingDirectories}
+              filter={filter}
+              virtual={
+                searchResult
+                  ? searchResult.entries.length >= WORKSPACE_TREE_VIRTUAL_ROW_THRESHOLD
+                  : virtualFileTree
+              }
+              selection={fileSelection}
+              onToggle={searchResult ? openSearchDirectory : toggleDirectory}
+              onSelect={selectTreeFile}
+            />
+          </FileActionsContext.Provider>
         </aside>
       </div>
     </div>
@@ -515,6 +667,7 @@ const WorkspaceFileTree = memo(function WorkspaceFileTree(props: {
   onToggle: (entry: Entry) => void
   onSelect: (entry: Entry) => void
 }) {
+  const { t } = useI18n()
   const rows = useMemo(
     () =>
       props.virtual
@@ -554,7 +707,10 @@ const WorkspaceFileTree = memo(function WorkspaceFileTree(props: {
       ))}
       {/* As for a folder, only a first listing gets placeholder rows; a refresh keeps the rows. */}
       {props.loadingDirectories.has('') && props.entries.length === 0 ? (
-        <SkeletonStatus label="Loading files…" className="workspace-files__tree-skeleton">
+        <SkeletonStatus
+          label={t('workspace.files.loading')}
+          className="workspace-files__tree-skeleton"
+        >
           <SkeletonRows rows={9} icon widths={TREE_SKELETON_WIDTHS} />
         </SkeletonStatus>
       ) : null}
@@ -704,28 +860,54 @@ function FileTreeDirectoryButton(props: {
   loading: boolean
   onToggle: (entry: Entry) => void
 }) {
+  const { t } = useI18n()
+  const target = useRef<HTMLButtonElement>(null)
   return (
-    <button
-      type="button"
-      className="workspace-files__entry is-directory"
-      style={{ paddingLeft: 9 + props.depth * WORKSPACE_TREE_INDENT }}
-      aria-expanded={props.entry.restricted ? undefined : props.open}
-      title={props.entry.restricted ? `${props.entry.name} is protected` : props.entry.path}
-      data-reveal-path={props.entry.restricted ? undefined : props.entry.path}
-      onClick={() => props.onToggle(props.entry)}
-    >
-      <IconMorph active={props.entry.restricted ? 2 : props.open ? 1 : 0}>
-        <ChevronRight size={14} aria-hidden />
-        <ChevronDown size={14} aria-hidden />
-        <LockKeyhole size={13} aria-hidden />
-      </IconMorph>
-      <IconMorph active={props.open ? 1 : 0}>
-        <Folder size={14} aria-hidden />
-        <FolderOpen size={14} aria-hidden />
-      </IconMorph>
-      <span>{props.entry.name}</span>
-      {props.loading ? <LoaderCircle className="spinner" size={12} aria-hidden /> : null}
-    </button>
+    <>
+      <button
+        ref={target}
+        type="button"
+        className="workspace-files__entry is-directory"
+        style={{ paddingLeft: 9 + props.depth * WORKSPACE_TREE_INDENT }}
+        aria-expanded={props.entry.restricted ? undefined : props.open}
+        title={
+          props.entry.restricted
+            ? t('workspace.files.protected', { name: props.entry.name })
+            : props.entry.path
+        }
+        onClick={() => props.onToggle(props.entry)}
+      >
+        <IconMorph active={props.entry.restricted ? 2 : props.open ? 1 : 0}>
+          <ChevronRight size={14} aria-hidden />
+          <ChevronDown size={14} aria-hidden />
+          <LockKeyhole size={13} aria-hidden />
+        </IconMorph>
+        <IconMorph active={props.open ? 1 : 0}>
+          <Folder size={14} aria-hidden />
+          <FolderOpen size={14} aria-hidden />
+        </IconMorph>
+        <span>{props.entry.name}</span>
+        {props.loading ? <LoaderCircle className="spinner" size={12} aria-hidden /> : null}
+      </button>
+      <FileRowMenu targetRef={target} entry={props.entry} />
+    </>
+  )
+}
+
+/** The right-click menu of a row. A protected entry is not offered one. */
+function FileRowMenu(props: { targetRef: RefObject<HTMLElement | null>; entry: Entry }) {
+  const { t } = useI18n()
+  const actions = useContext(FileActionsContext)
+  const { entry } = props
+  if (!actions || entry.restricted) return null
+  return (
+    <FileContextMenu
+      targetRef={props.targetRef}
+      label={t('workspace.files.options', { name: entry.name })}
+      path={actions.root ? rootedPath(actions.root, entry.path) : entry.path}
+      onOpenInPanel={entry.kind === 'file' ? () => actions.open(entry) : undefined}
+      onOpenInExplorer={actions.reveal ? () => actions.reveal?.(entry.path) : undefined}
+    />
   )
 }
 
@@ -752,26 +934,36 @@ function FileTreeFile(props: {
     (listener: () => void) => props.selection.subscribe(props.entry.path, listener),
     [props.entry.path, props.selection],
   )
+  const { t } = useI18n()
   const selected = useSyncExternalStore(
     subscribe,
     () => props.selection.selected(props.entry.path),
     () => props.selection.selected(props.entry.path),
   )
 
+  const target = useRef<HTMLButtonElement>(null)
+
   return (
-    <button
-      type="button"
-      className={`workspace-files__entry is-file${selected ? ' is-selected' : ''}`}
-      style={{ paddingLeft: 12 + props.depth * WORKSPACE_TREE_INDENT }}
-      title={props.entry.restricted ? `${props.entry.name} is protected` : props.entry.path}
-      data-reveal-path={props.entry.restricted ? undefined : props.entry.path}
-      disabled={props.entry.restricted}
-      onClick={() => props.onSelect(props.entry)}
-    >
-      <FileTypeIcon path={props.entry.path} />
-      <MiddleEllipsis text={props.entry.name} />
-      {props.entry.restricted ? <LockKeyhole size={12} aria-hidden /> : null}
-    </button>
+    <>
+      <button
+        ref={target}
+        type="button"
+        className={`workspace-files__entry is-file${selected ? ' is-selected' : ''}`}
+        style={{ paddingLeft: 12 + props.depth * WORKSPACE_TREE_INDENT }}
+        title={
+          props.entry.restricted
+            ? t('workspace.files.protected', { name: props.entry.name })
+            : props.entry.path
+        }
+        disabled={props.entry.restricted}
+        onClick={() => props.onSelect(props.entry)}
+      >
+        <FileTypeIcon path={props.entry.path} />
+        <MiddleEllipsis text={props.entry.name} />
+        {props.entry.restricted ? <LockKeyhole size={12} aria-hidden /> : null}
+      </button>
+      <FileRowMenu targetRef={target} entry={props.entry} />
+    </>
   )
 }
 
@@ -781,25 +973,19 @@ function RevealText(props: {
   path: string
   children: string
 }) {
+  const { t } = useI18n()
   if (!props.reveal) return props.children
   const reveal = props.reveal
   return (
     <button
       type="button"
       className="workspace-files__reveal"
-      title={`Show ${props.path || props.children} in its folder`}
+      title={t('workspace.files.showInFolder', { path: props.path || props.children })}
       onClick={() => reveal(props.path)}
     >
       {props.children}
     </button>
   )
-}
-
-/** A listed path under its root, in the root's own separators. */
-function rootedPath(root: string, relative: string): string {
-  if (!relative) return root
-  const separator = root.includes('\\') ? '\\' : '/'
-  return `${root.replace(/[\\/]+$/, '')}${separator}${relative.split('/').join(separator)}`
 }
 
 function MiddleEllipsis({ text }: { text: string }) {
@@ -816,57 +1002,6 @@ function MiddleEllipsis({ text }: { text: string }) {
         {characters.slice(splitAt).join('')}
       </span>
     </span>
-  )
-}
-
-function FileViewer({ file }: { file: FileContents }) {
-  if (file.binary) {
-    return (
-      <WorkspaceEmptyState
-        kind="files"
-        title="Binary file"
-        detail={`${file.name} is ${formatBytes(file.size)} and cannot be shown as text.`}
-      />
-    )
-  }
-
-  return (
-    <div className="workspace-files__document">
-      <header>
-        <strong>{file.path}</strong>
-        <span>{formatBytes(file.size)}</span>
-        {file.truncated ? <em>First 2 MB</em> : null}
-      </header>
-      <VirtualCode content={file.content ?? ''} />
-    </div>
-  )
-}
-
-function VirtualCode({ content }: { content: string }) {
-  const scroller = useRef<HTMLDivElement>(null)
-  const lines = useMemo(() => indexTextLines(content), [content])
-  const virtualizer = useVirtualizer({
-    count: lines.length,
-    getScrollElement: () => scroller.current,
-    estimateSize: () => 22,
-    overscan: 24,
-  })
-
-  return (
-    <div ref={scroller} className="workspace-code" tabIndex={0}>
-      <div className="workspace-code__canvas" style={{ height: virtualizer.getTotalSize() }}>
-        {virtualizer.getVirtualItems().map((row) => (
-          <div
-            className="workspace-code__line"
-            key={row.key}
-            style={{ transform: `translateY(${row.start}px)` }}
-          >
-            <span>{row.index + 1}</span>
-            <code>{indexedTextLine(content, lines, row.index) || ' '}</code>
-          </div>
-        ))}
-      </div>
-    </div>
   )
 }
 
@@ -965,14 +1100,4 @@ function exceedsWorkspaceFileTreeRowLimit(
     return false
   }
   return visit(entries)
-}
-
-function lastPathPart(value: string): string {
-  return value.split(/[\\/]/).filter(Boolean).at(-1) ?? value
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }

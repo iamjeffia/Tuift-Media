@@ -30,27 +30,36 @@ import {
 } from '../app-background-image.js'
 import { effectPattern, type EffectPatternStyle } from '../app-background-patterns.js'
 import { isDesktop, type WindowMaterial } from '../bridge.js'
+import { useI18n, type MessageKey } from '../i18n/index.js'
 import { AppBackgroundMotion } from './AppBackgroundMotion.js'
 import { SettingsRow, SettingsSection } from './settings/SettingsLayout.js'
 import { SettingsSegmented } from './settings/SettingsSegmented.js'
 import '../styles/app-background-settings.css'
 
 const MODE_OPTIONS = [
-  { value: 'none', label: 'None' },
-  { value: 'transparent', label: 'Transparent' },
-  { value: 'image', label: 'Image' },
-  { value: 'effect', label: 'Effect' },
-] as const satisfies ReadonlyArray<{ value: AppBackgroundMode; label: string }>
+  { value: 'none', label: 'settings.appBackground.mode.none' },
+  { value: 'transparent', label: 'settings.appBackground.mode.transparent' },
+  { value: 'image', label: 'settings.appBackground.mode.image' },
+  { value: 'effect', label: 'settings.appBackground.mode.effect' },
+] as const satisfies ReadonlyArray<{ value: AppBackgroundMode; label: MessageKey }>
 
 const EFFECT_OPTIONS = [
-  { value: 'dither', label: 'Dither' },
-  { value: 'halftone', label: 'Halftone' },
-] as const satisfies ReadonlyArray<{ value: AppBackgroundEffect; label: string }>
+  { value: 'dither', label: 'settings.appBackground.effect.dither' },
+  { value: 'halftone', label: 'settings.appBackground.effect.halftone' },
+] as const satisfies ReadonlyArray<{ value: AppBackgroundEffect; label: MessageKey }>
 
 const MATERIAL_OPTIONS = [
-  { value: 'acrylic', label: 'Acrylic', title: 'Blurs the windows behind this one' },
-  { value: 'mica', label: 'Mica', title: 'Tints the desktop wallpaper and stays still' },
-] as const satisfies ReadonlyArray<{ value: WindowMaterial; label: string; title: string }>
+  {
+    value: 'acrylic',
+    label: 'settings.appBackground.material.acrylic',
+    title: 'settings.appBackground.material.acrylicTitle',
+  },
+  {
+    value: 'mica',
+    label: 'settings.appBackground.material.mica',
+    title: 'settings.appBackground.material.micaTitle',
+  },
+] as const satisfies ReadonlyArray<{ value: WindowMaterial; label: MessageKey; title: MessageKey }>
 
 const IMAGE_ACCEPT = BACKGROUND_IMAGE_TYPES.join(',')
 
@@ -74,6 +83,7 @@ export function AppBackgroundSettings(props: {
   images?: BackgroundImageStore | undefined
   prepare?: typeof prepareBackgroundImage | undefined
 }) {
+  const { t } = useI18n()
   const background = useSyncExternalStore(
     subscribeAppBackground,
     readAppBackground,
@@ -92,27 +102,35 @@ export function AppBackgroundSettings(props: {
     background.mode !== 'transparent' || support === undefined || support !== 'none'
       ? undefined
       : isDesktop
-        ? 'This system cannot draw behind the window (that needs Windows 11 22H2 or macOS), so the window keeps its current look.'
-        : 'Only the desktop app can show what is behind the window, so this page keeps its current look.'
+        ? t('settings.appBackground.unsupportedSystem')
+        : t('settings.appBackground.unsupportedWeb')
 
   return (
-    <SettingsSection title="Window background">
-      <SettingsRow searchId="window-style" name="Style" note={transparentNote}>
+    <SettingsSection title={t('settings.appBackground.title')}>
+      <SettingsRow
+        searchId="window-style"
+        name={t('settings.appBackground.style')}
+        note={transparentNote}
+      >
         <SettingsSegmented
-          ariaLabel="Window background"
+          ariaLabel={t('settings.appBackground.title')}
           value={background.mode}
-          options={MODE_OPTIONS}
+          options={MODE_OPTIONS.map(({ value, label }) => ({ value, label: t(label) }))}
           onChange={(mode) => {
             if (isMode(mode)) writeAppBackground({ mode })
           }}
         />
       </SettingsRow>
       {background.mode === 'transparent' && support === 'material' ? (
-        <SettingsRow searchId="window-material" name="Material">
+        <SettingsRow searchId="window-material" name={t('settings.appBackground.material.name')}>
           <SettingsSegmented
-            ariaLabel="Window material"
+            ariaLabel={t('settings.appBackground.material.label')}
             value={background.material}
-            options={MATERIAL_OPTIONS}
+            options={MATERIAL_OPTIONS.map(({ value, label, title }) => ({
+              value,
+              label: t(label),
+              title: t(title),
+            }))}
             onChange={(material) => {
               if (isMaterial(material)) writeAppBackground({ material })
             }}
@@ -135,14 +153,14 @@ export function AppBackgroundSettings(props: {
           />
           <LevelRow
             searchId="window-dim"
-            name="Dim"
+            name={t('settings.appBackground.dim')}
             value={background.dim}
             max={MAX_APP_BACKGROUND_DIM}
             onChange={(dim) => writeAppBackground({ dim })}
           />
           <LevelRow
             searchId="window-blur"
-            name="Blur"
+            name={t('settings.appBackground.blur')}
             value={background.blur}
             max={MAX_APP_BACKGROUND_BLUR}
             onChange={(blur) => writeAppBackground({ blur })}
@@ -151,11 +169,11 @@ export function AppBackgroundSettings(props: {
       ) : null}
       {background.mode === 'effect' ? (
         <>
-          <SettingsRow searchId="window-effect" name="Effect">
+          <SettingsRow searchId="window-effect" name={t('settings.appBackground.effect.name')}>
             <SettingsSegmented
-              ariaLabel="Background effect"
+              ariaLabel={t('settings.appBackground.effect.label')}
               value={background.effect}
-              options={EFFECT_OPTIONS}
+              options={EFFECT_OPTIONS.map(({ value, label }) => ({ value, label: t(label) }))}
               onChange={(effect) => {
                 if (isEffect(effect)) writeAppBackground({ effect })
               }}
@@ -167,7 +185,7 @@ export function AppBackgroundSettings(props: {
           />
           <LevelRow
             searchId="window-dim"
-            name="Dim"
+            name={t('settings.appBackground.dim')}
             value={background.dim}
             max={MAX_APP_BACKGROUND_DIM}
             onChange={(dim) => writeAppBackground({ dim })}
@@ -235,6 +253,7 @@ function previewLength(px: number): string {
  * window. An effect moves here as it does in the window, on the same clock.
  */
 function BackgroundPreview(props: { background: AppBackground; images: BackgroundImageStore }) {
+  const { t } = useI18n()
   const { mode, effect, image, dim, blur } = props.background
   const url = useOriginalImageUrl(mode === 'image' ? image : undefined, props.images)
   const [moving, setMoving] = useState(false)
@@ -253,7 +272,7 @@ function BackgroundPreview(props: { background: AppBackground; images: Backgroun
       className="app-bg-preview"
       style={style}
       role="img"
-      aria-label="Preview of the window background"
+      aria-label={t('settings.appBackground.previewLabel')}
     >
       <div
         className="app-bg"
@@ -358,6 +377,7 @@ function BackgroundImageRow(props: {
   images: BackgroundImageStore
   prepare: typeof prepareBackgroundImage
 }) {
+  const { t } = useI18n()
   const input = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | undefined>(undefined)
@@ -382,7 +402,9 @@ function BackgroundImageRow(props: {
     } catch (error) {
       if (mounted.current) {
         setProblem(
-          error instanceof BackgroundImageError ? error.message : 'The image could not be used.',
+          error instanceof BackgroundImageError
+            ? error.message
+            : t('settings.appBackground.imageFailed'),
         )
       }
     } finally {
@@ -403,14 +425,9 @@ function BackgroundImageRow(props: {
   return (
     <SettingsRow
       searchId="window-image"
-      name="Image"
+      name={t('settings.appBackground.image.name')}
       tone={problem ? 'error' : props.hasImage ? undefined : 'muted'}
-      note={
-        problem ??
-        (props.hasImage
-          ? undefined
-          : 'Kept inside the app, resized and blurred, and dimmed behind the sidebar and chat.')
-      }
+      note={problem ?? (props.hasImage ? undefined : t('settings.appBackground.image.note'))}
     >
       <input
         ref={input}
@@ -428,7 +445,7 @@ function BackgroundImageRow(props: {
           disabled={busy}
           onClick={() => void remove()}
         >
-          Remove
+          {t('settings.appBackground.image.remove')}
         </button>
       ) : null}
       <button
@@ -437,7 +454,11 @@ function BackgroundImageRow(props: {
         disabled={busy}
         onClick={() => input.current?.click()}
       >
-        {busy ? 'Preparing…' : props.hasImage ? 'Change image…' : 'Choose image…'}
+        {busy
+          ? t('settings.appBackground.image.preparing')
+          : props.hasImage
+            ? t('settings.appBackground.image.change')
+            : t('settings.appBackground.image.choose')}
       </button>
     </SettingsRow>
   )

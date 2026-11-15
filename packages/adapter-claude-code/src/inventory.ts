@@ -2,10 +2,10 @@ import type { McpServerStatus, SlashCommand } from '@anthropic-ai/claude-agent-s
 import type { McpServer, McpStartupStatus, ProviderCommand } from '@harness/contracts'
 
 /**
- * Built-ins that change state TasteCode owns (the chat, model, effort, settings
+ * Built-ins that change state TUIFT Code owns (the chat, model, effort, settings
  * and account), internal handoffs, and retired stubs claude 2.1.296 still
  * lists. A user can still type any of them in full. Only Claude's own rows
- * are hidden: a user, project or plugin command is not TasteCode's state.
+ * are hidden: a user, project or plugin command is not TUIFT Code's state.
  */
 export const CLAUDE_HIDDEN_COMMANDS: ReadonlySet<string> = new Set([
   'clear',
@@ -126,8 +126,8 @@ function sourceLabel(scope: string | undefined, plugin: string | undefined): str
     case 'local':
       return 'Local project settings'
     case 'dynamic':
-      // TasteCode passes its project servers to the SDK; plugins add the rest.
-      return plugin ? `Plugin ${plugin}` : 'Added by TasteCode'
+      // TUIFT Code passes its project servers to the SDK; plugins add the rest.
+      return plugin ? `Plugin ${plugin}` : 'Added by TUIFT Code'
     case 'claudeai':
       return 'claude.ai connector'
     case 'managed':

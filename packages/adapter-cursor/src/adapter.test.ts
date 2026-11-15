@@ -298,7 +298,7 @@ describe('Cursor adapter', () => {
         return new FakeChild()
       },
     })
-    const folder = path.join(tmpdir(), 'TasteCode', 'attachments')
+    const folder = path.join(tmpdir(), 'TUIFT Code', 'attachments')
     const image = path.join(folder, 'Shot.PNG')
     const notes = path.join(folder, 'spec.pdf')
     const thread = await adapter.startThread('C:\\repo')

@@ -1,5 +1,6 @@
 import type { PreviewCaptureRequest, PreviewCaptureResult } from '@harness/contracts'
 import type { ChatAttentionReport } from './chat-notifications.js'
+import { t, type Language } from './i18n/index.js'
 import type { KeybindingId, Keybindings, Shortcut } from './shortcuts.js'
 import {
   checkSimulatedAppUpdate,
@@ -24,6 +25,8 @@ export type PickedAttachment = {
   thumbnailUrl?: string | undefined
 }
 
+export type ProjectFileMediaType = 'image' | 'video' | 'audio'
+
 type Bridge = {
   pickFolder: () => Promise<string | undefined>
   droppedFolderPaths?: (files: File[]) => Promise<string[]>
@@ -34,6 +37,10 @@ type Bridge = {
   setAgentBrowserGuest?: (webContentsId: number, driven: boolean) => Promise<void>
   agentBrowserIsolated?: (webContentsId: number, code: string) => Promise<unknown>
   revealProjectFile?: (path: string, projectPath: string) => Promise<void>
+  previewProjectFile?: (
+    path: string,
+    projectPath: string,
+  ) => Promise<{ url: string; mediaType: ProjectFileMediaType } | undefined>
   savePastedFile: (file: {
     name: string
     type: string
@@ -45,6 +52,8 @@ type Bridge = {
   setWindowChrome?: (chrome: WindowChrome) => Promise<void>
   getWindowMaterialSupport?: () => Promise<WindowMaterialSupport>
   setWindowMaterial?: (material: WindowMaterial) => Promise<void>
+  /** The interface language, for the native menus, tray, dialogs and notifications. */
+  setLanguage?: (language: Language) => Promise<void>
   prepareHaptics?: () => void
   performHaptic?: (pattern: NativeHapticPattern) => void
   capturePreview: (request: PreviewCaptureRequest) => Promise<PreviewCaptureResult>
@@ -171,6 +180,7 @@ export const isStartupBenchmark = bridge?.reportStartupMilestone !== undefined
 export const canSavePastedFiles = bridge?.savePastedFile !== undefined
 export const canCapturePreview = bridge?.capturePreview !== undefined
 export const canRevealProjectFile = bridge?.revealProjectFile !== undefined
+export const canPreviewProjectFile = bridge?.previewProjectFile !== undefined
 export const canDropProjectFolders = bridge?.droppedFolderPaths !== undefined
 export const canPreviewViewedImages = bridge?.previewViewedImage !== undefined
 /**
@@ -197,7 +207,7 @@ export function isMacOS(): boolean {
 
 export async function pickFolder(): Promise<string | undefined> {
   if (bridge) return bridge.pickFolder()
-  return window.prompt('Folder to work in')?.trim() || undefined
+  return window.prompt(t('dialogs.bridge.folderPrompt'))?.trim() || undefined
 }
 
 export async function droppedProjectFolderPaths(files: ArrayLike<File>): Promise<string[]> {
@@ -210,7 +220,7 @@ export async function droppedProjectFolderPaths(files: ArrayLike<File>): Promise
 
 export async function pickSkillFolder(): Promise<string | undefined> {
   if (bridge) return bridge.pickSkillFolder()
-  return window.prompt('Full path of an Agent Skill folder')?.trim() || undefined
+  return window.prompt(t('dialogs.bridge.skillFolderPrompt'))?.trim() || undefined
 }
 
 export async function pickFiles(): Promise<PickedAttachment[]> {
@@ -224,7 +234,7 @@ export async function pickFiles(): Promise<PickedAttachment[]> {
     for (const attachment of picked) rememberAttachmentPreview(attachment.path, attachment)
     return picked
   }
-  const typed = window.prompt('Full path of a file to attach')?.trim()
+  const typed = window.prompt(t('dialogs.bridge.filePrompt'))?.trim()
   return typed ? [{ path: typed, name: attachmentName(typed) }] : []
 }
 
@@ -234,7 +244,7 @@ function attachmentName(filePath: string): string {
 
 function parsePickedAttachment(value: unknown): PickedAttachment {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error('The native file picker returned invalid data.')
+    throw new Error(t('dialogs.bridge.pickerInvalid'))
   }
   const attachment = value as Record<string, unknown>
   const path = attachment['path']
@@ -249,7 +259,7 @@ function parsePickedAttachment(value: unknown): PickedAttachment {
     (previewUrl !== undefined && typeof previewUrl !== 'string') ||
     (thumbnailUrl !== undefined && typeof thumbnailUrl !== 'string')
   ) {
-    throw new Error('The native file picker returned invalid data.')
+    throw new Error(t('dialogs.bridge.pickerInvalid'))
   }
   return {
     path,
@@ -277,6 +287,14 @@ export function revealPath(path: string): Promise<void> {
 
 export function revealProjectFile(path: string, projectPath: string): Promise<void> {
   return bridge?.revealProjectFile?.(path, projectPath) ?? Promise.resolve()
+}
+
+/** A signed URL the desktop streams a project file from, for the Files tab's media viewers. */
+export function previewProjectFile(
+  path: string,
+  projectPath: string,
+): Promise<{ url: string; mediaType: ProjectFileMediaType } | undefined> {
+  return bridge?.previewProjectFile?.(path, projectPath) ?? Promise.resolve(undefined)
 }
 
 /**
@@ -327,7 +345,7 @@ export async function savePastedFile(file: File): Promise<PickedAttachment | und
 
 export async function writeClipboardText(text: string): Promise<void> {
   if (bridge?.writeClipboardText) return bridge.writeClipboardText(text)
-  if (!navigator.clipboard?.writeText) throw new Error('Clipboard access is unavailable')
+  if (!navigator.clipboard?.writeText) throw new Error(t('dialogs.bridge.clipboardUnavailable'))
   await navigator.clipboard.writeText(text)
 }
 

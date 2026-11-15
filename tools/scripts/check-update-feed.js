@@ -26,7 +26,7 @@ function versionOf(tag) {
 
 function installerProblem(release, repository, installer) {
   const version = versionOf(release.tag_name)
-  const name = `TasteCode-${version}-${installer.target}-${installer.arch}.${installer.extension}`
+  const name = `TUIFT-Code-${version}-${installer.target}-${installer.arch}.${installer.extension}`
   const matches = (release.assets ?? []).filter((asset) => asset?.name === name)
   if (matches.length !== 1) return `missing ${name}`
   const asset = matches[0]
@@ -71,7 +71,7 @@ export function updateFeedVerdicts(
   const published = rows.filter(
     (release) => !release.draft && release.published_at && versionOf(release.tag_name),
   )
-  if (published.length === 0) throw new Error('No published TasteCode release was found.')
+  if (published.length === 0) throw new Error('No published TUIFT Code release was found.')
   const byDate = [...published].sort(
     (a, b) => Date.parse(b.published_at) - Date.parse(a.published_at),
   )[0]

@@ -13,12 +13,12 @@ import type { FeedbackConfig, FeedbackEndpoint } from './feedback-config.js'
 import { redactAttachedText, redactLabel, redactUserText } from './feedback-redact.js'
 
 /**
- * User feedback, sent to the TasteCode team's Trecko inbox.
+ * User feedback, sent to the TUIFT Code team's Trecko inbox.
  *
  * Only the dialog's Send button reaches `submit`; nothing here runs on a
  * timer, at startup or after an error. The key is extractable from any
  * packaged build, so the inbox carries the real abuse protection. These
- * limits stop TasteCode itself from spamming it: a double click, a loop or a
+ * limits stop TUIFT Code itself from spamming it: a double click, a loop or a
  * retry storm. They are kept in the store so a restart does not reset them.
  */
 
@@ -293,7 +293,7 @@ export class FeedbackService {
         headers: {
           'content-type': 'application/json',
           'x-trecko-key': endpoint.key,
-          'user-agent': 'TasteCode-Feedback',
+          'user-agent': 'TUIFT-Code-Feedback',
         },
         body,
         // A redirect would carry the key header to wherever it points.
@@ -364,14 +364,14 @@ export class FeedbackService {
       })
       redactions += attached.redactions
       if (attached.text) {
-        const block = `Error shown in TasteCode (redacted):\n${attached.text}`
+        const block = `Error shown in TUIFT Code (redacted):\n${attached.text}`
         message = message ? `${message}\n\n---\n${block}` : block
       }
     }
     if (!message.trim()) return { ok: false }
 
     const metadata: Record<string, string> = {}
-    metadata['app'] = 'TasteCode'
+    metadata['app'] = 'TUIFT Code'
     if (draft.includeDiagnostics) {
       const label = (value: string | undefined) => {
         if (!value) return undefined

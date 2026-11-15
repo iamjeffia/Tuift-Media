@@ -7,6 +7,7 @@ import {
 } from '@pierre/diffs'
 import { FileDiff } from '@pierre/diffs/react'
 import type { PullRequestFile, PullRequestReviewThread } from '@harness/contracts'
+import { useI18n } from '../../i18n/index.js'
 import { SkeletonCode, SkeletonStatus } from '../Skeleton.js'
 import { pullRequestFilePatch } from './diffs-patch.js'
 
@@ -94,6 +95,7 @@ export type PullRequestDiffRendererProps = {
 }
 
 export function PullRequestDiffRenderer(props: PullRequestDiffRendererProps) {
+  const { t } = useI18n()
   const [renderedKey, setRenderedKey] = useState<string>()
   const cacheKeyRef = useRef(props.cacheKey)
   cacheKeyRef.current = props.cacheKey
@@ -134,7 +136,7 @@ export function PullRequestDiffRenderer(props: PullRequestDiffRendererProps) {
     [props.onCommentLine, themeType],
   )
 
-  if (!fileDiff) return <div className="pr-diffs-error">Diffs could not parse this patch.</div>
+  if (!fileDiff) return <div className="pr-diffs-error">{t('workspace.review.unparsable')}</div>
 
   return (
     <div className={ready ? 'pr-diffs-frame is-ready' : 'pr-diffs-frame'}>
@@ -149,7 +151,7 @@ export function PullRequestDiffRenderer(props: PullRequestDiffRendererProps) {
         disableWorkerPool
       />
       {ready ? null : (
-        <SkeletonStatus label="Preparing diff" className="pr-diffs-loading">
+        <SkeletonStatus label={t('workspace.pr.files.preparing')} className="pr-diffs-loading">
           <SkeletonCode lines={5} gutter />
         </SkeletonStatus>
       )}

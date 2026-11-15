@@ -88,7 +88,7 @@ test('recognizes a recorded relative launcher only while its process identity ma
 })
 
 test('recognizes quoted Windows launcher paths without trusting a path prefix', () => {
-  const windowsRoot = 'C:\\Projects\\Taste Code'
+  const windowsRoot = 'C:\\Projects\\TUIFT Code'
   const processes = snapshot(
     row(2, 1, `"C:\\Program Files\\nodejs\\node.exe" "${windowsRoot}\\tools\\scripts\\dev.js"`),
     row(3, 2, 'node vite.js'),

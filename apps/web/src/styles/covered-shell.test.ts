@@ -17,6 +17,7 @@ const OUTSIDE_SHELL = {
   ".keybind-row[data-recording]:not([data-tone='error']) .set-leader": 'Settings > Keybinds',
   '.keybind-shortcut__caret::before': 'Settings > Keybinds',
   '.profile-activity.is-refreshing .profile-activity__refresh svg': 'Settings > Profile',
+  ".settings .mcp-card[data-state='connecting'] .mcp-card__status > i": 'Settings > MCP servers',
   '.settings .provider-row[data-live] > .set-leader': 'Settings > Providers',
   '.settings .usage-page__refresh.is-busy svg': 'Settings > Usage',
   '.provider-update-spinner': 'Settings > Providers (update check)',

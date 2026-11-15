@@ -24,7 +24,7 @@ export function readDesignArtifact(workspacePath: string, name: ArtifactName): u
   )
 }
 
-/** The app-screen kit TasteCode copies next to the run's artifacts; see app-screens.ts. */
+/** The app-screen kit TUIFT Code copies next to the run's artifacts; see app-screens.ts. */
 export const DESIGN_KIT_DIRECTORY = 'app-kit'
 
 function kitPath(workspacePath: string, name: string): string {

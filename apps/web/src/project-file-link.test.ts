@@ -4,6 +4,7 @@ import {
   preserveRelativeLink,
   projectFileLinkParseWindow,
   projectFileReference,
+  relativeToRoot,
 } from './project-file-link.js'
 
 describe('project file links', () => {
@@ -217,5 +218,25 @@ describe('project file links', () => {
       'This file is outside the selected project',
       'Network file links are not allowed',
     ])
+  })
+})
+
+describe('relativeToRoot', () => {
+  it('gives the slash path under a Windows root, ignoring case and separators', () => {
+    expect(relativeToRoot('C:\\Projects\\Site\\src\\app.ts', 'c:\\projects\\site')).toBe(
+      'src/app.ts',
+    )
+    expect(relativeToRoot('C:/Projects/Site/README.md', 'C:\\Projects\\Site\\')).toBe('README.md')
+  })
+
+  it('gives the slash path under a POSIX root and keeps its case', () => {
+    expect(relativeToRoot('/work/site/src/app.ts', '/work/site')).toBe('src/app.ts')
+    expect(relativeToRoot('/work/Site/src/app.ts', '/work/site')).toBeUndefined()
+  })
+
+  it('refuses the root itself, a sibling and a path that climbs out', () => {
+    expect(relativeToRoot('C:\\projects\\site', 'C:\\projects\\site')).toBeUndefined()
+    expect(relativeToRoot('C:\\projects\\site-two\\a.ts', 'C:\\projects\\site')).toBeUndefined()
+    expect(relativeToRoot('C:\\projects\\site\\..\\x.txt', 'C:\\projects\\site')).toBeUndefined()
   })
 })

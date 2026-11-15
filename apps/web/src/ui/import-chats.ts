@@ -1,4 +1,5 @@
 import type { ChatImportChat, ChatImportFolder, ChatImportScan } from '@harness/contracts'
+import { getLanguage, t, tp } from '../i18n/index.js'
 
 /** The strip's own value for every source at once. */
 export const ALL_SOURCES = 'all'
@@ -112,22 +113,15 @@ const DAY = 24 * HOUR
 
 export function lastUsed(at: number, now: number): string {
   const age = Math.max(0, now - at)
-  if (age < HOUR) return 'Just now'
-  if (age < DAY) {
-    const hours = Math.floor(age / HOUR)
-    return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`
-  }
+  if (age < HOUR) return t('settings.import.when.now')
+  if (age < DAY) return tp('settings.import.when.hoursAgo', Math.floor(age / HOUR))
   const days = Math.floor(age / DAY)
-  if (days === 1) return 'Yesterday'
-  if (days < 30) return `${days} days ago`
+  if (days === 1) return t('settings.import.when.yesterday')
+  if (days < 30) return tp('settings.import.when.daysAgo', days)
   const sameYear = new Date(at).getFullYear() === new Date(now).getFullYear()
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(getLanguage(), {
     month: 'short',
     day: 'numeric',
     ...(sameYear ? {} : { year: 'numeric' }),
   }).format(at)
-}
-
-export function plural(count: number, noun: string): string {
-  return `${count.toLocaleString()} ${noun}${count === 1 ? '' : 's'}`
 }

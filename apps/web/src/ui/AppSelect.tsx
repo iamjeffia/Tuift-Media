@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { IconCheck as Check, IconChevronDown as ChevronDown } from '@tabler/icons-react'
+import { useI18n } from '../i18n/index.js'
 import { isComposingKey, isConfirmEnter } from '../shortcuts.js'
 import { SkeletonRows, SkeletonStatus } from './Skeleton.js'
 import { usePopupPresence } from './use-popup-presence.js'
@@ -112,7 +113,7 @@ function matchOptions<Value extends string>(
 }
 
 /**
- * TasteCode-owned replacement for native selects. The trigger stays in the
+ * TUIFT-Code-owned replacement for native selects. The trigger stays in the
  * layout while the listbox is portalled above scroll containers and dialogs.
  */
 export function AppSelect<Value extends string>(props: {
@@ -129,6 +130,7 @@ export function AppSelect<Value extends string>(props: {
   loadingMessage?: string | undefined
   onOpen?: () => void
 }) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [modality, setModality] = useState<'keyboard' | 'pointer'>('keyboard')
   const [activeValue, setActiveValue] = useState<Value>()
@@ -529,7 +531,7 @@ export function AppSelect<Value extends string>(props: {
                       </SkeletonStatus>
                     ) : visibleOptions.length === 0 ? (
                       <p className="app-select__empty" role="status">
-                        {props.search.emptyMessage ?? 'No matching options'}
+                        {props.search.emptyMessage ?? t('dialogs.select.empty')}
                       </p>
                     ) : null}
                   </div>

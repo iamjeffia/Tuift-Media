@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from '
 import { useTabDrag } from './useTabDrag.js'
 import { performAppHaptic } from '../../haptics.js'
 import { IconX } from '@tabler/icons-react'
+import { useI18n } from '../../i18n/index.js'
 
 export type WorkspaceTabLabel = {
   id: string
@@ -88,6 +89,7 @@ export function WorkspaceTabs(props: {
   onReorder?: (sourceId: string, targetId: string) => void
   children: ReactNode
 }) {
+  const { t } = useI18n()
   const host = useRef<HTMLDivElement>(null)
   const positions = useRef(new Map<string, number>())
   const animations = useRef(new Map<string, Animation>())
@@ -239,7 +241,12 @@ export function WorkspaceTabs(props: {
   }
 
   return (
-    <div ref={host} className="workspace-tabs" role="tablist" aria-label="Tool tabs">
+    <div
+      ref={host}
+      className="workspace-tabs"
+      role="tablist"
+      aria-label={t('workspace.tabs.label')}
+    >
       <div ref={drag.slot} className="workspace-tabs__landing" hidden aria-hidden />
       {props.tabs.map((tab) => (
         <div
@@ -287,7 +294,7 @@ export function WorkspaceTabs(props: {
           <button
             type="button"
             className="workspace-tabs__close"
-            aria-label={`Close ${tab.accessibleName ?? tab.title}`}
+            aria-label={t('workspace.tabs.close', { name: tab.accessibleName ?? tab.title })}
             onClick={() => close(tab.id)}
           >
             <IconX size={13} aria-hidden />

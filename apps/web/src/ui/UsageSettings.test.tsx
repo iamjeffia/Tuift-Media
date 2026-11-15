@@ -290,7 +290,7 @@ describe('usage settings', () => {
               id: 'work-1a2b3c',
               provider: 'codex',
               label: 'Work',
-              home: 'C:\\TasteCode\\accounts\\codex\\work-1a2b3c',
+              home: 'C:\\TUIFT Code\\accounts\\codex\\work-1a2b3c',
               managed: true,
             },
           ],

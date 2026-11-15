@@ -229,7 +229,7 @@ export function startServer(
   wss.on('error', (error: NodeJS.ErrnoException) => {
     if (error.code === 'EADDRINUSE') {
       console.error(
-        `[server] port ${port} is already in use — another TasteCode server is ` +
+        `[server] port ${port} is already in use — another TUIFT Code server is ` +
           `probably still running. Stop it, or set HARNESS_PORT to a free port.`,
       )
       process.exit(1)
@@ -497,7 +497,7 @@ export function startServer(
   /**
    * Chats this server run started. Their provider sessions began after the
    * launch, so until a scan links one to its saved session there are no turns
-   * taken outside TasteCode to merge, and a turn need not wait for the scan.
+   * taken outside TUIFT Code to merge, and a turn need not wait for the scan.
    */
   const startedThisRun = new Set<string>()
   const historySchedule = new HistoryRefreshSchedule(async () => {
@@ -657,9 +657,9 @@ export function startServer(
       socket.close(1008, 'Access denied')
       return
     }
-    // Another TasteCode's window, whose own server could not take the port.
+    // Another TUIFT Code's window, whose own server could not take the port.
     if (ownWindow && socket.protocol !== ownWindow) {
-      socket.close(1008, 'Another TasteCode window')
+      socket.close(1008, 'Another TUIFT Code window')
       return
     }
     acceptConnection(socket, (message, closed) => {

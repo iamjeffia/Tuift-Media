@@ -7,7 +7,7 @@ import { SessionSearch } from './SessionSearch.js'
 
 const RESULT: SessionSearchResult = {
   projectPath: 'D:\\repo',
-  projectName: 'TasteCode',
+  projectName: 'TUIFT Code',
   threadId: 'thread-1',
   threadTitle: 'Fix regression',
   turnId: 'turn-2',
@@ -23,7 +23,7 @@ const RESULT: SessionSearchResult = {
 const PROJECTS = [
   {
     path: 'D:\\repo',
-    name: 'TasteCode',
+    name: 'TUIFT Code',
     sessions: [
       {
         id: 'title-thread',
@@ -88,7 +88,7 @@ describe('cross-session search', () => {
         projects={[
           {
             path: 'D:\\repo',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: [
               chat('1', 'api'),
               chat('2', 'cursor'),
@@ -118,7 +118,7 @@ describe('cross-session search', () => {
         projects={[
           {
             path: 'D:\\repo',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: titles.map((title, index) => ({
               id: `thread-${index}`,
               title,
@@ -148,7 +148,7 @@ describe('cross-session search', () => {
         projects={[
           {
             path: 'D:\\repo',
-            name: 'TasteCode',
+            name: 'TUIFT Code',
             sessions: [{ id: 'greek', title: 'ΟΔΟΣ plan', provider: 'codex', createdAt: 0 }],
           },
         ]}
@@ -215,7 +215,7 @@ describe('cross-session search', () => {
     )
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Project' }))
-    fireEvent.click(screen.getByRole('option', { name: 'TasteCode' }))
+    fireEvent.click(screen.getByRole('option', { name: 'TUIFT Code' }))
     fireEvent.click(screen.getByRole('combobox', { name: 'Agent' }))
     expect(
       screen

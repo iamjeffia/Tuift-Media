@@ -280,10 +280,10 @@ describe('MCP settings', () => {
 
     expect(await screen.findByText('Developer Docs')).toBeTruthy()
     expect(screen.getByText('Codex · Project')).toBeTruthy()
-    // A failed start reads on the row itself: its state, its leader and the reason under it.
-    const row = screen.getByText('Developer Docs').closest<HTMLElement>('.set-entity')
-    expect(row?.dataset['tone']).toBe('error')
-    expect(row?.querySelector('.set-entity__status')?.textContent).toBe('Failed')
+    // A failed start reads on the card itself: its state, its edge and the reason under it.
+    const card = screen.getByText('Developer Docs').closest<HTMLElement>('.mcp-card')
+    expect(card?.dataset['state']).toBe('failed')
+    expect(card?.querySelector('.mcp-card__status')?.textContent).toBe('Failed')
     expect(screen.queryByText('Available in Project')).toBeNull()
     expect(screen.getByText('OAuth token expired')).toBeTruthy()
     fireEvent.click(screen.getByText(/1 tools/))
@@ -492,7 +492,7 @@ describe('MCP settings', () => {
 
     expect(await screen.findByText('Checking Codex MCP servers…')).toBeTruthy()
     expect(screen.getByRole('region', { name: 'From Codex settings' }).textContent).toContain(
-      'Starting…',
+      'Connecting…',
     )
     // The project's own list is final, so the page keeps its shape when the provider answers.
     expect(screen.getByText('No MCP servers have been added to this project.')).toBeTruthy()
@@ -501,7 +501,7 @@ describe('MCP settings', () => {
     act(() => changed?.({ provider: 'codex', projectPath: '/work/project' }))
     await waitFor(() => expect(screen.queryByText('Checking Codex MCP servers…')).toBeNull())
     expect(screen.getByRole('region', { name: 'From Codex settings' }).textContent).toContain(
-      'Ready',
+      'Connected',
     )
   })
 
@@ -962,6 +962,9 @@ describe('MCP settings', () => {
       ),
     ).toBeTruthy()
     expect((signIn as HTMLButtonElement).disabled).toBe(true)
+    // The card says what it is waiting for while the browser holds the sign-in.
+    const status = () => document.querySelector('.mcp-card__status')?.textContent
+    expect(status()).toBe('Waiting for sign-in…')
     fireEvent.click(signIn)
     expect(
       vi.mocked(transport.request).mock.calls.filter(([method]) => method === 'mcp.startOAuth'),
@@ -991,6 +994,7 @@ describe('MCP settings', () => {
     )
     expect(await screen.findByText('MCP sign-in completed.')).toBeTruthy()
     expect((signIn as HTMLButtonElement).disabled).toBe(false)
+    await waitFor(() => expect(status()).toBe('Needs sign-in'))
   })
 
   it('settles OAuth when completion arrives before the start response', async () => {

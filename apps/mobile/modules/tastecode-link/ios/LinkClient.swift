@@ -329,8 +329,8 @@ final class LinkClient {
 
   private static func describe(_ error: NWError) -> String {
     switch code(error) {
-    case "local_network_denied": return "TasteCode may not use the local network. Allow it in Settings › Privacy › Local Network."
-    case "refused": return "The computer is not accepting phone links. Is TasteCode running with phone access on?"
+    case "local_network_denied": return "TUIFT Code may not use the local network. Allow it in Settings › Privacy › Local Network."
+    case "refused": return "The computer is not accepting phone links. Is TUIFT Code running with phone access on?"
     case "timeout": return "The computer did not answer."
     case "unreachable": return "The computer is not reachable from this network."
     case "not_found": return "The computer's address could not be found on this network."

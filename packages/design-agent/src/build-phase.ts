@@ -35,7 +35,7 @@ const BUILD_PROTOCOL = `When implementation and local checks finish, return JSON
 
 {"status":"complete","summary":"...","files":["relative/path"],"checks":["command — result"]}
 
-A local browser that cannot launch is not a blocker: TasteCode starts the preview and captures desktop and mobile itself after Build. Record each browser check you could not run in checks and return complete.
+A local browser that cannot launch is not a blocker: TUIFT Code starts the preview and captures desktop and mobile itself after Build. Record each browser check you could not run in checks and return complete.
 
 If a real blocker remains after reasonable repair attempts:
 
@@ -50,20 +50,20 @@ function designAppScreenBuildPrompt(
   direction: AppDirection,
 ): string {
   const exactFiles = exactBuildFiles(brief)
-  return `You are running the Build phase of TasteCode Design Mode for an app screen.
+  return `You are running the Build phase of TUIFT Code Design Mode for an app screen.
 
 Implement the supplied artifacts in the current workspace as one working product interface. First inspect the real project entry points, architecture, scripts, styles, dependencies and existing user changes, and reuse them. Do not scaffold a second app or replace the project's framework, package manager, design system or build pipeline; a new project without one may be a static index.html with its stylesheet and scripts. Treat brief facts and constraints as requirements, brand.json as the design system, page.json as the plan (its sections are the shell and the blocks of each view) and assets.json as the provenance ledger. Attached user mockups, when listed, are the visual source for the sections that name them. Preserve unrelated work, use small coherent edits and accessible native elements, and run the project's relevant typecheck, tests, lint and build; repair failures caused by this implementation.
 
 Build in the order of the app-screen run (§2.4 to §2.6):
-1. The kit. TasteCode placed tasteskill's kit in ${APP_SCREEN_KIT_PATH}/. Copy app.css and charts.js into the project's own source next to its stylesheet and scripts (or inline them when the deliverable boundary allows no other file); never link to ${APP_SCREEN_KIT_PATH}/, which is TasteCode's working folder and not part of the site. Keep each copy's first-line license comment and keep the copies whole, except app.css's :root, which takes the sheet's tokens as brand.json records them, and rules you do not use, which you may delete. Every rule you add reads these custom properties; no colour, font family, font size or radius literal outside the tokens block and the copied kit.
+1. The kit. TUIFT Code placed tasteskill's kit in ${APP_SCREEN_KIT_PATH}/. Copy app.css and charts.js into the project's own source next to its stylesheet and scripts (or inline them when the deliverable boundary allows no other file); never link to ${APP_SCREEN_KIT_PATH}/, which is TUIFT Code's working folder and not part of the site. Keep each copy's first-line license comment and keep the copies whole, except app.css's :root, which takes the sheet's tokens as brand.json records them, and rules you do not use, which you may delete. Every rule you add reads these custom properties; no colour, font family, font size or radius literal outside the tokens block and the copied kit.
 2. The shell, empty: the sheet's shell, the canvas with its one gutter, the title row. Write the grid arithmetic in a comment (column count, gutter, and the sum that proves the cards land on the canvas edges).
 3. The data: a small dataset in its own module that the screen renders from, with believable names, amounts that add up to their totals, dates in order and a unit on every figure. Compute totals and deltas from the rows as displayed; a fact shown twice is one variable. Put the figures that must agree as console.assert checks in the data module and read the browser console where a browser can launch: a failing assertion is a failed Build.
 4. Every block from the data. Draw charts with Charts.* from the copied charts.js (its header lists the options), or as your own SVG to the chart rules, never with a chart library's defaults and never as a picture of a chart. Put the legend a helper returns in the card's header.
 5. Every state: the empty, zero, loading and error state of each block, the hover, selected, focus and disabled state of each row and control, the phone at 390 and the tablet band.
 
-Wire the shell: every navigation item opens a real view (a hash route is enough in a static build) and the first screen of page.json is the default. Render only the active view into the document, so it holds exactly one h1 at any time; TasteCode's preview audit counts hidden ones too. Filters, tabs, sorting, selection and drawers in page.json change the rendered data and recompute every count and subline in view.
+Wire the shell: every navigation item opens a real view (a hash route is enough in a static build) and the first screen of page.json is the default. Render only the active view into the document, so it holds exactly one h1 at any time; TUIFT Code's preview audit counts hidden ones too. Filters, tabs, sorting, selection and drawers in page.json change the rendered data and recompute every count and subline in view.
 
-TasteCode's preview audit also fails any interactive element whose own box is smaller than 44 by 44 CSS pixels at any viewport. Where the sheet sets a smaller control (a 32-36px button, a 34px navigation pitch), give the element a 44px box and draw the visible control at the sheet's size inside it, for example the active pill as an inset background, so the hit area passes and the look follows the sheet.
+TUIFT Code's preview audit also fails any interactive element whose own box is smaller than 44 by 44 CSS pixels at any viewport. Where the sheet sets a smaller control (a 32-36px button, a 34px navigation pitch), give the element a 44px box and draw the visible control at the sheet's size inside it, for example the active pill as an inset background, so the hit area passes and the look follows the sheet.
 
 Check by hand what the chapter assigns to lint.mjs and inspect.mjs, in a real browser where one can launch: one h1; the sidebar folded on the phone and under 30% of its width; content reaching the canvas's right edge; cards in a row ending level, with no blank band over 40px inside a card; numbers right-aligned in tabular figures; one hue per chart and colour only on data, status and the one primary action; no text under 11px; 4.5:1 contrast for every word; no placeholder names; no gradients, glows, emoji or icons in tinted squares; and the loaded fonts (document.fonts.ready, a matching FontFace with status loaded, document.fonts.check). Record what you could not run in checks.
 
@@ -71,8 +71,8 @@ The only permitted font families are ${quotedList(brand.typefaces.map(({ family 
 
 In summary, report what tasteskill's run asks for (§2.8): the style and shell dealt, the face and the signature element, each screen's one question, any rule you broke and why. Begin the list of sample data that must be replaced with real data with "Verify before publishing:" and name where each value lives, so it can be found.
 
-Use the existing project implementation and the kit without invoking external design skills. Do not start a long-running preview server in this phase; TasteCode owns Preview next.
-${exactFiles ? `\nThe brief's deliverable boundary is exactly ${list(exactFiles)}. TasteCode validates the workspace before Preview; inline the kit instead of adding helper files.` : ''}
+Use the existing project implementation and the kit without invoking external design skills. Do not start a long-running preview server in this phase; TUIFT Code owns Preview next.
+${exactFiles ? `\nThe brief's deliverable boundary is exactly ${list(exactFiles)}. TUIFT Code validates the workspace before Preview; inline the kit instead of adding helper files.` : ''}
 
 ${appSheetGuidance(direction)}
 
@@ -121,7 +121,7 @@ export function designBuildPrompt(
     id: `user-reference-${index + 1}`,
     file: path.basename(filePath),
   }))
-  return `You are running the Build phase of TasteCode Design Mode.
+  return `You are running the Build phase of TUIFT Code Design Mode.
 
 Implement the supplied artifacts in the current workspace. First inspect the real project entry points, architecture, scripts, styles, dependencies, and existing user changes. Reuse them. Do not scaffold a second app or replace the project's framework, package manager, design system, or build pipeline.
 
@@ -143,9 +143,9 @@ DESIGN TOKENS — one tokens block for the whole page:
 
 Enforce this visual quality floor:
 - Derive heading placement, line count and text block width from the selected reference at each viewport, and set its size with the brand type-scale step that matches its relative prominence (display for a monumental headline). Do not flatten an intentionally large or multi-line reference headline into generic small type, and do not add an off-scale size for one section.
-- Render labels, eyebrows and type contrast in the brand's one label style with the approved typefaces; do not copy a section reference's label font, case or tracking when it differs from the anchor. Load real font assets at supported weights and verify document.fonts.ready, a matching FontFace with status loaded, and document.fonts.check; a declared family falling back to Arial is a failed typography check. Where no browser can launch, check instead that every approved family's font files exist in the project and that the stylesheet declaring them is loaded, record the browser font check as not run, and continue: TasteCode's Preview loads the page in its own browser after Build.
+- Render labels, eyebrows and type contrast in the brand's one label style with the approved typefaces; do not copy a section reference's label font, case or tracking when it differs from the anchor. Load real font assets at supported weights and verify document.fonts.ready, a matching FontFace with status loaded, and document.fonts.check; a declared family falling back to Arial is a failed typography check. Where no browser can launch, check instead that every approved family's font files exist in the project and that the stylesheet declaring them is loaded, record the browser font check as not run, and continue: TUIFT Code's Preview loads the page in its own browser after Build.
 ${dashboard ? '- Keep the dashboard shell and operational content from its references. Render charts, tables, forms and navigation as working components with consistent sample data when no backend is supplied; never flatten the dashboard into a screenshot or add a marketing Hero.' : '- Keep the Hero to one headline, at most one concise supporting block, and its actions. Do not add a second description, implementation note, prototype disclaimer, or status message.'}
-- Do not show unfinished authoring placeholders such as lorem ipsum, TODO, or your text here. Preserve legitimate product states and controls such as Not connected, Test data, Local preview, or Awaiting approval when they describe the interface rather than missing implementation. Representative interface records, weather, dates, inventory, and operational values may be created for a finished one-shot experience. Preserve the visible identification required by the content-scope rules for concept work and illustrative catalogs. Record every invented value in a Build summary beginning "Verify before publishing:" so TasteCode can show it after Preview.
+- Do not show unfinished authoring placeholders such as lorem ipsum, TODO, or your text here. Preserve legitimate product states and controls such as Not connected, Test data, Local preview, or Awaiting approval when they describe the interface rather than missing implementation. Representative interface records, weather, dates, inventory, and operational values may be created for a finished one-shot experience. Preserve the visible identification required by the content-scope rules for concept work and illustrative catalogs. Record every invented value in a Build summary beginning "Verify before publishing:" so TUIFT Code can show it after Preview.
 - Keep each reference's macro geometry: grid, columns, media boxes, alignment, overlap and section proportions. Take spacing, radii, borders, rules and surfaces from the design tokens and the brand's surface policy, identical in every section. Do not add decorative card-edge rails, grids or square panels absent from the reference, and do not remove ones visibly present.
 - Use the reference's grouping: open columns remain open, editorial layouts remain editorial, and cards remain cards. Unify padding, radius, control states and typography where cards actually occur. Do not add boxes to ordinary prose or flatten distinct compositions into equal-column templates.
 - Apply the approved brand accent to the primary action, focus and selected states, and a recurring card, media, or section treatment. The finished page must not become generic gray with the accent confined to tiny labels, icons, or underlines, and it must not become a rainbow of unrelated card colors.
@@ -160,8 +160,8 @@ ${dashboard ? '- Keep the dashboard shell and operational content from its refer
 - Check every reviewed viewport for text collision, clipping, horizontal overflow, unreadable narrow columns, and footer overlap. Content must have enough space to read; novelty never excuses broken geometry.
 - Ensure the app can render, not merely bundle. When writing JSX, use the project's configured automatic JSX transform; if none exists, import React in every JSX module that needs it. A successful production build with a blank runtime is a failed Build.
 
-Use the existing project implementation and motion tools without invoking external design skills. Do not start a long-running preview server in this phase; TasteCode owns Preview next.
-${exactFiles ? `\nThe brief's deliverable boundary is exactly ${list(exactFiles)}. TasteCode validates the workspace before Preview; do not add helper or configuration files.` : ''}
+Use the existing project implementation and motion tools without invoking external design skills. Do not start a long-running preview server in this phase; TUIFT Code owns Preview next.
+${exactFiles ? `\nThe brief's deliverable boundary is exactly ${list(exactFiles)}. TUIFT Code validates the workspace before Preview; do not add helper or configuration files.` : ''}
 
 ${DESIGN_CONTENT_GUIDANCE}
 
@@ -221,7 +221,7 @@ export function designSourceQualityCorrectionPrompt(
   error: string,
   phase: DesignCorrectionPhase = 'build',
 ): string {
-  return `Your implementation failed TasteCode's deterministic source-quality gate.
+  return `Your implementation failed TUIFT Code's deterministic source-quality gate.
 
 Make one bounded edit pass in the existing project. Remove every newly introduced prohibited source pattern named by the validator. This includes full-height one-sided card-edge rails made with borders, pseudo-elements, gradients, inset shadows, or narrow child strips, as well as raw or standalone SVG substitutes that are not explicit functional icon, logo, or truthful data-diagram assets in assets.json. Use spacing, surface contrast, a normal all-sided card border, the project's professional icon dependency, or the approved real imagery instead. Preserve pre-existing violations recorded before Build, the approved artifacts, reference composition, unrelated user work, framework, and file boundaries. Run the relevant local checks after editing.
 

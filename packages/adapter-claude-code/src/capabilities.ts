@@ -7,7 +7,7 @@ import type {
 
 /**
  * Claude reports the servers its own settings, plugins and claude.ai load.
- * TasteCode adds project servers to new sessions; inherited ones stay
+ * TUIFT Code adds project servers to new sessions; inherited ones stay
  * read-only, because hiding one would change Claude's own configuration.
  */
 export const CLAUDE_MCP_CAPABILITIES: McpCapabilities = {
@@ -55,7 +55,7 @@ export const CLAUDE_RUNTIMES = [
   {
     id: 'cli',
     label: 'claude -p',
-    description: 'TasteCode runs claude -p itself',
+    description: 'TUIFT Code runs claude -p itself',
   },
 ] as const satisfies readonly ProviderRuntimeOption[]
 

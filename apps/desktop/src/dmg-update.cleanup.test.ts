@@ -45,7 +45,7 @@ function tools(detach: (args: string[]) => Promise<Result>) {
     const tool = path.basename(file)
     if (tool === 'hdiutil' && args[0] === 'detach') return detach(args)
     if (tool === 'plutil')
-      return ok(args[1] === 'CFBundleIdentifier' ? 'dev.tastecode.desktop\n' : '0.1.3\n')
+      return ok(args[1] === 'CFBundleIdentifier' ? 'media.tuift.code\n' : '0.1.3\n')
     return ok()
   })
 }
@@ -54,7 +54,7 @@ let warn: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
   mocks.run.mockReset()
-  mocks.readdir.mockReset().mockResolvedValue(['Taste Code.app'])
+  mocks.readdir.mockReset().mockResolvedValue(['TUIFT Code.app'])
   // The mount point sits on another device while the update image is attached.
   mocks.stat.mockReset().mockImplementation(async (target) => ({ dev: target === mount ? 2 : 1 }))
   warn = vi.spyOn(console, 'warn').mockImplementation(() => {})

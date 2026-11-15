@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Transport } from '../transport.js'
-import { EXECUTABLE_PATH_LABEL, executablePathSearchId } from './settings/provider-tuning-search.js'
+import { executablePathSearchId } from './settings/provider-tuning-search.js'
+import { useI18n } from '../i18n/index.js'
 import '../styles/provider-executable-path.css'
 
 type ExecutablePaths = Readonly<Record<string, string>>
@@ -41,6 +42,7 @@ export function ProviderExecutablePath(props: {
   transport: Transport
   onSaved: (paths: ExecutablePaths) => void
 }) {
+  const { t } = useI18n()
   const saved = props.paths && (props.paths[props.source] ?? '')
   const [open, setOpen] = useState(false)
   /** Undefined until edited, so the field follows what the server has. */
@@ -79,12 +81,12 @@ export function ProviderExecutablePath(props: {
           setOpen((current) => !current)
         }}
       >
-        {EXECUTABLE_PATH_LABEL}
-        {saved ? ' · Custom' : ''}
+        {t('settings.providerExecutablePath.label')}
+        {saved ? ` · ${t('settings.providerExecutablePath.custom')}` : ''}
       </summary>
       {open ? (
         <>
-          <p>Leave empty to find {props.name} automatically. Changes apply to new processes.</p>
+          <p>{t('settings.providerExecutablePath.hint', { name: props.name })}</p>
           <form
             className="provider-executable__form"
             onSubmit={(event) => {
@@ -93,14 +95,14 @@ export function ProviderExecutablePath(props: {
             }}
           >
             <label className="visually-hidden" htmlFor={`executable-${props.source}`}>
-              {props.name} executable path
+              {t('settings.providerExecutablePath.inputLabel', { name: props.name })}
             </label>
             <input
               className="set-input"
               id={`executable-${props.source}`}
               value={value}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="Automatic discovery"
+              placeholder={t('settings.providerExecutablePath.placeholder')}
               disabled={saved === undefined || busy}
               spellCheck={false}
             />
@@ -109,7 +111,9 @@ export function ProviderExecutablePath(props: {
               type="submit"
               disabled={saved === undefined || busy || value === saved}
             >
-              {busy ? 'Saving…' : 'Save'}
+              {busy
+                ? t('settings.providerExecutablePath.saving')
+                : t('settings.providerExecutablePath.save')}
             </button>
           </form>
           {error ? (

@@ -1,3 +1,5 @@
+import { t, tp } from '../i18n/index.js'
+
 /**
  * One shared clock for the relative times on chat rows. A single interval
  * serves every visible row and only runs while a row is listening, so a rail
@@ -44,13 +46,13 @@ export function readSessionClock(): number {
 /** "now", "5m", "3h", "2d", "3w", "4mo", "1y": short enough to sit beside a title. */
 export function compactRelativeTime(at: number, current: number): string {
   const minutes = Math.floor(Math.max(0, current - at) / 60_000)
-  if (minutes < 1) return 'now'
-  if (minutes < 60) return `${minutes}m`
+  if (minutes < 1) return t('sidebar.time.now')
+  if (minutes < 60) return t('sidebar.time.minutes', { count: minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h`
+  if (hours < 24) return t('sidebar.time.hours', { count: hours })
   const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}d`
-  if (days < 30) return `${Math.floor(days / 7)}w`
-  if (days < 365) return `${Math.floor(days / 30)}mo`
-  return `${Math.floor(days / 365)}y`
+  if (days < 7) return t('sidebar.time.days', { count: days })
+  if (days < 30) return t('sidebar.time.weeks', { count: Math.floor(days / 7) })
+  if (days < 365) return tp('sidebar.time.months', Math.floor(days / 30))
+  return tp('sidebar.time.years', Math.floor(days / 365))
 }

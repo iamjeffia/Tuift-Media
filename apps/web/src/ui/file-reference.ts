@@ -24,6 +24,9 @@ export type FileReferenceKind =
   | 'vue'
   | 'svelte'
   | 'image'
+  | 'video'
+  | 'audio'
+  | 'pdf'
   | 'config'
   | 'docker'
   | 'code'
@@ -90,6 +93,19 @@ const KIND_BY_EXTENSION = {
   avif: 'image',
   ico: 'image',
   bmp: 'image',
+  mp4: 'video',
+  m4v: 'video',
+  mov: 'video',
+  webm: 'video',
+  mkv: 'video',
+  mp3: 'audio',
+  wav: 'audio',
+  m4a: 'audio',
+  flac: 'audio',
+  ogg: 'audio',
+  opus: 'audio',
+  aac: 'audio',
+  pdf: 'pdf',
   ini: 'config',
   conf: 'config',
   env: 'config',

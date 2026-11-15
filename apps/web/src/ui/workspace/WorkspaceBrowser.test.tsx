@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WorkspaceBrowser } from './WorkspaceBrowser.js'
 import { readBrowserHistory, rememberBrowserVisit } from './browser-history.js'
+import { en } from '../../i18n/en.js'
 import { PLAIN_HTTP_LOOPBACK_ONLY } from './browser-url.js'
 
 // What Electron rejects <webview>.loadURL() with, verbatim from the desktop shell.
@@ -475,8 +476,8 @@ describe('WorkspaceBrowser', () => {
 
   it.each([
     ['not a url', 'Enter a valid URL.'],
-    ['http://example.com/', PLAIN_HTTP_LOOPBACK_ONLY],
-    ['192.168.0.10:5173', PLAIN_HTTP_LOOPBACK_ONLY],
+    ['http://example.com/', en[PLAIN_HTTP_LOOPBACK_ONLY]],
+    ['192.168.0.10:5173', en[PLAIN_HTTP_LOOPBACK_ONLY]],
   ])('refuses %s before loading and keeps the typed text', (typed, message) => {
     render(<WorkspaceBrowser active />)
     const view = guests[0]!

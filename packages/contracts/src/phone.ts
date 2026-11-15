@@ -7,7 +7,7 @@ import { z } from 'zod'
  * schemas are what the desktop shows and changes about it.
  */
 
-/** Pairing links are opened by the TasteCode phone app; the scheme is its own. */
+/** Pairing links are opened by the TUIFT Code phone app; the scheme is its own. */
 export const PHONE_PAIRING_SCHEME = 'tastecode'
 export const PHONE_LINK_VERSION = 1
 /** The WebSocket path the phone listener accepts links on. */
@@ -90,7 +90,7 @@ export const BrowsedFolderSchema = z.object({
   path: z.string().min(1),
   /** Holds a `.git` entry, so it is most likely a project root. */
   repository: z.boolean(),
-  /** Already a project in TasteCode. */
+  /** Already a project in TUIFT Code. */
   added: z.boolean(),
 })
 export type BrowsedFolder = z.infer<typeof BrowsedFolderSchema>

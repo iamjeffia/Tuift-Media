@@ -172,7 +172,7 @@ describe('ComposerResourcePicker', () => {
     )
   })
 
-  it('says a server needs sign-in outside TasteCode when TasteCode cannot start it', async () => {
+  it('says a server needs sign-in outside TUIFT Code when TUIFT Code cannot start it', async () => {
     renderPicker(
       createResourceTransport(undefined, undefined, {
         status: 'sign_in_required',
@@ -182,7 +182,7 @@ describe('ComposerResourcePicker', () => {
       { provider: 'claude-code' },
     )
     const docs = await screen.findByRole('option', { name: /Official Docs/ })
-    expect(docs.textContent).toContain('Sign in outside TasteCode')
+    expect(docs.textContent).toContain('Sign in outside TUIFT Code')
   })
 
   it('lists provider commands before skills and asks the open chat for them', async () => {
@@ -384,7 +384,7 @@ describe('ComposerResourcePicker', () => {
     await screen.findByRole('option', { name: /\/taste-check/ })
   })
 
-  it("puts TasteCode's commands first and leaves out provider commands with their names", async () => {
+  it("puts TUIFT Code's commands first and leaves out provider commands with their names", async () => {
     const transport = createResourceTransport(
       () => ({
         commands: [
@@ -422,7 +422,7 @@ describe('ComposerResourcePicker', () => {
     )
   })
 
-  it('lists TasteCode commands without a project, before any inventory', () => {
+  it('lists TUIFT Code commands without a project, before any inventory', () => {
     const transport = createResourceTransport()
     render(
       <ComposerResourcePicker

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import type { ProviderCommand, Skill } from '@harness/contracts'
 import { parseSkillFrontmatter, skillName } from './skill-inventory.js'
 
-/** Ids of the skills that ship with TasteCode; no provider owns them, so none can switch them. */
+/** Ids of the skills that ship with TUIFT Code; no provider owns them, so none can switch them. */
 export const DEFAULT_SKILL_ID_PREFIX = 'tastecode:'
 
 export type DefaultSkills = {
@@ -128,7 +128,7 @@ function pluginCommand(
  */
 function catalogText(directory: string, lines: string[]): string {
   return [
-    `Skills included with TasteCode, one folder each in ${directory}. Read a skill's SKILL.md only when the task calls for it, never in a Design mode run:`,
+    `Skills included with TUIFT Code, one folder each in ${directory}. Read a skill's SKILL.md only when the task calls for it, never in a Design mode run:`,
     ...lines,
   ].join('\n')
 }

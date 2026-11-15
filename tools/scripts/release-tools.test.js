@@ -253,9 +253,9 @@ test('releases upload only the EXE and one DMG per Mac architecture with verifie
     const mock = github()
     const result = await upload(directory, mock, { config })
     assert.deepEqual(result.assets.map((asset) => asset.name).sort(), [
-      `TasteCode-${version}-mac-arm64.dmg`,
-      `TasteCode-${version}-mac-x64.dmg`,
-      `TasteCode-${version}-win-x64.exe`,
+      `TUIFT-Code-${version}-mac-arm64.dmg`,
+      `TUIFT-Code-${version}-mac-x64.dmg`,
+      `TUIFT-Code-${version}-win-x64.exe`,
     ])
     assert.equal(result.release.draft, true)
     // Local proof is still complete even though only three files reach GitHub.
@@ -315,7 +315,7 @@ test('public GitHub updates resolve beta metadata and downloads on Windows and m
             const pathname = options.path.split('?')[0]
             requests.push(pathname)
             if (pathname.endsWith('.atom'))
-              return `<feed><entry><title>Beta</title><link href="https://github.com/Leonxlnx/tastecode/releases/tag/${releaseConfig.tag}"/><content>Update</content></entry></feed>`
+              return `<feed><entry><title>Beta</title><link href="https://github.com/iamjeffia/Tuift-Media/releases/tag/${releaseConfig.tag}"/><content>Update</content></entry></feed>`
             if (pathname.endsWith(`/${detail.metadata}`))
               return readFile(path.join(directory, detail.metadata), 'utf8')
             throw new HttpError(404, 'No separate beta metadata')
@@ -327,13 +327,13 @@ test('public GitHub updates resolve beta metadata and downloads on Windows and m
     assert.equal(info.version, releaseConfig.version)
     assert.equal(
       requests.at(-1),
-      `/Leonxlnx/tastecode/releases/download/${releaseConfig.tag}/${detail.metadata}`,
+      `/iamjeffia/Tuift-Media/releases/download/${releaseConfig.tag}/${detail.metadata}`,
     )
     assert.deepEqual(
       provider.resolveFiles(info).map((file) => file.url.href),
       detail.artifacts.map(
         (name) =>
-          `https://github.com/Leonxlnx/tastecode/releases/download/${releaseConfig.tag}/${name}`,
+          `https://github.com/iamjeffia/Tuift-Media/releases/download/${releaseConfig.tag}/${name}`,
       ),
     )
   }
@@ -1038,7 +1038,7 @@ test('workflow is manual, pinned, read-only by default, and has one optional wri
   }
   const desktop = JSON.parse(await readFile(path.join(desktopDirectory, 'package.json'), 'utf8'))
   assert.deepEqual(desktop.build.publish, [
-    { provider: 'github', owner: 'Leonxlnx', repo: 'tastecode', releaseType: 'draft' },
+    { provider: 'github', owner: 'iamjeffia', repo: 'Tuift-Media', releaseType: 'draft' },
   ])
   assert.ok(
     desktop.build.asarUnpack.includes('node_modules/@harness/design-agent/references/library/**/*'),

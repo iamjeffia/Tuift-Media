@@ -3,7 +3,9 @@ import type { ProviderStatus, ResultOf } from '@harness/contracts'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { setLanguage } from '../i18n/index.js'
 import { Onboarding, providerReadiness } from './Onboarding.js'
+import { SealNotes } from './SealGuide.js'
 
 const desktop = vi.hoisted(() => ({
   enabled: false,
@@ -111,7 +113,7 @@ describe('first-run onboarding', () => {
     const progress = screen.getByRole('list', { name: 'Setup progress' })
     const current = () => progress.querySelector('[aria-current="step"]')?.textContent
 
-    expect(screen.getByRole('heading', { name: 'Welcome to TasteCode' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Welcome to TUIFT Code' })).toBeTruthy()
     expect(current()).toBe('Welcome')
     fireEvent.click(screen.getByRole('button', { name: /^Get started/ }))
 
@@ -202,7 +204,7 @@ describe('first-run onboarding', () => {
     fireEvent.pointerDown(dialog)
     expect(dialog.getAttribute('data-intro')).toBe('skipped')
     // Skipping is not advancing: the welcome page stays.
-    expect(screen.getByRole('heading', { name: 'Welcome to TasteCode' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Welcome to TUIFT Code' })).toBeTruthy()
   })
 
   it('advances with Enter from bare surfaces and inputs but not from buttons', () => {
@@ -247,7 +249,7 @@ describe('first-run onboarding', () => {
     expect(progress.querySelectorAll('button')).toHaveLength(2)
 
     fireEvent.click(screen.getByRole('button', { name: 'Welcome' }))
-    expect(screen.getByRole('heading', { name: 'Welcome to TasteCode' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Welcome to TUIFT Code' })).toBeTruthy()
     // Pages ahead that were already visited stay reachable.
     fireEvent.click(screen.getByRole('button', { name: 'Appearance' }))
     expect(screen.getByRole('heading', { name: 'Choose your look' })).toBeTruthy()
@@ -580,5 +582,61 @@ describe('sub-agents page', () => {
     expect(
       (screen.getByRole('radio', { name: /^Only when I ask/ }) as HTMLInputElement).checked,
     ).toBe(true)
+  })
+})
+
+describe('onboarding in Portuguese', () => {
+  it('speaks Portuguese on every page, with the welcome title still split into words', () => {
+    setLanguage('pt-BR', { persist: false })
+    const props = onboardingProps()
+    const view = render(<Onboarding {...props} />)
+    const next = () => fireEvent.click(screen.getByRole('button', { name: /^Continuar/ }))
+
+    expect(screen.getByRole('heading', { name: 'Boas-vindas ao TUIFT Code' })).toBeTruthy()
+    const words = [...document.querySelectorAll('.onboarding__word')].map(
+      (word) => word.textContent,
+    )
+    expect(words).toEqual(['Boas-vindas', 'ao', 'TUIFT', 'Code'])
+    expect(screen.getByRole('list', { name: 'Progresso da configuração' })).toBeTruthy()
+    // The preview beside the pages is drawn in Portuguese too.
+    expect(dialogText()).toContain('Novo chat')
+    expect(dialogText()).toContain('Projetos')
+
+    fireEvent.click(screen.getByRole('button', { name: /^Começar/ }))
+    expect(screen.getByRole('heading', { name: 'Como podemos te chamar?' })).toBeTruthy()
+    next()
+    expect(screen.getByRole('heading', { name: 'Escolha seu visual' })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: /^Escuro/ })).toBeTruthy()
+    next()
+
+    expect(screen.getByRole('heading', { name: 'Escolha seus agentes de código' })).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toBe(
+      'Marque os que você usa. Nada é adicionado até você escolher.',
+    )
+    const providers = screen.getByRole('region', { name: 'Provedores' })
+    expect(providers.textContent).toBe('ProvedoresCodexConectadoGrokNão instalado')
+    view.rerender(<Onboarding {...props} providerRoster={['codex', 'acp:devin']} />)
+    expect(screen.getByRole('status').textContent).toMatch(/^2 adicionados\. /)
+
+    next()
+    expect(screen.getByRole('heading', { name: 'Subagentes em outros provedores' })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: /^Só quando eu pedir/ })).toBeTruthy()
+    next()
+    expect(screen.getByRole('heading', { name: 'Abra seu primeiro projeto' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Escolher pasta/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Agora não' })).toBeTruthy()
+  })
+
+  it('names the readiness of a provider and keeps the seal notes in whole sentences', () => {
+    setLanguage('pt-BR', { persist: false })
+    expect(providerReadiness(grokMissing).label).toBe('Não instalado')
+    expect(providerReadiness(codexReady).label).toBe('Conectado')
+
+    render(<SealNotes id="notes" word="Harbor" />)
+    const notes = document.getElementById('notes')?.textContent ?? ''
+    expect(notes).toContain('define a cor')
+    expect(notes).toContain('termina em r, então é escuro')
+    expect(notes).toContain('6 letras, quatro fatias')
+    expect(notes).toContain('vogais')
   })
 })

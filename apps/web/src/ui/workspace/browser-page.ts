@@ -1,3 +1,5 @@
+import { t } from '../../i18n/index.js'
+
 /** What a Browser tab knows about the page it shows, for its tab label. */
 export type BrowserPageInfo = { url: string; title: string }
 
@@ -13,5 +15,5 @@ export function browserPageLabel(page: BrowserPageInfo | undefined): string {
       // Not a URL the guest would report; fall through.
     }
   }
-  return 'New tab'
+  return t('workspace.browser.newTab')
 }

@@ -163,7 +163,7 @@ final class PairingController: UIViewController {
     instructions.text =
       waiting
       ? "Waiting for the computer to answer."
-      : "In TasteCode on your computer, open Settings › Phone and show the pairing code, then scan it."
+      : "In TUIFT Code on your computer, open Settings › Phone and show the pairing code, then scan it."
     let failed = problem ?? (link.phase == .refused || link.phase == .waiting ? link.error : nil)
     failure.text = failed
     failure.isHidden = failed == nil

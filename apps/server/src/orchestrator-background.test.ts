@@ -709,7 +709,7 @@ describe('a new chat whose provider would name it', () => {
         applied: true,
       })
 
-      // Grok got TasteCode's briefing, so its own name would describe that.
+      // Grok got TUIFT Code's briefing, so its own name would describe that.
       expect(chat.sent).toHaveLength(1)
       expect(chat.sent[0]).not.toBe(request)
       expect(prompts).toEqual([titlePrompt(request)])

@@ -6,6 +6,7 @@ import {
   IconLoader2,
   IconX,
 } from '@tabler/icons-react'
+import { t } from '../i18n/index.js'
 import '../styles/notice.css'
 
 export type NoticeTone = 'info' | 'success' | 'error' | 'progress'
@@ -50,7 +51,7 @@ export function NoticeBody(props: {
         <button
           className="notice-close"
           type="button"
-          aria-label={props.dismissLabel ?? 'Dismiss'}
+          aria-label={props.dismissLabel ?? t('dialogs.common.dismiss')}
           title={props.dismissTitle}
           onClick={props.onDismiss}
         >

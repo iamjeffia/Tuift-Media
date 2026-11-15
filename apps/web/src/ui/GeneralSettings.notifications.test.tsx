@@ -37,7 +37,7 @@ describe('notification setting', () => {
     const group = screen.getByRole('radiogroup', {
       name: 'Notifications',
       description:
-        'While TasteCode is in the background, for approvals, questions and failures, or also when a chat finishes.',
+        'While TUIFT Code is in the background, for approvals, questions and failures, or also when a chat finishes.',
     })
     const choices = [...group.querySelectorAll('[role=radio]')].map((radio) => ({
       label: radio.textContent,

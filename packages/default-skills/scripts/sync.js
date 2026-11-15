@@ -1,7 +1,13 @@
-// Fetches the Agent Skills TasteCode ships by default from their pinned GitHub
+// Fetches the Agent Skills TUIFT Code ships by default from their pinned GitHub
 // commits, checks them against skills.json and lays them out as one folder that
 // is both a plain skills tree (`skills/<name>/SKILL.md`) and a Claude Code
 // plugin (`.claude-plugin/plugin.json`), with a copy of skills.json for the app.
+//
+// A skill can also live in this repository, in tuift/<folder>/ with its own
+// SKILL.md and LICENSE. Its skills.json entry has `"source": "local"`, a
+// `license` and the measured hashes, and no repository or commit. It is
+// checked, bundled and installed exactly like a pinned one: edit the folder,
+// then run `sync.js --update` to record the new hashes.
 //
 //   node scripts/sync.js            fetch when the bundle is missing or differs
 //   node scripts/sync.js --verify   check the bundle only; exit 1 when it is off
@@ -10,7 +16,7 @@
 //
 // The bundle is gitignored: the skill files are about 13 MB, so only the pins
 // and their hashes live in the repository. A skill's `omit` entry leaves files
-// out of the bundle, and its `patch` entry swaps upstream files for TasteCode's
+// out of the bundle, and its `patch` entry swaps upstream files for TUIFT Code's
 // copies in patches/<folder>/ (see the README there). Nothing else is fetched
 // later: the bundle is all an installed app has.
 import { createHash } from 'node:crypto'
@@ -18,7 +24,7 @@ import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/p
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
-import { digestFiles, fetchArchive, omitFiles, skillFiles } from './skill-media.mjs'
+import { digestFiles, fetchArchive, isStray, omitFiles, skillFiles } from './skill-media.mjs'
 
 export { digestFiles, isStray, skillFiles, tarEntries } from './skill-media.mjs'
 
@@ -26,8 +32,14 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 export const packageRoot = path.resolve(here, '..')
 export const manifestPath = path.join(packageRoot, 'skills.json')
 export const bundleRoot = path.join(packageRoot, 'bundle')
-/** TasteCode's own copies of upstream skill files, one folder per skill (see its README). */
+/** TUIFT Code's own copies of upstream skill files, one folder per skill (see its README). */
 export const patchesRoot = path.join(packageRoot, 'patches')
+/** Skills that live in this repository, one folder per skill. */
+export const localRoot = path.join(packageRoot, 'tuift')
+
+export function isLocalSkill(skill) {
+  return skill.source === 'local'
+}
 
 export function patchPath(skill, relative, root = patchesRoot) {
   return path.join(root, skill.folder, ...relative.split('/'))
@@ -35,7 +47,7 @@ export function patchPath(skill, relative, root = patchesRoot) {
 
 /**
  * Takes the files a skill's `patch` entry replaces out of `files` and returns
- * TasteCode's copies of them. Each upstream file must still be the one its
+ * TUIFT Code's copies of them. Each upstream file must still be the one its
  * patch was written against; with `update`, the measured hashes are returned
  * instead, for a maintainer who has carried the patch over to a new pin.
  */
@@ -58,6 +70,30 @@ async function patchFiles(files, skill, update, root = patchesRoot) {
   return { replacements, entry: { ...skill.patch, files: measured } }
 }
 
+/**
+ * The files of a skill kept in this repository. It must carry its own licence
+ * file and say which licence that is, like a pinned skill does.
+ */
+export async function localSkillFiles(skill, root = localRoot) {
+  const { folder } = skill
+  if (!/^[\w.-]+$/.test(folder) || folder === '.' || folder === '..')
+    throw new Error(`${folder}: not a usable skill folder name`)
+  if (skill.patch || skill.omit || skill.repository)
+    throw new Error(`${folder}: a local skill is bundled as it is, with no pin, patch or omit`)
+  if (!skill.license) throw new Error(`${folder}: a local skill must name its license`)
+  const files = new Map()
+  try {
+    await readTree(path.join(root, folder), '', files)
+  } catch (error) {
+    if (error?.code === 'ENOENT') throw new Error(`${folder}: tuift/${folder} is missing`)
+    throw error
+  }
+  for (const name of files.keys()) if (isStray(name)) files.delete(name)
+  if (!files.has('SKILL.md')) throw new Error(`${folder}: no SKILL.md in tuift/${folder}`)
+  if (!files.get('LICENSE')?.length) throw new Error(`${folder}: no LICENSE in tuift/${folder}`)
+  return files
+}
+
 /** The plugin manifest Claude Code reads; its name is the prefix skills show under. */
 export function pluginManifest(manifest) {
   return `${JSON.stringify(manifest.plugin, null, 2)}\n`
@@ -78,7 +114,12 @@ export async function readManifest(file = manifestPath) {
 }
 
 /** Problems with an existing bundle, or an empty list when it matches the manifest exactly. */
-export async function verifyBundle(manifest, root = bundleRoot, patches = patchesRoot) {
+export async function verifyBundle(
+  manifest,
+  root = bundleRoot,
+  patches = patchesRoot,
+  locals = localRoot,
+) {
   const problems = []
   try {
     if (!(await stat(root)).isDirectory()) return [`${root} is not a folder`]
@@ -122,7 +163,7 @@ export async function verifyBundle(manifest, root = bundleRoot, patches = patche
     for (const relative of Object.keys(skill.patch?.files ?? {})) {
       const shipped = files.get(relative)
       if (!shipped?.equals(await readFile(patchPath(skill, relative, patches))))
-        problems.push(`${skill.folder}: ${relative} is not TasteCode's patched copy`)
+        problems.push(`${skill.folder}: ${relative} is not TUIFT Code's patched copy`)
       files.delete(relative)
     }
     const digest = digestFiles(files)
@@ -130,8 +171,21 @@ export async function verifyBundle(manifest, root = bundleRoot, patches = patche
       problems.push(
         `${skill.folder} differs from its pin (${digest.files} files, ${digest.bytes} bytes; expected ${skill.files} files, ${skill.bytes} bytes)`,
       )
+    if (isLocalSkill(skill)) problems.push(...(await localSourceProblems(skill, locals)))
   }
   return problems
+}
+
+/** Why the repository's copy of a local skill is not the one its pin describes, if it is not. */
+async function localSourceProblems(skill, locals) {
+  try {
+    const digest = digestFiles(await localSkillFiles(skill, locals))
+    return digest.treeSha256 === skill.treeSha256
+      ? []
+      : [`tuift/${skill.folder} changed since it was pinned; run sync.js --update`]
+  } catch (error) {
+    return [error instanceof Error ? error.message : String(error)]
+  }
 }
 
 /**
@@ -144,12 +198,13 @@ export async function syncBundle(
   {
     root = bundleRoot,
     patches = patchesRoot,
+    locals = localRoot,
     fetchImpl = fetch,
     update = false,
     log = console.log,
   } = {},
 ) {
-  if (!update && (await verifyBundle(manifest, root, patches)).length === 0) {
+  if (!update && (await verifyBundle(manifest, root, patches, locals)).length === 0) {
     log('Default skills are up to date.')
     return manifest
   }
@@ -158,18 +213,27 @@ export async function syncBundle(
   const next = { ...manifest, skills: [] }
   try {
     for (const skill of manifest.skills) {
-      const gz = await fetchArchive(skill, fetchImpl)
-      const archiveSha256 = createHash('sha256').update(gz).digest('hex')
-      if (!update && archiveSha256 !== skill.archiveSha256)
-        throw new Error(
-          `${skill.folder}: archive sha256 ${archiveSha256} does not match the pinned ${skill.archiveSha256}`,
-        )
-      const all = skillFiles(gunzipSync(gz), skill)
+      let archiveSha256
+      let all
+      if (isLocalSkill(skill)) all = await localSkillFiles(skill, locals)
+      else {
+        const gz = await fetchArchive(skill, fetchImpl)
+        archiveSha256 = createHash('sha256').update(gz).digest('hex')
+        if (!update && archiveSha256 !== skill.archiveSha256)
+          throw new Error(
+            `${skill.folder}: archive sha256 ${archiveSha256} does not match the pinned ${skill.archiveSha256}`,
+          )
+        all = skillFiles(gunzipSync(gz), skill)
+      }
       const files = skill.omit ? omitFiles(all, skill.omit) : all
       const patch = await patchFiles(files, skill, update, patches)
       const digest = digestFiles(files)
       if (!update && digest.treeSha256 !== skill.treeSha256)
-        throw new Error(`${skill.folder}: extracted files do not match the pinned tree hash`)
+        throw new Error(
+          isLocalSkill(skill)
+            ? `${skill.folder}: tuift/${skill.folder} changed since it was pinned; run sync.js --update`
+            : `${skill.folder}: extracted files do not match the pinned tree hash`,
+        )
       for (const [relative, body] of [...files, ...patch.replacements]) {
         const target = path.join(staging, 'skills', skill.folder, ...relative.split('/'))
         await mkdir(path.dirname(target), { recursive: true })
@@ -177,12 +241,12 @@ export async function syncBundle(
       }
       next.skills.push({
         ...skill,
-        archiveSha256,
+        ...(archiveSha256 ? { archiveSha256 } : {}),
         ...digest,
         ...(patch.entry ? { patch: patch.entry } : {}),
       })
       log(
-        `${skill.folder}: ${digest.files + patch.replacements.size} files @ ${skill.commit}` +
+        `${skill.folder}: ${digest.files + patch.replacements.size} files @ ${skill.commit ?? `tuift/${skill.folder}`}` +
           (skill.omit ? `, ${all.size - files.size - patch.replacements.size} left out` : '') +
           (patch.entry ? `, ${patch.replacements.size} patched` : ''),
       )

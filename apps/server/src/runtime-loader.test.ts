@@ -96,7 +96,7 @@ describe('provider runtime loading', () => {
 
   it('says API connections were removed when an old API chat starts again', () => {
     expect(() => providerRuntime('api', () => {})).toThrow(
-      'API key connections were removed from TasteCode',
+      'API key connections were removed from TUIFT Code',
     )
   })
 

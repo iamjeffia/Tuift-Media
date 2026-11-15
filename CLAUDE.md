@@ -77,3 +77,9 @@ Hotfixes for the beta may go to `main` as draft PRs and are merged down to `nigh
   starts, so restart the session after changing them.
 - Cloud sessions cannot delete remote branches (the git proxy only allows pushes to the
   session's own branch). Branch deletes need a local session.
+
+## TUIFT Code skills
+
+The workspace skills live in `.agents/skills/`; [`.agents/skills/README.md`](./.agents/skills/README.md)
+lists them. For design and interface work, motion and video, HyperFrames and writing,
+use the skill that fits the task instead of improvising: read its `SKILL.md` first and follow it.

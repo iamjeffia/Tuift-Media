@@ -11,12 +11,12 @@ afterEach(() => {
     rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 })
 
-describe('TasteCode storage migration', () => {
-  it('moves a legacy file once and keeps an existing TasteCode file authoritative', () => {
+describe('TUIFT Code storage migration', () => {
+  it('moves a legacy file once and keeps an existing TUIFT Code file authoritative', () => {
     const root = os.tmpdir()
     const unique = `tastecode-storage-${Date.now()}-${Math.random()}`
-    const legacy = path.join(root, unique, 'PersonalHarness', 'harness.db')
-    const current = path.join(root, unique, 'TasteCode', 'tastecode.db')
+    const legacy = path.join(root, unique, 'TUIFTCode', 'harness.db')
+    const current = path.join(root, unique, 'TUIFT Code', 'tastecode.db')
     roots.push(path.join(root, unique))
     mkdirSync(path.dirname(legacy), { recursive: true })
     writeFileSync(legacy, 'history')

@@ -15,7 +15,7 @@ const props = (): UsageResetNoticeProps => ({
 it('shows the provider reset, schedules on click and offers cancellation', async () => {
   const input = props()
   const view = render(<UsageResetNotice {...input} />)
-  expect(screen.getByText(/Keep TasteCode open/)).toBeTruthy()
+  expect(screen.getByText(/Keep TUIFT Code open/)).toBeTruthy()
   expect(view.container.querySelector('time')?.dateTime).toBe(
     new Date(input.resetsAt!).toISOString(),
   )

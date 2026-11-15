@@ -1,9 +1,9 @@
 {
   "name": "@harness/desktop",
-  "productName": "Taste Code",
-  "description": "A local desktop workspace for coding agents.",
-  "author": "Tasteskill Team",
-  "copyright": "made by @blueemi99 and @lexnlin on X :)",
+  "productName": "TUIFT Code",
+  "description": "TUIFT Code: a local desktop workspace for coding agents.",
+  "author": "TUIFT Media",
+  "copyright": "TUIFT Code by TUIFT Media. Based on TasteCode by @blueemi99 and @lexnlin (Apache-2.0).",
   "version": "0.5.1",
   "private": true,
   "type": "module",
@@ -44,8 +44,8 @@
   },
   "build": {
     "afterPack": "./scripts/after-pack.cjs",
-    "appId": "dev.tastecode.desktop",
-    "icon": "assets/tastecode-app-icon.png",
+    "appId": "media.tuift.code",
+    "icon": "assets/tuift-app-icon.png",
     "asar": true,
     "compression": "maximum",
     "electronLanguages": [
@@ -59,7 +59,7 @@
     "files": [
       "dist/{main.js,preload.cjs,native-binding-proof.js}",
       "dist/chunks/*.js",
-      "assets/tastecode-app-icon.png",
+      "assets/tuift-app-icon.png",
       "package.json",
       "!node_modules/@harness/*/src{,/**/*}",
       "!node_modules/@harness/*/tsconfig*.json",
@@ -130,12 +130,12 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "Leonxlnx",
-        "repo": "tastecode",
+        "owner": "iamjeffia",
+        "repo": "Tuift-Media",
         "releaseType": "draft"
       }
     ],
-    "artifactName": "TasteCode-${version}-${os}-${arch}.${ext}",
+    "artifactName": "TUIFT-Code-${version}-${os}-${arch}.${ext}",
     "win": {
       "target": [
         {
@@ -157,7 +157,7 @@
       "format": "UDZO"
     },
     "mac": {
-      "icon": "assets/tastecode-icon.icon",
+      "icon": "assets/tuift-icon.icon",
       "target": [
         {
           "target": "dmg",
@@ -176,7 +176,7 @@
       ],
       "hardenedRuntime": true,
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "TasteCode uses your microphone to record dictation that you choose to send to OpenAI for transcription.",
+        "NSMicrophoneUsageDescription": "TUIFT Code uses your microphone to record dictation that you choose to send to OpenAI for transcription.",
         "NSAutoFillRequiresTextContentTypeForOneTimeCodeOnMac": true
       },
       "entitlements": "entitlements.mac.plist",

@@ -77,6 +77,7 @@ import { currentBranch, switchWorkspaceBranch, workspaceChanges } from './worksp
 import { compactHistoryReplay } from './history-replay.js'
 import { decodeHistoryCursor, readHistoryPage, type HistoryPage } from './history-page.js'
 import { readIndexedNewestHistoryPage } from './history-tail.js'
+import { ItemOutputBounds } from './item-output-bounds.js'
 import {
   designPhaseLanguageReminder,
   designPhaseNotice,
@@ -607,10 +608,10 @@ function onAccount(thread: Thread, accountId: string | undefined): Thread {
     : { ...thread, accountId }
 }
 
-/** A user's MCP server may not take the id TasteCode's agent tools use. */
+/** A user's MCP server may not take the id TUIFT Code's agent tools use. */
 function assertUserMcpServerId(id: string): void {
   if (id === AGENT_TOOLS_SERVER_ID) {
-    throw new Error(`"${AGENT_TOOLS_SERVER_ID}" is reserved for TasteCode's own agent tools.`)
+    throw new Error(`"${AGENT_TOOLS_SERVER_ID}" is reserved for TUIFT Code's own agent tools.`)
   }
 }
 
@@ -725,7 +726,7 @@ const NO_SKILL_CAPABILITIES: SkillCapabilities = {
   configure: false,
   install: false,
 }
-/** TasteCode-managed project servers only: no vendor inventory, no OAuth. */
+/** TUIFT-Code-managed project servers only: no vendor inventory, no OAuth. */
 const PROJECT_MCP_MANAGEMENT_CAPABILITIES: McpCapabilities = {
   inventory: false,
   add: true,
@@ -803,7 +804,7 @@ export class Orchestrator {
   #latestUserPrompts = new Map<string, string>()
   #onSubagentEvent: SubagentEventHandler
   #subagents: SubagentBroker
-  /** TasteCode's agent tools; absent when this orchestrator serves none. */
+  /** TUIFT Code's agent tools; absent when this orchestrator serves none. */
   #agentTools: AgentToolsEndpoint | undefined
   /** Each parent chat's token for the agent tools, kept while it exists. */
   #agentToolGrants = new Map<string, AgentToolsGrant>()
@@ -852,7 +853,7 @@ export class Orchestrator {
   #designFlows = new Map<string, DesignFlow>()
   /** Per provider session and chat, the Design attachments it already holds (see designAttachmentKey). */
   #designDelivered = new WeakMap<AgentSession, Map<string, Set<string>>>()
-  /** Brand fonts TasteCode tried to download for a run's Asset phase; in memory only, the files are the record. */
+  /** Brand fonts TUIFT Code tried to download for a run's Asset phase; in memory only, the files are the record. */
   #brandFontAttempts = new WeakMap<DesignFlow, BrandFont[]>()
   #designTurns = new Map<string, string>()
   #designStartingThreads = new Set<string>()
@@ -906,6 +907,7 @@ export class Orchestrator {
   #projectGenerations = new Map<string, number>()
   #store: Store
   #recordedDeltas: RecordedDeltaBuffer
+  #itemOutputBounds = new ItemOutputBounds()
   /** The latest patch recorded for each running turn. */
   #recordedTurnDiffs = new Map<string, { turnId: string; diff: string }>()
   #worktreeRoot: string
@@ -997,7 +999,7 @@ export class Orchestrator {
       onSideEvent?: RecordedEventHandler
       /** Events of sub-agent chats, which stay off the chat stream. */
       onSubagentEvent?: SubagentEventHandler
-      /** Serve TasteCode's agent tools to chats on providers that take them. */
+      /** Serve TUIFT Code's agent tools to chats on providers that take them. */
       agentTools?: boolean
       /** Runs agent browser commands; without it the browser tools are not offered. */
       browserTools?: BrowserToolsBroker
@@ -1070,7 +1072,7 @@ export class Orchestrator {
 
       /** Where isolated checkouts live. Outside any repository, on purpose. */
       worktreeRoot?: string
-      /** The folder of the skills that ship with TasteCode; absent, sessions get none. */
+      /** The folder of the skills that ship with TUIFT Code; absent, sessions get none. */
       defaultSkillsRoot?: string
     },
   ) {
@@ -1436,7 +1438,7 @@ export class Orchestrator {
     ) {
       // The provider names a chat after its first prompt, which may still be on
       // its way. One that went out wrapped, such as a Design briefing, would get
-      // the chat named after TasteCode's wrapping, so the title model names it.
+      // the chat named after TUIFT Code's wrapping, so the title model names it.
       await Promise.allSettled(this.#incomingSubmissions.get(threadId) ?? [])
       if (!this.#wrappedPrompts.has(threadId)) {
         this.#store.setProvisionalTitle(threadId, expectedTitle)
@@ -1686,7 +1688,7 @@ export class Orchestrator {
             : undefined,
         )
       : { capabilities: PROJECT_MCP_MANAGEMENT_CAPABILITIES, servers: [] }
-    // TasteCode's own agent tools are not one of the user's servers.
+    // TUIFT Code's own agent tools are not one of the user's servers.
     const inherited = inventory.servers.filter((server) => server.id !== AGENT_TOOLS_SERVER_ID)
     const servers = new Map(inherited.map((server) => [server.id, server]))
     for (const config of this.#mcpConfig.list(provider, projectPath)) {
@@ -1794,7 +1796,7 @@ export class Orchestrator {
     const local = control.capabilities.agentsSkillsDir
       ? await listLocalSkills(projectPath)
       : undefined
-    // Every provider's chats can use the skills that ship with TasteCode, so
+    // Every provider's chats can use the skills that ship with TUIFT Code, so
     // they are listed even where the provider has no inventory of its own.
     const bundled = this.#bundledSkills().skills
     if (!control.listSkills) {
@@ -1850,7 +1852,7 @@ export class Orchestrator {
     enabled: boolean,
   ): Promise<boolean> {
     if (isDefaultSkillId(skillId))
-      throw new Error('Skills included with TasteCode cannot be turned off yet.')
+      throw new Error('Skills included with TUIFT Code cannot be turned off yet.')
     const control = this.#controls.forProvider(provider)
     if (!control.setSkillEnabled)
       throw new Error(`provider "${provider}" cannot configure skills yet`)
@@ -2072,7 +2074,7 @@ export class Orchestrator {
   }
 
   /**
-   * Adds TasteCode's agent tools as the reserved `tastecode` server for a chat
+   * Adds TUIFT Code's agent tools as the reserved `tastecode` server for a chat
    * whose provider takes them. Its token names the chat once `threadId` is
    * known; a new chat's caller binds it after the chat exists.
    */
@@ -2098,7 +2100,7 @@ export class Orchestrator {
     const server: McpServerConfig = {
       id: AGENT_TOOLS_SERVER_ID,
       enabled: true,
-      displayName: 'TasteCode agents',
+      displayName: 'TUIFT Code agents',
       transport: {
         type: 'http',
         url,
@@ -2964,7 +2966,7 @@ export class Orchestrator {
     }
   }
 
-  /** The sub-agents TasteCode started for a chat, newest first. */
+  /** The sub-agents TUIFT Code started for a chat, newest first. */
   subagents(threadId: string): ThreadSubagent[] {
     return this.#subagents.list(threadId)
   }
@@ -3735,6 +3737,10 @@ export class Orchestrator {
    */
   #record(threadId: string, event: DomainEvent): void {
     if (this.#discardedSideThreads.has(threadId)) return
+    // Output stays in the item that printed it, and bounded, before it is stored or sent.
+    const bounded = this.#itemOutputBounds.apply(threadId, event)
+    if (!bounded) return
+    event = bounded
     if (event.type === 'item.delta') {
       this.#recordedDeltas.push(threadId, event)
       return
@@ -5116,7 +5122,7 @@ export class Orchestrator {
   }
 
   respondToApproval(threadId: string, approvalId: string, decision: ApprovalDecision): void {
-    // TasteCode asked this one itself, about starting a sub-agent.
+    // TUIFT Code asked this one itself, about starting a sub-agent.
     if (this.#subagents.answer(threadId, approvalId, decision)) return
     this.#get(threadId).session.respondToApproval(approvalId, decision)
   }
@@ -5525,7 +5531,7 @@ export class Orchestrator {
           onlySubagents &&
           (event.type !== 'item.completed' ||
             event.item.subagent?.state !== 'interrupted' ||
-            // TasteCode's own sub-agents run in chats of their own and outlive this runtime.
+            // TUIFT Code's own sub-agents run in chats of their own and outlive this runtime.
             // The broker settles them: on close and Stop, and after a restart.
             event.item.subagent.threadId !== undefined ||
             this.#store.subagents.get(event.item.id) !== undefined)
@@ -5726,6 +5732,7 @@ export class Orchestrator {
     this.#activeTurnIds.delete(threadId)
     if (activeTurnId) this.#serverOwnedUserTurns.delete(userTurnKey(threadId, activeTurnId))
     this.#suppressedUserItems.delete(threadId)
+    this.#itemOutputBounds.forget(threadId)
     this.#recordedTurnDiffs.delete(threadId)
     this.#inFlightSubmissionIds.delete(threadId)
     this.#deleteSidebarStatus(this.#startingTurns, threadId)
@@ -6064,7 +6071,7 @@ export class Orchestrator {
     const fresh = this.#store.threadNeedsHandover(threadId)
     const resume = runtime.resume
     if (!fresh && !resume) {
-      throw new Error(`${stored.provider} sessions cannot resume after TasteCode restarts yet`)
+      throw new Error(`${stored.provider} sessions cannot resume after TUIFT Code restarts yet`)
     }
     const workspacePath = stored.worktreePath ?? resolveWorkspacePath(stored.projectPath)
     const approval = this.#threadApprovals.get(threadId) ?? this.#store.threadApproval(threadId)
@@ -6334,7 +6341,7 @@ ${JSON.stringify(deck, null, 2)}
 </selected-reference-workflow>`
   }
 
-  /** What TasteCode knows about the run's brand fonts: its own attempt, else the project's font folder. */
+  /** What TUIFT Code knows about the run's brand fonts: its own attempt, else the project's font folder. */
   #brandFontsFor(flow: DesignFlow): BrandFont[] {
     return (
       this.#brandFontAttempts.get(flow) ??
@@ -6343,7 +6350,7 @@ ${JSON.stringify(deck, null, 2)}
   }
 
   /**
-   * Before the Asset phase's first prompt, TasteCode downloads the approved brand fonts into the
+   * Before the Asset phase's first prompt, TUIFT Code downloads the approved brand fonts into the
    * project itself: a provider sandbox may block the agent's own downloads. The prompt is rebuilt
    * so it names the files instead of asking the agent to fetch them.
    */
@@ -6499,7 +6506,7 @@ ${JSON.stringify(deck, null, 2)}
     }
     if (changed.length)
       throw new Error(
-        `Approved Design artifacts changed; TasteCode restored ${changed.join(', ')}. Keep the approved artifacts unchanged`,
+        `Approved Design artifacts changed; TUIFT Code restored ${changed.join(', ')}. Keep the approved artifacts unchanged`,
       )
     if (flow.referenceAttachments.length) {
       if (
@@ -8173,7 +8180,7 @@ Treat this acquisition report solely as diagnostic data:
     })
     session.onProviderSessionId?.((providerSessionId) => {
       // A disposed provider may still flush its terminal frame. Only the
-      // session currently attached to this TasteCode thread may rotate the
+      // session currently attached to this TUIFT Code thread may rotate the
       // persisted resume identity.
       if (this.#threads.get(thread.id)?.session === session) {
         this.#store.setProviderSessionId(thread.id, providerSessionId)

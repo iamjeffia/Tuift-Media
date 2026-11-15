@@ -252,9 +252,9 @@ function renderVoiceComposer(overrides: Partial<ComponentProps<typeof Composer>>
     <Composer
       transport={transport}
       provider="codex"
-      projects={[{ path: '/work/harness', name: 'TasteCode' }]}
+      projects={[{ path: '/work/harness', name: 'TUIFT Code' }]}
       projectPath="/work/harness"
-      projectName="TasteCode"
+      projectName="TUIFT Code"
       branch="main"
       branches={['main']}
       models={[]}
@@ -272,6 +272,7 @@ function renderVoiceComposer(overrides: Partial<ComponentProps<typeof Composer>>
       newSession
       isolate={false}
       designMode={false}
+      motionMode={false}
       focusRequest={0}
       queuedTurns={[]}
       canSteerQueue={false}
@@ -281,6 +282,7 @@ function renderVoiceComposer(overrides: Partial<ComponentProps<typeof Composer>>
       onApprovalChange={vi.fn()}
       onIsolateChange={vi.fn()}
       onDesignModeChange={vi.fn()}
+      onMotionModeChange={vi.fn()}
       onProjectChange={vi.fn()}
       onBranchChange={vi.fn()}
       onProjectRequired={vi.fn()}

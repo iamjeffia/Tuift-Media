@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { flushSync } from 'react-dom'
 import { IconColorPicker as PickColor } from '@tabler/icons-react'
+import { useI18n } from '../i18n/index.js'
 import {
   hexToHsv,
   hsvToHex,
@@ -54,6 +55,7 @@ type PickerProps<Value extends string> = {
  * under it, then the hex row, and the screen sampler where the platform has one.
  */
 export function AppearanceColorPicker<Value extends string>(props: PickerProps<Value>) {
+  const { t } = useI18n()
   const id = useId()
   const trigger = useRef<HTMLButtonElement>(null)
   const panel = useRef<HTMLDivElement>(null)
@@ -167,7 +169,7 @@ export function AppearanceColorPicker<Value extends string>(props: PickerProps<V
         id={id}
         popover="manual"
         role="dialog"
-        aria-label={`${props.label} color picker`}
+        aria-label={t('settings.appearanceColorPicker.dialog', { label: props.label })}
         aria-hidden={!open || undefined}
         inert={!open}
         className="color-picker popup"
@@ -233,6 +235,7 @@ function usePointerDrag(apply: (event: ReactPointerEvent<HTMLDivElement>) => voi
 function ColorPickerContent<Value extends string>(
   props: PickerProps<Value> & { sampling: { current: boolean } },
 ) {
+  const { t } = useI18n()
   const [hsv, setHsv] = useState(() => hexToHsv(props.color))
   const [draft, setDraft] = useState<string>(props.color)
   const [invalid, setInvalid] = useState(false)
@@ -353,12 +356,15 @@ function ColorPickerContent<Value extends string>(
           }
           role="slider"
           tabIndex={0}
-          aria-label="Saturation and brightness"
-          aria-description="Use left and right arrows for saturation, up and down for brightness."
+          aria-label={t('settings.appearanceColorPicker.field')}
+          aria-description={t('settings.appearanceColorPicker.fieldHelp')}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(hsv.s * 100)}
-          aria-valuetext={`Saturation ${Math.round(hsv.s * 100)}%, brightness ${Math.round(hsv.v * 100)}%`}
+          aria-valuetext={t('settings.appearanceColorPicker.fieldValue', {
+            saturation: Math.round(hsv.s * 100),
+            brightness: Math.round(hsv.v * 100),
+          })}
           {...fieldDrag}
           onKeyDown={onFieldKeyDown}
         >
@@ -373,11 +379,13 @@ function ColorPickerContent<Value extends string>(
           style={{ '--h': hsv.h / 360 } as CSSProperties}
           role="slider"
           tabIndex={0}
-          aria-label="Hue"
+          aria-label={t('settings.appearanceColorPicker.hue')}
           aria-valuemin={0}
           aria-valuemax={360}
           aria-valuenow={Math.round(hsv.h)}
-          aria-valuetext={`${Math.round(hsv.h)} degrees`}
+          aria-valuetext={t('settings.appearanceColorPicker.hueValue', {
+            degrees: Math.round(hsv.h),
+          })}
           {...hueDrag}
           onKeyDown={onHueKeyDown}
         >
@@ -396,7 +404,7 @@ function ColorPickerContent<Value extends string>(
         <input
           id={hexId}
           type="text"
-          aria-label={`${props.label} hex color`}
+          aria-label={t('settings.appearanceColorPicker.hexLabel', { label: props.label })}
           aria-invalid={invalid || undefined}
           aria-describedby={invalid ? errorId : undefined}
           autoComplete="off"
@@ -422,7 +430,7 @@ function ColorPickerContent<Value extends string>(
       </div>
       {invalid ? (
         <p className="color-picker__error" id={errorId}>
-          Use a hex color, like #5E6AD2.
+          {t('settings.appearanceColorPicker.invalid')}
         </p>
       ) : null}
       {dropper ? (
@@ -435,7 +443,9 @@ function ColorPickerContent<Value extends string>(
               strokeWidth={1.8}
               aria-hidden
             />
-            <span className="color-picker__action-name">Pick from screen</span>
+            <span className="color-picker__action-name">
+              {t('settings.appearanceColorPicker.pick')}
+            </span>
           </button>
         </>
       ) : null}

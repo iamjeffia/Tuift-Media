@@ -57,6 +57,16 @@ import {
   isAgentDrivenGuest,
   setAgentDrivenGuest,
 } from './embedded-browser.js'
+import {
+  DEFAULT_LANGUAGE,
+  loadLanguage,
+  parseLanguage,
+  saveLanguage,
+  translate,
+  type Language,
+  type MessageKey,
+  type MessageVars,
+} from './i18n.js'
 import { configureImageContextMenu } from './image-context-menu.js'
 import { isMacHapticPattern, MacOSHaptics } from './macos-haptics.js'
 import { localDiagnosticsDirectory, LocalDiagnostics } from './local-diagnostics.js'
@@ -86,6 +96,7 @@ import {
 } from './owned-server-env.js'
 import { revealablePath } from './reveal-path.js'
 import { projectFilePath } from './project-file-path.js'
+import { projectFilePreview, projectFilePreviewFromUrl } from './project-file-preview.js'
 import { PreviewCaptureOwner } from './preview-capture.js'
 import { configureRendererLifecycle } from './renderer-lifecycle.js'
 import { ServerSupervisor, type SupervisedServerProcess } from './server-supervisor.js'
@@ -139,19 +150,31 @@ applyDesktopPath()
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
-const productIconPath = path.join(here, '../assets/tastecode-app-icon.png')
-const nativeAppName = 'Taste Code'
+const productIconPath = path.join(here, '../assets/tuift-app-icon.png')
+const nativeAppName = 'TUIFT Code'
 // Performance runs must never read or rewrite the user's real window and
 // Chromium state. Keep the override opt-in so normal installs stay on the
-// long-standing TasteCode path.
+// long-standing TUIFT Code path.
 const productDataPath = process.env['HARNESS_DESKTOP_DATA_DIR']
   ? path.resolve(process.env['HARNESS_DESKTOP_DATA_DIR'])
-  : path.join(app.getPath('appData'), 'TasteCode')
+  : path.join(app.getPath('appData'), 'TUIFT Code')
 const mainWindowStatePath = path.join(productDataPath, 'window-state.json')
 const windowChromePath = path.join(productDataPath, 'window-chrome.json')
 /** What window-chrome.json holds, so an unchanged report does not rewrite it. */
 let savedWindowChrome: string | undefined
 const windowMaterialPath = path.join(productDataPath, 'window-material.json')
+const languagePath = path.join(productDataPath, 'language.json')
+/** The interface language the renderer last chose; read from disk on first use. */
+let appLanguage: Language | undefined
+
+function currentLanguage(): Language {
+  return (appLanguage ??= loadLanguage(languagePath) ?? DEFAULT_LANGUAGE)
+}
+
+/** Text the main process shows itself, in the current interface language. */
+function t(key: MessageKey, vars?: MessageVars): string {
+  return translate(currentLanguage(), key, vars)
+}
 /** The backdrop the window draws now; the renderer changes it for Transparent. */
 let windowMaterial: WindowMaterial | undefined
 /** The colour each window was last given, so an unchanged report repaints nothing. */
@@ -255,7 +278,7 @@ const previewCaptures = new PreviewCaptureOwner({
     captureWindows.delete(window)
   },
   directory: (requestId) =>
-    path.join(app.getPath('temp'), 'TasteCode', 'preview-captures', requestId),
+    path.join(app.getPath('temp'), 'TUIFT Code', 'preview-captures', requestId),
   parseAudit: async (value) => {
     const { PreviewDomAuditSchema } = await import('@harness/contracts')
     return PreviewDomAuditSchema.parse(value)
@@ -267,7 +290,7 @@ const previewCaptures = new PreviewCaptureOwner({
 // intermittent all-black window. Verified over CDP: DOM complete, renderer
 // healthy, compositor off. The watchdog below covers whatever this misses.
 if (process.platform === 'win32') {
-  app.setAppUserModelId('dev.tastecode.desktop')
+  app.setAppUserModelId('media.tuift.code')
   app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
 }
 app.setName(nativeAppName)
@@ -296,9 +319,9 @@ function showServerFailureNotice(): void {
     .showMessageBox(window, {
       type: 'error',
       title: nativeAppName,
-      message: 'The core server keeps crashing.',
-      detail: 'Restart the server to try again. If this keeps happening, reinstall the app.',
-      buttons: ['Restart server', 'Not now'],
+      message: t('dialog.serverCrashed.message'),
+      detail: t('dialog.serverCrashed.detail'),
+      buttons: [t('dialog.serverCrashed.restart'), t('dialog.notNow')],
       defaultId: 0,
       cancelId: 1,
     })
@@ -332,6 +355,7 @@ const chatNotifier = new ChatNotifier({
   },
   show: showChatNotification,
   setBadge: setAttentionBadge,
+  language: currentLanguage,
   openChat: (chatId) => {
     const window = mainWindow
     const ready = window && !window.isDestroyed() && !window.webContents.isLoading()
@@ -363,12 +387,15 @@ function showChatNotification(
 }
 
 let overlayIcon: Electron.NativeImage | undefined
+/** The count the badge shows now, so a language change can redraw its description. */
+let attentionBadgeCount = 0
 
 /**
  * Windows has no badge count, so its taskbar button gets an overlay dot
  * instead; the count is in the overlay's description (tooltip, screen readers).
  */
 function setAttentionBadge(count: number): void {
+  attentionBadgeCount = count
   if (process.platform !== 'win32') {
     app.setBadgeCount(count)
     return
@@ -389,7 +416,7 @@ function setAttentionBadge(count: number): void {
     }
     overlayIcon = icon
   }
-  window.setOverlayIcon(overlayIcon, badgeDescription(count))
+  window.setOverlayIcon(overlayIcon, badgeDescription(count, currentLanguage()))
 }
 
 if (Number.isFinite(startupStartedAt) && startupStartedAt > 0) {
@@ -492,7 +519,7 @@ function startOwnedServer(): boolean {
         {
           appVersion: app.getVersion(),
           // Written at build time by scripts/build-main.js; an unpackaged run reads
-          // the maintainer's ~/.tastecode file on the server side instead.
+          // the maintainer's ~/.tuift-code file on the server side instead.
           feedbackConfig: app.isPackaged
             ? path.join(process.resourcesPath, 'feedback', 'feedback.env')
             : undefined,
@@ -508,7 +535,7 @@ function startOwnedServer(): boolean {
   if (process.env['HARNESS_PORT'] && process.env['HARNESS_PORT'] !== serverEnv['HARNESS_PORT']) {
     console.warn('[desktop] ignoring HARNESS_PORT; using the packaged renderer endpoint')
   }
-  // Every build bakes the same port. When another TasteCode holds it, this
+  // Every build bakes the same port. When another TUIFT Code holds it, this
   // server cannot start, and the window must not work against that app instead.
   ownServerToken = randomBytes(24).toString('base64url')
   serverEnv = { ...serverEnv, HARNESS_INSTANCE_TOKEN: ownServerToken }
@@ -558,7 +585,7 @@ function launchUtilityServer(
     // Background provider probes must start in app storage, not that directory.
     cwd: productDataPath,
     env: { ...serverEnv, PWD: productDataPath },
-    serviceName: 'Taste Code Core Server',
+    serviceName: 'TUIFT Code Core Server',
     stdio: 'pipe',
   })
   // What killTree needs to know about the server: its pid, whether it is gone.
@@ -676,9 +703,9 @@ function createWindow(): void {
   )
   window.webContents.on('render-process-gone', () => nativeMenuDispatch.reset(window.webContents))
   configureEmbeddedBrowser(window.webContents)
-  configureImageContextMenu(window.webContents, window)
+  configureImageContextMenu(window.webContents, window, currentLanguage)
   window.webContents.on('did-attach-webview', (_event, guest) => {
-    configureImageContextMenu(guest, window)
+    configureImageContextMenu(guest, window, currentLanguage)
     forwardBrowserShortcuts(guest, window.webContents)
   })
   restoreMainWindowPresence(process.platform, app, window)
@@ -743,9 +770,9 @@ function createWindow(): void {
         .showMessageBox(window, {
           type: 'error',
           title: nativeAppName,
-          message: 'The window stopped unexpectedly.',
-          detail: 'Your core server is still running. Reload the window to reconnect.',
-          buttons: ['Reload', 'Not now'],
+          message: t('dialog.windowCrashed.message'),
+          detail: t('dialog.windowCrashed.detail'),
+          buttons: [t('dialog.windowCrashed.reload'), t('dialog.notNow')],
           cancelId: 1,
         })
         .then(({ response }) => {
@@ -847,14 +874,18 @@ function createBackgroundTray(): void {
   const icon = nativeImage.createFromPath(productIconPath).resize({ width: 20, height: 20 })
   tray = new Tray(icon)
   tray.setToolTip(nativeAppName)
-  tray.setContextMenu(
+  installTrayMenu()
+  tray.on('click', showMainWindow)
+}
+
+function installTrayMenu(): void {
+  tray?.setContextMenu(
     Menu.buildFromTemplate([
-      { label: `Open ${nativeAppName}`, click: showMainWindow },
+      { label: t('tray.open', { appName: nativeAppName }), click: showMainWindow },
       { type: 'separator' },
-      { label: `Quit ${nativeAppName}`, click: () => app.quit() },
+      { label: t('tray.quit', { appName: nativeAppName }), click: () => app.quit() },
     ]),
   )
-  tray.on('click', showMainWindow)
 }
 
 function installApplicationMenu(): void {
@@ -863,6 +894,8 @@ function installApplicationMenu(): void {
       createApplicationMenuTemplate({
         appName: nativeAppName,
         isMacOS: process.platform === 'darwin',
+        isWindows: process.platform === 'win32',
+        language: currentLanguage(),
         isDevelopment: !app.isPackaged,
         shortcuts: nativeMenuShortcuts,
         onAction: sendNativeMenuAction,
@@ -956,6 +989,24 @@ ipcMain.handle('harness:launchCrashAgent', async (event, agent: unknown, details
       ? path.join(diagnostics.directory, 'errors.log')
       : undefined,
   })
+})
+
+// The interface language the renderer chose (Settings > General). The native
+// menus, tray, dialogs and notifications follow it; the next launch reads it
+// back from disk so the first menu is already in the right language.
+ipcMain.handle('harness:setLanguage', (event, value: unknown) => {
+  requireOwnRenderer(event.sender)
+  const language = parseLanguage(value)
+  if (language === currentLanguage()) return
+  appLanguage = language
+  installApplicationMenu()
+  installTrayMenu()
+  if (attentionBadgeCount > 0) setAttentionBadge(attentionBadgeCount)
+  try {
+    saveLanguage(languagePath, language)
+  } catch {
+    // Only the next launch's first menu depends on it.
+  }
 })
 
 ipcMain.on('harness:setMenuShortcuts', (event, value: unknown) => {
@@ -1157,7 +1208,7 @@ const CAPTURE_SWEEP_INTERVAL_MS = 6 * 60 * 60 * 1000
 /** Screenshot directories older than a day have no live consumer: the design
  *  flow reads them within minutes, and a restored run recaptures missing ones. */
 async function sweepStaleCaptures(): Promise<void> {
-  const root = path.join(app.getPath('temp'), 'TasteCode', 'preview-captures')
+  const root = path.join(app.getPath('temp'), 'TUIFT Code', 'preview-captures')
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000
   let entries: string[]
   try {
@@ -1185,7 +1236,7 @@ ipcMain.handle('harness:pickFolder', async (event) => {
   requireOwnRenderer(event.sender)
   const result = await dialog.showOpenDialog({
     properties: ['openDirectory', 'createDirectory'],
-    title: 'Choose a project folder',
+    title: t('dialog.pickFolder.title'),
   })
   return result.canceled ? undefined : result.filePaths[0]
 })
@@ -1210,7 +1261,7 @@ ipcMain.handle('harness:pickSkillFolder', async (event) => {
   requireOwnRenderer(event.sender)
   const result = await dialog.showOpenDialog({
     properties: ['openDirectory'],
-    title: 'Choose an Agent Skill folder',
+    title: t('dialog.pickSkillFolder.title'),
   })
   return result.canceled ? undefined : result.filePaths[0]
 })
@@ -1219,7 +1270,7 @@ ipcMain.handle('harness:pickFiles', async (event) => {
   requireOwnRenderer(event.sender)
   const result = await dialog.showOpenDialog({
     properties: ['openFile', 'multiSelections'],
-    title: 'Attach files',
+    title: t('dialog.pickFiles.title'),
   })
   return result.canceled
     ? []
@@ -1245,7 +1296,7 @@ ipcMain.handle('harness:previewViewedImage', async (event, reference: unknown) =
     reference,
     [
       path.join(productDataPath, 'pasted-files'),
-      path.join(app.getPath('temp'), 'TasteCode', 'pasted-files'),
+      path.join(app.getPath('temp'), 'TUIFT Code', 'pasted-files'),
     ],
     pickedImagePaths,
   )
@@ -1292,6 +1343,18 @@ ipcMain.handle(
     // checkout). Explorer then opens nothing, so the chat says it could not show the file.
     await stat(file)
     shell.showItemInFolder(file)
+  },
+)
+
+// The Files tab plays or shows a project file through a signed URL that the protocol below
+// streams. The path is confined to the project the same way revealing it is.
+ipcMain.handle(
+  'harness:previewProjectFile',
+  async (event, value: unknown, projectRootValue: unknown) => {
+    requireOwnRenderer(event.sender)
+    const file = await projectFilePath(value, projectRootValue)
+    if (!(await stat(file)).isFile()) throw new Error('Not a file')
+    return projectFilePreview(file, attachmentPreviewSecret)
   },
 )
 
@@ -1421,7 +1484,9 @@ function configureAttachmentPreviews(): void {
       return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD' } })
     }
 
-    const preview = attachmentPreviewFromUrl(request.url, attachmentPreviewSecret)
+    const preview =
+      attachmentPreviewFromUrl(request.url, attachmentPreviewSecret) ??
+      projectFilePreviewFromUrl(request.url, attachmentPreviewSecret)
     if (!preview) return new Response(null, { status: 404 })
 
     try {

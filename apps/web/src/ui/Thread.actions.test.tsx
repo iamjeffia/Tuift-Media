@@ -655,7 +655,7 @@ describe('completed activity disclosure', () => {
         turnId: '',
         type: 'error',
         status: 'completed',
-        text: 'Turn interrupted: TasteCode restarted. Send a new message to continue.',
+        text: 'Turn interrupted: TUIFT Code restarted. Send a new message to continue.',
         createdAt: 6_000,
       }
       render(
@@ -1590,7 +1590,7 @@ describe('completed activity disclosure', () => {
   })
 
   it('shows sent image attachments above the user message', async () => {
-    const path = '/tmp/TasteCode/pasted-files/uuid-reference.png'
+    const path = '/tmp/TUIFT Code/pasted-files/uuid-reference.png'
     previewViewedImage.mockResolvedValueOnce({
       path,
       name: 'uuid-reference.png',
@@ -1619,7 +1619,7 @@ describe('completed activity disclosure', () => {
   })
 
   it('finishes a sent image preview after the Strict Mode effect replay', async () => {
-    const path = '/tmp/TasteCode/pasted-files/strict-reference.png'
+    const path = '/tmp/TUIFT Code/pasted-files/strict-reference.png'
     previewViewedImage.mockResolvedValue({
       path,
       name: 'strict-reference.png',
@@ -1653,7 +1653,7 @@ describe('completed activity disclosure', () => {
   })
 
   it('finishes a missing sent image preview with an unavailable state', async () => {
-    const path = '/tmp/TasteCode/pasted-files/missing-reference.png'
+    const path = '/tmp/TUIFT Code/pasted-files/missing-reference.png'
     previewViewedImage.mockResolvedValueOnce(undefined)
 
     renderCompleted([
@@ -1671,7 +1671,7 @@ describe('completed activity disclosure', () => {
   })
 
   it('finishes a rejected sent image preview after showing its loading state', async () => {
-    const path = '/tmp/TasteCode/pasted-files/rejected-reference.png'
+    const path = '/tmp/TUIFT Code/pasted-files/rejected-reference.png'
     let rejectPreview!: () => void
     previewViewedImage.mockReturnValueOnce(
       new Promise((_, reject) => {
@@ -1696,7 +1696,7 @@ describe('completed activity disclosure', () => {
 
   it('shows a safe image preview when completed work is revealed', async () => {
     previewViewedImage.mockResolvedValueOnce({
-      path: '/tmp/TasteCode/pasted-files/uuid-layout.png',
+      path: '/tmp/TUIFT Code/pasted-files/uuid-layout.png',
       name: 'uuid-layout.png',
       mediaType: 'image',
       previewUrl: 'tastecode-attachment://preview/full',
@@ -1734,7 +1734,7 @@ describe('completed activity disclosure', () => {
   })
 
   const layoutPreview = {
-    path: '/tmp/TasteCode/pasted-files/uuid-layout.png',
+    path: '/tmp/TUIFT Code/pasted-files/uuid-layout.png',
     name: 'uuid-layout.png',
     mediaType: 'image',
     previewUrl: 'tastecode-attachment://preview/full',
@@ -2148,7 +2148,7 @@ describe('thread error surface', () => {
         turnId: 'turn-1',
         type: 'error',
         status: 'completed',
-        text: 'Turn interrupted: TasteCode restarted. Send a new message to continue.',
+        text: 'Turn interrupted: TUIFT Code restarted. Send a new message to continue.',
         createdAt: 1,
       },
     ]
@@ -2163,7 +2163,7 @@ describe('thread error surface', () => {
     // A thread-level failure is a statement: the alert and the reason, not an
     // operational row with a disclosure affordance.
     expect(container.querySelector('.turn-error__text')?.textContent).toBe(
-      'Turn interrupted: TasteCode restarted. Send a new message to continue.',
+      'Turn interrupted: TUIFT Code restarted. Send a new message to continue.',
     )
     expect(screen.queryByRole('button')).toBeNull()
     expect(container.querySelector('.aux')).toBeNull()

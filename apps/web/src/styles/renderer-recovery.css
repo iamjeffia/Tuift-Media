@@ -1,5 +1,5 @@
 /* The recovery card borrows the prompt bar's surface and corner, like the
-   sidebar confirm dialog, so a failure still looks like TasteCode. Buttons sit
+   sidebar confirm dialog, so a failure still looks like TUIFT Code. Buttons sit
    10px in from the edge with 10px corners to nest inside the 20px curve. */
 .renderer-recovery {
   position: relative;

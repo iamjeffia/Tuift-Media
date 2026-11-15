@@ -20,6 +20,7 @@ import {
   resolveTheme,
 } from './theme.js'
 import { backdropColorScheme } from './theme-colors.js'
+import { applyDocumentLanguage } from './i18n/index.js'
 import './styles/tokens.css'
 import './styles/app.css'
 
@@ -32,6 +33,7 @@ applyTheme(backdropColorScheme(backdrop) ?? appearanceMode)
 applyBackdropPreference(backdrop)
 applyFontPreference(readFontPreference(appearanceMode))
 applyAccentPreference(readAccentPreference(appearanceMode))
+applyDocumentLanguage()
 
 // The stylesheet needs to know whether an OS blur material exists behind the
 // window (Electron acrylic/vibrancy) — that is what the sidebar glass shows.

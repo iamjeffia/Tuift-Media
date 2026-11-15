@@ -542,7 +542,7 @@ describe('rejected websocket connections', () => {
       try {
         const [code, reason] = await once(other, 'close')
         expect(code).toBe(1008)
-        expect(String(reason)).toBe('Another TasteCode window')
+        expect(String(reason)).toBe('Another TUIFT Code window')
         expect(messages).toEqual([])
       } finally {
         other.terminate()
@@ -1963,7 +1963,7 @@ describe('feedback routes', () => {
       id: 'feedback',
       result: {
         payload: JSON.stringify(
-          { kind: 'idea', message: draft.message, metadata: { app: 'TasteCode' } },
+          { kind: 'idea', message: draft.message, metadata: { app: 'TUIFT Code' } },
           null,
           2,
         ),

@@ -4,6 +4,7 @@ import type { AppUpdateState } from './app-updater.js'
 import { isBrowserShortcutMessage, type BrowserShortcutAction } from './browser-shortcuts.js'
 import { clipboardText } from './clipboard-text.js'
 import { isNativeMenuActionMessage, type NativeMenuActionSource } from './menu-contract.js'
+import type { Language } from './i18n.js'
 import { editionFromArguments } from './owned-server-env.js'
 import {
   droppedFilePath,
@@ -69,6 +70,11 @@ const api = {
     ipcRenderer.invoke('harness:agentBrowserIsolated', webContentsId, code),
   revealProjectFile: (path: string, projectPath: string): Promise<void> =>
     ipcRenderer.invoke('harness:revealProjectFile', path, projectPath),
+  previewProjectFile: (
+    path: string,
+    projectPath: string,
+  ): Promise<{ url: string; mediaType: 'image' | 'video' | 'audio' } | undefined> =>
+    ipcRenderer.invoke('harness:previewProjectFile', path, projectPath),
   savePastedFile: (file: {
     name: string
     type: string
@@ -86,6 +92,8 @@ const api = {
     ipcRenderer.invoke('harness:getWindowMaterialSupport'),
   setWindowMaterial: (material: WindowMaterial): Promise<void> =>
     ipcRenderer.invoke('harness:setWindowMaterial', material),
+  setLanguage: (language: Language): Promise<void> =>
+    ipcRenderer.invoke('harness:setLanguage', language),
   prepareHaptics: (): void => ipcRenderer.send('harness:hapticsPrepare'),
   performHaptic: (pattern: NativeHapticPattern): void =>
     ipcRenderer.send('harness:hapticFeedback', pattern),

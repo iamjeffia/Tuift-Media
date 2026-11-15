@@ -1,7 +1,7 @@
 export type FeedbackCommand = { text: string }
 
 /**
- * `/feedback [text]` opens TasteCode's feedback dialog. It is never sent to a
+ * `/feedback [text]` opens TUIFT Code's feedback dialog. It is never sent to a
  * provider, so it is caught before every provider and project gate: people
  * want to report a problem exactly when a provider is broken. Only a draft
  * that starts with the command counts; `/feedbacks` or a sentence that merely

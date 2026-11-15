@@ -18,6 +18,7 @@ import {
   type CrashAgentAvailability,
   type CrashAgentId,
 } from './bridge.js'
+import { t } from './i18n/index.js'
 import type { ProviderMark } from './model-catalog.js'
 import { ProviderIcon } from './ui/ProviderIcon.js'
 import './styles/renderer-recovery.css'
@@ -72,7 +73,7 @@ export class RendererErrorBoundary extends Component<Props, State> {
     this.#error = error
     this.#componentStack = info.componentStack ?? ''
     const diagnostics = [
-      'TasteCode renderer recovery',
+      'TUIFT Code renderer recovery',
       `Time: ${new Date().toISOString()}`,
       `Client: ${isDesktop ? 'desktop' : 'web'}`,
       'Failure: application render exception',
@@ -102,11 +103,14 @@ export class RendererErrorBoundary extends Component<Props, State> {
   #copy = async () => {
     try {
       await writeClipboardText(this.state.diagnostics)
-      this.setState({ copied: true, status: { tone: 'success', text: 'Diagnostics copied.' } })
+      this.setState({
+        copied: true,
+        status: { tone: 'success', text: t('dialogs.renderer.copied') },
+      })
     } catch {
       this.setState({
         copied: false,
-        status: { tone: 'error', text: 'Could not copy diagnostics. Please try again.' },
+        status: { tone: 'error', text: t('dialogs.renderer.copyFailed') },
       })
     }
   }
@@ -149,12 +153,12 @@ export class RendererErrorBoundary extends Component<Props, State> {
       this.setState({
         launching: undefined,
         view: 'summary',
-        status: { tone: 'success', text: `Opened ${name} in your terminal.` },
+        status: { tone: 'success', text: t('dialogs.renderer.opened', { name }) },
       })
     } catch {
       this.setState({
         launching: undefined,
-        status: { tone: 'error', text: `Could not open ${name} in a terminal.` },
+        status: { tone: 'error', text: t('dialogs.renderer.openFailed', { name }) },
       })
     }
   }
@@ -167,12 +171,9 @@ export class RendererErrorBoundary extends Component<Props, State> {
           <IconAlertTriangle size={18} stroke={1.75} />
         </span>
         <h1 id="renderer-recovery-title" className="renderer-recovery__title">
-          TasteCode couldn’t display this window
+          {t('dialogs.renderer.title')}
         </h1>
-        <p className="renderer-recovery__body">
-          Something went wrong while drawing the interface. Running agents and saved chats aren’t
-          affected, so reloading picks up where you left off.
-        </p>
+        <p className="renderer-recovery__body">{t('dialogs.renderer.body')}</p>
         {canLaunchCrashAgent ? (
           <button
             type="button"
@@ -184,8 +185,8 @@ export class RendererErrorBoundary extends Component<Props, State> {
               <IconTerminal2 size={16} stroke={1.75} />
             </span>
             <span className="renderer-recovery__ask-text">
-              <span className="renderer-recovery__ask-title">Ask an agent to fix it</span>
-              <span className="renderer-recovery__ask-hint">Opens Claude Code, Codex or Grok</span>
+              <span className="renderer-recovery__ask-title">{t('dialogs.renderer.askTitle')}</span>
+              <span className="renderer-recovery__ask-hint">{t('dialogs.renderer.askHint')}</span>
             </span>
             <IconChevronRight
               className="renderer-recovery__chevron"
@@ -206,7 +207,7 @@ export class RendererErrorBoundary extends Component<Props, State> {
               ) : (
                 <IconCopy size={15} stroke={1.75} aria-hidden="true" />
               )}
-              Copy diagnostics
+              {t('dialogs.renderer.copyDiagnostics')}
             </button>
           ) : null}
           <button
@@ -216,7 +217,7 @@ export class RendererErrorBoundary extends Component<Props, State> {
             onClick={() => (this.props.reload ?? (() => window.location.reload()))()}
           >
             <IconRefresh size={15} stroke={2} aria-hidden="true" />
-            Reload window
+            {t('dialogs.common.reloadWindow')}
           </button>
         </div>
       </>
@@ -228,12 +229,9 @@ export class RendererErrorBoundary extends Component<Props, State> {
     return (
       <div onKeyDown={this.#onAgentsKeyDown}>
         <h1 id="renderer-recovery-title" className="renderer-recovery__title">
-          Which agent should look at this?
+          {t('dialogs.renderer.agentsTitle')}
         </h1>
-        <p className="renderer-recovery__body">
-          It opens in your terminal in bypass permissions mode, with a crash report and a prompt
-          asking it to explain what happened and how to fix it.
-        </p>
+        <p className="renderer-recovery__body">{t('dialogs.renderer.agentsBody')}</p>
         <ul ref={this.#agentList} className="renderer-recovery__agents" aria-busy={!agents}>
           {(Object.keys(CRASH_AGENTS) as CrashAgentId[]).map((id) => {
             const agent = CRASH_AGENTS[id]
@@ -257,10 +255,12 @@ export class RendererErrorBoundary extends Component<Props, State> {
                       id={`renderer-recovery-agent-${id}`}
                       className="renderer-recovery__agent-note"
                     >
-                      Not installed
+                      {t('dialogs.renderer.notInstalled')}
                     </span>
                   ) : launching === id ? (
-                    <span className="renderer-recovery__agent-note">Opening…</span>
+                    <span className="renderer-recovery__agent-note">
+                      {t('dialogs.renderer.opening')}
+                    </span>
                   ) : (
                     <IconChevronRight
                       className="renderer-recovery__chevron"
@@ -285,7 +285,7 @@ export class RendererErrorBoundary extends Component<Props, State> {
             onClick={this.#showSummary}
           >
             <IconChevronLeft size={15} stroke={1.75} aria-hidden="true" />
-            Back
+            {t('dialogs.renderer.back')}
           </button>
         </div>
       </div>

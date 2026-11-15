@@ -26,4 +26,4 @@ copy them into a generated site's production assets. Public redistribution revie
 a separate release requirement from the source-code and dependency licenses.
 
 The library can be overridden with `TASTECODE_REFERENCE_LIBRARY` or `libraryPath` in
-`~/.tastecode/design-references.json`. See `docs/DESIGN-REFERENCES.md` in the repository.
+`~/.tuift-code/design-references.json`. See `docs/DESIGN-REFERENCES.md` in the repository.

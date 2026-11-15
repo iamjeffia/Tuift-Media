@@ -19,13 +19,13 @@ import {
   IconTrash as Trash2,
   IconX as X,
 } from '@tabler/icons-react'
+import { t as tNow, useI18n } from '../../i18n/index.js'
 import type { Transport } from '../../transport.js'
 import { IconMorph } from '../IconMorph.js'
 import { Markdown } from '../Markdown.js'
 import { Menu, MenuItem } from '../Menu.js'
 import { Skeleton, SkeletonCode, SkeletonStatus } from '../Skeleton.js'
 import { parsePullRequestPatch } from './diff.js'
-import { countLabel } from './pull-request-text.js'
 import type { PullRequestDiffAnnotation, PullRequestDiffSide } from './PullRequestDiffRenderer.js'
 
 const LazyPullRequestDiffRenderer = lazy(() =>
@@ -33,6 +33,9 @@ const LazyPullRequestDiffRenderer = lazy(() =>
     default: module.PullRequestDiffRenderer,
   })),
 )
+
+/** The comparison moved under the files being read; `message` is what the reader is told. */
+class ComparisonChangedError extends Error {}
 
 export function PullRequestFiles(props: {
   detail: PullRequestDetail
@@ -42,6 +45,7 @@ export function PullRequestFiles(props: {
   onComparisonChanged: () => void
   actionBusy: boolean
 }) {
+  const { t, tp, language } = useI18n()
   const [files, setFiles] = useState<PullRequestFile[]>([])
   const [comparison, setComparison] =
     useState<Pick<PullRequestFilesResult, 'headRefOid' | 'baseRefOid'>>()
@@ -73,9 +77,7 @@ export function PullRequestFiles(props: {
           result.headRefOid !== props.detail.headRefOid ||
           result.baseRefOid !== props.detail.baseRefOid
         )
-          throw new Error(
-            'Pull request comparison changed. Refresh the pull request before reviewing files.',
-          )
+          throw new ComparisonChangedError(t('workspace.pr.files.comparisonChanged'))
         setComparison({ headRefOid: result.headRefOid, baseRefOid: result.baseRefOid })
         setFiles((current) =>
           page === 1 ? result.files : dedupeFiles([...current, ...result.files]),
@@ -87,7 +89,11 @@ export function PullRequestFiles(props: {
         if (id === request.current) {
           const message = messageOf(cause)
           setError(message)
-          if (message.includes('Pull request comparison changed')) {
+          // The server words the same refusal in English, so that is matched too.
+          if (
+            cause instanceof ComparisonChangedError ||
+            message.includes('Pull request comparison changed')
+          ) {
             setFiles([])
             setComparison(undefined)
             onComparisonChanged.current()
@@ -103,6 +109,7 @@ export function PullRequestFiles(props: {
       props.detail.headRefOid,
       props.detail.baseRefOid,
       props.transport,
+      t,
     ],
   )
 
@@ -122,16 +129,16 @@ export function PullRequestFiles(props: {
       <aside className="pr-files-nav">
         <header>
           <div>
-            <strong>{countLabel(props.detail.changedFiles, 'file')}</strong>
+            <strong>{tp('workspace.pr.files.count', props.detail.changedFiles)}</strong>
             <span>
-              <b className="is-addition">+{props.detail.additions.toLocaleString()}</b>
-              <b className="is-deletion">−{props.detail.deletions.toLocaleString()}</b>
+              <b className="is-addition">+{props.detail.additions.toLocaleString(language)}</b>
+              <b className="is-deletion">−{props.detail.deletions.toLocaleString(language)}</b>
             </span>
           </div>
         </header>
         {props.detail.reviewThreadsUnavailable ? (
           <p className="pr-list-note is-error" role="alert">
-            Review comments could not be loaded. Refresh to try again.
+            {t('workspace.pr.files.threadsUnavailable')}
           </p>
         ) : null}
         <div className="pr-files-nav-scroll">
@@ -176,7 +183,7 @@ export function PullRequestFiles(props: {
               onClick={() => void loadPage(nextPage)}
             >
               {loading ? <LoaderCircle size={13} className="is-spinning" aria-hidden /> : null}
-              Load more files
+              {t('workspace.pr.files.loadMore')}
             </button>
           ) : null}
           {error && files.length > 0 ? <p className="pr-files-nav-error">{error}</p> : null}
@@ -185,7 +192,7 @@ export function PullRequestFiles(props: {
 
       <div className="pr-file-stage">
         {loading && files.length === 0 ? (
-          <SkeletonStatus label="Loading file changes" className="pr-file-skeleton">
+          <SkeletonStatus label={t('workspace.pr.files.loading')} className="pr-file-skeleton">
             <header className="pr-file-skeleton-head">
               <Skeleton className="skeleton--icon" />
               <Skeleton width={188} height={9} />
@@ -202,7 +209,7 @@ export function PullRequestFiles(props: {
               className="pr-button is-secondary"
               onClick={() => void loadPage(1, true)}
             >
-              Try again
+              {t('workspace.pr.tryAgain')}
             </button>
           </div>
         ) : selected && comparison ? (
@@ -217,7 +224,7 @@ export function PullRequestFiles(props: {
             onConfirmAction={props.onConfirmAction}
           />
         ) : (
-          <div className="pr-file-loading">No files were returned for this pull request.</div>
+          <div className="pr-file-loading">{t('workspace.pr.files.empty')}</div>
         )}
       </div>
     </div>
@@ -235,6 +242,7 @@ function PullRequestFileDiff(props: {
   onAction: (action: PullRequestAction) => Promise<boolean>
   onConfirmAction: (action: PullRequestAction) => void
 }) {
+  const { t } = useI18n()
   const hunks = useMemo(() => parsePullRequestPatch(props.file.patch ?? ''), [props.file.patch])
   const [commentLine, setCommentLine] = useState<DiffCommentTarget>()
   const [comment, setComment] = useState('')
@@ -313,7 +321,9 @@ function PullRequestFileDiff(props: {
           <FileCode2 size={15} aria-hidden />
           <div>
             <strong>{props.file.path}</strong>
-            {props.file.previousPath ? <span>renamed from {props.file.previousPath}</span> : null}
+            {props.file.previousPath ? (
+              <span>{t('workspace.pr.files.renamedFrom', { path: props.file.previousPath })}</span>
+            ) : null}
           </div>
         </div>
         <span>
@@ -324,8 +334,8 @@ function PullRequestFileDiff(props: {
               href={props.file.blobUrl}
               target="_blank"
               rel="noreferrer"
-              aria-label="Open file on GitHub"
-              title="Open file on GitHub"
+              aria-label={t('workspace.pr.files.openOnGithub')}
+              title={t('workspace.pr.files.openOnGithub')}
             >
               <ArrowUpRight size={13} aria-hidden />
             </a>
@@ -337,21 +347,21 @@ function PullRequestFileDiff(props: {
         {hunks.length === 0 ? (
           <div className="pr-no-patch">
             <FileCode2 size={19} aria-hidden />
-            <strong>Diff preview unavailable</strong>
-            <p>
-              The file may be binary, unchanged during a rename, or too large for GitHub's patch
-              response.
-            </p>
+            <strong>{t('workspace.pr.files.noPatch.title')}</strong>
+            <p>{t('workspace.pr.files.noPatch.detail')}</p>
             {props.file.blobUrl ? (
               <a href={props.file.blobUrl} target="_blank" rel="noreferrer">
-                Open the file on GitHub <ArrowUpRight size={12} aria-hidden />
+                {t('workspace.pr.files.openTheFile')} <ArrowUpRight size={12} aria-hidden />
               </a>
             ) : null}
           </div>
         ) : (
           <Suspense
             fallback={
-              <SkeletonStatus label="Preparing diff" className="pr-diffs-loading">
+              <SkeletonStatus
+                label={t('workspace.pr.files.preparing')}
+                className="pr-diffs-loading"
+              >
                 <SkeletonCode lines={8} gutter />
               </SkeletonStatus>
             }
@@ -390,7 +400,7 @@ function PullRequestFileDiff(props: {
 
         {unplacedThreads.length > 0 ? (
           <section className="pr-unplaced-threads">
-            <h3>Other review conversations</h3>
+            <h3>{t('workspace.pr.files.otherThreads')}</h3>
             {unplacedThreads.map((thread) => (
               <InlineThread
                 key={thread.id}
@@ -414,17 +424,18 @@ function InlineCommentEditor(props: {
   onCancel: () => void
   onSubmit: () => void
 }) {
+  const { t } = useI18n()
   return (
     <div className="pr-inline-editor">
       <textarea
         value={props.value}
         onChange={(event) => props.onChange(event.target.value)}
-        placeholder="Comment on this line"
+        placeholder={t('workspace.pr.files.commentPlaceholder')}
         autoFocus
       />
       <div>
         <button type="button" className="pr-button is-quiet" onClick={props.onCancel}>
-          Cancel
+          {t('workspace.pr.cancel')}
         </button>
         <button
           type="button"
@@ -432,7 +443,7 @@ function InlineCommentEditor(props: {
           disabled={props.busy || !props.value.trim()}
           onClick={props.onSubmit}
         >
-          Add comment
+          {t('workspace.pr.files.addComment')}
         </button>
       </div>
     </div>
@@ -445,6 +456,7 @@ function InlineThread(props: {
   onAction: (action: PullRequestAction) => Promise<boolean>
   onConfirmAction: (action: PullRequestAction) => void
 }) {
+  const { t } = useI18n()
   const [replying, setReplying] = useState(false)
   const [reply, setReply] = useState('')
   const root = props.thread.comments[0]
@@ -453,7 +465,11 @@ function InlineThread(props: {
   return (
     <article className={`pr-inline-thread${props.thread.resolved ? ' is-resolved' : ''}`}>
       <header>
-        <span>{props.thread.resolved ? 'Resolved conversation' : 'Review conversation'}</span>
+        <span>
+          {props.thread.resolved
+            ? t('workspace.pr.files.resolvedThread')
+            : t('workspace.pr.files.thread')}
+        </span>
         <button
           type="button"
           disabled={props.busy}
@@ -469,7 +485,7 @@ function InlineThread(props: {
             <Check size={11} aria-hidden />
             <RotateCcw size={11} aria-hidden />
           </IconMorph>
-          {props.thread.resolved ? 'Reopen' : 'Resolve'}
+          {props.thread.resolved ? t('workspace.pr.files.reopen') : t('workspace.pr.files.resolve')}
         </button>
       </header>
       {props.thread.comments.map((comment) => (
@@ -486,7 +502,7 @@ function InlineThread(props: {
           <textarea value={reply} onChange={(event) => setReply(event.target.value)} autoFocus />
           <div>
             <button type="button" className="pr-button is-quiet" onClick={() => setReplying(false)}>
-              <X size={11} aria-hidden /> Cancel
+              <X size={11} aria-hidden /> {t('workspace.pr.cancel')}
             </button>
             <button
               type="button"
@@ -509,13 +525,13 @@ function InlineThread(props: {
                   })
               }}
             >
-              Reply
+              {t('workspace.pr.reply')}
             </button>
           </div>
         </div>
       ) : (
         <button type="button" className="pr-inline-reply" onClick={() => setReplying(true)}>
-          Reply
+          {t('workspace.pr.reply')}
         </button>
       )}
     </article>
@@ -528,6 +544,7 @@ function InlineThreadComment(props: {
   onAction: (action: PullRequestAction) => Promise<boolean>
   onConfirmAction: (action: PullRequestAction) => void
 }) {
+  const { t } = useI18n()
   const [editing, setEditing] = useState(false)
   const [body, setBody] = useState(props.comment.body)
 
@@ -539,13 +556,13 @@ function InlineThreadComment(props: {
           <Menu
             align="right"
             drop="down"
-            label="Review comment actions"
+            label={t('workspace.pr.files.commentActions')}
             trigger={() => <Ellipsis size={12} aria-hidden />}
           >
             {(close) => (
               <>
                 <MenuItem
-                  title="Edit comment"
+                  title={t('workspace.pr.files.editComment')}
                   icon={<Pencil size={12} aria-hidden />}
                   onClick={() => {
                     if (!editing) setBody(props.comment.body)
@@ -554,7 +571,7 @@ function InlineThreadComment(props: {
                   }}
                 />
                 <MenuItem
-                  title="Delete comment"
+                  title={t('workspace.pr.files.deleteComment')}
                   icon={<Trash2 size={12} aria-hidden />}
                   className="is-danger"
                   onClick={() => {
@@ -583,7 +600,7 @@ function InlineThreadComment(props: {
                 setEditing(false)
               }}
             >
-              Cancel
+              {t('workspace.pr.cancel')}
             </button>
             <button
               type="button"
@@ -601,7 +618,7 @@ function InlineThreadComment(props: {
                   .then((success) => success && setEditing(false))
               }}
             >
-              Save
+              {t('workspace.pr.save')}
             </button>
           </div>
         </div>
@@ -641,7 +658,7 @@ function fileName(path: string): string {
 
 function parentPath(path: string): string {
   const parts = path.split('/')
-  return parts.length > 1 ? parts.slice(0, -1).join('/') : 'repository root'
+  return parts.length > 1 ? parts.slice(0, -1).join('/') : tNow('workspace.pr.files.rootPath')
 }
 
 function messageOf(error: unknown): string {

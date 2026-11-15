@@ -37,7 +37,7 @@ export async function browseFolders(
   if (!root) throw new Error('Projects can be chosen from your home folder or another drive')
 
   const children = await readdir(current, { withFileTypes: true }).catch(() => {
-    throw new Error('TasteCode cannot read that folder')
+    throw new Error('TUIFT Code cannot read that folder')
   })
   const visible = children
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))

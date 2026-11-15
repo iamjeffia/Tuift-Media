@@ -17,7 +17,7 @@ export function configFile(name: string): string {
   const override = process.env['HARNESS_CONFIG_DIR']
   if (override) return path.join(override, name)
   return migrateProductFile(
-    path.join(os.homedir(), '.tastecode', name),
+    path.join(os.homedir(), '.tuift-code', name),
     path.join(os.homedir(), '.personalharness', name),
   )
 }

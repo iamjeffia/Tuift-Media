@@ -1,0 +1,233 @@
+/* MCP servers as cards (ui/McpServerCard.tsx). Settings otherwise draws open
+   rows; a server is a thing with a mark and a state of its own, so it gets the
+   one card the settings forms already use (rail tint, hairline, --r-lg). The
+   state is the card's data-state: the dot, the edge and the status read from
+   --mcp-tone, and all of them fade on the app's own motion tokens. */
+
+.settings .mcp-list {
+  display: grid;
+  gap: 8px;
+}
+
+.settings .mcp-card {
+  --mcp-tone: var(--text-3);
+  --mcp-edge: 0%;
+
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) max-content;
+  align-items: start;
+  gap: 0 14px;
+  padding: 14px 16px 14px 14px;
+  background: var(--bg-rail);
+  border: 1px solid color-mix(in srgb, var(--mcp-tone) var(--mcp-edge), var(--line));
+  border-radius: var(--r-lg);
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.settings .mcp-card:is(:hover, :focus-within) {
+  border-color: color-mix(in srgb, var(--mcp-tone) var(--mcp-edge), var(--line-strong));
+}
+
+.settings .mcp-card[data-state='connected'] {
+  --mcp-tone: var(--success);
+}
+
+.settings .mcp-card[data-state='connecting'] {
+  --mcp-tone: var(--running);
+  --mcp-edge: 30%;
+}
+
+.settings .mcp-card[data-state='signin'] {
+  --mcp-tone: var(--attention);
+  --mcp-edge: 34%;
+}
+
+.settings .mcp-card[data-state='failed'] {
+  --mcp-tone: var(--error);
+  --mcp-edge: 42%;
+
+  background: color-mix(in srgb, var(--error) 4%, var(--bg-rail));
+}
+
+/* Switched off: the whole card steps back until it is pointed at. */
+.settings .mcp-card[data-state='disabled'] .mcp-card__icon {
+  opacity: 0.55;
+}
+
+.settings .mcp-card[data-state='disabled']:not(:hover, :focus-within) .mcp-card__name {
+  color: var(--text-3);
+}
+
+/* The mark: a square tile one step in from the card, so any logo sits on the
+   same ground. A name with no known mark gets its letter in the tones the
+   profile pictures take from that name. */
+
+.settings .mcp-card__icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--text);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.settings .mcp-card__icon--monogram {
+  border-color: transparent;
+  font-size: var(--t-lg);
+  font-weight: 550;
+  line-height: 1;
+}
+
+.settings .mcp-card__main {
+  min-width: 0;
+}
+
+.settings .mcp-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-height: 24px;
+}
+
+.settings .mcp-card__name {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--t-lg);
+  font-weight: 550;
+  letter-spacing: -0.012em;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+/* The status: a dot (or the app's spinner while something is in flight) and
+   a word, on a wash of the state's own colour. */
+.settings .mcp-card__status {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  padding: 0 8px 0 7px;
+  background: color-mix(in srgb, var(--mcp-tone) 12%, transparent);
+  border-radius: var(--r-pill);
+  color: var(--text-2);
+  font-size: var(--t-xs);
+  line-height: 1;
+  white-space: nowrap;
+  animation: mcp-status-in var(--dur-fast) var(--ease-out);
+}
+
+.settings .mcp-card__status > i {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  background: var(--mcp-tone);
+  border-radius: var(--r-circle);
+}
+
+.settings .mcp-card[data-state='connecting'] .mcp-card__status > i {
+  animation: mcp-dot-pulse 1.6s ease-in-out infinite;
+}
+
+.settings .mcp-card__status > .spinner {
+  color: var(--mcp-tone);
+}
+
+@keyframes mcp-status-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+@keyframes mcp-dot-pulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+}
+
+.settings .mcp-card__detail {
+  max-width: 64ch;
+  margin: 3px 0 0;
+  color: var(--text-3);
+  font-size: var(--t-sm);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* A URL or command: one line in the code face, cut at the column edge. */
+.settings .mcp-card__detail--code {
+  max-width: none;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A failure reads in place, under the name, in the error ink. */
+.settings .mcp-card__detail--error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--error);
+}
+
+.settings .mcp-card__detail--error > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.settings .mcp-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+
+/* A read-only card (an inherited server) has no controls to make room for. */
+.settings .mcp-card__actions:empty {
+  display: none;
+}
+
+.settings .mcp-card:has(> .mcp-card__actions:empty) {
+  grid-template-columns: 40px minmax(0, 1fr);
+}
+
+.settings .mcp-card__skeleton-detail {
+  margin: 8px 0 3px;
+}
+
+@container settings-content (max-width: 560px) {
+  .settings .mcp-card {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .settings .mcp-card__actions {
+    grid-column: 2;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings .mcp-card__status {
+    animation: none;
+  }
+
+  .settings .mcp-card[data-state='connecting'] .mcp-card__status > i {
+    animation: none;
+    opacity: 0.6;
+  }
+}

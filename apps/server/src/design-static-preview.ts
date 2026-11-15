@@ -135,7 +135,7 @@ export async function startStaticDesignPreview(
     // The server refuses an entry page over the markup limit before reading it.
     if (owned && response.status === 413) throw new Error('static preview HTML is too large')
     if (!response.ok || !owned) {
-      throw new Error('TasteCode static preview ownership check failed')
+      throw new Error('TUIFT Code static preview ownership check failed')
     }
     assertMarkupResources(realRoot, { ...plan, url }, await response.text())
   } catch (error) {
@@ -145,7 +145,7 @@ export async function startStaticDesignPreview(
   return {
     url,
     viewports: plan.viewports,
-    output: () => `TasteCode static preview at ${url}`,
+    output: () => `TUIFT Code static preview at ${url}`,
     stop: () => close(server),
   }
 }

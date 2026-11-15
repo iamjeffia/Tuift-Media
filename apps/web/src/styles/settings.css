@@ -658,7 +658,7 @@
   outline: none;
 }
 
-/* Each preview is a TasteCode window in miniature, painted in that mode's own
+/* Each preview is a TUIFT Code window in miniature, painted in that mode's own
    background and accent. The chosen one is ringed a step outside its edge. */
 .theme-preview {
   position: relative;

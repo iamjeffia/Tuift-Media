@@ -15,7 +15,7 @@ import {
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const VITE_URL = 'http://127.0.0.1:5183'
-const DEV_PORTS = new Set([4311, 5183])
+const DEV_PORTS = new Set([4317, 5183])
 const isWin = process.platform === 'win32'
 const children = []
 const execFileAsync = promisify(execFile)

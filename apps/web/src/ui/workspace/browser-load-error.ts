@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.js'
 import { isLoopbackHostname, PLAIN_HTTP_LOOPBACK_ONLY } from './browser-url.js'
 
 export type BrowserLoadFailure = {
@@ -24,7 +25,9 @@ export function browserLoadFailureView(
   const name = errorName(failure.name)
   if (failure.code === ABORTED || name === 'ERR_ABORTED') return undefined
   const target = parseUrl(failure.url)
-  const title = target?.host ? `Can't reach ${target.host}` : "Can't reach this page"
+  const title = target?.host
+    ? t('workspace.browser.fail.titleHost', { host: target.host })
+    : t('workspace.browser.fail.titlePage')
   return { title, detail: failureDetail(name, target) }
 }
 
@@ -32,39 +35,39 @@ function failureDetail(name: string | undefined, target: URL | undefined): strin
   switch (name) {
     case 'ERR_NAME_NOT_RESOLVED':
     case 'ERR_NAME_RESOLUTION_FAILED':
-      return 'No site answers at this address. Check it for typos.'
+      return t('workspace.browser.fail.dns')
     case 'ERR_CONNECTION_REFUSED':
       return target && isLoopbackHostname(target.hostname)
-        ? 'Nothing is listening on this port. Is the server running?'
-        : 'The site refused the connection.'
+        ? t('workspace.browser.fail.noListener')
+        : t('workspace.browser.fail.refused')
     case 'ERR_INTERNET_DISCONNECTED':
-      return "You're offline. Check your connection and try again."
+      return t('workspace.browser.fail.offline')
     case 'ERR_TIMED_OUT':
     case 'ERR_CONNECTION_TIMED_OUT':
-      return 'The site took too long to respond.'
+      return t('workspace.browser.fail.timeout')
     case 'ERR_ADDRESS_INVALID':
     case 'ERR_ADDRESS_UNREACHABLE':
     case 'ERR_CONNECTION_FAILED':
-      return 'The connection could not be made.'
+      return t('workspace.browser.fail.connection')
     case 'ERR_CONNECTION_CLOSED':
     case 'ERR_CONNECTION_RESET':
     case 'ERR_EMPTY_RESPONSE':
-      return 'The connection closed before the page loaded.'
+      return t('workspace.browser.fail.closed')
     case 'ERR_NETWORK_CHANGED':
-      return 'The network changed while the page loaded. Try again.'
+      return t('workspace.browser.fail.network')
     case 'ERR_INVALID_URL':
-      return 'This is not a valid URL.'
+      return t('workspace.browser.fail.invalidUrl')
     case 'ERR_BLOCKED_BY_CLIENT':
     case 'ERR_BLOCKED_BY_RESPONSE':
     case 'ERR_UNSAFE_REDIRECT':
       return target?.protocol === 'http:' && !isLoopbackHostname(target.hostname)
-        ? PLAIN_HTTP_LOOPBACK_ONLY
-        : "The in-app browser can't open this page."
+        ? t(PLAIN_HTTP_LOOPBACK_ONLY)
+        : t('workspace.browser.fail.blocked')
   }
-  if (name && /SSL|CERT/.test(name)) return 'A secure connection could not be made.'
+  if (name && /SSL|CERT/.test(name)) return t('workspace.browser.fail.secure')
   return name && name !== 'ERR_FAILED'
-    ? `The page could not be loaded (${name}).`
-    : 'The page could not be loaded.'
+    ? t('workspace.browser.fail.loadedWith', { name })
+    : t('workspace.browser.fail.loaded')
 }
 
 /**

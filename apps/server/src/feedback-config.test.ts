@@ -91,7 +91,7 @@ describe('feedback endpoint parsing', () => {
     expect(
       parseEndpointFile(
         [
-          '# TasteCode feedback',
+          '# TUIFT Code feedback',
           `export ${FEEDBACK_URL_ENV}='${URL}'`,
           `${FEEDBACK_KEY_ENV}=${KEY} # team key`,
           'OTHER_SECRET=ignored',

@@ -321,7 +321,7 @@ describe('OpenCode adapter', () => {
     async (protocol) => {
       const mock = protocol === 'v1' ? await serveOpenCode() : await serveOpenCodeV2()
       const adapter = new OpenCodeAdapter({ baseUrl: mock.baseUrl })
-      const image = path.join(tmpdir(), 'TasteCode', 'attachments', 'shot.png')
+      const image = path.join(tmpdir(), 'TUIFT Code', 'attachments', 'shot.png')
       try {
         const thread = await adapter.startThread('C:\repo')
         await adapter.sendTurn(thread.id, 'What is wrong here?', [image])
@@ -1406,7 +1406,7 @@ async function serveOpenCode(
     id: 'session-1',
     projectID: 'project-1',
     directory: 'C:\\repo',
-    title: 'TasteCode session',
+    title: 'TUIFT Code session',
     version: '1.18.11',
     time: { created: 100, updated: 100 },
   }
@@ -1528,7 +1528,7 @@ async function serveOpenCodeV2(
   let heldPermissionReply: ServerResponse | undefined
   const session = {
     id: 'session-v2',
-    title: 'TasteCode v2 session',
+    title: 'TUIFT Code v2 session',
     time: { created: 100 },
   }
   const server = createServer(async (request, response) => {

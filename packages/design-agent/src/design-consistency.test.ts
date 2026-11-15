@@ -406,7 +406,7 @@ describe('design consistency review findings', () => {
     const enforced = enforceDesignConsistencyFindings(passing, audit)
     expect(enforced).toMatchObject({
       verdict: 'repair',
-      summary: 'Matches the references. TasteCode source audit found 1 design-language finding.',
+      summary: 'Matches the references. TUIFT Code source audit found 1 design-language finding.',
       findings: [{ id: 'font_family_drift', evidence: expect.stringContaining('Lobster') }],
     })
     const stale = {

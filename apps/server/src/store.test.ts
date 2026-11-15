@@ -1384,7 +1384,7 @@ describe('threads', () => {
     expect(store.thread('t1')?.agent).toBeUndefined()
   })
 
-  it('keeps the opaque provider session id separate from the TasteCode thread id', () => {
+  it('keeps the opaque provider session id separate from the TUIFT Code thread id', () => {
     store.addThread({ id: 'grok-tastecode', projectPath: '/repo', provider: 'grok', title: 'One' })
 
     store.setProviderSessionId('grok-tastecode', 'grok-native')
@@ -2321,7 +2321,7 @@ describe('events', () => {
 
 describe('cross-session search', () => {
   beforeEach(() => {
-    store.addProject('/repo', 'TasteCode')
+    store.addProject('/repo', 'TUIFT Code')
     store.addThread({ id: 't1', projectPath: '/repo', provider: 'codex', title: 'Search work' })
   })
 

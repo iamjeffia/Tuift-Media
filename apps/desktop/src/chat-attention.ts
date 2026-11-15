@@ -1,5 +1,7 @@
+import type { MessageKey } from './i18n.js'
+
 /**
- * Telling the user that a chat needs them, or finished, while TasteCode is not
+ * Telling the user that a chat needs them, or finished, while TUIFT Code is not
  * in front.
  *
  * After every sidebar status change the renderer reports the chats that are
@@ -31,13 +33,13 @@ export type ChatAttentionReport = { mode: NotificationMode; chats: ReportedChat[
 export type ChatNotice = 'approval' | 'input' | 'failed' | 'finished'
 export type ChatNotification = { chatId: string; title: string; notice: ChatNotice }
 
-/** What a notification says under the chat's title. */
-export const NOTICE_TEXT = {
-  approval: 'Needs your approval',
-  input: 'Has a question',
-  failed: 'Failed',
-  finished: 'Finished',
-} as const satisfies Record<ChatNotice, string>
+/** The catalog key (see i18n.ts) of what a notification says under the chat's title. */
+export const NOTICE_KEY = {
+  approval: 'notice.approval',
+  input: 'notice.input',
+  failed: 'notice.failed',
+  finished: 'notice.finished',
+} as const satisfies Record<ChatNotice, MessageKey>
 
 export type ChatAttentionChange = {
   /** Notifications to show, at most one per chat. */

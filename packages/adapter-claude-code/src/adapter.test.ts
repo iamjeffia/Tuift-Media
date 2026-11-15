@@ -1187,7 +1187,7 @@ describe('Claude Agent SDK session', () => {
     adapter.dispose()
   })
 
-  it('bridges SDK permission requests to TasteCode approvals', async () => {
+  it('bridges SDK permission requests to TUIFT Code approvals', async () => {
     const fake = harness()
     const adapter = new ClaudeCodeAdapter({ createQuery: fake.createQuery })
     const events: DomainEvent[] = []

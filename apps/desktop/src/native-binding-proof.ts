@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { runCli } from '@harness/proc/cli'
 
 const PTY_MARKER = 'TASTECODE_NATIVE_PTY_OK'
-const CREDENTIAL_SERVICE = 'TasteCode Native Binding Proof'
+const CREDENTIAL_SERVICE = 'TUIFT Code Native Binding Proof'
 
 interface Disposable {
   dispose(): void

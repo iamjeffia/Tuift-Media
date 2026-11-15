@@ -1,9 +1,10 @@
 import {
   ChatAttention,
-  NOTICE_TEXT,
+  NOTICE_KEY,
   parseChatAttentionReport,
   type ChatNotification,
 } from './chat-attention.js'
+import { translate, type Language } from './i18n.js'
 
 /** A notification the OS is showing or keeps in its notification centre. */
 export type ShownNotification = { close: () => void }
@@ -18,6 +19,8 @@ export type ChatNotifierHost = {
   setBadge: (count: number) => void
   /** Brings the window to the front and opens the chat. */
   openChat: (chatId: string) => void
+  /** The interface language now, read each time a notification is composed. */
+  language: () => Language
 }
 
 /**
@@ -67,11 +70,15 @@ export class ChatNotifier {
 
   #show(notification: ChatNotification): void {
     this.#close(notification.chatId)
-    const shown = this.#host.show(notification.title, NOTICE_TEXT[notification.notice], () => {
-      // Windows keeps a clicked notification in its centre unless it is closed.
-      this.#close(notification.chatId)
-      this.#host.openChat(notification.chatId)
-    })
+    const shown = this.#host.show(
+      notification.title,
+      translate(this.#host.language(), NOTICE_KEY[notification.notice]),
+      () => {
+        // Windows keeps a clicked notification in its centre unless it is closed.
+        this.#close(notification.chatId)
+        this.#host.openChat(notification.chatId)
+      },
+    )
     if (shown) this.#shown.set(notification.chatId, shown)
   }
 

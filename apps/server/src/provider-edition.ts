@@ -36,6 +36,6 @@ export function providerOffered(provider: ProviderId): boolean {
 
 export function assertProviderOffered(provider: ProviderId): void {
   if (!providerOffered(provider)) {
-    throw new Error(`${provider} is not part of this TasteCode build. This chat stays readable.`)
+    throw new Error(`${provider} is not part of this TUIFT Code build. This chat stays readable.`)
   }
 }

@@ -33,7 +33,7 @@ export async function runHeadlessCli(
     rendererOrigin: env['HARNESS_RENDERER_ORIGIN'] ?? 'file://',
   })
   installShutdownHandlers(server)
-  process.stdout.write('TasteCode is running without the desktop app.\n')
+  process.stdout.write('TUIFT Code is running without the desktop app.\n')
 }
 
 export function parseCliOptions(args: string[], env: NodeJS.ProcessEnv = process.env): CliOptions {
@@ -87,7 +87,7 @@ function installShutdownHandlers(server: { close(): Promise<void> }): void {
 }
 
 function helpText(): string {
-  return `TasteCode headless CLI
+  return `TUIFT Code headless CLI
 
 Usage:
   harness serve [--port <port>]

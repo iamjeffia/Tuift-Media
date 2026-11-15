@@ -14,7 +14,7 @@ import type { ProviderCommand } from '@harness/contracts'
  *   itself, "without starting an agent turn, spending quota or leaving a
  *   conversation behind", and refuses every other interactive-only command.
  *
- * TasteCode opens its own screen for /usage, /model, /skills, /permissions and
+ * TUIFT Code opens its own screen for /usage, /model, /skills, /permissions and
  * /config typed alone; they are listed so the words still reach agy with an
  * argument.
  */

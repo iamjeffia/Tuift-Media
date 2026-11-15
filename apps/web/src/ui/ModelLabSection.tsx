@@ -6,6 +6,7 @@ import {
   type ModelChoice,
   type ModelLabGroup,
 } from '../model-catalog.js'
+import { useI18n } from '../i18n/index.js'
 import { ModelSearchField } from './ModelSearchField.js'
 import { ModelBulkActions, ModelVisibilityRow } from './ModelVisibilityControls.js'
 import { SettingsRow, SettingsSection } from './settings/SettingsLayout.js'
@@ -58,6 +59,7 @@ export function ModelLabSection(props: {
   onModelVisibilityChange: (key: string, visible: boolean) => void
   onModelsVisibilityChange: (keys: readonly string[], visible: boolean) => void
 }) {
+  const { t } = useI18n()
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
   const searching = deferredQuery.trim().length > 0
@@ -87,11 +89,13 @@ export function ModelLabSection(props: {
   return (
     <SettingsSection
       title={props.title}
-      note={`${shownCount} of ${props.choices.length} shown in the model picker.`}
+      note={t('settings.modelLab.note', { shown: shownCount, total: props.choices.length })}
       action={
         <ModelBulkActions
-          name={searching ? `matching ${props.source} models` : `${props.source} models`}
-          groupLabel={`${props.source} model visibility`}
+          name={t(searching ? 'settings.modelLab.bulkMatching' : 'settings.modelLab.bulk', {
+            source: props.source,
+          })}
+          groupLabel={t('settings.modelLab.visibility', { source: props.source })}
           choices={listed}
           hiddenModels={props.hiddenModels}
           onModelsVisibilityChange={props.onModelsVisibilityChange}
@@ -100,7 +104,7 @@ export function ModelLabSection(props: {
     >
       <ModelSearchField
         className="model-labs__search"
-        label={`Search ${props.source} models`}
+        label={t('settings.modelLab.search', { source: props.source })}
         value={query}
         onChange={(next) => {
           setQuery(next)
@@ -109,7 +113,10 @@ export function ModelLabSection(props: {
       />
       {listedGroups.length === 0 ? (
         <p className="model-labs__empty">
-          No {props.source} models match “{deferredQuery.trim()}”.
+          {t('settings.modelLab.empty', {
+            source: props.source,
+            query: deferredQuery.trim(),
+          })}
         </p>
       ) : (
         listedGroups.map((group) => (
@@ -150,12 +157,20 @@ function ModelLab(props: {
   onModelVisibilityChange: (key: string, visible: boolean) => void
   onModelsVisibilityChange: (keys: readonly string[], visible: boolean) => void
 }) {
+  const { t } = useI18n()
   const rowsId = useId()
   const { choices, lab } = props.group
   const shown = choices.filter((choice) => !props.hiddenModels.has(choice.key)).length
-  const label = lab ?? (props.only ? 'All models' : 'Other')
-  const rowsLabel = lab ? `${lab} models` : props.only ? label : 'Other models'
-  const models = lab ? `${lab} models from ${props.source}` : `other ${props.source} models`
+  const label =
+    lab ?? (props.only ? t('settings.modelLab.allModels') : t('settings.modelLab.other'))
+  const rowsLabel = lab
+    ? t('settings.modelLab.labModels', { lab })
+    : props.only
+      ? label
+      : t('settings.modelLab.otherModels')
+  const models = lab
+    ? t('settings.modelLab.labFromSource', { lab, source: props.source })
+    : t('settings.modelLab.otherFromSource', { source: props.source })
 
   return (
     <div className="model-lab" data-open={props.open || undefined}>
@@ -176,12 +191,12 @@ function ModelLab(props: {
         }
       >
         <span className="model-lab__count">
-          {shown} of {choices.length}
+          {t('settings.modelLab.count', { shown, total: choices.length })}
         </span>
         {props.open && !props.only ? (
           <ModelBulkActions
-            name={props.searching ? `matching ${models}` : models}
-            groupLabel={`Visibility of ${models}`}
+            name={props.searching ? t('settings.modelLab.matching', { models }) : models}
+            groupLabel={t('settings.modelLab.visibilityOf', { models })}
             choices={choices}
             hiddenModels={props.hiddenModels}
             onModelsVisibilityChange={props.onModelsVisibilityChange}

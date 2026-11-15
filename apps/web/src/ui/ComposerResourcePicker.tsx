@@ -77,7 +77,7 @@ export const ComposerResourcePicker = forwardRef<
     projectPath: string | undefined
     /** The open chat, so the provider can answer from its live session. */
     threadId?: string | undefined
-    /** TasteCode's own commands, listed before the provider's under `/`. */
+    /** TUIFT Code's own commands, listed before the provider's under `/`. */
     appCommands?: readonly AppCommand[] | undefined
     trigger: ComposerResourceTrigger | undefined
     /** Tokens already in the draft as chips, which the menu leaves out. */
@@ -349,9 +349,9 @@ function markerMenu(marker: ComposerResourceMarker): MarkerMenu {
 function menuEntries(inventory: Inventory, ownCommands: readonly AppCommand[]) {
   const commands: MenuEntry[] = []
   const commandNames = new Set<string>()
-  // TasteCode's own commands come first and keep their names: a provider
+  // TUIFT Code's own commands come first and keep their names: a provider
   // command called the same is left out here, but still runs typed in full
-  // whenever TasteCode does not handle that name itself.
+  // whenever TUIFT Code does not handle that name itself.
   const addCommand = (resource: ComposerResource) => {
     const name = lowercase(resource.id)
     if (commandNames.has(name)) return
@@ -472,13 +472,13 @@ function appCommandResource(command: AppCommand): ComposerResource {
     id: command.name,
     name: `/${command.name}`,
     description: command.description,
-    scope: 'TasteCode',
+    scope: 'TUIFT Code',
     token: `/${command.name}`,
     available: true,
     commandKind: 'command',
     ...(command.aliases?.length ? { aliases: command.aliases } : {}),
     ...(command.argumentHint ? { argumentHint: command.argumentHint } : {}),
-    // TasteCode handles the bare name too, so Enter on it runs at once.
+    // TUIFT Code handles the bare name too, so Enter on it runs at once.
     runsAsTyped: true,
     icon: command.icon,
   }
@@ -515,14 +515,14 @@ function skillResource(skill: Skill): ComposerResource {
   }
 }
 
-/** `canSignIn`: TasteCode can start this provider's MCP sign-in from MCP settings. */
+/** `canSignIn`: TUIFT Code can start this provider's MCP sign-in from MCP settings. */
 function mcpResource(server: McpServer, canSignIn: boolean): ComposerResource {
   const unavailableReason = !server.enabled
     ? 'Disabled'
     : server.auth?.status === 'sign_in_required'
       ? canSignIn
         ? 'Sign in required'
-        : 'Sign in outside TasteCode'
+        : 'Sign in outside TUIFT Code'
       : server.startup?.state === 'failed'
         ? server.startup.message
         : undefined

@@ -109,7 +109,7 @@ function setup(items: Item[]) {
 }
 
 describe('a subagent opened from the Agents tab', () => {
-  it('shows a TasteCode child’s own chat live, answers its approval and stops it', async () => {
+  it('shows a TUIFT Code child’s own chat live, answers its approval and stops it', async () => {
     const { transport } = setup([reviewer, explorer])
     fireEvent.click(await screen.findByRole('button', { name: /Reviewer/ }))
 
@@ -204,7 +204,7 @@ describe('prompting a subagent from its detail', () => {
     return transport
   }
 
-  it('sends a follow-up to a TasteCode child and clears the draft', async () => {
+  it('sends a follow-up to a TUIFT Code child and clears the draft', async () => {
     const transport = open(() => ({ queued: false, turnId: 'child-turn-2' }))
     fireEvent.click(await screen.findByRole('button', { name: /Reviewer/ }))
     const box = await screen.findByRole('textbox', { name: 'Message subagent' })

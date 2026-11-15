@@ -198,7 +198,7 @@ export class ProviderAccountsStore {
     }
   }
 
-  /** `deleteHome` also deletes a folder TasteCode created; the user asked for that separately. */
+  /** `deleteHome` also deletes a folder TUIFT Code created; the user asked for that separately. */
   async remove(provider: ProviderId, accountId: AccountId, deleteHome = false): Promise<void> {
     try {
       await this.#transport.request('accounts.remove', {

@@ -335,7 +335,7 @@ describe('sub-agents on another provider', { timeout: 30_000 }, () => {
     )
     expect(asked).toHaveLength(1)
     expect(h.sessions).toHaveLength(1)
-    // The chat's own agent never hears this answer; TasteCode starts the child.
+    // The chat's own agent never hears this answer; TUIFT Code starts the child.
     h.orchestrator.respondToApproval(asking.id, asked[0]!.id, 'approve')
     await until(() => h.sessions[1]?.sent.length === 1)
     expect(h.started[1]!.options).toMatchObject({ approval: 'ask' })

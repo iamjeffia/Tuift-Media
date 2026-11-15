@@ -85,7 +85,7 @@ export function accountForNewThread(
 
 /**
  * The folder an account's processes run in; undefined for the default
- * account. A folder can be moved or deleted while TasteCode runs, and a CLI
+ * account. A folder can be moved or deleted while TUIFT Code runs, and a CLI
  * started in its place would quietly make a new, signed-out account there.
  */
 export function existingAccountHome(

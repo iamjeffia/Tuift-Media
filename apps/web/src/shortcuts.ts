@@ -1,4 +1,5 @@
 import { isMacOS } from './bridge.js'
+import { t } from './i18n/index.js'
 
 export type Shortcut = {
   key: string
@@ -18,126 +19,162 @@ export const KEYBINDING_DEFINITIONS = [
     id: 'commandPalette',
     group: 'App',
     label: 'Command palette',
+    labelKey: 'settings.keybinds.action.commandPalette.label',
     description: 'Find any command, project, or chat.',
+    descriptionKey: 'settings.keybinds.action.commandPalette.description',
     defaultShortcut: { key: 'k', primary: true },
   },
   {
     id: 'settings',
     group: 'App',
     label: 'Open settings',
+    labelKey: 'settings.keybinds.action.settings.label',
     description: 'Open or close app settings.',
+    descriptionKey: 'settings.keybinds.action.settings.description',
     defaultShortcut: { key: ',', primary: true },
   },
   {
     id: 'keybindings',
     group: 'App',
     label: 'Open keybinds',
+    labelKey: 'settings.keybinds.action.keybindings.label',
     description: 'Open this keybind editor.',
+    descriptionKey: 'settings.keybinds.action.keybindings.description',
     defaultShortcut: { key: '/', primary: true },
   },
   {
     id: 'toggleSidebar',
     group: 'App',
     label: 'Toggle sidebar',
+    labelKey: 'settings.keybinds.action.toggleSidebar.label',
     description: 'Show or hide the project sidebar.',
+    descriptionKey: 'settings.keybinds.action.toggleSidebar.description',
     defaultShortcut: { key: 'b', primary: true },
   },
   {
     id: 'newChat',
     group: 'Chats',
     label: 'New chat',
+    labelKey: 'settings.keybinds.action.newChat.label',
     description: 'Start a chat in the current project.',
+    descriptionKey: 'settings.keybinds.action.newChat.description',
     defaultShortcut: { key: 'n', primary: true },
   },
   {
     id: 'searchSessions',
     group: 'Chats',
     label: 'Search chats',
+    labelKey: 'settings.keybinds.action.searchSessions.label',
     description: 'Search titles, messages, commands, and tool output.',
+    descriptionKey: 'settings.keybinds.action.searchSessions.description',
     defaultShortcut: { key: 'f', primary: true, shift: true },
   },
   {
     id: 'focusComposer',
     group: 'Chats',
     label: 'Focus composer',
+    labelKey: 'settings.keybinds.action.focusComposer.label',
     description: 'Move the cursor to the prompt field.',
+    descriptionKey: 'settings.keybinds.action.focusComposer.description',
     defaultShortcut: { key: 'l', primary: true },
   },
   {
     id: 'interrupt',
     group: 'Chats',
     label: 'Stop response',
+    labelKey: 'settings.keybinds.action.interrupt.label',
     description: 'Stop the active agent turn.',
+    descriptionKey: 'settings.keybinds.action.interrupt.description',
     defaultShortcut: { key: '.', primary: true },
   },
   {
     id: 'previousChat',
     group: 'Chats',
     label: 'Previous chat',
+    labelKey: 'settings.keybinds.action.previousChat.label',
     description: 'Move to the previous chat in the sidebar.',
+    descriptionKey: 'settings.keybinds.action.previousChat.description',
     defaultShortcut: { key: 'arrowup', primary: true, alt: true },
   },
   {
     id: 'nextChat',
     group: 'Chats',
     label: 'Next chat',
+    labelKey: 'settings.keybinds.action.nextChat.label',
     description: 'Move to the next chat in the sidebar.',
+    descriptionKey: 'settings.keybinds.action.nextChat.description',
     defaultShortcut: { key: 'arrowdown', primary: true, alt: true },
   },
   {
     id: 'toggleSessionPin',
     group: 'Chats',
     label: 'Pin or unpin chat',
+    labelKey: 'settings.keybinds.action.toggleSessionPin.label',
     description: 'Change the pinned state of the current chat.',
+    descriptionKey: 'settings.keybinds.action.toggleSessionPin.description',
     defaultShortcut: null,
   },
   {
     id: 'archiveSession',
     group: 'Chats',
     label: 'Delete current chat',
+    labelKey: 'settings.keybinds.action.archiveSession.label',
     description: 'Delete the current chat after any required safety check and the Undo window.',
+    descriptionKey: 'settings.keybinds.action.archiveSession.description',
     defaultShortcut: null,
   },
   {
     id: 'rollback',
     group: 'Chats',
     label: 'Open restore points',
+    labelKey: 'settings.keybinds.action.rollback.label',
     description: 'Review checkpoints for the current chat.',
+    descriptionKey: 'settings.keybinds.action.rollback.description',
     defaultShortcut: null,
   },
   {
     id: 'switchProject',
     group: 'Projects',
     label: 'Switch project',
+    labelKey: 'settings.keybinds.action.switchProject.label',
     description: 'Choose another project from the command palette.',
+    descriptionKey: 'settings.keybinds.action.switchProject.description',
     defaultShortcut: { key: 'p', primary: true },
   },
   {
     id: 'newProject',
     group: 'Projects',
     label: 'Add project',
+    labelKey: 'settings.keybinds.action.newProject.label',
     description: 'Add a project folder to the sidebar.',
+    descriptionKey: 'settings.keybinds.action.newProject.description',
     defaultShortcut: { key: 'o', primary: true, shift: true },
   },
   {
     id: 'openPullRequests',
     group: 'Projects',
     label: 'Open pull requests',
+    labelKey: 'settings.keybinds.action.openPullRequests.label',
     description: 'Open the pull request inbox.',
+    descriptionKey: 'settings.keybinds.action.openPullRequests.description',
     defaultShortcut: { key: 'p', primary: true, shift: true },
   },
   {
     id: 'toggleTerminal',
     group: 'Workspace',
     label: 'Toggle terminal',
+    labelKey: 'settings.keybinds.action.toggleTerminal.label',
     description: 'Show or hide the preferred terminal for the current chat.',
+    descriptionKey: 'settings.keybinds.action.toggleTerminal.description',
     defaultShortcut: { key: 'j', primary: true },
   },
   {
     id: 'toggleWorkspace',
     group: 'Workspace',
     label: 'Toggle workspace tools',
+    labelKey: 'settings.keybinds.action.toggleWorkspace.label',
     description: 'Show or hide files, review, browser, and side chat.',
+    descriptionKey: 'settings.keybinds.action.toggleWorkspace.description',
     defaultShortcut: { key: 'b', primary: true, shift: true },
   },
 
@@ -145,21 +182,27 @@ export const KEYBINDING_DEFINITIONS = [
     id: 'toggleFastMode',
     group: 'Workspace',
     label: 'Toggle Fast mode',
+    labelKey: 'settings.keybinds.action.toggleFastMode.label',
     description: 'Toggle the fast service tier when the model supports it.',
+    descriptionKey: 'settings.keybinds.action.toggleFastMode.description',
     defaultShortcut: null,
   },
   {
     id: 'toggleDesignMode',
     group: 'Workspace',
     label: 'Toggle Design mode',
+    labelKey: 'settings.keybinds.action.toggleDesignMode.label',
     description: 'Turn the design-first workflow on or off.',
+    descriptionKey: 'settings.keybinds.action.toggleDesignMode.description',
     defaultShortcut: null,
   },
   {
     id: 'toggleIsolatedSession',
     group: 'Workspace',
     label: 'Toggle isolated checkout',
+    labelKey: 'settings.keybinds.action.toggleIsolatedSession.label',
     description: 'Use a separate checkout for the next chat.',
+    descriptionKey: 'settings.keybinds.action.toggleIsolatedSession.description',
     defaultShortcut: null,
   },
 ] as const
@@ -219,12 +262,28 @@ export const PREVIOUS_TURN_SHORTCUT = { key: 'arrowup', alt: true } as const sat
 export const NEXT_TURN_SHORTCUT = { key: 'arrowdown', alt: true } as const satisfies Shortcut
 
 export const WORKSPACE_TOOL_SHORTCUTS = [
-  { kind: 'review', label: 'Open Review', shortcut: { key: 'g', primary: true, shift: true } },
-  { kind: 'browser', label: 'Open Browser', shortcut: { key: 't', primary: true } },
-  { kind: 'files', label: 'Open Files', shortcut: { key: 'p', primary: true, alt: true } },
+  {
+    kind: 'review',
+    label: 'Open Review',
+    labelKey: 'settings.keybinds.tool.review',
+    shortcut: { key: 'g', primary: true, shift: true },
+  },
+  {
+    kind: 'browser',
+    label: 'Open Browser',
+    labelKey: 'settings.keybinds.tool.browser',
+    shortcut: { key: 't', primary: true },
+  },
+  {
+    kind: 'files',
+    label: 'Open Files',
+    labelKey: 'settings.keybinds.tool.files',
+    shortcut: { key: 'p', primary: true, alt: true },
+  },
   {
     kind: 'side-chat',
     label: 'Open Temporary chat',
+    labelKey: 'settings.keybinds.tool.sideChat',
     shortcut: { key: 's', primary: true, alt: true },
   },
 ] as const
@@ -235,13 +294,18 @@ export const WORKSPACE_TOOL_SHORTCUTS = [
  */
 export function reservedShortcutLabel(shortcut: Shortcut): string | undefined {
   if (shortcut.primary && !shortcut.alt && !shortcut.shift && /^[1-9]$/.test(shortcut.key)) {
-    return 'Open recent chat'
+    return t('settings.keybinds.reserved.recentChat')
   }
-  if (sameShortcut(shortcut, DEBUG_SETTINGS_SHORTCUT)) return 'Debug settings'
-  if (sameShortcut(shortcut, FIND_IN_CHAT_SHORTCUT)) return 'Find in chat'
-  if (sameShortcut(shortcut, PREVIOUS_TURN_SHORTCUT)) return 'Previous turn'
-  if (sameShortcut(shortcut, NEXT_TURN_SHORTCUT)) return 'Next turn'
-  return WORKSPACE_TOOL_SHORTCUTS.find((tool) => sameShortcut(tool.shortcut, shortcut))?.label
+  if (sameShortcut(shortcut, DEBUG_SETTINGS_SHORTCUT)) return t('settings.keybinds.reserved.debug')
+  if (sameShortcut(shortcut, FIND_IN_CHAT_SHORTCUT)) return t('settings.keybinds.reserved.find')
+  if (sameShortcut(shortcut, PREVIOUS_TURN_SHORTCUT)) {
+    return t('settings.keybinds.reserved.previousTurn')
+  }
+  if (sameShortcut(shortcut, NEXT_TURN_SHORTCUT)) return t('settings.keybinds.reserved.nextTurn')
+  const tool = WORKSPACE_TOOL_SHORTCUTS.find((candidate) =>
+    sameShortcut(candidate.shortcut, shortcut),
+  )
+  return tool ? t(tool.labelKey) : undefined
 }
 
 type ShortcutEvent = Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'> &

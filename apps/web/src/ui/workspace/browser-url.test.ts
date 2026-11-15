@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { en } from '../../i18n/en.js'
 import { browserAddress, PLAIN_HTTP_LOOPBACK_ONLY } from './browser-url.js'
 
 describe('browserAddress', () => {
@@ -25,9 +26,9 @@ describe('browserAddress', () => {
   })
 
   it('refuses plain HTTP off loopback with the reason instead of loading it', () => {
-    expect(browserAddress('http://example.com/')).toEqual({ error: PLAIN_HTTP_LOOPBACK_ONLY })
-    expect(browserAddress('192.168.0.10:5173')).toEqual({ error: PLAIN_HTTP_LOOPBACK_ONLY })
-    expect(browserAddress('[fe80::1]:5173')).toEqual({ error: PLAIN_HTTP_LOOPBACK_ONLY })
+    expect(browserAddress('http://example.com/')).toEqual({ error: en[PLAIN_HTTP_LOOPBACK_ONLY] })
+    expect(browserAddress('192.168.0.10:5173')).toEqual({ error: en[PLAIN_HTTP_LOOPBACK_ONLY] })
+    expect(browserAddress('[fe80::1]:5173')).toEqual({ error: en[PLAIN_HTTP_LOOPBACK_ONLY] })
   })
 
   it('refuses text that is not an address', () => {

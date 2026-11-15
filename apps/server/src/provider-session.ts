@@ -2,14 +2,14 @@ import type { DomainEvent, Thread } from '@harness/contracts'
 import type { AgentSession } from './adapters.js'
 
 export const RESTORE_CONTEXT_NOTICE =
-  'TasteCode restored the conversation and workspace to a saved checkpoint (or undid a restore). Your provider memory may still include turns that are no longer part of this conversation. Treat those later turns as superseded, inspect the current files, and follow the request below rather than continuing removed work.\n\n'
+  'TUIFT Code restored the conversation and workspace to a saved checkpoint (or undid a restore). Your provider memory may still include turns that are no longer part of this conversation. Treat those later turns as superseded, inspect the current files, and follow the request below rather than continuing removed work.\n\n'
 
 /**
  * Opens the first prompt of a chat that carries on an earlier one. The earlier
  * conversation follows, then CONTINUE_CONTEXT_REQUEST and the user's own words.
  */
 export const CONTINUE_CONTEXT_NOTICE =
-  'TasteCode started this chat to carry on an earlier conversation, for example one that stopped at a plan limit on another account. '
+  'TUIFT Code started this chat to carry on an earlier conversation, for example one that stopped at a plan limit on another account. '
 
 /**
  * Opens the first prompt a chat sends after it moved to another provider.
@@ -17,7 +17,7 @@ export const CONTINUE_CONTEXT_NOTICE =
  * user's own words.
  */
 export const HANDOVER_CONTEXT_NOTICE =
-  'TasteCode moved this conversation to you from another agent. '
+  'TUIFT Code moved this conversation to you from another agent. '
 
 /** Ends the earlier conversation in a continued chat's first prompt; the user's request follows. */
 export const CONTINUE_CONTEXT_REQUEST = '\n</earlier_conversation>\n\nUser request:\n'
@@ -28,7 +28,7 @@ export const CONTINUE_CONTEXT_REQUEST = '\n</earlier_conversation>\n\nUser reque
  * recognises it by this whole text, so it must not change.
  */
 export const DESIGN_FOLLOW_UP_NOTICE =
-  'This is an ordinary user turn, not an active TasteCode Design phase. Earlier phase-only JSON protocols no longer apply. Follow the current request normally and explain your work in normal prose, unless the user explicitly requests structured data. If asked to launch a preview, perform the launch on an available local port and report its URL instead of returning a preview-plan JSON object.\n\nUser request:\n'
+  'This is an ordinary user turn, not an active TUIFT Code Design phase. Earlier phase-only JSON protocols no longer apply. Follow the current request normally and explain your work in normal prose, unless the user explicitly requests structured data. If asked to launch a preview, perform the launch on an available local port and report its URL instead of returning a preview-plan JSON object.\n\nUser request:\n'
 
 /**
  * The first sentence of every Design phase prompt, in every version so far. Provider history

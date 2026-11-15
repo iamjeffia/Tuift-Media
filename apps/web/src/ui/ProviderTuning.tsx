@@ -28,6 +28,7 @@ import type {
   ProviderStatus,
 } from '@harness/contracts'
 import type { ModelChoice } from '../model-catalog.js'
+import { useI18n, type I18n } from '../i18n/index.js'
 import type { ProviderDefault } from '../provider-defaults.js'
 import type { Transport } from '../transport.js'
 import { APPROVAL_MODES } from './approval-modes.js'
@@ -409,9 +410,15 @@ function compactionBounds(control: ContextControl) {
   return { latest, defaultAt: Math.min(control.defaultCompactAt ?? latest, latest) }
 }
 
-function contextSummary(window: number | undefined, point: number | 'off'): string {
-  if (window === undefined) return point === 'off' ? 'Never compacts' : `Compacts at ${point}%`
-  return `${formatTokens(window)} · ${point === 'off' ? 'never compacts' : `compacts at ${point}%`}`
+function contextSummary(t: I18n['t'], window: number | undefined, point: number | 'off'): string {
+  if (window === undefined) {
+    return point === 'off'
+      ? t('settings.providerTuning.contextNever')
+      : t('settings.providerTuning.contextAt', { point })
+  }
+  return point === 'off'
+    ? t('settings.providerTuning.contextWindowNever', { window: formatTokens(window) })
+    : t('settings.providerTuning.contextWindowAt', { window: formatTokens(window), point })
 }
 
 /**
@@ -454,6 +461,7 @@ export function ProviderTuning(props: {
       }
     | undefined
 }) {
+  const { t } = useI18n()
   const id = props.provider.id
   const name = props.name ?? props.provider.displayName
   const control = props.provider.capabilities?.context
@@ -470,13 +478,13 @@ export function ProviderTuning(props: {
     <div
       className="provider-tune"
       role="group"
-      aria-label={`${name} defaults`}
+      aria-label={t('settings.providerTuning.defaultsLabel', { name })}
       aria-busy={pending || (control !== undefined && context.phase === 'loading') || undefined}
     >
       <div className="provider-tune__rows">
         <TuneRow
           searchId={tuningSearchId(id, name, TUNING_LABELS.model)}
-          label={TUNING_LABELS.model}
+          label={t('settings.providerTuning.model')}
         >
           {pending ? (
             <ValueSkeleton width={VALUE_SKELETON_WIDTHS.model} />
@@ -492,7 +500,7 @@ export function ProviderTuning(props: {
         </TuneRow>
         <TuneRow
           searchId={tuningSearchId(id, name, TUNING_LABELS.access)}
-          label={TUNING_LABELS.access}
+          label={t('settings.providerTuning.access')}
         >
           {pending ? (
             <ValueSkeleton width={VALUE_SKELETON_WIDTHS.access} />
@@ -508,7 +516,7 @@ export function ProviderTuning(props: {
         {control ? (
           <TuneRow
             searchId={tuningSearchId(id, name, TUNING_LABELS.context)}
-            label={TUNING_LABELS.context}
+            label={t('settings.providerTuning.context')}
           >
             {pending || context.phase === 'loading' ? (
               <ValueSkeleton width={VALUE_SKELETON_WIDTHS.context} />
@@ -525,7 +533,7 @@ export function ProviderTuning(props: {
         {runtime ? (
           <TuneRow
             searchId={tuningSearchId(id, name, TUNING_LABELS.runtime)}
-            label={TUNING_LABELS.runtime}
+            label={t('settings.providerTuning.runtime')}
           >
             {pending || runtime.state.phase === 'loading' ? (
               <ValueSkeleton width={VALUE_SKELETON_WIDTHS.runtime} />
@@ -543,12 +551,12 @@ export function ProviderTuning(props: {
       </div>
       {props.contextError ? (
         <p className="provider-tune__error" role="alert">
-          Could not save the context setting. {props.contextError}
+          {t('settings.providerTuning.contextSaveFailed', { error: props.contextError })}
         </p>
       ) : null}
       {runtime?.error ? (
         <p className="provider-tune__error" role="alert">
-          Could not save the runtime. {runtime.error}
+          {t('settings.providerTuning.runtimeSaveFailed', { error: runtime.error })}
         </p>
       ) : null}
     </div>
@@ -560,16 +568,17 @@ export function ProviderTuning(props: {
  * the same for every provider, so only the values are placeholders.
  */
 export function ProviderTuningSkeleton() {
+  const { t } = useI18n()
   return (
     <div className="provider-tune" aria-hidden>
       <div className="provider-tune__rows">
-        <TuneRow label="Model">
+        <TuneRow label={t('settings.providerTuning.model')}>
           <ValueSkeleton width={VALUE_SKELETON_WIDTHS.model} />
         </TuneRow>
-        <TuneRow label="Access">
+        <TuneRow label={t('settings.providerTuning.access')}>
           <ValueSkeleton width={VALUE_SKELETON_WIDTHS.access} />
         </TuneRow>
-        <TuneRow label="Context">
+        <TuneRow label={t('settings.providerTuning.context')}>
           <ValueSkeleton width={VALUE_SKELETON_WIDTHS.context} />
         </TuneRow>
       </div>
@@ -592,10 +601,11 @@ function TuneRow(props: { label: string; searchId?: string; children: ReactNode 
 const VALUE_SKELETON_WIDTHS = { model: 64, access: 82, context: 108, runtime: 70 } as const
 
 function ValueSkeleton(props: { width: number }) {
+  const { t } = useI18n()
   return (
     <span className="tune-skeleton">
       <Skeleton width={props.width} />
-      <span className="visually-hidden">Loading</span>
+      <span className="visually-hidden">{t('settings.providerTuning.loading')}</span>
     </span>
   )
 }
@@ -665,6 +675,7 @@ function ModelDefault(props: {
   pinnedName?: string | undefined
   onPinnedChange: (pin: ProviderDefault | undefined) => void
 }) {
+  const { t } = useI18n()
   const { pinned } = props
   const pinnedChoice = pinned
     ? props.models.find((choice) => choice.model.id === pinned.model)
@@ -676,10 +687,14 @@ function ModelDefault(props: {
   const effortLabel = efforts.length > 0 && effort ? getFriendlyEffortLabel(effort) : undefined
   const unavailable =
     pinned && !pinnedChoice
-      ? `${formatModelName(props.pinnedName ?? pinned.model)} (unavailable)`
+      ? t('settings.providerTuning.modelUnavailable', {
+          model: formatModelName(props.pinnedName ?? pinned.model),
+        })
       : undefined
   const value =
-    (pinnedChoice && formatModelName(pinnedChoice.model.displayName)) ?? unavailable ?? 'Last used'
+    (pinnedChoice && formatModelName(pinnedChoice.model.displayName)) ??
+    unavailable ??
+    t('settings.providerTuning.lastUsed')
 
   const pin = (choice: ModelChoice) => {
     const kept = pinned?.effort
@@ -693,10 +708,13 @@ function ModelDefault(props: {
     <Menu
       align="right"
       drop="down"
-      label={`${props.name} default model: ${value}${effortLabel ? `, ${effortLabel}` : ''}`}
+      label={t('settings.providerTuning.defaultModelLabel', {
+        name: props.name,
+        value: `${value}${effortLabel ? `, ${effortLabel}` : ''}`,
+      })}
       triggerClassName="provider-tune__trigger set-select--inline"
       panelRole="dialog"
-      panelLabel={`${props.name} default model`}
+      panelLabel={t('settings.providerTuning.defaultModelPanel', { name: props.name })}
       panelClassName="menu--compact provider-tune__menu"
       trigger={(open) => (
         <TuneValue open={open} quiet={!pinned}>
@@ -710,8 +728,8 @@ function ModelDefault(props: {
       {(close) => (
         <>
           <PanelChoice
-            title="Last used"
-            detail="New chats keep the model you used last"
+            title={t('settings.providerTuning.lastUsed')}
+            detail={t('settings.providerTuning.lastUsedDetail')}
             selected={!pinned}
             onClick={() => {
               if (pinned) props.onPinnedChange(undefined)
@@ -721,7 +739,7 @@ function ModelDefault(props: {
           {unavailable || props.models.length > 0 ? (
             <>
               <div className="menu__rule" />
-              <p className="menu__group">Always start with</p>
+              <p className="menu__group">{t('settings.providerTuning.alwaysStartWith')}</p>
             </>
           ) : null}
           {unavailable ? <PanelChoice title={unavailable} selected disabled /> : null}
@@ -741,7 +759,7 @@ function ModelDefault(props: {
             <>
               <div className="menu__rule" />
               <EffortLadder
-                ariaLabel={`${props.name} default reasoning`}
+                ariaLabel={t('settings.providerTuning.defaultReasoning', { name: props.name })}
                 efforts={efforts}
                 value={effort}
                 pinned={pinned?.effort !== undefined}
@@ -783,6 +801,7 @@ function EffortLadder(props: {
   pinned: boolean
   onChange: (effort: string) => void
 }) {
+  const { t } = useI18n()
   const [preview, setPreview] = useState<number>()
   const steps = useRef<Array<HTMLButtonElement | null>>([])
   const count = props.efforts.length
@@ -809,12 +828,12 @@ function EffortLadder(props: {
       data-pinned={props.pinned || undefined}
       data-previewing={preview !== undefined || undefined}
     >
-      <span className="tune-panel__title">Effort</span>
+      <span className="tune-panel__title">{t('settings.providerTuning.effort')}</span>
       {/* Left of the steps, so a longer name grows away from them instead of moving them. */}
       <span className="tune-panel__readout" aria-hidden>
         {getFriendlyEffortLabel(props.efforts[shown])}
         {!props.pinned && preview === undefined ? (
-          <span className="tune-panel__quiet"> · default</span>
+          <span className="tune-panel__quiet">{` · ${t('settings.providerTuning.default')}`}</span>
         ) : null}
       </span>
       <div
@@ -856,6 +875,7 @@ function AccessDefault(props: {
   value: ApprovalMode
   onChange: (mode: ApprovalMode) => void
 }) {
+  const { t } = useI18n()
   const modes = APPROVAL_MODES.filter((mode) => mode.id !== 'auto-review' || props.autoReview)
   const current = modes.find((mode) => mode.id === props.value) ?? modes[0]!
   const Icon = current.icon
@@ -863,9 +883,12 @@ function AccessDefault(props: {
     <Menu
       align="right"
       drop="down"
-      label={`${props.name} default access: ${current.short}`}
+      label={t('settings.providerTuning.defaultAccessLabel', {
+        name: props.name,
+        value: current.short,
+      })}
       triggerClassName="provider-tune__trigger set-select--inline"
-      panelLabel={`${props.name} default access`}
+      panelLabel={t('settings.providerTuning.defaultAccessPanel', { name: props.name })}
       panelClassName="menu--compact menu--permissions"
       trigger={(open) => (
         <TuneValue open={open} tone={current.id}>
@@ -882,7 +905,9 @@ function AccessDefault(props: {
               key={mode.id}
               title={mode.title}
               detail={
-                mode.id === 'auto-review' ? `${props.name} reviews elevated actions` : mode.detail
+                mode.id === 'auto-review'
+                  ? t('settings.providerTuning.autoReviewDetail', { name: props.name })
+                  : mode.detail
               }
               icon={<ModeIcon size={14} aria-hidden />}
               className={`composer__permission-option composer__permission-option--${mode.id}`}
@@ -908,10 +933,11 @@ function RuntimeDefault(props: {
   selected: string | undefined
   onChange: (runtime: string | null) => void
 }) {
+  const { t } = useI18n()
   if (props.state.phase === 'error') {
     return (
       <span className="provider-tune__unavailable" title={props.state.message}>
-        Unavailable
+        {t('settings.providerTuning.unavailable')}
       </span>
     )
   }
@@ -921,9 +947,9 @@ function RuntimeDefault(props: {
     <Menu
       align="right"
       drop="down"
-      label={`${props.name} runtime: ${current.label}`}
+      label={t('settings.providerTuning.runtimeLabel', { name: props.name, value: current.label })}
       triggerClassName="provider-tune__trigger set-select--inline"
-      panelLabel={`${props.name} runtime`}
+      panelLabel={t('settings.providerTuning.runtimePanel', { name: props.name })}
       panelClassName="menu--compact provider-tune__menu"
       trigger={(open) => (
         <TuneValue open={open} quiet={current === defaultRuntime}>
@@ -975,6 +1001,7 @@ function ContextDefault(props: {
   state: Exclude<ProviderContextState, { phase: 'loading' }>
   onChange: (settings: ProviderContextSettings) => void
 }) {
+  const { t } = useI18n()
   const { control } = props
   const settings = props.state.phase === 'ready' ? props.state.settings : undefined
   // Held here rather than in the ruler so the closed row follows a drag live.
@@ -983,7 +1010,7 @@ function ContextDefault(props: {
   if (props.state.phase === 'error') {
     return (
       <span className="provider-tune__unavailable" title={props.state.message}>
-        Unavailable
+        {t('settings.providerTuning.unavailable')}
       </span>
     )
   }
@@ -995,7 +1022,7 @@ function ContextDefault(props: {
   const current = draft ? draft.value : point
   const shown = current ?? defaultAt
   const customized = settings?.window !== undefined || saved !== undefined
-  const summary = contextSummary(settings?.window, off ? 'off' : shown)
+  const summary = contextSummary(t, settings?.window, off ? 'off' : shown)
 
   const save = (next: { window: number | undefined; compactAt: CompactAt | undefined }) => {
     props.onChange({
@@ -1008,10 +1035,10 @@ function ContextDefault(props: {
     <Menu
       align="right"
       drop="down"
-      label={`${props.name} context: ${summary}`}
+      label={t('settings.providerTuning.contextLabel', { name: props.name, value: summary })}
       triggerClassName="provider-tune__trigger set-select--inline"
       panelRole="dialog"
-      panelLabel={`${props.name} context`}
+      panelLabel={t('settings.providerTuning.contextPanel', { name: props.name })}
       panelClassName="menu--compact provider-tune__menu provider-tune__menu--context"
       trigger={(open) => (
         <TuneValue open={open} quiet={!customized && !draft}>
@@ -1024,13 +1051,17 @@ function ContextDefault(props: {
         <div className="tune-panel">
           <section className="tune-panel__section">
             <div className="tune-panel__head">
-              <span className="tune-panel__title">Window</span>
+              <span className="tune-panel__title">{t('settings.providerTuning.window')}</span>
               {control.windows.length > 1 ? (
                 <SettingsSegmented
-                  ariaLabel={`${props.name} context window`}
+                  ariaLabel={t('settings.providerTuning.contextWindow', { name: props.name })}
                   value={settings?.window === undefined ? AUTO_WINDOW : String(settings.window)}
                   options={[
-                    { value: AUTO_WINDOW, label: 'Auto', title: "The model's own window" },
+                    {
+                      value: AUTO_WINDOW,
+                      label: t('settings.providerTuning.windowAuto'),
+                      title: t('settings.providerTuning.windowAutoTitle'),
+                    },
                     ...control.windows.map((window) => ({
                       value: String(window),
                       label: formatTokens(window),
@@ -1050,11 +1081,11 @@ function ContextDefault(props: {
           </section>
           <section className="tune-panel__section">
             <div className="tune-panel__head">
-              <span className="tune-panel__title">Compact at</span>
+              <span className="tune-panel__title">{t('settings.providerTuning.compactAt')}</span>
               <span className="tune-panel__readout">
-                {off ? 'Off' : `${shown}%`}
+                {off ? t('settings.providerTuning.off') : `${shown}%`}
                 {!off && current === undefined ? (
-                  <span className="tune-panel__quiet"> · default</span>
+                  <span className="tune-panel__quiet">{` · ${t('settings.providerTuning.default')}`}</span>
                 ) : null}
               </span>
             </div>
@@ -1070,12 +1101,12 @@ function ContextDefault(props: {
           </section>
           {control.compactionOff ? (
             <div className="tune-panel__switch">
-              <span>Compact automatically</span>
+              <span>{t('settings.providerTuning.compactAuto')}</span>
               <button
                 className={`switch${off ? '' : ' is-on'}`}
                 type="button"
                 role="switch"
-                aria-label={`Compact ${props.name} chats automatically`}
+                aria-label={t('settings.providerTuning.compactAutoLabel', { name: props.name })}
                 aria-checked={!off}
                 onClick={() =>
                   save({ window: settings?.window, compactAt: off ? undefined : 'off' })
@@ -1089,11 +1120,11 @@ function ContextDefault(props: {
             <button
               className="tune-panel__reset"
               type="button"
-              aria-label={`Reset ${props.name} context to its defaults`}
+              aria-label={t('settings.providerTuning.resetLabel', { name: props.name })}
               onClick={() => props.onChange({})}
             >
               <RotateCcw size={12} aria-hidden />
-              Reset to defaults
+              {t('settings.providerTuning.reset')}
             </button>
           ) : null}
         </div>
@@ -1118,6 +1149,7 @@ function ContextRuler(props: {
   onDraft: (draft: CompactionDraft | undefined) => void
   onCommit: (compactAt: number | undefined) => void
 }) {
+  const { t } = useI18n()
   const { control, draft, onDraft } = props
   const { latest, defaultAt } = compactionBounds(control)
   const movable = control.compaction && !props.off
@@ -1207,8 +1239,10 @@ function ContextRuler(props: {
   }
 
   const valueText = props.off
-    ? 'Never compacts on its own'
-    : `Compacts at ${value}% of the window${current === undefined ? ', the default' : ''}`
+    ? t('settings.providerTuning.rulerNever')
+    : current === undefined
+      ? t('settings.providerTuning.rulerAtDefault', { point: value })
+      : t('settings.providerTuning.rulerAt', { point: value })
 
   return (
     <div
@@ -1237,7 +1271,7 @@ function ContextRuler(props: {
           className="ctx-ruler__thumb"
           role="slider"
           tabIndex={movable ? 0 : -1}
-          aria-label={`${props.name} compaction point`}
+          aria-label={t('settings.providerTuning.rulerLabel', { name: props.name })}
           aria-valuemin={EARLIEST_COMPACT_AT}
           aria-valuemax={latest}
           aria-valuenow={at}

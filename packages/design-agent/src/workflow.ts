@@ -33,11 +33,11 @@ const SURFACE_GUIDANCE = `${dashboardModeEnabled() ? DASHBOARD_SURFACE_GUIDANCE 
 New websites include visible entrance and scroll animations by default.${dashboardModeEnabled() ? ' Dashboards instead include useful transitions for filters, sorting, tabs, navigation, drawers and charts where present.' : ''} Record an explicit request for no animation when given; do not infer motionless behavior merely from words such as calm, professional, or restrained.`
 
 export function designBriefingPrompt(request: string): string {
-  return `You are running TasteCode Design Briefing mode.
+  return `You are running TUIFT Code Design Briefing mode.
 
 This is a focused classification and extraction step. Read the supplied request first. For an existing website, inspect only the relevant project files, brand tokens, assets and current page structure needed to identify existing style and constraints. Do not browse or invoke external design skills. For a new site, extract the brief directly without unnecessary tool work. Do not describe your reasoning.
 
-This turn may only advance a design brief. Do not build, scaffold, edit, or generate a website, brand system, asset set, component, or implementation. TasteCode persists the brief and automatically continues the design.
+This turn may only advance a design brief. Do not build, scaffold, edit, or generate a website, brand system, asset set, component, or implementation. TUIFT Code persists the brief and automatically continues the design.
 
 First decide whether the request is primarily about designing or redesigning a website, web page, landing page, portfolio, or product interface. The user already selected Design mode, so terse visual intent such as "Make it pop" refers to the existing page, or a new landing page when none exists. Return "not_design" only when the request is clearly unrelated to website or interface design.
 
@@ -66,7 +66,7 @@ export function designBriefingContinuation(
   questions: BriefingQuestion[],
   answers: Record<string, string[]>,
 ): string {
-  return `Continue the TasteCode Design Briefing using the answers below.
+  return `Continue the TUIFT Code Design Briefing using the answers below.
 
 Answer immediately from the supplied answers only. Do not inspect the workspace, call tools, browse, invoke skills or MCP servers, or describe your reasoning.
 
@@ -110,7 +110,7 @@ export function designTaskContinuation(
 ): string {
   return `Design mode is now off. The preceding Design Briefing protocol, JSON-only format, and tool-free restrictions have ended.
 
-Continue the user's original request below as a normal task in this same conversation. If it is a question, answer it directly using the conversation and available evidence. If it asks for work, carry it through to completion. Use tools when needed. Do not stop at the mode-change notice or ask the user to send the request again. TasteCode has already shown that notice; do not repeat it.
+Continue the user's original request below as a normal task in this same conversation. If it is a question, answer it directly using the conversation and available evidence. If it asks for work, carry it through to completion. Use tools when needed. Do not stop at the mode-change notice or ask the user to send the request again. TUIFT Code has already shown that notice; do not repeat it.
 
 <original-user-request>
 ${request}
@@ -139,7 +139,7 @@ export function parseBriefingOutput(text: string): BriefingOutput {
       status: 'complete',
       message: string(value.message, 'message'),
       questions: [],
-      // TasteCode records the questions it asked and their answers itself. A
+      // TUIFT Code records the questions it asked and their answers itself. A
       // model that lists request facts here is not malformed; the field is
       // never trusted, so it must not fail an otherwise complete brief.
       brief: { ...parseDesignBrief({ ...brief, explicitAnswers: [] }) },

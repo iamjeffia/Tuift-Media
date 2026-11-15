@@ -3604,7 +3604,7 @@ describe('web client', () => {
 
     render(<App />)
 
-    expect(screen.queryByText('Set up TasteCode')).toBeNull()
+    expect(screen.queryByText('Set up TUIFT Code')).toBeNull()
     expect(document.querySelector('.shell')).not.toBeNull()
     await waitFor(() => {
       expect(transport.request).toHaveBeenCalledWith('auth.status', { provider: 'codex' })
@@ -4571,7 +4571,7 @@ describe('web client', () => {
       expect(transport.request).toHaveBeenCalledWith('thread.start', {
         provider: 'codex',
         workspacePath: '/work/project',
-        approval: 'auto-review',
+        approval: 'full',
         model: 'gpt-6.1-sol',
         effort: 'high',
       })
@@ -4794,7 +4794,7 @@ describe('web client', () => {
 
   it('drops a cached API connection model once the catalog rebuilds', async () => {
     // The cache can still hold a model from an API connection, a kind of source
-    // TasteCode no longer has. The rebuilt catalog must not keep offering it — a
+    // TUIFT Code no longer has. The rebuilt catalog must not keep offering it — a
     // lingering entry is a picker choice that can never answer a turn.
     localStorage.setItem(
       'harness.modelCatalog.v1',
@@ -5436,14 +5436,14 @@ describe('new chats', () => {
               id: 'work-1a2b3c',
               provider: 'codex',
               label: 'Work',
-              home: 'C:\\TasteCode\\accounts\\codex\\work-1a2b3c',
+              home: 'C:\\TUIFT Code\\accounts\\codex\\work-1a2b3c',
               managed: true,
             },
             {
               id: 'spare-4d5e6f',
               provider: 'codex',
               label: 'Spare',
-              home: 'C:\\TasteCode\\accounts\\codex\\spare-4d5e6f',
+              home: 'C:\\TUIFT Code\\accounts\\codex\\spare-4d5e6f',
               managed: true,
             },
           ],
@@ -5521,7 +5521,7 @@ describe('new chats', () => {
               id: 'work-1a2b3c',
               provider: 'codex',
               label: 'Work',
-              home: 'C:\\TasteCode\\accounts\\codex\\work-1a2b3c',
+              home: 'C:\\TUIFT Code\\accounts\\codex\\work-1a2b3c',
               managed: true,
               email: 'work@example.test',
               plan: 'Plus',
@@ -5603,7 +5603,7 @@ describe('new chats', () => {
               id: 'work-1a2b3c',
               provider: 'codex',
               label: 'Work',
-              home: 'C:\\TasteCode\\accounts\\codex\\work-1a2b3c',
+              home: 'C:\\TUIFT Code\\accounts\\codex\\work-1a2b3c',
               managed: true,
             },
           ],
@@ -5749,7 +5749,7 @@ describe('new chats', () => {
               id: 'work-1a2b3c',
               provider: 'codex',
               label: 'Work',
-              home: 'C:\\TasteCode\\accounts\\codex\\work-1a2b3c',
+              home: 'C:\\TUIFT Code\\accounts\\codex\\work-1a2b3c',
               managed: true,
               email: 'work@example.test',
             },
@@ -5758,7 +5758,7 @@ describe('new chats', () => {
               id: 'spare-4d5e6f',
               provider: 'codex',
               label: 'Spare',
-              home: 'C:\\TasteCode\\accounts\\codex\\spare-4d5e6f',
+              home: 'C:\\TUIFT Code\\accounts\\codex\\spare-4d5e6f',
               managed: true,
             },
           ],
@@ -5982,7 +5982,7 @@ describe('new chats', () => {
               id: 'team-9z8y7x',
               provider: 'claude-code',
               label: 'Team',
-              home: 'C:\\TasteCode\\accounts\\claude-code\\team-9z8y7x',
+              home: 'C:\\TUIFT Code\\accounts\\claude-code\\team-9z8y7x',
               managed: true,
               email: 'team@example.test',
             },
@@ -6076,7 +6076,7 @@ describe('new chats', () => {
               id: 'team-9z8y7x',
               provider: 'codex',
               label: 'Team',
-              home: 'C:\\TasteCode\\accounts\\codex\\team-9z8y7x',
+              home: 'C:\\TUIFT Code\\accounts\\codex\\team-9z8y7x',
               managed: true,
               email: 'team@example.test',
             },
@@ -6204,7 +6204,7 @@ describe('new chats', () => {
               id: 'team-9z8y7x',
               provider: 'codex',
               label: 'Team',
-              home: 'C:\\TasteCode\\accounts\\codex\\team-9z8y7x',
+              home: 'C:\\TUIFT Code\\accounts\\codex\\team-9z8y7x',
               managed: true,
               email: 'team@example.test',
             },
@@ -6483,7 +6483,7 @@ describe('new chats', () => {
         ]
         return Promise.resolve({
           threadId: 'chat-next',
-          earlierChanges: { carried: false, keptIn: 'C:\\TasteCode\\trees\\limited' },
+          earlierChanges: { carried: false, keptIn: 'C:\\TUIFT Code\\trees\\limited' },
         })
       }
       return request(method, params)
@@ -6508,7 +6508,7 @@ describe('new chats', () => {
     ])
     await waitFor(() =>
       expect(errors().map((error) => error.message)).toContain(
-        'Continues “Webhook retries” on Work. Its conversation goes with your first message. Its uncommitted changes could not be carried over; they are still in C:\\TasteCode\\trees\\limited.',
+        'Continues “Webhook retries” on Work. Its conversation goes with your first message. Its uncommitted changes could not be carried over; they are still in C:\\TUIFT Code\\trees\\limited.',
       ),
     )
   })
@@ -7516,7 +7516,7 @@ describe('new chats', () => {
               id: 'work-1a2b3c',
               provider: 'codex',
               label: 'Work',
-              home: 'C:\\TasteCode\\accounts\\codex\\work-1a2b3c',
+              home: 'C:\\TUIFT Code\\accounts\\codex\\work-1a2b3c',
               managed: true,
               ...(workSignedIn ? { email: 'work@x.test' } : {}),
             },
@@ -7787,7 +7787,7 @@ describe('new chats', () => {
   })
 
   it('sends the design brief through a provider without structured input', async () => {
-    // Briefing questions are TasteCode-owned and answered by the server, so a
+    // Briefing questions are TUIFT-Code-owned and answered by the server, so a
     // provider that never declares `userInput` must still be able to submit.
     localStorage.setItem('harness.provider', 'claude-code')
     serverProviders = [
@@ -7875,7 +7875,7 @@ describe('new chats', () => {
       expect(transport.request).toHaveBeenCalledWith('thread.start', {
         provider: 'codex',
         workspacePath: '/work/project',
-        approval: 'auto-review',
+        approval: 'full',
         isolate: true,
       })
     })
@@ -7988,6 +7988,36 @@ describe('new chats', () => {
         'false',
       ),
     )
+  })
+
+  it('keeps Design and Motion exclusive and sends nothing extra for Motion', async () => {
+    serverProjects = [
+      { path: '/work/project', name: 'project', pinned: false, createdAt: 0, sessions: [] },
+    ]
+    render(<App />)
+    await screen.findByPlaceholderText('Do anything')
+    const pressed = (name: string) =>
+      screen.getByRole('button', { name }).getAttribute('aria-pressed')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Motion' }))
+    expect([pressed('Design'), pressed('Motion')]).toEqual(['false', 'true'])
+    fireEvent.click(screen.getByRole('button', { name: 'Design' }))
+    expect([pressed('Design'), pressed('Motion')]).toEqual(['true', 'false'])
+    fireEvent.click(screen.getByRole('button', { name: 'Motion' }))
+    expect([pressed('Design'), pressed('Motion')]).toEqual(['false', 'true'])
+
+    submitTurn('Animate this')
+    await waitFor(() =>
+      expect(transport.request).toHaveBeenCalledWith('thread.start', expect.anything()),
+    )
+    const sent = JSON.stringify(
+      transport.request.mock.calls.filter(([method]) => method !== 'providers.list'),
+    )
+    expect(sent).not.toMatch(/motion/i)
+    expect(pressed('Motion')).toBe('true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'New chat' }))
+    await waitFor(() => expect(pressed('Motion')).toBe('false'))
   })
 
   it("does not carry a failed new chat prompt into another project's new chat", async () => {
@@ -10383,7 +10413,7 @@ describe('new chats', () => {
   })
 
   it.each([true, false])(
-    'defaults from auto-review support (%s) without saving an implicit choice',
+    'defaults to Full access whatever auto-review support (%s) without saving an implicit choice',
     async (supported) => {
       serverProviders = serverProviders.map((entry) => ({
         ...entry,
@@ -10392,7 +10422,7 @@ describe('new chats', () => {
       const first = render(<App />)
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Permissions' }).textContent).toContain(
-          supported ? 'Auto-review' : 'Full access',
+          'Full access',
         )
         expect(transport.request).toHaveBeenCalledWith('providers.list', {})
       })
@@ -10402,7 +10432,7 @@ describe('new chats', () => {
       render(<App />)
       await waitFor(() =>
         expect(screen.getByRole('button', { name: 'Permissions' }).textContent).toContain(
-          supported ? 'Auto-review' : 'Full access',
+          'Full access',
         ),
       )
     },
@@ -10540,7 +10570,8 @@ describe('new chats', () => {
     expect(permissions.textContent).toContain('Full access')
   })
 
-  it('waits for the provider list before showing the default access mode', async () => {
+  it('waits for the provider list before showing a saved auto-review mode', async () => {
+    localStorage.setItem('harness.approvalByProvider', JSON.stringify({ codex: 'auto-review' }))
     render(<App />)
 
     const permissions = screen.getByRole('button', { name: 'Permissions' })
@@ -10784,7 +10815,7 @@ describe('new chats', () => {
     serverProjects = [
       {
         path: '/work/project',
-        name: 'TasteCode',
+        name: 'TUIFT Code',
         pinned: false,
         createdAt: 0,
         sessions: [],
@@ -10801,7 +10832,7 @@ describe('new chats', () => {
     render(<App />)
 
     expect((await screen.findByRole('heading')).textContent).toContain(
-      'What should we build in TasteCode?',
+      'What should we build in TUIFT Code?',
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Choose project' }))
@@ -10822,7 +10853,7 @@ describe('new chats', () => {
     serverProjects = [
       {
         path: '/work/project',
-        name: 'TasteCode',
+        name: 'TUIFT Code',
         pinned: false,
         createdAt: 0,
         sessions: [],
@@ -10837,19 +10868,19 @@ describe('new chats', () => {
     ]
 
     render(<App />)
-    await screen.findByRole('heading', { name: 'What should we build in TasteCode?' })
+    await screen.findByRole('heading', { name: 'What should we build in TUIFT Code?' })
 
     const anotherProject = screen.getByRole('button', { name: 'Another Project' })
     fireEvent.click(anotherProject)
 
     await waitFor(() => expect(anotherProject.getAttribute('aria-expanded')).toBe('true'))
     expect(within(anotherProject.closest('.proj')!).getByText('No chats')).toBeTruthy()
-    expect(screen.getByRole('heading').textContent).toBe('What should we build in TasteCode?')
+    expect(screen.getByRole('heading').textContent).toBe('What should we build in TUIFT Code?')
     expect(screen.getByPlaceholderText('Do anything')).toBeTruthy()
 
     fireEvent.click(anotherProject)
     await waitFor(() => expect(anotherProject.getAttribute('aria-expanded')).toBe('false'))
-    expect(screen.getByRole('heading').textContent).toBe('What should we build in TasteCode?')
+    expect(screen.getByRole('heading').textContent).toBe('What should we build in TUIFT Code?')
   })
 
   it('keeps saved chats and only creates a new chat on the first prompt', async () => {
@@ -10874,7 +10905,7 @@ describe('new chats', () => {
       expect(transport.request).toHaveBeenCalledWith('thread.start', {
         provider: 'codex',
         workspacePath: '/work/project',
-        approval: 'auto-review',
+        approval: 'full',
       })
       expect(screen.getByRole('button', { name: /^Fix the sidebar,/ })).toBeTruthy()
       expect(screen.getByTestId('thread').textContent).toContain('Fix the sidebar')
@@ -10943,7 +10974,7 @@ describe('new chats', () => {
       expect(transport.request).toHaveBeenCalledWith('thread.start', {
         provider: 'codex',
         workspacePath: '/work/project',
-        approval: 'auto-review',
+        approval: 'full',
         model: 'gpt-6.1-sol',
         effort: 'xhigh',
         serviceTier: 'priority',
@@ -11133,7 +11164,7 @@ describe('new chats', () => {
       expect(transport.request).toHaveBeenCalledWith('thread.start', {
         provider: 'codex',
         workspacePath: '/work/project',
-        approval: 'auto-review',
+        approval: 'full',
         model: 'gpt-5.6-mini',
         effort: 'high',
       })
@@ -12530,7 +12561,7 @@ describe('global shortcuts', () => {
     expect(screen.queryByRole('button', { name: 'Force onboarding' })).toBeNull()
     fireEvent.keyDown(window, debugShortcut)
     fireEvent.click(await screen.findByRole('button', { name: 'Force onboarding' }))
-    await screen.findByRole('heading', { name: 'Welcome to TasteCode' })
+    await screen.findByRole('heading', { name: 'Welcome to TUIFT Code' })
     fireEvent.click(screen.getByRole('button', { name: /^Get started/ }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Your name' }), {
       target: { value: 'Blue Emi' },
@@ -12754,7 +12785,7 @@ describe('global shortcuts', () => {
     serverProjects = [
       {
         path: '/work/project',
-        name: 'TasteCode',
+        name: 'TUIFT Code',
         pinned: false,
         createdAt: 0,
         sessions: [{ id: 'thread-1', title: 'Fix keyboard flow', running: false }],

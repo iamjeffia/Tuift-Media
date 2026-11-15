@@ -64,7 +64,7 @@ type LimitSource = { status: 'ready'; limits: ProviderLimit[] } | { status: 'una
  */
 type WatchTarget = ParamsOf<'providers.watch'>['targets'][number]
 
-/** A provider's own MCP servers, before the project's TasteCode overrides. */
+/** A provider's own MCP servers, before the project's TUIFT Code overrides. */
 export type McpInventory = {
   capabilities: McpCapabilities
   servers: McpServer[]
@@ -670,7 +670,7 @@ export class ProviderControls {
     this.#scheduleIdle()
   }
 
-  /** A chat's last server list includes the project servers TasteCode gave it. */
+  /** A chat's last server list includes the project servers TUIFT Code gave it. */
   projectMcpConfigChanged(provider: ProviderId, projectPath: string): void {
     this.#projectInventories.get(provider)?.forgetLiveServers(projectPath)
   }

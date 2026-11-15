@@ -6,7 +6,7 @@ import { BrowserCommandError } from './browser-commands.js'
 import { SUBAGENT_LIMITS } from './subagent-limits.js'
 
 /**
- * TasteCode's own agent tools, served to the agents it runs as a small MCP
+ * TUIFT Code's own agent tools, served to the agents it runs as a small MCP
  * server on 127.0.0.1. Every engine with a managed MCP path reaches it the way
  * it reaches a user's HTTP server, so no engine needs code of its own for it.
  *
@@ -78,7 +78,7 @@ const TOOLS = [
     name: 'start_agent',
     description: [
       'Start a sub-agent on a provider and model listed by list_agent_models. It works in the same checkout as you, with your access level, and cannot start sub-agents of its own.',
-      'Use your own provider unless the user asks for another provider or model: when their message names one for a sub-agent, use it. Another provider is also allowed when list_agent_models says the user allows other providers and it fits the task better; otherwise TasteCode refuses the start.',
+      'Use your own provider unless the user asks for another provider or model: when their message names one for a sub-agent, use it. Another provider is also allowed when list_agent_models says the user allows other providers and it fits the task better; otherwise TUIFT Code refuses the start.',
       'It returns at once with an agent_id; call wait_for_agents to get its result. Give each sub-agent a complete, self-contained task, and do not give two agents (or yourself) overlapping files.',
       REPORT_IS_DATA,
     ].join(' '),
@@ -139,7 +139,7 @@ const TOOLS = [
 type ToolName = (typeof TOOLS)[number]['name']
 
 const BROWSER_FRAME =
-  "It drives this chat's own browser tab in TasteCode, which the user sees: http and https pages only (local dev servers included), never password or payment fields, no downloads or permission prompts. Each call has 30 s."
+  "It drives this chat's own browser tab in TUIFT Code, which the user sees: http and https pages only (local dev servers included), never password or payment fields, no downloads or permission prompts. Each call has 30 s."
 
 const urlInput = {
   type: 'object',

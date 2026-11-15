@@ -7,7 +7,7 @@ import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
 const here = path.dirname(fileURLToPath(import.meta.url))
-const iconSourcePath = path.resolve(here, '../assets/tastecode-icon.icon')
+const iconSourcePath = path.resolve(here, '../assets/tuift-icon.icon')
 
 async function setPlistString(plistPath, key, value) {
   try {

@@ -33,9 +33,9 @@ function options(extension = 'exe'): DownloadUpdateOptions {
         sha512: '',
         releaseDate: '2026-09-20T00:00:00Z',
         asset: {
-          name: `TasteCode-0.1.0-beta.8-${extension === 'exe' ? 'win-x64.exe' : 'mac-arm64.dmg'}`,
+          name: `TUIFT-Code-0.1.0-beta.8-${extension === 'exe' ? 'win-x64.exe' : 'mac-arm64.dmg'}`,
           browser_download_url:
-            'https://github.com/Leonxlnx/tastecode/releases/download/v0.1.0-beta.8/fixture',
+            'https://github.com/iamjeffia/Tuift-Media/releases/download/v0.1.0-beta.8/fixture',
           digest: `sha256:${sha256}`,
           size: bytes.length,
           state: 'uploaded',
@@ -83,7 +83,7 @@ describe('release download and installation', () => {
       'native-cache/update.exe',
     ])
     expect(fetchAsset).toHaveBeenCalledWith(
-      'https://github.com/Leonxlnx/tastecode/releases/download/v0.1.0-beta.8/fixture',
+      'https://github.com/iamjeffia/Tuift-Media/releases/download/v0.1.0-beta.8/fixture',
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     )
     expect(updater.emit).toHaveBeenCalledWith(

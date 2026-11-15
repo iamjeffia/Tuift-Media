@@ -40,7 +40,7 @@ export { GROK_CAPABILITIES } from './capabilities.js'
  * `--resume` (continue) is passed. The end frame also carries `sessionId`,
  * but that arrives only after a clean stop. An interrupted first turn never
  * emits it, so follow-ups used to look like `/new` with empty context.
- * TasteCode therefore chooses a UUID at thread start, creates with
+ * TUIFT Code therefore chooses a UUID at thread start, creates with
  * `--session-id`, and resumes with `--resume` even if the previous child
  * was stopped.
  *
@@ -295,7 +295,7 @@ type OpenTool = {
 export type GrokAdapterEvents = {
   event: [DomainEvent]
   log: [string]
-  /** Grok's opaque resume identity. It is not the TasteCode thread id. */
+  /** Grok's opaque resume identity. It is not the TUIFT Code thread id. */
   providerSessionId: [string]
 }
 
@@ -318,7 +318,7 @@ export class GrokAdapter extends EventEmitter<GrokAdapterEvents> {
   readonly #spawn: SpawnFn
   #workspacePath = ''
   #options: GrokStartOptions = {}
-  /** Stable TasteCode identity, kept separate from Grok's opaque resume id. */
+  /** Stable TUIFT Code identity, kept separate from Grok's opaque resume id. */
   #threadId: string | undefined
   /** Grok's own session id, so follow-up turns resume rather than restart. */
   #providerSessionId: string | undefined
@@ -354,7 +354,7 @@ export class GrokAdapter extends EventEmitter<GrokAdapterEvents> {
     return GROK_CAPABILITIES
   }
 
-  /** Grok's opaque resume identity. It is not the TasteCode thread id. */
+  /** Grok's opaque resume identity. It is not the TUIFT Code thread id. */
   get providerSessionId(): string | undefined {
     return this.#providerSessionId
   }
@@ -383,8 +383,8 @@ export class GrokAdapter extends EventEmitter<GrokAdapterEvents> {
   }
 
   /**
-   * Reattach a persisted TasteCode thread to Grok's separate native session.
-   * The two ids are deliberately explicit here: passing the TasteCode id to
+   * Reattach a persisted TUIFT Code thread to Grok's separate native session.
+   * The two ids are deliberately explicit here: passing the TUIFT Code id to
    * `grok --resume` would start from an identity the CLI has never heard of.
    */
   async resumeThread(
@@ -396,7 +396,7 @@ export class GrokAdapter extends EventEmitter<GrokAdapterEvents> {
     if (options.approval === 'auto-review') {
       throw new Error('Grok does not support automatic approval review')
     }
-    if (!threadId) throw new Error('TasteCode thread id is required to resume Grok')
+    if (!threadId) throw new Error('TUIFT Code thread id is required to resume Grok')
     if (!providerSessionId) throw new Error('Grok native session id is required to resume')
     this.#workspacePath = workspacePath
     this.#options = applyGrokBackgroundDefaults(options)
@@ -423,7 +423,7 @@ export class GrokAdapter extends EventEmitter<GrokAdapterEvents> {
   ): Promise<string> {
     if (this.#disposed) throw new Error('Grok session is closed')
     if (threadId !== this.#threadId) {
-      throw new Error(`Grok adapter is attached to a different TasteCode thread`)
+      throw new Error(`Grok adapter is attached to a different TUIFT Code thread`)
     }
     this.#options = applyGrokTurnOptions(this.#options, options)
     // A process restart resets in-memory counters. Random ids cannot collide

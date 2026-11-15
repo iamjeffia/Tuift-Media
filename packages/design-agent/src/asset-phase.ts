@@ -27,7 +27,7 @@ export function designAssetPrompt(
     id: `user-reference-${index + 1}`,
     file: path.basename(filePath),
   }))
-  return `You are running the Asset phase of TasteCode Design Mode.
+  return `You are running the Asset phase of TUIFT Code Design Mode.
 
 Resolve the page blueprint's asset and component needs into a compact manifest. Inspect the project first and reuse suitable existing files and dependencies. Keep IDs identical to the page blueprint and include every assetNeeds and componentNeeds entry exactly once. This is an acquisition phase, not a wish list: when the session exposes the necessary tools, create or download the actual file inside the project before marking it ready. Mark a need as ready only when its source is real, its local project destination exists, and its provenance is recorded; otherwise leave it needed with actionable requirements.
 
@@ -88,7 +88,7 @@ export function parseAssetPhaseOutput(
     : manifest
 }
 
-/** The agent acquires fonts itself only for the brand families TasteCode could not download. */
+/** The agent acquires fonts itself only for the brand families TUIFT Code could not download. */
 const AGENT_FONT_RULES =
   "Acquire every approved brand typeface as actual local font files with its license, including when Page omitted a font asset ID. Use only available weights. Verify the official Google Fonts repository or the family's official source; never mark Arial or a system fallback as the acquired custom family. Check the downloaded font's magic bytes and response Content-Type; record that header in source.contentType when available. An HTML error response renamed to .woff2 is not a font. Record each font file, including real italic and weight variants, with its actual consuming sections. A family folder is also accepted and expanded into its concrete font files."
 
@@ -96,7 +96,7 @@ function brandFontRules(fonts: readonly BrandFont[]): string {
   const ready = fonts.filter((font) => font.status === 'ready')
   const failed = fonts.filter((font) => font.status === 'failed')
   if (!ready.length) return AGENT_FONT_RULES
-  const done = `TasteCode already downloaded the approved typefaces ${ready
+  const done = `TUIFT Code already downloaded the approved typefaces ${ready
     .map(
       (font) =>
         `${font.family} (${font.files.join(', ')}; licence ${font.license}; load ${font.stylesheet}, which declares every @font-face)`,
@@ -105,6 +105,6 @@ function brandFontRules(fonts: readonly BrandFont[]): string {
       '; ',
     )} into the project and records them in the manifest itself. Do not download, copy, rename or record those font files; leave them out of your manifest.`
   return failed.length
-    ? `${done} TasteCode could not download ${failed.map((font) => `${font.family} (${font.reason})`).join(', ')}; for those: ${AGENT_FONT_RULES}`
+    ? `${done} TUIFT Code could not download ${failed.map((font) => `${font.family} (${font.reason})`).join(', ')}; for those: ${AGENT_FONT_RULES}`
     : done
 }

@@ -291,3 +291,18 @@ function isInside(path: string, root: string, separator: string, ignoreCase: boo
   const prefix = boundary.endsWith(separator) ? boundary : `${boundary}${separator}`
   return candidate === boundary || candidate.startsWith(prefix)
 }
+
+/**
+ * A file's path under `root` in the slash-separated form the workspace server takes,
+ * or undefined when it is not inside it. The panel lists files relative to the project
+ * or to the chat's own checkout, so a cited absolute path is tried against each root.
+ */
+export function relativeToRoot(file: string, root: string): string | undefined {
+  const windows = isWindowsRoot(root)
+  const normalizedRoot = windows ? normalizeWindows(root) : normalizePosix(root)
+  const normalizedFile = windows ? normalizeWindows(file) : normalizePosix(file)
+  if (!normalizedRoot || !normalizedFile) return undefined
+  if (!isInside(normalizedFile, normalizedRoot, windows ? '\\' : '/', windows)) return undefined
+  const rest = normalizedFile.slice(normalizedRoot.length).replace(/^[\\/]+/, '')
+  return rest ? rest.split(/[\\/]/).join('/') : undefined
+}

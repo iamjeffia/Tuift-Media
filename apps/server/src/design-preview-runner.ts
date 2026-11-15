@@ -132,7 +132,7 @@ export async function startDesignPreview(
  * Next.js 16 allows one `next dev` per project and exits a second one with "Another next dev
  * server is already running" and that server's address. That server serves this workspace's
  * own files with hot reload, so the preview uses it, when it answers on a loopback address the
- * app does not reserve for itself. TasteCode did not start it, so stopping the preview leaves
+ * app does not reserve for itself. TUIFT Code did not start it, so stopping the preview leaves
  * it running.
  */
 async function runningNextDevPreview(
@@ -169,7 +169,7 @@ async function runningNextDevPreview(
     signal?.throwIfAborted()
     return undefined
   }
-  const note = `\nUsing the next dev server already running for this project at ${previewUrl.origin}; TasteCode did not start it and leaves it running.\n`
+  const note = `\nUsing the next dev server already running for this project at ${previewUrl.origin}; TUIFT Code did not start it and leaves it running.\n`
   return {
     url: previewUrl.href,
     viewports: plan.viewports,
@@ -354,7 +354,7 @@ async function pollForPreview(
       const response = await fetch(url, {
         signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       })
-      // A TasteCode static preview on this port is never the command's own server.
+      // A TUIFT Code static preview on this port is never the command's own server.
       if (response.ok && !response.headers.has(STATIC_PREVIEW_HEADER)) {
         // A losing child can remain alive briefly while its wrapper unwinds.
         // Do not let another process's response win that race.

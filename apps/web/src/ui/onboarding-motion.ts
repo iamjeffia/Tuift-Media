@@ -5,6 +5,7 @@
  * either end is not on screen, so callers can hang their state change on the
  * promise and stay correct in every environment.
  */
+import { t } from '../i18n/index.js'
 
 // --ease-rail: a steady middle and a soft landing; a thrown object, not a snap.
 const TRAVEL = 'cubic-bezier(0.32, 0.72, 0, 1)'
@@ -263,7 +264,11 @@ function measure(element: HTMLElement | SVGElement, part: Part): Measure {
   if (anchor === 'corner') return at(0, 0)
   if (anchor === 'bottom') return at(0, box.height)
   if (anchor === 'center') return at(box.width / 2, box.height / 2)
-  const point = textAnchor(element, anchor === 'heading' ? 'Projects' : undefined)
+  // The preview's project list heading, in the language it is drawn in.
+  const point = textAnchor(
+    element,
+    anchor === 'heading' ? t('onboarding.preview.projects') : undefined,
+  )
   if (!point) return at(0, 0)
   // A row scales by the size of its own words, so they meet exactly. The
   // rail keeps the size its rows are set in, not its small section heading.

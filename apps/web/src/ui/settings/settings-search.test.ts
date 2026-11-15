@@ -12,6 +12,7 @@ import {
   providerTuningEntries,
   tuningSearchId,
 } from './provider-tuning-search.js'
+import { en } from '../../i18n/en.js'
 import { KEYBINDING_DEFINITIONS } from '../../shortcuts.js'
 import {
   searchSettings,
@@ -114,14 +115,16 @@ describe('settings search', () => {
     expect(searchSettings('cli binary', entries)).toHaveLength(2)
     const control = source('ProviderExecutablePath.tsx')
     expect(control).toContain('data-settings-id={executablePathSearchId(props.source)}')
-    expect(control).toContain('{EXECUTABLE_PATH_LABEL}')
+    // The control's label is a catalog entry; its English text is the label search is built on.
+    expect(control).toContain("{t('settings.providerExecutablePath.label')}")
+    expect(en['settings.providerExecutablePath.label']).toBe(EXECUTABLE_PATH_LABEL)
     expect(EXECUTABLE_PATH_LABEL).toBe('Executable path')
   })
 
   it('offers every category in the settings rail, ahead of the rows that share its words', () => {
     const labels = [
-      ...source('Settings.tsx').matchAll(/<SettingsNavItem[\s\S]*?label="([^"]+)"/g),
-    ].map((match) => match[1])
+      ...source('Settings.tsx').matchAll(/<SettingsNavItem[\s\S]*?label=\{t\('([^']+)'\)\}/g),
+    ].map((match) => en[match[1] as keyof typeof en])
     expect(labels.length).toBeGreaterThan(10)
     expect(SETTINGS_PAGES.map((entry) => entry.title).sort()).toEqual([...labels].sort())
     expect(searchSettings('model', SETTINGS_SEARCH_ENTRIES)[0]?.title).toBe('Models')
@@ -136,7 +139,7 @@ describe('settings search', () => {
       ['ModelLabSection.tsx', ['className="model-lab__head"']],
       ['ModelVisibilityControls.tsx', ['name={name}']],
       ['ProfileAccounts.tsx', ['key={status.id}', 'providerMark(account.provider)']],
-      ['PhoneSettings.tsx', ['name="Reachable at"']],
+      ['PhoneSettings.tsx', ["name={t('settings.phone.reachable')}"]],
     ])
     for (const file of files) {
       const text = source(file)

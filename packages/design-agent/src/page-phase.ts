@@ -39,7 +39,7 @@ function designAppScreenPagePrompt(
   suppliedReferenceCatalog: ReadonlyArray<{ id: string; file: string }>,
   direction: AppDirection,
 ): string {
-  return `You are running the Page Blueprint phase of TasteCode Design Mode for an app screen.
+  return `You are running the Page Blueprint phase of TUIFT Code Design Mode for an app screen.
 
 Turn the validated brief, the brand system and the dealt app sheet into one implementation-ready plan for a working product interface. Use the brand system rather than repeating it. Do not choose new colours or typefaces, source assets, install dependencies, or edit files.
 
@@ -54,7 +54,7 @@ Blueprint rules for an app screen:
 - page.title is the first screen's noun title, its one h1; a greeting only on a personal or team home. The shell names the product and its scope (§3.2): use the brief's product name, or a plain descriptive name for the subject when the brief has none, never an invented brand name.
 - navigation lists the shell's real destinations, other screens and never anchors into the current one. The first screen the brief needs is built in full and is the default view. Every other screen the brief names is its own view (a hash route is enough in a static build) with its own title and blocks. A destination the brief does not need may stay in the navigation only as a real view with its frame, its title and one sentence, never a dead link.
 - sections are the shell (one section for the sidebar or rail and any top bar) followed by the blocks of each view in reading order. section.userQuestion is the question the block answers. copy.heading is the block's title in the product's words; copy.body summarises its real content (figures with units, example rows, the finding), never instructions about the interface; copy.callsToAction holds its real actions, with the most frequent job one click from the first screen. section.layout records the block's form from the rules (which chart for which question, table or list, the KPI strip), its width on the grid at 1440, its row cap and its states. transformation gives the phone (compact), tablet 641-1100px (medium) and desktop (expanded) behaviour from §12. layoutCases holds the sheet's pattern ID for the block's screen, or "app-screen" when the sheet has none.
-- Plan the empty, zero, loading and error state of every block and the hover, selected, focus and disabled state of every row and control (§11) in interactions and acceptanceCriteria. Use representative local data and never claim live synchronisation or a backend that is not built. Include the words "Sample data" in copy.body of every block whose copy carries figures: TasteCode's copy check treats an unlabelled figure as an unsupported claim. Build shows that label once per view as one quiet notice (§11), not on every block.
+- Plan the empty, zero, loading and error state of every block and the hover, selected, focus and disabled state of every row and control (§11) in interactions and acceptanceCriteria. Use representative local data and never claim live synchronisation or a backend that is not built. Include the words "Sample data" in copy.body of every block whose copy carries figures: TUIFT Code's copy check treats an unlabelled figure as an unsupported claim. Build shows that label once per view as one quiet notice (§11), not on every block.
 - motion: feedback or state_change for controls and views, none for static reading regions; nothing performs an entrance.
 - componentNeeds stays empty for charts, tables, lists, KPI strips and controls: Build makes them natively from the kit. assetNeeds lists stable IDs only for real product imagery the brief needs (product thumbnails, cover art, a logo the project has).
 - An attached user reference outranks the sheet's composition: record its user-reference-# as referenceDirectionId on the sections it covers, and leave referenceDirectionId out on every other section.
@@ -113,7 +113,7 @@ export function designPagePrompt(
     file: path.basename(filePath),
   }))
 
-  return `You are running the Page Blueprint phase of TasteCode Design Mode.
+  return `You are running the Page Blueprint phase of TUIFT Code Design Mode.
 
 Turn the validated brief and brand system into one implementation-ready page plan. Begin with one page contract: who the page helps, what they must decide or accomplish, the business outcome, and ${dashboard ? 'the primary operating task' : 'the primary conversion'}. If that requires unrelated tasks joined by "and", keep only the brief's primary page job. Write the actual concise page copy and order sections by information dependencies rather than a remembered landing-page sequence.
 

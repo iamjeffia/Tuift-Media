@@ -17,7 +17,7 @@ export function antigravityCommand(): string {
 }
 
 /**
- * Variables every agy that TasteCode starts gets on top of the inherited ones.
+ * Variables every agy that TUIFT Code starts gets on top of the inherited ones.
  *
  * Near the end of a run agy starts its auto-updater (`agy.exe --bg-updater`)
  * when its last check is 15 minutes old. On Windows the updater runs without a

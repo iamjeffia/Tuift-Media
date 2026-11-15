@@ -22,6 +22,7 @@ import {
   IconSearch as Search,
 } from '@tabler/icons-react'
 import { writeClipboardText } from '../../bridge.js'
+import { useI18n } from '../../i18n/index.js'
 import type { Transport } from '../../transport.js'
 import { FileTypeIcon } from '../FileTypeIcon.js'
 import { IconMorph } from '../IconMorph.js'
@@ -125,6 +126,7 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
   visible?: boolean | undefined
   onOpenPullRequest?: ((target: PullRequestTarget) => void) | undefined
 }) {
+  const { t, tp, language } = useI18n()
   // The server does not know a chat's provisional id while its first message
   // creates it; stay in the project checkout until the real id arrives.
   const threadId = props.threadId?.startsWith('pending:') ? undefined : props.threadId
@@ -257,9 +259,9 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
       await writeClipboardText(commitMessage)
       setCopiedCommit(true)
     } catch {
-      setActionError('Could not copy the commit message.')
+      setActionError(t('workspace.review.copyFailed'))
     }
-  }, [commitMessage])
+  }, [commitMessage, t])
 
   /** One git write at a time; a reply for another checkout is dropped. */
   const runAction = useCallback(
@@ -313,9 +315,12 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
         setLastCommitMessage(message)
         setComposer(undefined)
       }
-      return `Committed ${result.commit.slice(0, 7)}${result.branch ? ` to ${result.branch}` : ''}`
+      const sha = result.commit.slice(0, 7)
+      return result.branch
+        ? t('workspace.review.committedTo', { sha, branch: result.branch })
+        : t('workspace.review.committed', { sha })
     })
-  }, [checkoutParams, commitMessage, props.transport, refresh, runAction])
+  }, [checkoutParams, commitMessage, props.transport, refresh, runAction, t])
 
   const push = useCallback(() => {
     if (!checkoutParams) return
@@ -330,13 +335,13 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
               current && { ...current, upstream: `${result.remote}/${result.branch}`, ahead: 0 },
           )
         }
-        return `Pushed ${result.branch} to ${result.remote}`
+        return t('workspace.review.pushed', { branch: result.branch, remote: result.remote })
       } finally {
         // Even a refused push may have set the upstream or moved the remote branch.
         void readCheckout(true)
       }
     })
-  }, [checkoutParams, props.transport, readCheckout, runAction])
+  }, [checkoutParams, props.transport, readCheckout, runAction, t])
 
   const createPullRequest = useCallback(
     (input: { title: string; body: string; draft: boolean }) => {
@@ -363,13 +368,13 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
             setCheckout(opened)
             publishCheckoutPullRequest(checkoutParams.projectPath, threadId, opened)
           }
-          return `Opened pull request #${result.number}`
+          return t('workspace.review.opened', { number: result.number })
         } finally {
           void readCheckout(true)
         }
       })
     },
-    [checkout, checkoutParams, props.transport, readCheckout, runAction, threadId],
+    [checkout, checkoutParams, props.transport, readCheckout, runAction, threadId, t],
   )
 
   useEffect(() => {
@@ -399,10 +404,12 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
     () => pullRequestFromCommit(lastCommitMessage),
     [lastCommitMessage],
   )
-  const waitReason = props.turnRunning ? 'Wait until the chat finishes its turn.' : undefined
+  const waitReason = props.turnRunning ? t('workspace.review.wait') : undefined
   const pushTitle = git.push?.upstream
-    ? `Push ${git.push.ahead} ${git.push.ahead === 1 ? 'commit' : 'commits'} to ${git.push.upstream}`
-    : `Publish ${checkout?.branch ?? 'this branch'} to origin`
+    ? tp('workspace.review.pushTitle', git.push.ahead, { upstream: git.push.upstream })
+    : t('workspace.review.publishTitle', {
+        branch: checkout?.branch ?? t('workspace.review.thisBranch'),
+      })
   const toggleComposer = (next: 'commit' | 'pull-request') => {
     setActionError(undefined)
     setActionDone(undefined)
@@ -474,8 +481,8 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
     return (
       <WorkspaceEmptyState
         kind="review"
-        title="Choose a project"
-        detail="Review shows the active checkout's uncommitted changes against HEAD."
+        title={t('workspace.review.chooseProject.title')}
+        detail={t('workspace.review.chooseProject.detail')}
       />
     )
   }
@@ -485,31 +492,31 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
       <header className="workspace-review__toolbar">
         <span className="workspace-review__branch">
           <GitBranch size={14} aria-hidden />
-          <strong title={props.branch}>{props.branch ?? 'Workspace'}</strong>
+          <strong title={props.branch}>{props.branch ?? t('workspace.review.workspace')}</strong>
         </span>
         {/* Until the checkout's diff arrives its numbers are unknown, not zero. */}
         {diff ? (
           <>
-            <span className="workspace-review__stats" aria-label="Diff statistics">
-              <span className="is-add">+{stats.added.toLocaleString()}</span>
-              <span className="is-delete">−{stats.removed.toLocaleString()}</span>
+            <span className="workspace-review__stats" aria-label={t('workspace.review.stats')}>
+              <span className="is-add">+{stats.added.toLocaleString(language)}</span>
+              <span className="is-delete">−{stats.removed.toLocaleString(language)}</span>
             </span>
             <span className="workspace-review__file-count">
-              {fileCount} file{fileCount === 1 ? '' : 's'}
+              {tp('workspace.review.fileCount', fileCount)}
             </span>
           </>
         ) : null}
         <button
           type="button"
           className={`workspace-review__action${composer === 'commit' ? ' is-open' : ''}`}
-          title="Commit changes"
-          aria-label="Commit changes"
+          title={t('workspace.review.commitChanges')}
+          aria-label={t('workspace.review.commitChanges')}
           aria-expanded={composer === 'commit'}
           disabled={fileCount === 0}
           onClick={() => toggleComposer('commit')}
         >
           <GitCommit size={14} aria-hidden />
-          <span className="workspace-review__action-label">Commit</span>
+          <span className="workspace-review__action-label">{t('workspace.review.commit')}</span>
         </button>
         {git.push ? (
           <button
@@ -525,7 +532,7 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
               <LoaderCircle className="spinner" size={14} aria-hidden />
             </IconMorph>
             <span className="workspace-review__action-label">
-              {git.push.upstream ? 'Push' : 'Publish'}
+              {git.push.upstream ? t('workspace.review.push') : t('workspace.review.publish')}
             </span>
             {git.push.ahead > 0 ? (
               <span className="workspace-review__count">{git.push.ahead}</span>
@@ -536,13 +543,13 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
           <button
             type="button"
             className={`workspace-review__action${composer === 'pull-request' ? ' is-open' : ''}`}
-            title="Create pull request"
-            aria-label="Create pull request"
+            title={t('workspace.review.createPullRequest')}
+            aria-label={t('workspace.review.createPullRequest')}
             aria-expanded={composer === 'pull-request'}
             onClick={() => toggleComposer('pull-request')}
           >
             <GitPullRequest size={14} aria-hidden />
-            <span className="workspace-review__action-label">Create PR</span>
+            <span className="workspace-review__action-label">{t('workspace.review.createPr')}</span>
           </button>
         ) : null}
         {git.pullRequest && props.onOpenPullRequest ? (
@@ -551,8 +558,8 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
         <button
           type="button"
           className="icon-btn"
-          title="Refresh diff"
-          aria-label="Refresh diff"
+          title={t('workspace.review.refresh')}
+          aria-label={t('workspace.review.refresh')}
           disabled={loading}
           onClick={() => void refresh(true)}
         >
@@ -617,7 +624,10 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
       </div>
 
       {!diff && loading ? (
-        <SkeletonStatus label="Loading diff…" className="workspace-review__skeleton">
+        <SkeletonStatus
+          label={t('workspace.review.loading')}
+          className="workspace-review__skeleton"
+        >
           <SkeletonCode lines={22} gutter />
         </SkeletonStatus>
       ) : null}
@@ -625,7 +635,7 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
       {error && !diff && !loading ? (
         <WorkspaceEmptyState
           kind="review"
-          title="Changes could not be read"
+          title={t('workspace.review.readFailed')}
           detail={error}
           role="alert"
         />
@@ -634,8 +644,8 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
       {diff && diff.files.length === 0 ? (
         <WorkspaceEmptyState
           kind="review"
-          title="Working tree is clean"
-          detail="Uncommitted changes on the current branch will appear here."
+          title={t('workspace.review.clean.title')}
+          detail={t('workspace.review.clean.detail')}
         />
       ) : null}
 
@@ -643,7 +653,9 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
         <div className="workspace-review__split">
           {matchingFiles.length === 0 ? (
             <div className="workspace-review__diff">
-              <div className="workspace-review__message">No changed files match “{filter}”.</div>
+              <div className="workspace-review__message">
+                {t('workspace.review.noMatch', { filter })}
+              </div>
             </div>
           ) : renderedDiff.items.length > 0 ? (
             <CodeView
@@ -663,14 +675,14 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
             </div>
           )}
 
-          <aside className="workspace-review__tree" aria-label="Changed file tree">
+          <aside className="workspace-review__tree" aria-label={t('workspace.review.tree')}>
             <label className="workspace-tree-search">
               <Search size={14} aria-hidden />
               <input
                 value={filter}
                 onChange={(event) => setFilter(event.target.value)}
-                placeholder="Filter files…"
-                aria-label="Filter changed files"
+                placeholder={t('workspace.review.filter.placeholder')}
+                aria-label={t('workspace.review.filter.label')}
               />
             </label>
             <ReviewTree files={matchingFiles} onSelect={selectFile} />
@@ -682,6 +694,7 @@ export const WorkspaceReview = memo(function WorkspaceReview(props: {
 })
 
 function ReviewFallbackFiles({ fallbacks }: { fallbacks: WorkspaceDiffFallback[] }) {
+  const { t } = useI18n()
   return (
     <>
       {fallbacks.map(({ file, reason }) => {
@@ -697,7 +710,9 @@ function ReviewFallbackFiles({ fallbacks }: { fallbacks: WorkspaceDiffFallback[]
               </span>
             </header>
             <div className="workspace-review__message">
-              {reason === 'binary' ? 'Binary file changed' : 'Diffs could not parse this patch.'}
+              {reason === 'binary'
+                ? t('workspace.review.binary')
+                : t('workspace.review.unparsable')}
             </div>
           </section>
         )

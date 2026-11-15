@@ -36,7 +36,7 @@ export const ItemTypeSchema = z.enum([
   /** An event an adapter did not recognise. Rendered as raw text, never dropped. */
   'unknown',
   /**
-   * A line TasteCode adds to the conversation between turns, such as the chat
+   * A line TUIFT Code adds to the conversation between turns, such as the chat
    * moving to another provider. Adapters never produce it; it belongs to no turn.
    */
   'notice',
@@ -80,13 +80,13 @@ export const SubagentSchema = z.object({
   /** Provider-owned reference for reading a native sub-agent's saved conversation. */
   transcriptId: z.string().min(1).optional(),
   /**
-   * The hidden TasteCode chat this sub-agent runs in, when TasteCode started it
+   * The hidden TUIFT Code chat this sub-agent runs in, when TUIFT Code started it
    * on a provider of its own choosing. Its transcript is read with
    * `thread.history` and followed on `subagent.event`. Absent for a sub-agent
    * the engine runs itself; an optional transcriptId names its provider-owned history.
    */
   threadId: z.string().min(1).optional(),
-  /** Where a TasteCode sub-agent runs, when that differs from its parent. */
+  /** Where a TUIFT Code sub-agent runs, when that differs from its parent. */
   provider: ProviderIdSchema.optional(),
   /** The ACP agent or custom harness, when the provider runs several. */
   agent: z.string().min(1).optional(),
@@ -376,7 +376,7 @@ export const ContextControlSchema = z.object({
 export type ContextControl = z.infer<typeof ContextControlSchema>
 
 /**
- * One way TasteCode can run an engine, such as through its vendor's SDK or
+ * One way TUIFT Code can run an engine, such as through its vendor's SDK or
  * straight through its own CLI. An engine declares these only when each one
  * offers everything its capabilities say, so a choice changes how the engine
  * is started and never what a chat can do.
@@ -491,7 +491,7 @@ export const ModelSchema = z.object({
 export type Model = z.infer<typeof ModelSchema>
 
 /**
- * The small model TasteCode uses for short product-owned writing such as thread
+ * The small model TUIFT Code uses for short product-owned writing such as thread
  * titles and commit-message drafts. Source identity stays explicit because
  * model ids are not globally unique and API connections have their own bill.
  */
@@ -598,7 +598,7 @@ const AbsoluteFolderSchema = z
 /**
  * One sign-in a provider CLI can run as, kept apart by its own config folder.
  * Chats stay pinned to the account they started on. Nothing secret lives
- * here: the vendor CLI writes its own credentials into `home`, and TasteCode
+ * here: the vendor CLI writes its own credentials into `home`, and TUIFT Code
  * never reads them (rules/security.md).
  */
 export const ProviderAccountSchema = z
@@ -609,8 +609,8 @@ export const ProviderAccountSchema = z
     /** The account's config folder. Absent for the default account, which uses the CLI's own. */
     home: AbsoluteFolderSchema.optional(),
     /**
-     * TasteCode created `home` under its data folder. False for the default
-     * account and for a folder the user brought, which TasteCode never deletes.
+     * TUIFT Code created `home` under its data folder. False for the default
+     * account and for a folder the user brought, which TUIFT Code never deletes.
      */
     managed: z.boolean(),
     /** Last known identity from this account's own sign-in check. */
@@ -631,19 +631,19 @@ export const ProviderAccountSchema = z
       context.addIssue({
         code: 'custom',
         path: ['managed'],
-        message: 'the default account uses the CLI folder, which TasteCode does not manage',
+        message: 'the default account uses the CLI folder, which TUIFT Code does not manage',
       })
     }
   })
 export type ProviderAccount = z.infer<typeof ProviderAccountSchema>
 
-/** Where a new account keeps its config: a folder TasteCode creates, or one the user has. */
+/** Where a new account keeps its config: a folder TUIFT Code creates, or one the user has. */
 export const ProviderAccountHomeSchema = z.discriminatedUnion('kind', [
-  /** A new folder under the TasteCode data folder, seeded with the default account's non-secret settings. */
+  /** A new folder under the TUIFT Code data folder, seeded with the default account's non-secret settings. */
   z.object({ kind: z.literal('managed') }),
   /**
    * A folder the user picked, such as one that already holds a second login.
-   * Used as it is: nothing is copied into it and TasteCode never deletes it.
+   * Used as it is: nothing is copied into it and TUIFT Code never deletes it.
    */
   z.object({ kind: z.literal('existing'), path: AbsoluteFolderSchema }),
 ])

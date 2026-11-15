@@ -1,0 +1,15 @@
+# Lições de recriação de vídeos de referência
+
+**Resumo:** 11 lições para animação de produto e SaaS, tiradas de recriar vídeos de referência no After Effects e em HTML. Vem da skill [animacao-saas](../SKILL.md). Valem nos dois motores; os números estão em [numeros-de-referencia.md](numeros-de-referencia.md).
+
+1. **Especificação quadro a quadro antes de animar.** A batida entra como fórmula; os cortes caem em quadros fixos, cerca de 2 quadros antes do tempo forte; cada plano tem uma tabela de valores (posição, escala, desfoque por quadro); a entrada já chega em movimento e a saída acelera; no máximo um quadro congelado; 4 quadros de aprovação. O pedido vai escrito em blocos: uma cena por bloco, com tempo, elementos e valores.
+2. **Folha de batidas como dado.** Meça a trilha com um detector de batidas (por exemplo, `beat_this` ou `librosa`) e guarde `b(compasso, tempo, fração)`; nenhuma cena guarda número de quadro. Orçamento por compasso: abertura 1 a 2, frase 1 a 1,5, função 2 a 4, prova 1,5 a 2,5, fim 2.
+3. **Um conceito por compasso** em peça sem narração: a troca cai no tempo forte, um evento por batida.
+4. **Mola somada.** Valor que muda de alvo várias vezes é a soma de uma mola por mudança (no After Effects, uma expressão que soma um degrau por chave). **Bordas em molas diferentes:** o indicador de aba e o botão do toggle, com a borda da frente mais rápida, esticam como líquido.
+5. **Magic move antes de qualquer troca.** O elemento que existe nas duas cenas viaja (avatar vira linha da lista, botão vira metade do seletor, logo do parceiro vira lugar no slogan); o resto troca por desfoque curto. Texto nunca atravessa texto. Para um logo voando até a frase, anime o próprio item com deslocamento `(origem − destino)·(1 − q)`, e o pouso fica exato.
+6. **Identidade real tirada do site e do kit de marca.** CSS computado (fundo, tinta, acento, raio, fontes), logo em SVG, mascote, textura de assinatura e capturas oficiais do produto, cada valor com a fonte anotada num `BRAND.md` do projeto, que vale mais que o padrão desta skill. Se a marca real é clara, não invente uma versão escura.
+7. **Logo com partes vira capítulos.** N partes do logo (livros, pontos, barras) viram N passos do produto; a parte ativa vira o indicador.
+8. **Gráfico vira gráfico.** Linha vira funil interpolando os dois contornos na mesma curva; contador em odômetro sem dígito cortado (máscara em degradê; a casa só rola junto com as de baixo quando elas passam de 9 para 0).
+9. **Protagonista contínuo.** Um objeto (bola, ponto, cursor, mascote) atravessa todas as cenas e muda de papel (ponto final, cometa, núcleo, assinatura). Toda transição sai dele.
+10. **Mascote com corpo.** Rig por parâmetros a partir do SVG oficial (pontas, olhar, piscar, humor); antecipação de 0,14 s, estica no ar, pousa amassando, respira o tempo todo.
+11. **Showreel com marca.** A identidade não tira o contraste nem a grotesca pesada; a marca entra no acento, no símbolo e na assinatura. Versões mais sofisticadas e menos contrastadas perdem impacto no celular.

@@ -5,7 +5,7 @@ import type { ClientRequest } from './generated/ClientRequest.js'
 /**
  * The app-server's built-in thread actions that Codex's own TUI offers as
  * slash commands. The app-server has no command list of its own, so this one
- * names only the actions TasteCode routes to a request below.
+ * names only the actions TUIFT Code routes to a request below.
  */
 export const CODEX_COMMANDS: ProviderCommand[] = [
   {
@@ -28,7 +28,7 @@ export const CODEX_COMMANDS: ProviderCommand[] = [
 
 /**
  * Codex's TUI answers `/init` by sending a prompt of its own; the app-server
- * has no request for it. This is TasteCode's wording of the same job.
+ * has no request for it. This is TUIFT Code's wording of the same job.
  */
 export const CODEX_INIT_PROMPT = [
   'Create an AGENTS.md file in the root of this repository with instructions for coding agents working in it.',

@@ -5,6 +5,7 @@ import {
   IconFolderPlus as FolderPlus,
 } from '@tabler/icons-react'
 import { pickSkillFolder } from '../bridge.js'
+import { useI18n } from '../i18n/index.js'
 import type { Transport } from '../transport.js'
 import { useProviderWatch } from '../provider-watch.js'
 import {
@@ -26,6 +27,7 @@ export function SkillsSettings(props: {
   projectPath: string | undefined
   projectName: string | undefined
 }) {
+  const { t } = useI18n()
   useProviderWatch(props.transport, props.provider, props.projectPath, 'skills')
   const [inventory, setInventory] = useState<Inventory>()
   const [loading, setLoading] = useState(false)
@@ -186,6 +188,7 @@ export function SkillsSettings(props: {
   const currentInventory = contextMatches(inventoryContext.current) ? inventory : undefined
   const currentError = currentInventory || contextMatches(errorContext.current) ? error : undefined
   const projectSkills = currentInventory?.skills.filter((skill) => skill.scope === 'project') ?? []
+  const globalSkills = currentInventory?.skills.filter((skill) => skill.scope === 'user') ?? []
   const includedSkills = currentInventory?.skills.filter(isIncludedSkill) ?? []
   // A background refresh keeps the current list on screen; blanking it
   // to a loading note on every skills.changed push read as flicker.
@@ -193,7 +196,7 @@ export function SkillsSettings(props: {
 
   return (
     <SettingsPage
-      title="Skills"
+      title={t('settings.nav.skills')}
       description={pageDescription(props.providerName, props.projectPath, props.projectName)}
       actions={
         props.projectPath && currentInventory?.capabilities.install ? (
@@ -204,7 +207,7 @@ export function SkillsSettings(props: {
             onClick={() => void install()}
           >
             <FolderPlus size={14} aria-hidden />
-            {busy.has('install') ? 'Installing…' : 'Install from folder'}
+            {busy.has('install') ? t('settings.skills.installing') : t('settings.skills.install')}
           </button>
         ) : undefined
       }
@@ -214,7 +217,7 @@ export function SkillsSettings(props: {
           tone="error"
           action={
             <button className="set-button" type="button" onClick={() => setReload((n) => n + 1)}>
-              Retry
+              {t('settings.skills.retry')}
             </button>
           }
         >
@@ -223,13 +226,12 @@ export function SkillsSettings(props: {
       ) : null}
       {currentInventory && !currentInventory.capabilities.inventory ? (
         <SettingsNotice tone="info">
-          Skills from {props.providerName}’s own settings are loaded in chats but can’t be listed
-          here.
+          {t('settings.skills.notListed', { provider: props.providerName })}
         </SettingsNotice>
       ) : null}
       {currentInventory?.errors.length ? (
         <SettingsNotice tone="error">
-          Some skills could not be loaded.
+          {t('settings.skills.loadErrors')}
           {currentInventory.errors.map((entry) => (
             <span className="set-notice__line" key={`${entry.path}:${entry.message}`}>
               {entry.message} · {entry.path}
@@ -238,26 +240,47 @@ export function SkillsSettings(props: {
         </SettingsNotice>
       ) : null}
       {!props.projectPath ? (
-        <SettingsEmpty title="Select a project in the sidebar first." />
+        <SettingsEmpty title={t('settings.skills.selectProject')} />
       ) : discovering ? (
-        <SettingsEntitySkeleton label="Discovering skills…" />
+        <SettingsEntitySkeleton label={t('settings.skills.discovering')} />
       ) : !currentInventory?.capabilities.inventory ? null : projectSkills.length ? (
-        projectSkills.map((skill) => (
-          <SkillRow
-            key={skill.id}
-            skill={skill}
-            configurable={currentInventory.capabilities.configure}
-            busy={busy.has(skill.id)}
-            onToggle={() => void toggle(skill)}
-          />
-        ))
+        <SettingsSection
+          title={t('settings.skills.project.title')}
+          note={t('settings.skills.project.note')}
+        >
+          {projectSkills.map((skill) => (
+            <SkillRow
+              key={skill.id}
+              skill={skill}
+              configurable={currentInventory.capabilities.configure}
+              busy={busy.has(skill.id)}
+              onToggle={() => void toggle(skill)}
+            />
+          ))}
+        </SettingsSection>
       ) : (
-        <SettingsEmpty title="No Agent Skills have been imported into this project." />
+        <SettingsEmpty title={t('settings.skills.project.empty')} />
       )}
+      {props.projectPath && currentInventory && globalSkills.length ? (
+        <SettingsSection
+          title={t('settings.skills.global.title')}
+          note={t('settings.skills.global.note')}
+        >
+          {globalSkills.map((skill) => (
+            <SkillRow
+              key={skill.id}
+              skill={skill}
+              configurable={currentInventory.capabilities.configure}
+              busy={busy.has(skill.id)}
+              onToggle={() => void toggle(skill)}
+            />
+          ))}
+        </SettingsSection>
+      ) : null}
       {props.projectPath && includedSkills.length ? (
         <SettingsSection
-          title="Included with TasteCode"
-          note="Every chat can use these. An agent opens one only when the task calls for it."
+          title={t('settings.skills.included.title')}
+          note={t('settings.skills.included.note')}
         >
           {includedSkills.map((skill) => (
             <SkillRow
@@ -274,7 +297,7 @@ export function SkillsSettings(props: {
   )
 }
 
-/** Skills that ship with TasteCode itself; the server gives them `tastecode:` ids. */
+/** Skills that ship with TUIFT Code itself; the server gives them `tastecode:` ids. */
 function isIncludedSkill(skill: Skill): boolean {
   return skill.scope === 'system' && skill.id.startsWith('tastecode:')
 }
@@ -290,7 +313,7 @@ function pageDescription(
 
 /**
  * One skill: its name along the leader to its switch (or to its state when
- * the provider does not let TasteCode change it), with what it does, where
+ * the provider does not let TUIFT Code change it), with what it does, where
  * it lives and anything it is missing underneath, across the whole row.
  */
 function SkillRow(props: {
@@ -299,9 +322,10 @@ function SkillRow(props: {
   busy: boolean
   onToggle: () => void
 }) {
+  const { t } = useI18n()
   const name = props.skill.displayName ?? props.skill.name
   const source =
-    props.skill.source.type === 'folder' ? props.skill.source.path : 'Managed by provider'
+    props.skill.source.type === 'folder' ? props.skill.source.path : t('settings.skills.managed')
   return (
     <article className="set-entity" data-tone={props.skill.enabled ? undefined : 'muted'}>
       <div className="set-entity__main">
@@ -310,7 +334,7 @@ function SkillRow(props: {
           <span className="set-leader" aria-hidden />
           {props.configurable ? null : (
             <span className="set-entity__status">
-              {props.skill.enabled ? 'Enabled' : 'Disabled'}
+              {props.skill.enabled ? t('settings.skills.enabled') : t('settings.skills.disabled')}
             </span>
           )}
         </div>
@@ -321,7 +345,12 @@ function SkillRow(props: {
             className={`switch${props.skill.enabled ? ' is-on' : ''}`}
             type="button"
             role="switch"
-            aria-label={`${props.skill.enabled ? 'Disable' : 'Enable'} ${name}`}
+            aria-label={t(
+              props.skill.enabled ? 'settings.skills.disable' : 'settings.skills.enable',
+              {
+                name,
+              },
+            )}
             aria-checked={props.skill.enabled}
             disabled={props.busy}
             onClick={props.onToggle}
@@ -359,6 +388,7 @@ function SkillRow(props: {
  * the rest and close it again. Selecting part of the text is not a click.
  */
 function SkillDescription(props: { name: string; text: string }) {
+  const { t } = useI18n()
   const id = useId()
   const paragraph = useRef<HTMLParagraphElement>(null)
   const [expanded, setExpanded] = useState(false)
@@ -379,7 +409,7 @@ function SkillDescription(props: { name: string; text: string }) {
 
   const expandable = overflows || expanded
   const toggle = () => setExpanded((open) => !open)
-  const label = expanded ? 'Show less' : 'Show more'
+  const label = expanded ? t('settings.skills.showLess') : t('settings.skills.showMore')
   return (
     <>
       <p
@@ -401,7 +431,10 @@ function SkillDescription(props: { name: string; text: string }) {
         <button
           className="set-entity__more"
           type="button"
-          aria-label={`${label} about ${props.name}`}
+          aria-label={t(
+            expanded ? 'settings.skills.showLessAbout' : 'settings.skills.showMoreAbout',
+            { name: props.name },
+          )}
           aria-expanded={expanded}
           aria-controls={id}
           onClick={toggle}

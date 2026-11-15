@@ -18,7 +18,7 @@ function bounded<T>(promise: Promise<T>, label: string): Promise<T> {
 /**
  * One call to a Grok Build ACP extension in a short-lived provider process.
  * The process owns its credentials, request headers and token refresh
- * lifecycle; TasteCode only receives the response it deliberately exposes.
+ * lifecycle; TUIFT Code only receives the response it deliberately exposes.
  * `accountHome` runs it as that account; absent, the default account.
  */
 export async function requestGrokExtension(

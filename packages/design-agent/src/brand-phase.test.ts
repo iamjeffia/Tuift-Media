@@ -157,7 +157,7 @@ describe('brand phase', () => {
 
   it('locks supplied identity before filling open brand decisions', () => {
     const prompt = designBrandPrompt(brief)
-    expect(prompt).toContain('WEBSITE MOTION (TasteCode Design, hybrid)')
+    expect(prompt).toContain('WEBSITE MOTION (TUIFT Code Design, hybrid)')
     expect(prompt).toContain('TASTESKILL WEBSITE RULES')
     expect(prompt).toContain('Do not turn missing material into an invented requirement')
     expect(prompt).toContain('explicit user requirements')

@@ -1,25 +1,22 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import type {
-  McpServer,
-  McpServerConfig,
-  McpTransport,
-  ProviderId,
-  ResultOf,
-} from '@harness/contracts'
+import type { McpServer, McpServerConfig, ProviderId, ResultOf } from '@harness/contracts'
 import { McpServerConfigSchema, McpTransportSchema } from '@harness/contracts'
-import { IconAlertTriangle as AlertTriangle, IconPlus as Plus } from '@tabler/icons-react'
+import { IconPlugConnected as PlugConnected, IconPlus as Plus } from '@tabler/icons-react'
+import { useI18n } from '../i18n/index.js'
 import type { Transport } from '../transport.js'
 import { useProviderWatch } from '../provider-watch.js'
 import { isComposingKey } from '../shortcuts.js'
 import { AppSelect } from './AppSelect.js'
 import { cachedInventory, inventoryChanged, loadInventory } from './composer-inventory.js'
+import { McpServerCard, canHideInherited, serverName } from './McpServerCard.js'
+import { Skeleton, SkeletonStatus } from './Skeleton.js'
 import {
   SettingsEmpty,
-  SettingsEntitySkeleton,
   SettingsNotice,
   SettingsPage,
   SettingsSection,
 } from './settings/SettingsLayout.js'
+import '../styles/mcp-settings.css'
 import '../styles/switch.css'
 
 type Inventory = ResultOf<'mcp.list'>
@@ -65,6 +62,7 @@ export function McpSettings(props: {
   projectPath: string | undefined
   projectName: string | undefined
 }) {
+  const { t } = useI18n()
   const providers = props.providers?.length
     ? props.providers
     : [{ provider: props.provider, providerName: props.providerName }]
@@ -88,7 +86,7 @@ export function McpSettings(props: {
       providerPicker={
         providers.length > 1 ? (
           <div className="mcp-settings__provider">
-            <span>Provider</span>
+            <span>{t('settings.mcp.provider')}</span>
             <AppSelect
               value={selected.provider}
               options={providers.map((option) => ({
@@ -96,7 +94,7 @@ export function McpSettings(props: {
                 label: option.providerName,
               }))}
               onChange={setProvider}
-              ariaLabel="MCP provider"
+              ariaLabel={t('settings.mcp.providerLabel')}
               className="mcp-settings__provider-select"
               align="right"
             />
@@ -115,12 +113,15 @@ function ProviderMcpSettings(props: {
   projectName: string | undefined
   providerPicker?: ReactNode
 }) {
+  const { t } = useI18n()
   useProviderWatch(props.transport, props.provider, props.projectPath, 'mcp')
   const [inventory, setInventory] = useState(() => lastInventory(props))
   const [loading, setLoading] = useState(false)
   const [editor, setEditor] = useState<Editor>()
   // Per id: one row settling must not unlock another row still in flight.
   const [busy, setBusy] = useState<ReadonlySet<string>>(() => new Set())
+  // The server whose sign-in waits on the browser, for its card's status.
+  const [signingIn, setSigningIn] = useState<string>()
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
   const inventoryContext = useRef<Context | undefined>(
@@ -192,17 +193,18 @@ function ProviderMcpSettings(props: {
   const completeOAuth = useCallback(
     (result: OAuthCompletion) => {
       pendingOAuth.current = undefined
+      setSigningIn(undefined)
       setBusy(without(result.serverId))
       if (result.success) {
-        setNotice('MCP sign-in completed.')
+        setNotice(t('settings.mcp.signInDone'))
         setError(undefined)
         void refresh()
       } else {
         setNotice(undefined)
-        setError(result.error ?? 'MCP sign-in failed.')
+        setError(result.error ?? t('settings.mcp.signInFailed'))
       }
     },
-    [refresh],
+    [refresh, t],
   )
 
   useEffect(() => {
@@ -221,6 +223,7 @@ function ProviderMcpSettings(props: {
     setNotice(undefined)
     setEditor(undefined)
     pendingOAuth.current = undefined
+    setSigningIn(undefined)
     setBusy(new Set())
     if (!props.projectPath) {
       setLoading(false)
@@ -283,9 +286,7 @@ function ProviderMcpSettings(props: {
             projectPath: props.projectPath,
           })
           if (!isCurrentContext()) return false
-          setNotice(
-            `${success} Open chats pick up the change once they finish their current and queued messages.`,
-          )
+          setNotice(t('settings.mcp.reloadNotice', { success }))
         } catch (cause) {
           if (!isCurrentContext()) return false
           setNotice(`${success} ${message(cause)}`)
@@ -327,9 +328,7 @@ function ProviderMcpSettings(props: {
       )
     } catch {
       setError(
-        editor.mode === 'hide'
-          ? 'Enter a server ID.'
-          : 'Enter a server ID and valid transport JSON.',
+        editor.mode === 'hide' ? t('settings.mcp.needId') : t('settings.mcp.needIdAndTransport'),
       )
       return
     }
@@ -342,10 +341,10 @@ function ProviderMcpSettings(props: {
           server,
         }),
       editor.mode === 'hide'
-        ? 'Server hidden for this project.'
+        ? t('settings.mcp.hidden')
         : editor.mode === 'add'
-          ? 'Server added.'
-          : 'Server updated.',
+          ? t('settings.mcp.added')
+          : t('settings.mcp.updated'),
     )
     if (saved) setEditor(undefined)
   }
@@ -366,12 +365,16 @@ function ProviderMcpSettings(props: {
               projectPath: props.projectPath!,
               serverId: server.id,
             }),
-      server.enabled ? 'Server disabled for this project.' : 'Project override removed.',
+      server.enabled ? t('settings.mcp.disabled') : t('settings.mcp.overrideRemoved'),
     )
   }
 
   function remove(server: McpServer): void {
-    if (!props.projectPath || !window.confirm(`Remove ${name(server)} from this project?`)) return
+    if (
+      !props.projectPath ||
+      !window.confirm(t('settings.mcp.confirmRemove', { name: serverName(server) }))
+    )
+      return
     void applyChange(
       server.id,
       () =>
@@ -380,13 +383,14 @@ function ProviderMcpSettings(props: {
           projectPath: props.projectPath!,
           serverId: server.id,
         }),
-      'Server removed.',
+      t('settings.mcp.removed'),
     )
   }
 
   async function signIn(server: McpServer): Promise<void> {
     if (!props.projectPath || pendingOAuth.current) return
     pendingOAuth.current = { serverId: server.id, loginId: undefined }
+    setSigningIn(server.id)
     setBusy((current) => new Set(current).add(server.id))
     setError(undefined)
     try {
@@ -406,13 +410,14 @@ function ProviderMcpSettings(props: {
       delete pending.completion
       const opened = window.open(result.authUrl, '_blank', 'noopener,noreferrer')
       if (!opened) {
-        setNotice(`Your browser blocked the sign-in window. Open it yourself: ${result.authUrl}`)
+        setNotice(t('settings.mcp.popupBlocked', { url: result.authUrl }))
       } else {
-        setNotice('Finish signing in in your browser.')
+        setNotice(t('settings.mcp.finishSignIn'))
       }
     } catch (cause) {
       if (isCurrentContext()) {
         pendingOAuth.current = undefined
+        setSigningIn(undefined)
         setBusy(without(server.id))
         setError(message(cause))
       }
@@ -438,39 +443,43 @@ function ProviderMcpSettings(props: {
     Boolean(props.projectPath) &&
     ((loading && !inventory) ||
       (checking && projectServers.length === 0 && inheritedServers.length === 0))
+  const card = (server: McpServer, inherited: boolean) => (
+    <McpServerCard
+      key={server.id}
+      server={server}
+      capabilities={currentInventory!.capabilities}
+      providerName={props.providerName}
+      busy={busy.has(server.id)}
+      signingIn={signingIn === server.id}
+      onSignIn={() => void signIn(server)}
+      onToggle={() => toggle(server)}
+      onEdit={(opener) =>
+        inherited
+          ? undefined
+          : setEditor({
+              mode: 'edit',
+              opener,
+              id: server.id,
+              displayName: server.displayName ?? '',
+              transport: JSON.stringify(server.transport, null, 2),
+            })
+      }
+      onRemove={() => (inherited ? undefined : remove(server))}
+    />
+  )
   const projectList = !props.projectPath ? (
-    <SettingsEmpty title="Select a project in the sidebar first." />
+    <SettingsEmpty icon={<PlugConnected aria-hidden />} title={t('settings.mcp.selectProject')} />
   ) : loadingInventory ? (
-    <SettingsEntitySkeleton label="Loading MCP servers…" />
+    <McpCardSkeleton label={t('settings.mcp.loading')} />
   ) : !currentInventory ? null : projectServers.length === 0 ? (
-    <SettingsEmpty title="No MCP servers have been added to this project." />
+    <SettingsEmpty icon={<PlugConnected aria-hidden />} title={t('settings.mcp.empty')} />
   ) : (
-    projectServers.map((server) => (
-      <ServerRow
-        key={server.id}
-        server={server}
-        capabilities={currentInventory.capabilities}
-        providerName={props.providerName}
-        busy={busy.has(server.id)}
-        onSignIn={() => void signIn(server)}
-        onToggle={() => toggle(server)}
-        onEdit={(opener) =>
-          setEditor({
-            mode: 'edit',
-            opener,
-            id: server.id,
-            displayName: server.displayName ?? '',
-            transport: JSON.stringify(server.transport, null, 2),
-          })
-        }
-        onRemove={() => remove(server)}
-      />
-    ))
+    <div className="mcp-list">{projectServers.map((server) => card(server, false))}</div>
   )
 
   return (
     <SettingsPage
-      title="MCP servers"
+      title={t('settings.nav.mcp')}
       description={pageDescription(props.providerName, props.projectPath, props.projectName)}
       actions={
         <>
@@ -490,7 +499,7 @@ function ProviderMcpSettings(props: {
                 })
               }
             >
-              Hide server by ID
+              {t('settings.mcp.hideById')}
             </button>
           ) : null}
           {props.projectPath && currentInventory?.capabilities.add ? (
@@ -509,7 +518,7 @@ function ProviderMcpSettings(props: {
               }
             >
               <Plus size={14} aria-hidden />
-              Add server
+              {t('settings.mcp.add')}
             </button>
           ) : null}
         </>
@@ -520,7 +529,7 @@ function ProviderMcpSettings(props: {
           tone="error"
           action={
             <button className="set-button" type="button" onClick={() => void refresh()}>
-              Retry
+              {t('settings.mcp.retry')}
             </button>
           }
         >
@@ -529,12 +538,13 @@ function ProviderMcpSettings(props: {
       ) : null}
       {currentInventory && !currentInventory.capabilities.inventory ? (
         <SettingsNotice tone="info">
-          Servers from {props.providerName}’s own settings are loaded in chats but can’t be listed
-          here.
+          {t('settings.mcp.notListed', { provider: props.providerName })}
         </SettingsNotice>
       ) : null}
       {checking && !loadingInventory ? (
-        <SettingsNotice tone="progress">Checking {props.providerName} MCP servers…</SettingsNotice>
+        <SettingsNotice tone="progress">
+          {t('settings.mcp.checking', { provider: props.providerName })}
+        </SettingsNotice>
       ) : null}
       {notice ? <SettingsNotice tone="info">{notice}</SettingsNotice> : null}
       {editor ? (
@@ -549,13 +559,13 @@ function ProviderMcpSettings(props: {
       ) : null}
       {projectList ? (
         <SettingsSection
-          label="Project servers"
+          label={t('settings.mcp.projectServers')}
           note={
             // Once there is a change to apply: above the empty line it read as its lead-in.
             currentInventory?.capabilities.add &&
             !currentInventory.capabilities.reload &&
             (projectServers.length > 0 || notice)
-              ? 'Changes apply when you start or resume a session.'
+              ? t('settings.mcp.applyNote')
               : undefined
           }
         >
@@ -564,31 +574,42 @@ function ProviderMcpSettings(props: {
       ) : null}
       {currentInventory && inheritedServers.length > 0 ? (
         <SettingsSection
-          title={`From ${props.providerName} settings`}
-          note={
-            <>
-              Every {props.providerName} chat in this project loads these. Change them in{' '}
-              {props.providerName}
-              {canHide ? ', or turn one off for this project only.' : '.'}
-            </>
-          }
+          title={t('settings.mcp.inherited.title', { provider: props.providerName })}
+          note={t(canHide ? 'settings.mcp.inherited.noteHide' : 'settings.mcp.inherited.note', {
+            provider: props.providerName,
+          })}
         >
-          {inheritedServers.map((server) => (
-            <ServerRow
-              key={server.id}
-              server={server}
-              capabilities={currentInventory.capabilities}
-              providerName={props.providerName}
-              busy={busy.has(server.id)}
-              onSignIn={() => void signIn(server)}
-              onToggle={() => toggle(server)}
-              onEdit={() => undefined}
-              onRemove={() => undefined}
-            />
-          ))}
+          <div className="mcp-list">{inheritedServers.map((server) => card(server, true))}</div>
         </SettingsSection>
       ) : null}
     </SettingsPage>
+  )
+}
+
+const CARD_SKELETON_NAME_WIDTHS = [112, 148, 88] as const
+const CARD_SKELETON_DETAIL_WIDTHS = [236, 184, 212] as const
+
+/** Cards before their list arrives: a mark, a name, a status and one line of detail each. */
+function McpCardSkeleton(props: { label: string }) {
+  return (
+    <SkeletonStatus label={props.label} className="mcp-list">
+      {CARD_SKELETON_NAME_WIDTHS.map((width, index) => (
+        <div className="mcp-card mcp-card--skeleton" key={width} aria-hidden>
+          <Skeleton className="skeleton--block" width={40} height={40} />
+          <div className="mcp-card__main">
+            <div className="mcp-card__head">
+              <Skeleton width={width} height={11} />
+              <Skeleton width={72} height={16} />
+            </div>
+            <Skeleton
+              className="mcp-card__skeleton-detail"
+              width={CARD_SKELETON_DETAIL_WIDTHS[index]}
+              height={8}
+            />
+          </div>
+        </div>
+      ))}
+    </SkeletonStatus>
   )
 }
 
@@ -601,151 +622,6 @@ function pageDescription(
   return projectPath && projectName ? `${providerName} · ${projectName}` : providerName
 }
 
-const STARTUP_LABELS = {
-  stopped: 'Stopped',
-  starting: 'Starting…',
-  ready: 'Ready',
-  failed: 'Failed',
-} satisfies Record<NonNullable<McpServer['startup']>['state'], string>
-
-function serverStatus(server: McpServer): string {
-  if (!server.enabled) return 'Disabled'
-  return server.startup ? STARTUP_LABELS[server.startup.state] : 'Status unavailable'
-}
-
-function ServerRow(props: {
-  server: McpServer
-  capabilities: Inventory['capabilities']
-  providerName: string
-  busy: boolean
-  onSignIn: () => void
-  onToggle: () => void
-  onEdit: (opener: HTMLButtonElement) => void
-  onRemove: () => void
-}) {
-  const auth = props.server.auth
-  const startup = props.server.startup
-  const inherited = props.server.scope === 'global'
-  const needsOAuth =
-    props.capabilities.startOAuth && auth?.status === 'sign_in_required' && auth.method === 'oauth'
-  const canToggle =
-    props.capabilities.remove &&
-    ((!props.server.enabled && props.server.scope === 'project') ||
-      (canHideInherited(props.capabilities) && props.server.scope === 'global'))
-  // A server can report hundreds of tools; render them only once someone looks.
-  const [toolsOpen, setToolsOpen] = useState(false)
-  const canEdit =
-    props.capabilities.update && props.server.scope === 'project' && props.server.transport
-  const canRemove =
-    props.capabilities.remove && props.server.scope === 'project' && props.server.enabled
-  // Project servers are the page's own list; inherited ones sit under their section.
-  const Name = inherited ? 'h3' : 'h2'
-  return (
-    <article
-      className="set-entity mcp-row"
-      data-tone={
-        !props.server.enabled ? 'muted' : startup?.state === 'failed' ? 'error' : undefined
-      }
-    >
-      <div className="set-entity__main">
-        <div className="set-entity__head">
-          <Name className="set-entity__name">{props.server.displayName ?? props.server.id}</Name>
-          <span className="set-leader" aria-hidden />
-          <span className="set-entity__status">{serverStatus(props.server)}</span>
-        </div>
-        {inherited && !props.server.transport ? (
-          props.server.description ? (
-            <p className="set-entity__detail">{props.server.description}</p>
-          ) : null
-        ) : (
-          <p className="set-entity__detail set-entity__detail--code">
-            {transportLabel(props.server.transport)}
-          </p>
-        )}
-        {auth?.status === 'sign_in_required' && !needsOAuth ? (
-          // No Sign in button would work here, so say where signing in happens.
-          <p className="set-entity__detail">
-            Needs sign-in. Sign in through {props.providerName} itself; TasteCode can’t start this
-            sign-in.
-          </p>
-        ) : null}
-        {startup?.state === 'failed' ? (
-          <p className="set-entity__detail set-entity__detail--error" role="alert">
-            <AlertTriangle size={13} aria-hidden />
-            {startup.message}
-          </p>
-        ) : null}
-        <details
-          className="mcp-row__details"
-          onToggle={(event) => setToolsOpen(event.currentTarget.open)}
-        >
-          <summary>
-            {props.server.tools.length} tools · {props.server.resources.length} resources ·{' '}
-            {props.server.resourceTemplates.length} templates
-          </summary>
-          {!toolsOpen ? null : props.server.tools.length ? (
-            <ul>
-              {props.server.tools.map((tool) => (
-                <li key={tool.name}>
-                  <strong>{tool.title ?? tool.name}</strong>
-                  {tool.description ? ` — ${tool.description}` : ''}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No tools reported.</p>
-          )}
-        </details>
-      </div>
-      <div className="set-entity__actions">
-        {needsOAuth ? (
-          <button
-            className="set-button"
-            type="button"
-            disabled={props.busy}
-            onClick={props.onSignIn}
-          >
-            Sign in
-          </button>
-        ) : null}
-        {canToggle ? (
-          <button
-            className={`switch${props.server.enabled ? ' is-on' : ''}`}
-            type="button"
-            role="switch"
-            aria-label={`${props.server.enabled ? 'Disable' : 'Enable'} ${name(props.server)} for this project`}
-            aria-checked={props.server.enabled}
-            disabled={props.busy}
-            onClick={props.onToggle}
-          >
-            <span className="switch__thumb" />
-          </button>
-        ) : null}
-        {canEdit ? (
-          <button
-            className="set-button set-button--quiet"
-            type="button"
-            disabled={props.busy}
-            onClick={(event) => props.onEdit(event.currentTarget)}
-          >
-            Edit
-          </button>
-        ) : null}
-        {canRemove ? (
-          <button
-            className="set-button set-button--danger"
-            type="button"
-            disabled={props.busy}
-            onClick={props.onRemove}
-          >
-            Remove
-          </button>
-        ) : null}
-      </div>
-    </article>
-  )
-}
-
 function ServerEditor(props: {
   editor: Editor
   busy: boolean
@@ -753,6 +629,7 @@ function ServerEditor(props: {
   onCancel: () => void
   onSubmit: (event: FormEvent) => void
 }) {
+  const { t } = useI18n()
   const update = (change: Partial<Editor>) => props.onChange({ ...props.editor, ...change })
   const field = useRef<HTMLInputElement>(null)
   const hiding = props.editor.mode === 'hide'
@@ -766,7 +643,13 @@ function ServerEditor(props: {
   return (
     <form
       className="set-form mcp-editor"
-      aria-label={`${hiding ? 'Hide inherited' : props.editor.mode === 'add' ? 'Add' : 'Edit'} MCP server`}
+      aria-label={t(
+        hiding
+          ? 'settings.mcp.editor.labelHide'
+          : props.editor.mode === 'add'
+            ? 'settings.mcp.editor.labelAdd'
+            : 'settings.mcp.editor.labelEdit',
+      )}
       onSubmit={props.onSubmit}
       onKeyDown={(event) => {
         if (isComposingKey(event)) return
@@ -777,13 +660,10 @@ function ServerEditor(props: {
       }}
     >
       {hiding ? (
-        <p className="set-form__wide set-form__note">
-          Enter the ID from your provider's MCP settings. This hides the server in this project and
-          keeps the provider's own settings unchanged.
-        </p>
+        <p className="set-form__wide set-form__note">{t('settings.mcp.editor.hideNote')}</p>
       ) : null}
       <label className={hiding ? 'set-form__wide' : undefined}>
-        Server ID
+        {t('settings.mcp.editor.id')}
         <input
           ref={field}
           className="set-input"
@@ -795,7 +675,7 @@ function ServerEditor(props: {
       </label>
       {!hiding ? (
         <label>
-          Display name
+          {t('settings.mcp.editor.displayName')}
           <input
             className="set-input"
             value={props.editor.displayName}
@@ -805,7 +685,7 @@ function ServerEditor(props: {
       ) : null}
       {!hiding ? (
         <label className="set-form__wide">
-          Transport JSON
+          {t('settings.mcp.editor.transport')}
           <textarea
             className="set-input mcp-editor__transport"
             required
@@ -813,10 +693,7 @@ function ServerEditor(props: {
             value={props.editor.transport}
             onChange={(event) => update({ transport: event.target.value })}
           />
-          <small className="set-form__hint">
-            Use stdio or HTTP transport fields. Reference secrets as
-            {' { "source": "credential", "credentialRef": "…" }'}.
-          </small>
+          <small className="set-form__hint">{t('settings.mcp.editor.transportHint')}</small>
         </label>
       ) : null}
       <footer className="set-form__actions">
@@ -826,30 +703,18 @@ function ServerEditor(props: {
           disabled={props.busy}
           onClick={props.onCancel}
         >
-          Cancel
+          {t('settings.mcp.editor.cancel')}
         </button>
         <button className="set-button set-button--primary" type="submit" disabled={props.busy}>
-          {props.busy ? 'Saving…' : hiding ? 'Hide server' : 'Save server'}
+          {props.busy
+            ? t('settings.mcp.editor.saving')
+            : hiding
+              ? t('settings.mcp.editor.hide')
+              : t('settings.mcp.editor.save')}
         </button>
       </footer>
     </form>
   )
-}
-
-/** Absent means the rule from before the capability was declared. */
-function canHideInherited(capabilities: Inventory['capabilities']): boolean {
-  return capabilities.hideInherited ?? (capabilities.add && capabilities.inventory)
-}
-
-function name(server: McpServer): string {
-  return server.displayName ?? server.id
-}
-
-function transportLabel(transport: McpTransport | undefined): string {
-  if (!transport) return 'Configuration managed by provider'
-  return transport.type === 'http'
-    ? transport.url
-    : [transport.command, ...(transport.args ?? [])].join(' ')
 }
 
 function without(id: string) {

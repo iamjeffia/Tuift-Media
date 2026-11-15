@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { IconAlertCircle } from '@tabler/icons-react'
+import { useI18n } from '../i18n/index.js'
 
 /** A row keeps its compact size while its error can escape the containing card. */
 export function RowIssue(props: {
@@ -17,6 +18,7 @@ export function RowIssue(props: {
   announce?: boolean | undefined
   label?: string
 }) {
+  const { t } = useI18n()
   const id = useId()
   const trigger = useRef<HTMLButtonElement>(null)
   const bubble = useRef<HTMLSpanElement>(null)
@@ -102,7 +104,7 @@ export function RowIssue(props: {
         ref={trigger}
         type="button"
         className="row-issue__dot"
-        aria-label={props.label ?? `Problem: ${props.message}`}
+        aria-label={props.label ?? t('dialogs.rowIssue.label', { message: props.message })}
         aria-describedby={open ? id : undefined}
         onFocus={() => {
           cancelClose()

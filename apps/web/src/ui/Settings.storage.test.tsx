@@ -55,7 +55,7 @@ describe('Settings with unavailable account email storage', () => {
 
       expect(await screen.findByRole('button', { name: 'Sign out' })).toBeTruthy()
       expect(screen.getByText(email ?? 'Signed in')).toBeTruthy()
-      expect(screen.queryByText('TasteCode couldn’t display this window')).toBeNull()
+      expect(screen.queryByText('TUIFT Code couldn’t display this window')).toBeNull()
     },
   )
 
@@ -88,7 +88,7 @@ describe('Settings with unavailable account email storage', () => {
 
     expect(await screen.findByRole('button', { name: 'Sign out' })).toBeTruthy()
     expect(onAccountChange).toHaveBeenCalledWith('grok', { signedIn: true })
-    expect(screen.queryByText('TasteCode couldn’t display this window')).toBeNull()
+    expect(screen.queryByText('TUIFT Code couldn’t display this window')).toBeNull()
   })
 
   it('shows a successful sign-out even when the cached email cannot be removed', async () => {

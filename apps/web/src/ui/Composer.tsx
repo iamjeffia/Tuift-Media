@@ -24,6 +24,7 @@ import {
   IconGripVertical as GripVertical,
   IconPhoto as ImageIcon,
   IconDeviceLaptop as Laptop,
+  IconMovie as Movie,
   IconPalette as Palette,
   IconPencil as Pencil,
   IconPlayerPlay as Play,
@@ -603,6 +604,8 @@ function ComposerComponent(props: {
   /** Why this project cannot start an isolated chat; the option is disabled with it. */
   isolateUnavailable?: string | undefined
   designMode: boolean
+  /** Visual, remembered toggle only for now: it never changes what a prompt sends. */
+  motionMode: boolean
   /** Why Ask first cannot run with this provider; the option is disabled with it. */
   askFirstUnavailable?: string | undefined
   keybindings?: Keybindings | undefined
@@ -650,6 +653,7 @@ function ComposerComponent(props: {
   onApprovalChange: (mode: ApprovalMode) => void
   onIsolateChange: (isolate: boolean) => void
   onDesignModeChange: (enabled: boolean) => void
+  onMotionModeChange: (enabled: boolean) => void
   onTranscribeVoice: (requestId: string, recording: VoiceRecording) => Promise<string>
   onCancelVoice: (requestId: string) => void
   onProjectChange: (path: string) => void
@@ -660,11 +664,11 @@ function ComposerComponent(props: {
   onSetupProvider: () => void
   onSend: (text: string, attachments: string[]) => void
   onSteer: (text: string, attachments: string[]) => void
-  /** /feedback [text] opens TasteCode's feedback dialog instead of reaching a provider. */
+  /** /feedback [text] opens TUIFT Code's feedback dialog instead of reaching a provider. */
   onFeedbackCommand?: ((text: string) => void) | undefined
   /** /new or /clear starts a new chat instead of reaching a provider. */
   onNewChatCommand?: (() => void) | undefined
-  /** /resume, /settings, /mcp, /skills, /usage or /login opens TasteCode's own screen for it. */
+  /** /resume, /settings, /mcp, /skills, /usage or /login opens TUIFT Code's own screen for it. */
   onAppScreenCommand?: ((screen: AppScreen) => void) | undefined
   onInterrupt: () => void
   /** An interrupt is sent and the turn has not ended yet. */
@@ -1518,7 +1522,7 @@ function ComposerComponent(props: {
   }, [attachments, props.onAttachmentsChange])
 
   const sendContent = (content: string, submission: RunningSubmission = 'queue') => {
-    // Chips are only how the draft looks: the provider and TasteCode's own
+    // Chips are only how the draft looks: the provider and TUIFT Code's own
     // commands read the tokens they stand for.
     const prompt = composerWireText(content, { images: props.attachmentsSupported })
     const feedback = parseFeedbackCommand(prompt)
@@ -2601,6 +2605,26 @@ function ComposerComponent(props: {
                         >
                           <Palette size={13} aria-hidden />
                           <span>Design</span>
+                        </button>
+                      </DesignBeam>
+
+                      {/* Same chip and beam as Design, in TUIFT Media colours. */}
+                      <DesignBeam
+                        className="composer__design-button-beam composer__motion-beam"
+                        strength={0.58}
+                        active={props.motionMode}
+                      >
+                        <button
+                          type="button"
+                          className={`menutrigger tool composer__design composer__motion${props.motionMode ? ' is-active' : ''}`}
+                          aria-pressed={props.motionMode}
+                          onFocus={preloadDesignBeamStyles}
+                          onPointerEnter={preloadDesignBeamStyles}
+                          onClick={() => props.onMotionModeChange(!props.motionMode)}
+                          title={props.motionMode ? 'Turn off Motion mode' : 'Turn on Motion mode'}
+                        >
+                          <Movie size={13} aria-hidden />
+                          <span>Motion</span>
                         </button>
                       </DesignBeam>
                     </div>

@@ -52,7 +52,7 @@ export class BrowserCommandCoordinator<Client extends object = WebSocket> {
     // A chat the window stopped showing takes its browser tab with it.
     for (const [commandId, pending] of this.#pending) {
       if (pending.socket === socket && !shown.has(pending.threadId))
-        this.#end(commandId, new BrowserCommandError('The chat is no longer shown in TasteCode.'))
+        this.#end(commandId, new BrowserCommandError('The chat is no longer shown in TUIFT Code.'))
     }
   }
 
@@ -62,7 +62,7 @@ export class BrowserCommandCoordinator<Client extends object = WebSocket> {
       if (pending.socket !== socket) continue
       clearTimeout(pending.timer)
       this.#pending.delete(commandId)
-      pending.reject(new BrowserCommandError('The TasteCode window showing the chat closed.'))
+      pending.reject(new BrowserCommandError('The TUIFT Code window showing the chat closed.'))
     }
   }
 
@@ -72,7 +72,7 @@ export class BrowserCommandCoordinator<Client extends object = WebSocket> {
     if (!socket) {
       return Promise.reject(
         new BrowserCommandError(
-          'No TasteCode window shows this chat, so its browser is unavailable. Continue without it.',
+          'No TUIFT Code window shows this chat, so its browser is unavailable. Continue without it.',
         ),
       )
     }

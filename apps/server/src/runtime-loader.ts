@@ -63,7 +63,7 @@ export function providerRuntime(
 ): ProviderRuntime {
   if (provider === 'api') {
     throw new Error(
-      'API key connections were removed from TasteCode. This chat stays readable; to use your own key, sign in to OpenCode with it.',
+      'API key connections were removed from TUIFT Code. This chat stays readable; to use your own key, sign in to OpenCode with it.',
     )
   }
   assertProviderOffered(provider)

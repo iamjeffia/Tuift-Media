@@ -193,7 +193,7 @@ final class AppearanceController: FormController {
       ]),
       Section(
         id: "size", header: "Text Size",
-        footer: follows ? "Follows Settings › Display & Brightness › Text Size." : "Only TasteCode uses this size.",
+        footer: follows ? "Follows Settings › Display & Brightness › Text Size." : "Only TUIFT Code uses this size.",
         rows: size),
       Section(id: "font", header: "Font", rows: [
         viewRow("fonts", fonts, insets: NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)),

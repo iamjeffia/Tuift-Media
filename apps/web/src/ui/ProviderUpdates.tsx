@@ -8,6 +8,7 @@ import {
   IconRefresh as Refresh,
   IconX as X,
 } from '@tabler/icons-react'
+import { useI18n } from '../i18n/index.js'
 import { useProviderUpdates, type UpdateOperation } from '../provider-updates.js'
 import { installState, updateKey } from '../provider-install.js'
 import { providerMark } from '../model-catalog.js'
@@ -65,6 +66,7 @@ export function ProviderUpdateNotice(props: {
   onUpdated: () => void
   suppressed?: boolean
 }) {
+  const { t } = useI18n()
   const { store, state } = useProviderUpdates(props.transport)
   const [dismissed, setDismissed] = useState(readDismissed)
   const [dismissedOperations, setDismissedOperations] = useState<
@@ -162,10 +164,10 @@ export function ProviderUpdateNotice(props: {
             <span>
               <CountReel value={waiting} />
               <span className="visually-hidden">{waiting}</span>
-              {waiting === 1 ? ' update' : ' updates'}
+              {` ${waiting === 1 ? t('settings.providerUpdates.updateOne') : t('settings.providerUpdates.updateMany')}`}
             </span>
           ) : (
-            <span>Up to date</span>
+            <span>{t('settings.providerUpdates.upToDate')}</span>
           )}
           <span className="update-slip__head-actions">
             {startable.length > 1 ? (
@@ -176,13 +178,13 @@ export function ProviderUpdateNotice(props: {
                   for (const entry of startable) void store.start(entry.provider)
                 }}
               >
-                Update all
+                {t('settings.providerUpdates.updateAll')}
               </button>
             ) : null}
             <button
               className="ghost icon-button"
               type="button"
-              aria-label="Dismiss provider updates"
+              aria-label={t('settings.providerUpdates.dismiss')}
               onClick={dismiss}
             >
               <X size={13} aria-hidden />
@@ -211,6 +213,7 @@ function ProviderUpdateItem(props: {
   transport: Transport
   onStart: () => void
 }) {
+  const { t } = useI18n()
   const { update, operation } = props
   const [details, setDetails] = useState(false)
   const detailsId = useId()
@@ -235,19 +238,19 @@ function ProviderUpdateItem(props: {
   const hasLog = Boolean(installState(key))
   const status = busy
     ? operation?.phase === 'verifying'
-      ? 'Checking the new version…'
+      ? t('settings.providerUpdates.checkingVersion')
       : to
-        ? `Updating to ${to}…`
-        : 'Updating…'
+        ? t('settings.providerUpdates.updatingTo', { version: to })
+        : t('settings.providerUpdates.updating')
     : succeeded
-      ? `Updated to ${update.currentVersion}`
+      ? t('settings.providerUpdates.updatedTo', { version: update.currentVersion ?? '' })
       : failed
-        ? 'Update failed'
+        ? t('settings.providerUpdates.failed')
         : `${update.currentVersion} → ${update.latestVersion}`
   return (
     <div
       className="update-slip__item"
-      aria-label={`${update.displayName} update`}
+      aria-label={t('settings.providerUpdates.itemLabel', { name: update.displayName })}
       data-phase={operation?.phase ?? 'available'}
       style={{ '--row': props.index } as CSSProperties}
     >
@@ -275,11 +278,15 @@ function ProviderUpdateItem(props: {
         <span className="update-slip__action">
           {busy || succeeded ? (
             <span className="update-slip__state" aria-hidden>
-              {operation?.phase === 'verifying' ? 'Checking' : busy ? 'Updating' : 'Updated'}
+              {operation?.phase === 'verifying'
+                ? t('settings.providerUpdates.stateChecking')
+                : busy
+                  ? t('settings.providerUpdates.stateUpdating')
+                  : t('settings.providerUpdates.stateUpdated')}
             </span>
           ) : update.canUpdate ? (
             <button className="update-slip__button" type="button" onClick={props.onStart}>
-              {failed ? 'Retry' : 'Update'}
+              {failed ? t('settings.providerUpdates.retry') : t('settings.providerUpdates.update')}
             </button>
           ) : (
             <a
@@ -288,7 +295,7 @@ function ProviderUpdateItem(props: {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Update guide
+              {t('settings.providerUpdates.guide')}
               <ArrowUpRight size={12} aria-hidden />
             </a>
           )}
@@ -305,7 +312,9 @@ function ProviderUpdateItem(props: {
               aria-controls={detailsId}
               onClick={() => setDetails(!details)}
             >
-              {details ? 'Hide details' : 'Details'}
+              {details
+                ? t('settings.providerUpdates.hideDetails')
+                : t('settings.providerUpdates.details')}
             </button>
           ) : null}
         </span>
@@ -314,7 +323,10 @@ function ProviderUpdateItem(props: {
         <div id={detailsId} className="update-slip__terminal">
           <Suspense
             fallback={
-              <SkeletonStatus label="Opening details…" className="install-terminal">
+              <SkeletonStatus
+                label={t('settings.providerUpdates.openingDetails')}
+                className="install-terminal"
+              >
                 <SkeletonCode lines={5} />
               </SkeletonStatus>
             }
@@ -324,7 +336,7 @@ function ProviderUpdateItem(props: {
               installKey={key}
               profile="workspace"
               appearance="notice"
-              ariaLabel={`${update.displayName} update terminal`}
+              ariaLabel={t('settings.providerUpdates.terminalLabel', { name: update.displayName })}
             />
           </Suspense>
         </div>
@@ -334,24 +346,27 @@ function ProviderUpdateItem(props: {
 }
 
 export function ProviderUpdateCheck(props: { transport: Transport }) {
+  const { t, tp } = useI18n()
   const { store, state } = useProviderUpdates(props.transport)
   useEffect(() => {
     void store.refresh()
   }, [store])
   const error =
     state.error ??
-    (state.updates.some((entry) => entry.error) ? 'Could not check all updates' : undefined)
+    (state.updates.some((entry) => entry.error)
+      ? t('settings.providerUpdates.checkFailed')
+      : undefined)
   const count = state.updates.filter((entry) => entry.updateAvailable).length
   const busy = Object.values(state.operations).some(isBusy)
   const failed = Object.values(state.operations).some((entry) => entry.phase === 'failed')
   const review = count > 0 || busy || failed
   const summary = busy
-    ? 'Update in progress'
+    ? t('settings.providerUpdates.inProgress')
     : failed
-      ? 'Update needs attention'
+      ? t('settings.providerUpdates.needsAttention')
       : count
-        ? `${count} update${count === 1 ? '' : 's'} available`
-        : 'Up to date'
+        ? tp('settings.providerUpdates.available', count)
+        : t('settings.providerUpdates.upToDate')
   return (
     <div className="provider-updates-check">
       {review ? (
@@ -371,9 +386,11 @@ export function ProviderUpdateCheck(props: { transport: Transport }) {
         <span role="status">
           {!state.checking && !error ? <Check size={13} aria-hidden /> : null}
           {state.checking
-            ? 'Checking for updates…'
+            ? t('settings.providerUpdates.checking')
             : (error ??
-              (state.updates.some((entry) => entry.currentVersion) ? summary : 'Provider updates'))}
+              (state.updates.some((entry) => entry.currentVersion)
+                ? summary
+                : t('settings.providerUpdates.title')))}
         </span>
       )}
       <button
@@ -386,7 +403,7 @@ export function ProviderUpdateCheck(props: { transport: Transport }) {
           <Refresh size={13} aria-hidden />
           <Loader className="provider-update-spinner" size={13} aria-hidden />
         </IconMorph>
-        Check for updates
+        {t('settings.providerUpdates.check')}
       </button>
     </div>
   )

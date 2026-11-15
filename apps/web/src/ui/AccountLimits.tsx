@@ -15,6 +15,7 @@ import { limitKey, USAGE_LOW_PERCENT } from '../usage-limits-state.js'
 import type { UsageSummaryState } from '../usage-summary-state.js'
 import '../styles/account-limits.css'
 import { ProviderIcon } from './ProviderIcon.js'
+import { t as translateNow, useI18n, type I18n } from '../i18n/index.js'
 import { compactRelativeTime } from './session-clock.js'
 import { dateTimeText, resetText } from './usage/usage-format.js'
 
@@ -57,6 +58,7 @@ export function AccountLimits(props: {
   onRefresh?: (() => void) | undefined
   onConsumeReset?: ConsumeReset | undefined
 }) {
+  const { t } = useI18n()
   const panel = useRef<HTMLElement>(null)
   const onShow = useRef(props.onShow)
   // A source without plan limits is left out; one that could not be read yet is not.
@@ -97,7 +99,7 @@ export function AccountLimits(props: {
     <section
       ref={panel}
       className="account-menu__usage"
-      aria-label="Plan limits"
+      aria-label={t('settings.accountLimits.planLimits')}
       aria-busy={busy}
       // A scroll container that keyboard users can reach and scroll.
       tabIndex={0}
@@ -124,7 +126,9 @@ export function AccountLimits(props: {
         if (!compact) return source(group.states[0]!)
         const label = (state: AccountLimitsState) =>
           props.accountLabel?.(state.provider, state.accountId) ??
-          (further(state) ? 'Account' : 'Default')
+          (further(state)
+            ? t('settings.accountLimits.account')
+            : t('settings.accountLimits.default'))
         // Alone in the popup, one further account keeps the full rows; beside others it is a line.
         if (group.states.length === 1 && groups.length === 1) {
           return (
@@ -175,12 +179,13 @@ function ProviderHeading(props: { provider: ProviderId; action?: ReactNode }) {
  * reads opening the popup started included, and asks nothing more meanwhile.
  */
 function RefreshLimits(props: { busy: boolean; onRefresh: () => void }) {
+  const { t } = useI18n()
   return (
     <button
       className={`account-menu__refresh${props.busy ? ' is-busy' : ''}`}
       type="button"
-      aria-label="Refresh plan limits"
-      title="Refresh plan limits"
+      aria-label={t('settings.accountLimits.refresh')}
+      title={t('settings.accountLimits.refresh')}
       // Not disabled, so focus stays on it while it turns.
       aria-disabled={props.busy || undefined}
       onClick={() => {
@@ -254,11 +259,16 @@ function ProviderAccountLimits(props: {
  * out of the sum.
  */
 function AccountPool(props: { pool: ProviderPool; provider: string; now: number }) {
+  const { t, tp } = useI18n()
+  const accounts = tp('settings.accountLimits.accounts', props.pool.accounts.length)
   return (
-    <section className="account-menu__pool" aria-label={`${props.provider} · All accounts`}>
-      <span className="account-menu__pool-name" title={`${props.pool.accounts.length} accounts`}>
-        All accounts
-        <span className="visually-hidden"> · {props.pool.accounts.length} accounts</span>
+    <section
+      className="account-menu__pool"
+      aria-label={t('settings.accountLimits.poolLabel', { provider: props.provider })}
+    >
+      <span className="account-menu__pool-name" title={accounts}>
+        {t('settings.accountLimits.allAccounts')}
+        <span className="visually-hidden">{` · ${accounts}`}</span>
       </span>
       <span className="account-menu__glance">
         {props.pool.windows.map((total) => (
@@ -281,6 +291,7 @@ function PoolWindow(props: {
   provider: string
   now: number
 }) {
+  const { t } = useI18n()
   const { pool, total } = props
   const left =
     total.capacity > 0
@@ -288,20 +299,25 @@ function PoolWindow(props: {
       : 0
   const unit = pool.unit ? ` ${pool.unit}` : ''
   const size = `${multipleText(total.capacity)}×${unit}`
-  const amount = `${multipleText(total.remaining, 1)}×${unit} left`
+  const amount = t('settings.accountLimits.amountLeft', {
+    amount: `${multipleText(total.remaining, 1)}×${unit}`,
+  })
   const segments = poolSegments(pool, total.kind, props.now)
   const next = segments.find((segment) => segment.resetsAt === total.nextResetAt)
   const reset = next?.resetsAt === undefined ? undefined : resetText(next.resetsAt, props.now)
   // Accounts without a plan size, or without this window, are not in the sum.
   const counted =
     total.accounts < pool.accounts.length
-      ? `${total.accounts} of ${pool.accounts.length} accounts`
+      ? t('settings.accountLimits.countedAccounts', {
+          counted: total.accounts,
+          total: pool.accounts.length,
+        })
       : undefined
   return (
     <span
       className="account-menu__glance-item"
       title={[
-        `${total.label} · ${size}: ${left}% left`,
+        t('settings.accountLimits.poolWindowTitle', { label: total.label, size, left }),
         [amount, counted].filter(Boolean).join(' · '),
         next && reset ? `${next.label} ${reset.label}` : '',
       ]
@@ -311,11 +327,18 @@ function PoolWindow(props: {
       <span
         className="account-menu__pool-bar"
         role="progressbar"
-        aria-label={`${props.provider} ${total.label} left, all accounts`}
+        aria-label={t('settings.accountLimits.poolBarLabel', {
+          provider: props.provider,
+          label: total.label,
+        })}
         aria-valuenow={left}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuetext={`${left}% left, ${multipleText(total.remaining, 1)} of ${size} left`}
+        aria-valuetext={t('settings.accountLimits.poolBarValue', {
+          left,
+          amount: multipleText(total.remaining, 1),
+          size,
+        })}
       >
         {segments.map((segment) => {
           const segmentLeft = Math.round(segment.left * 100)
@@ -327,7 +350,13 @@ function PoolWindow(props: {
               className="account-menu__pool-segment"
               data-low={segmentLeft <= USAGE_LOW_PERCENT ? '' : undefined}
               style={{ flexGrow: segment.weight, '--left': segment.left } as CSSProperties}
-              title={[`${segment.label}: ${segmentLeft}% left`, segmentReset?.label]
+              title={[
+                t('settings.accountLimits.segmentTitle', {
+                  label: segment.label,
+                  left: segmentLeft,
+                }),
+                segmentReset?.label,
+              ]
                 .filter(Boolean)
                 .join(', ')}
             >
@@ -356,12 +385,16 @@ function AccountLine(props: {
   onRetry: () => void
   onConsumeReset?: ConsumeReset | undefined
 }) {
+  const { t } = useI18n()
   const bodyId = useId()
   const { limits, status, retryable } = sourceView(props.state, props.now)
   const name = `${props.provider} · ${props.account}`
   const glanced = glanceLimits(limits)
   const glance = glanced
-    .map((limit) => `${limit.label} ${limit.valueLabel ?? `${remaining(limit)}% left`}`)
+    .map(
+      (limit) =>
+        `${limit.label} ${limit.valueLabel ?? t('settings.accountLimits.percentLeft', { percent: remaining(limit) })}`,
+    )
     .join(', ')
   const badge = (
     <>
@@ -369,9 +402,9 @@ function AccountLine(props: {
       {props.recommended ? (
         <span
           className="account-menu__account-badge"
-          title="Recommended: resets soonest and has room left"
+          title={t('settings.accountLimits.recommendedTitle')}
         >
-          <span className="visually-hidden">Recommended</span>
+          <span className="visually-hidden">{t('settings.accountLimits.recommended')}</span>
         </span>
       ) : null}
     </>
@@ -380,10 +413,10 @@ function AccountLine(props: {
     <button
       className="account-menu__retry"
       type="button"
-      aria-label={`Retry ${props.account}`}
+      aria-label={t('settings.accountLimits.retryAccount', { account: props.account })}
       onClick={props.onRetry}
     >
-      Retry
+      {t('settings.accountLimits.retry')}
     </button>
   ) : null
   // Without limits there is nothing to open: the line says why.
@@ -408,7 +441,7 @@ function AccountLine(props: {
           aria-controls={props.open ? bodyId : undefined}
           aria-label={[
             props.account,
-            props.recommended ? 'recommended' : '',
+            props.recommended ? t('settings.accountLimits.recommendedLower') : '',
             props.open ? '' : glance,
           ]
             .filter(Boolean)
@@ -428,7 +461,7 @@ function AccountLine(props: {
                 <span
                   key={`${limit.label}:${index}`}
                   className="account-menu__glance-item"
-                  title={glanceTitle(limit, props.now)}
+                  title={glanceTitle(t, limit, props.now)}
                 >
                   <span className="visually-hidden">{limit.label} </span>
                   {limit.valueLabel === undefined ? (
@@ -454,7 +487,11 @@ function AccountLine(props: {
       </div>
       {props.open ? (
         <section className="account-menu__account-body" id={bodyId} aria-label={name}>
-          {props.plan ? <p className="account-menu__account-plan">{props.plan} plan</p> : null}
+          {props.plan ? (
+            <p className="account-menu__account-plan">
+              {t('settings.accountLimits.plan', { plan: props.plan })}
+            </p>
+          ) : null}
           {limits.map((limit, index) => (
             <LimitRow
               key={`${limit.label}:${index}`}
@@ -473,8 +510,9 @@ function AccountLine(props: {
 }
 
 /** A closed line's window on hover: what is left and when it resets. */
-function glanceTitle(limit: Limit, now: number): string {
-  const value = limit.valueLabel ?? `${remaining(limit)}% left`
+function glanceTitle(t: I18n['t'], limit: Limit, now: number): string {
+  const value =
+    limit.valueLabel ?? t('settings.accountLimits.percentLeft', { percent: remaining(limit) })
   const reset = limit.resetsAt === undefined ? undefined : resetText(limit.resetsAt, now)
   return [`${limit.label}: ${value}`, reset?.label].filter(Boolean).join(', ')
 }
@@ -536,6 +574,7 @@ function LimitSource(props: {
   onRetry: () => void
   onConsumeReset?: ConsumeReset | undefined
 }) {
+  const { t } = useI18n()
   const titleId = useId()
   const statusId = useId()
   const bodyId = useId()
@@ -594,7 +633,7 @@ function LimitSource(props: {
             aria-describedby={statusId}
             onClick={props.onRetry}
           >
-            Retry
+            {t('settings.accountLimits.retry')}
           </button>
         ) : null}
         {props.action}
@@ -667,8 +706,8 @@ export function sourceStatus(
   if (state.status !== 'ready' && state.retry) {
     const { attempt, of, message } = state.retry
     return {
-      label: 'Retrying…',
-      detail: `Plan limits couldn’t be loaded. ${message} Trying again, ${attempt} of ${of}.`,
+      label: translateNow('settings.accountLimits.retrying'),
+      detail: translateNow('settings.accountLimits.retryingDetail', { message, attempt, of }),
     }
   }
   const checkedAt = source?.status === 'ready' ? source.checkedAt : undefined
@@ -676,38 +715,57 @@ export function sourceStatus(
     return hasValues
       ? {
           label: lastKnownLabel(checkedAt, now),
-          detail: `Couldn’t refresh plan limits. ${state.message}`,
+          detail: translateNow('settings.accountLimits.refreshFailed', { message: state.message }),
         }
-      : { label: 'Unavailable', detail: `Plan limits couldn’t be loaded. ${state.message}` }
+      : {
+          label: translateNow('settings.accountLimits.unavailable'),
+          detail: translateNow('settings.accountLimits.loadFailed', { message: state.message }),
+        }
   }
-  if (!source) return { label: 'Checking…' }
+  if (!source) return { label: translateNow('settings.accountLimits.checking') }
   // Only shown sources reach here unavailable: ones that could not be read yet.
   if (source.status === 'unavailable') {
     return state.status === 'loading'
-      ? { label: 'Checking…' }
+      ? { label: translateNow('settings.accountLimits.checking') }
       : {
-          label: 'Unavailable',
-          detail: ['Plan limits couldn’t be loaded.', source.error].filter(Boolean).join(' '),
+          label: translateNow('settings.accountLimits.unavailable'),
+          detail: [translateNow('settings.accountLimits.loadFailedShort'), source.error]
+            .filter(Boolean)
+            .join(' '),
         }
   }
   // The server kept these values through a failed refresh and retries on its own.
   if (source.status === 'ready' && source.stale && hasValues) {
     return {
       label: lastKnownLabel(checkedAt, now),
-      detail: ['Couldn’t refresh plan limits.', source.refreshError].filter(Boolean).join(' '),
+      detail: [translateNow('settings.accountLimits.refreshFailedShort'), source.refreshError]
+        .filter(Boolean)
+        .join(' '),
     }
   }
-  if (!hasValues) return { label: 'None reported', detail: 'No plan limits reported.' }
+  if (!hasValues)
+    return {
+      label: translateNow('settings.accountLimits.noneReported'),
+      detail: translateNow('settings.accountLimits.noneReportedDetail'),
+    }
   if (checkedAt !== undefined && now - checkedAt >= AGE_SHOWN_AFTER_MS) {
-    return { label: `Updated ${compactRelativeTime(checkedAt, now)} ago` }
+    return {
+      label: translateNow('settings.accountLimits.updatedAgo', {
+        age: compactRelativeTime(checkedAt, now),
+      }),
+    }
   }
   return undefined
 }
 
 /** "Last known · 2h ago"; under a minute, or without a read time, just "Last known". */
 function lastKnownLabel(checkedAt: number | undefined, now: number): string {
-  if (checkedAt === undefined || now - checkedAt < 60_000) return 'Last known'
-  return `Last known · ${compactRelativeTime(checkedAt, now)} ago`
+  if (checkedAt === undefined || now - checkedAt < 60_000) {
+    return translateNow('settings.accountLimits.lastKnown')
+  }
+  return translateNow('settings.accountLimits.lastKnownAgo', {
+    age: compactRelativeTime(checkedAt, now),
+  })
 }
 
 function LimitRow(props: {
@@ -720,6 +778,7 @@ function LimitRow(props: {
   /** One line: the bar between label and value, the reset time on hover, no actions. */
   inline?: boolean
 }) {
+  const { t } = useI18n()
   const inline = props.inline === true
   const consumable =
     !inline && props.limit.action === 'consume-reset' && props.onConsumeReset !== undefined
@@ -730,22 +789,27 @@ function LimitRow(props: {
   // nothing the number does not, and the rows that are being spent stand out.
   const full = props.limit.valueLabel === undefined && left === 100
   const gauge = props.limit.valueLabel === undefined && !full
-  const value = props.limit.valueLabel ?? `${left}% left`
+  const value = props.limit.valueLabel ?? t('settings.accountLimits.percentLeft', { percent: left })
   const pace = evenPace(props.limit, props.now)
   const reset =
     props.limit.resetsAt === undefined || full
       ? undefined
-      : resetLine(props.limit.resetsAt, props.now)
+      : resetLine(t, props.limit.resetsAt, props.now)
   const bar = gauge ? (
     <div
       className="account-menu__limit-bar"
       role="progressbar"
-      aria-label={`${props.name} ${props.limit.label} left`}
+      aria-label={t('settings.accountLimits.limitBarLabel', {
+        name: props.name,
+        label: props.limit.label,
+      })}
       aria-valuenow={left}
       aria-valuemin={0}
       aria-valuemax={100}
       title={
-        pace === undefined ? undefined : `At an even pace, ${Math.round(pace)}% would be left now.`
+        pace === undefined
+          ? undefined
+          : t('settings.accountLimits.evenPace', { percent: Math.round(pace) })
       }
     >
       <span />
@@ -791,7 +855,7 @@ function LimitRow(props: {
           accountId={props.accountId}
           onConsumeReset={props.onConsumeReset}
         >
-          Next available reset
+          {t('settings.accountLimits.nextReset')}
         </ResetCreditRow>
       ) : null}
     </div>
@@ -805,6 +869,7 @@ function ResetCreditRow(props: {
   creditId?: string | undefined
   onConsumeReset?: ConsumeReset | undefined
 }) {
+  const { t } = useI18n()
   const row = useRef<HTMLDivElement>(null)
   const expiryId = useId()
   const attemptKey = useRef<string | undefined>(undefined)
@@ -829,11 +894,11 @@ function ResetCreditRow(props: {
           : await props.onConsumeReset(props.provider, key, props.creditId, props.accountId)
       attemptKey.current = undefined
       setConfirming(false)
-      if (outcome === 'nothingToReset') setMessage('Nothing needed a reset.')
-      else if (outcome === 'noCredit') setMessage('No reset is available.')
-      else if (outcome === 'alreadyRedeemed') setMessage('This reset was already used.')
+      if (outcome === 'nothingToReset') setMessage(t('settings.accountLimits.resetNothing'))
+      else if (outcome === 'noCredit') setMessage(t('settings.accountLimits.resetNone'))
+      else if (outcome === 'alreadyRedeemed') setMessage(t('settings.accountLimits.resetUsed'))
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Couldn’t use the reset.')
+      setMessage(error instanceof Error ? error.message : t('settings.accountLimits.resetFailed'))
     } finally {
       setPending(false)
     }
@@ -860,27 +925,27 @@ function ResetCreditRow(props: {
             className="account-menu__limit-btn account-menu__limit-confirm"
             type="button"
             disabled={pending || !props.onConsumeReset}
-            aria-label="Confirm use rate limit reset"
+            aria-label={t('settings.accountLimits.confirmLabel')}
             aria-describedby={expiryId}
             onClick={() => void consume()}
           >
-            {pending ? 'Using…' : 'Confirm'}
+            {pending ? t('settings.accountLimits.using') : t('settings.accountLimits.confirm')}
           </button>
           <button
             className="account-menu__limit-btn account-menu__limit-cancel"
             type="button"
             disabled={pending}
-            aria-label="Cancel using rate limit reset"
+            aria-label={t('settings.accountLimits.cancelLabel')}
             onClick={() => setConfirming(false)}
           >
-            Cancel
+            {t('settings.accountLimits.cancel')}
           </button>
         </>
       ) : props.onConsumeReset ? (
         <button
           className="account-menu__limit-btn account-menu__limit-use"
           type="button"
-          aria-label="Use rate limit reset"
+          aria-label={t('settings.accountLimits.useLabel')}
           aria-describedby={expiryId}
           onClick={(event) => {
             event.preventDefault()
@@ -889,7 +954,7 @@ function ResetCreditRow(props: {
             setConfirming(true)
           }}
         >
-          Use
+          {t('settings.accountLimits.use')}
         </button>
       ) : null}
       {message ? (
@@ -908,12 +973,16 @@ function ResetCreditExpiries(props: {
   now: number
   onConsumeReset?: ConsumeReset | undefined
 }) {
+  const { t } = useI18n()
   const now = props.now
   const ordered = [...props.credits].sort(
     (a, b) => (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity),
   )
   return (
-    <ul className="account-menu__reset-expiries" aria-label="Rate limit reset expiries">
+    <ul
+      className="account-menu__reset-expiries"
+      aria-label={t('settings.accountLimits.expiriesLabel')}
+    >
       {ordered.map(({ id, expiresAt }, index) => {
         const date = expiresAt === null ? undefined : new Date(expiresAt)
         const validDate = date && !Number.isNaN(date.getTime()) ? date : undefined
@@ -932,13 +1001,17 @@ function ResetCreditExpiries(props: {
                   dateTime={validDate.toISOString()}
                   data-expiring-soon={untilExpiry > 0 && untilExpiry < 86_400_000 ? '' : undefined}
                 >
-                  {untilExpiry <= 0 ? 'Expired' : 'Expires'}{' '}
-                  {dateTimeText(validDate.getTime(), now)}
+                  {t(
+                    untilExpiry <= 0
+                      ? 'settings.accountLimits.expired'
+                      : 'settings.accountLimits.expires',
+                    { date: dateTimeText(validDate.getTime(), now) ?? '' },
+                  )}
                 </time>
               ) : expiresAt === null ? (
-                'No expiry'
+                t('settings.accountLimits.noExpiry')
               ) : (
-                'Expiry date unavailable'
+                t('settings.accountLimits.expiryUnavailable')
               )}
             </ResetCreditRow>
           </li>
@@ -980,8 +1053,8 @@ export function evenPace(limit: Limit, now: number): number | undefined {
  * day, the weekday and time within the week, the date after that, with the
  * exact time on hover.
  */
-function resetLine(at: number, now: number) {
+function resetLine(t: I18n['t'], at: number, now: number) {
   const reset = resetText(at, now)
-  if (!reset) return { label: 'Reset time unavailable.', title: undefined }
+  if (!reset) return { label: t('settings.accountLimits.resetUnavailable'), title: undefined }
   return { label: reset.label.charAt(0).toUpperCase() + reset.label.slice(1), title: reset.title }
 }

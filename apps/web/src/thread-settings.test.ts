@@ -35,6 +35,14 @@ describe('a chat setup shared through the server', () => {
     })
   })
 
+  it('keeps the Motion choice this window made for a chat', () => {
+    const choices = [choice('gpt-5.5'), choice('gpt-5.5-mini')]
+    const saved = { modelKey: 'codex:gpt-5.5', motionMode: true }
+    expect(
+      adoptedSelection({ model: 'gpt-5.5-mini' }, saved, { provider: 'codex' }, choices),
+    ).toEqual({ modelKey: 'codex:gpt-5.5-mini', motionMode: true })
+  })
+
   it('follows a setup another client chose, keeping what only this window has', () => {
     const choices = [choice('gpt-5.5'), choice('gpt-5.5-mini')]
     const saved = { modelKey: 'codex:gpt-5.5', effort: 'high', designMode: true }

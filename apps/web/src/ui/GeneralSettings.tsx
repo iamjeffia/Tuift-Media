@@ -11,6 +11,13 @@ import {
 import type { SidebarSettings } from '@harness/contracts'
 import { canNotifyChats } from '../bridge.js'
 import {
+  LANGUAGE_OPTIONS,
+  setLanguage,
+  useI18n,
+  type Language,
+  type MessageKey,
+} from '../i18n/index.js'
+import {
   readChatNotificationMode,
   subscribeChatNotificationMode,
   writeChatNotificationMode,
@@ -28,39 +35,36 @@ import {
   writeTerminalPlacement,
   type TerminalPlacement,
 } from '../terminal-placement.js'
-import { SettingsPage } from './settings/SettingsLayout.js'
+import { AppSelect } from './AppSelect.js'
+import { SettingsPage, SettingsRow } from './settings/SettingsLayout.js'
 import '../styles/general-settings.css'
 
 type SidebarMode = SidebarSettings['mode']
 /** `null` is "never", the stop past the 90-day end of the scale. */
 type SettleDays = SidebarSettings['autoSettleDays']
 
-type Option<T extends string> = { value: T; label: string }
+type Option<T extends string> = { value: T; label: MessageKey }
 
 const SIDEBAR_OPTIONS = [
-  { value: 'classic', label: 'Classic' },
-  { value: 'inbox', label: 'Inbox' },
+  { value: 'classic', label: 'general.sidebar.classic' },
+  { value: 'inbox', label: 'general.sidebar.inbox' },
 ] as const satisfies ReadonlyArray<Option<SidebarMode>>
 
 const TERMINAL_OPTIONS = [
-  { value: 'bottom', label: 'Bottom' },
-  { value: 'workspace', label: 'Right' },
+  { value: 'bottom', label: 'general.terminal.bottom' },
+  { value: 'workspace', label: 'general.terminal.right' },
 ] as const satisfies ReadonlyArray<Option<TerminalPlacement>>
 
 const PICKER_OPTIONS = [
-  { value: 'list', label: 'List' },
-  { value: 'rail', label: 'Rail' },
+  { value: 'list', label: 'general.modelPicker.list' },
+  { value: 'rail', label: 'general.modelPicker.rail' },
 ] as const satisfies ReadonlyArray<Option<ModelPickerLayout>>
 
 const NOTIFY_OPTIONS = [
-  { value: 'off', label: 'Off' },
-  { value: 'needs-you', label: 'Needs me' },
-  { value: 'needs-you-or-finished', label: 'Also finished' },
+  { value: 'off', label: 'general.notifications.off' },
+  { value: 'needs-you', label: 'general.notifications.needsYou' },
+  { value: 'needs-you-or-finished', label: 'general.notifications.alsoFinished' },
 ] as const satisfies ReadonlyArray<Option<ChatNotificationMode>>
-
-function dayCount(days: number): string {
-  return days === 1 ? '1 day' : `${days} days`
-}
 
 /**
  * General is chosen by picture, the way Appearance chooses a theme: each
@@ -83,6 +87,7 @@ export function GeneralSettings(props: {
     readTerminalPlacement,
     readTerminalPlacement,
   )
+  const { t, language } = useI18n()
   // While the settle scale is dragged the Inbox picture follows the pointer;
   // the server only hears the value the pointer lets go at.
   const [draftDays, setDraftDays] = useState<SettleDays | undefined>()
@@ -92,12 +97,26 @@ export function GeneralSettings(props: {
   const inbox = mode === 'inbox'
 
   return (
-    <SettingsPage title="General">
+    <SettingsPage title={t('general.title')}>
       <div className="general">
+        <SettingsRow
+          searchId="general-language"
+          name={t('general.language.name')}
+          note={t('general.language.note')}
+        >
+          <AppSelect<Language>
+            className="set-select--inline"
+            ariaLabel={t('general.language.name')}
+            align="right"
+            value={language}
+            options={LANGUAGE_OPTIONS}
+            onChange={(next) => setLanguage(next)}
+          />
+        </SettingsRow>
         <Setting
           searchId="general-sidebar"
-          name="Sidebar"
-          note="Classic files chats under their projects. Inbox lines them up by last activity."
+          name={t('general.sidebar.name')}
+          note={t('general.sidebar.note')}
           value={mode}
           options={SIDEBAR_OPTIONS}
           onChange={(next) => props.onSidebarSettingsChange({ mode: next })}
@@ -125,8 +144,8 @@ export function GeneralSettings(props: {
         </Setting>
         <Setting
           searchId="general-terminal"
-          name="Terminal"
-          note="Where the Toggle terminal shortcut opens a terminal."
+          name={t('general.terminal.name')}
+          note={t('general.terminal.note')}
           value={terminal}
           options={TERMINAL_OPTIONS}
           onChange={writeTerminalPlacement}
@@ -136,8 +155,8 @@ export function GeneralSettings(props: {
         />
         <Setting
           searchId="general-model-picker"
-          name="Model picker"
-          note="Rail picks a provider first, then its models. List shows every model in one scroll."
+          name={t('general.modelPicker.name')}
+          note={t('general.modelPicker.note')}
           value={picker}
           options={PICKER_OPTIONS}
           onChange={writeModelPickerLayout}
@@ -146,8 +165,8 @@ export function GeneralSettings(props: {
         {canNotifyChats ? (
           <Setting
             searchId="general-notifications"
-            name="Notifications"
-            note="While TasteCode is in the background, for approvals, questions and failures, or also when a chat finishes."
+            name={t('general.notifications.name')}
+            note={t('general.notifications.note')}
             value={notify}
             options={NOTIFY_OPTIONS}
             onChange={writeChatNotificationMode}
@@ -176,6 +195,7 @@ function Setting<T extends string>(props: {
   picture: (value: T) => ReactNode
   children?: ReactNode
 }) {
+  const { t } = useI18n()
   const nameId = useId()
   const noteId = useId()
   const buttons = useRef<Array<HTMLButtonElement | null>>([])
@@ -232,7 +252,7 @@ function Setting<T extends string>(props: {
               <span className="general-option__picture" aria-hidden>
                 {props.picture(option.value)}
               </span>
-              <span className="general-option__label">{option.label}</span>
+              <span className="general-option__label">{t(option.label)}</span>
             </button>
           )
         })}
@@ -276,6 +296,7 @@ function SettleScale(props: {
   onDraft: (days: SettleDays | undefined) => void
   onCommit: (days: SettleDays) => void
 }) {
+  const { t, tp } = useI18n()
   const nameId = useId()
   const dragging = useRef<SettleDays | undefined>(undefined)
   const [grabbing, setGrabbing] = useState(false)
@@ -330,15 +351,18 @@ function SettleScale(props: {
     if (days !== props.days) props.onCommit(days)
   }
 
-  const valueText = props.days === null ? 'Never' : dayCount(props.days)
+  const valueText =
+    props.days === null ? t('general.settle.neverSpoken') : tp('common.days', props.days)
   return (
     <>
       <div className="general-settle__head">
         <p className="general-settle__name" id={nameId}>
-          Settle idle chats
+          {t('general.settle.name')}
         </p>
         <p className="general-settle__value" aria-hidden>
-          {props.days === null ? 'never' : `after ${dayCount(props.days)}`}
+          {props.days === null
+            ? t('general.settle.never')
+            : t('general.settle.after', { days: tp('common.days', props.days) })}
         </p>
       </div>
       <div
@@ -395,7 +419,7 @@ function SettleScale(props: {
           style={atStyle(null)}
           aria-hidden
         >
-          never
+          {t('general.settle.never')}
         </span>
         <span
           className="settle-scale__needle"

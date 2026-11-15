@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react'
+import { useI18n, type MessageKey } from '../i18n/index.js'
 
 const STATE_LABELS = {
-  checking: 'Checking',
-  ready: 'Ready',
-  'setup-needed': 'Setup needed',
-  unavailable: 'Unavailable',
-  failed: 'Failed',
-} as const
+  checking: 'settings.stateLabel.checking',
+  ready: 'settings.stateLabel.ready',
+  'setup-needed': 'settings.stateLabel.setupNeeded',
+  unavailable: 'settings.stateLabel.unavailable',
+  failed: 'settings.stateLabel.failed',
+} as const satisfies Record<string, MessageKey>
 
 export type SettingsState = keyof typeof STATE_LABELS
 
@@ -15,7 +16,8 @@ export function StateLabel(props: {
   detail?: string | undefined
   live?: boolean | undefined
 }) {
-  const label = STATE_LABELS[props.state]
+  const { t } = useI18n()
+  const label = t(STATE_LABELS[props.state])
   const title = props.detail ? `${label} · ${props.detail}` : label
   return (
     <span

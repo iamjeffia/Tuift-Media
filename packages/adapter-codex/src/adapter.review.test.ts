@@ -28,7 +28,7 @@ type Meta = {
 
 /**
  * Captured from codex-cli 0.166.0 app-server: `/review` of one uncommitted change on
- * gpt-6-luna, sent as TasteCode sends it. Every notification after thread/start answered,
+ * gpt-6-luna, sent as TUIFT Code sends it. Every notification after thread/start answered,
  * with account, MCP startup and moderation frames dropped and local paths replaced.
  */
 const [header, ...frames] = readFileSync(

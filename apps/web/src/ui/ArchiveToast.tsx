@@ -1,4 +1,5 @@
 import { IconTrash } from '@tabler/icons-react'
+import { useI18n } from '../i18n/index.js'
 import { NoticeBody } from './Notice.js'
 import { NoticePresence } from './NoticePresence.js'
 import './archive-toast.css'
@@ -9,6 +10,7 @@ export function ArchiveToast(props: {
   onUndo: () => void
   onDismiss: () => void
 }) {
+  const { t } = useI18n()
   return (
     <NoticePresence
       className="notice notice--archive"
@@ -28,13 +30,15 @@ export function ArchiveToast(props: {
             type="button"
             onClick={props.onUndo}
           >
-            Undo
+            {t('sidebar.archiveToast.undo')}
           </button>
         }
         onDismiss={props.onDismiss}
-        dismissLabel="Dismiss deletion notification"
+        dismissLabel={t('sidebar.archiveToast.dismiss')}
       >
-        {props.count > 1 ? `${props.count} chats deleted` : 'Chat deleted'}
+        {props.count > 1
+          ? t('sidebar.archiveToast.deletedMany', { count: props.count })
+          : t('sidebar.archiveToast.deletedOne')}
       </NoticeBody>
     </NoticePresence>
   )

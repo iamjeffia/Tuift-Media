@@ -23,6 +23,7 @@ import {
   IconX as Close,
 } from '@tabler/icons-react'
 import { isDesktop, revealPath } from '../bridge.js'
+import { useI18n } from '../i18n/index.js'
 import {
   DEFAULT_KEYBINDINGS,
   isComposingKey,
@@ -59,25 +60,34 @@ export const PanelToggles = memo(function PanelToggles(props: {
   onToggleWorkspace: () => void
   onToggleTerminal: () => void
 }) {
+  const { t } = useI18n()
   const keybindings = props.keybindings ?? DEFAULT_KEYBINDINGS
 
   return (
     <div
       className={`panel-toggles${props.workspacePanelOpen ? ' is-workspace-open' : ''}`}
-      aria-label="Panel controls"
+      aria-label={t('sidebar.stage.panelControls')}
     >
       {props.projectPath ? (
         <button
           type="button"
           className={`stagehead__action panel-toggles__terminal${props.terminalOpen ? ' is-open' : ''}`}
-          aria-label={props.terminalOpen ? 'Hide bottom panel' : 'Show bottom panel'}
+          aria-label={
+            props.terminalOpen
+              ? t('sidebar.stage.hideBottomPanel')
+              : t('sidebar.stage.showBottomPanel')
+          }
           aria-pressed={props.terminalOpen}
           aria-keyshortcuts={
             props.terminalShortcutActive === false
               ? undefined
               : shortcutAria(keybindings.toggleTerminal)
           }
-          title={props.terminalOpen ? 'Hide bottom panel' : 'Show bottom panel'}
+          title={
+            props.terminalOpen
+              ? t('sidebar.stage.hideBottomPanel')
+              : t('sidebar.stage.showBottomPanel')
+          }
           onPointerEnter={props.onPrepareTerminal}
           onFocus={props.onPrepareTerminal}
           onClick={props.onToggleTerminal}
@@ -88,10 +98,18 @@ export const PanelToggles = memo(function PanelToggles(props: {
       <button
         type="button"
         className={`stagehead__action panel-toggles__workspace${props.workspacePanelOpen ? ' is-open' : ''}`}
-        aria-label={props.workspacePanelOpen ? 'Hide workspace tools' : 'Show workspace tools'}
+        aria-label={
+          props.workspacePanelOpen
+            ? t('sidebar.stage.hideWorkspace')
+            : t('sidebar.stage.showWorkspace')
+        }
         aria-pressed={props.workspacePanelOpen}
         aria-keyshortcuts={shortcutAria(keybindings.toggleWorkspace)}
-        title={props.workspacePanelOpen ? 'Hide workspace tools' : 'Show workspace tools'}
+        title={
+          props.workspacePanelOpen
+            ? t('sidebar.stage.hideWorkspace')
+            : t('sidebar.stage.showWorkspace')
+        }
         onPointerEnter={props.onPrepareWorkspace}
         onFocus={props.onPrepareWorkspace}
         onClick={props.onToggleWorkspace}
@@ -145,6 +163,7 @@ function StageHeaderComponent(props: {
   /** Present in split view: closes this pane and keeps the other chat. */
   onClosePane?: (() => void) | undefined
 }) {
+  const { t } = useI18n()
   const keybindings = props.keybindings ?? DEFAULT_KEYBINDINGS
   const [renameTarget, setRenameTarget] = useState<RenameTarget>()
   const [draft, setDraft] = useState(props.title ?? '')
@@ -197,7 +216,7 @@ function StageHeaderComponent(props: {
             ref={renameInput}
             className="rename stagehead__rename rename--chat"
             value={draft}
-            aria-label="Rename chat"
+            aria-label={t('sidebar.chat.renameAction')}
             onChange={(event) => setDraft(event.target.value)}
             onBlur={commitRename}
             onKeyDown={(event) => {
@@ -217,15 +236,15 @@ function StageHeaderComponent(props: {
             }}
           />
         ) : (
-          <span className="stagehead__title" title={props.title ?? 'New chat'}>
-            {props.title ?? 'New chat'}
+          <span className="stagehead__title" title={props.title ?? t('sidebar.stage.untitled')}>
+            {props.title ?? t('sidebar.stage.untitled')}
           </span>
         )}
 
         <Menu
           drop="down"
           align="left"
-          label={`Options for ${props.title ?? 'New chat'}`}
+          label={t('sidebar.chat.options', { title: props.title ?? t('sidebar.stage.untitled') })}
           triggerClassName="stagehead__menu-trigger"
           panelClassName="menu--compact stagehead__options-menu"
           trigger={() => <Ellipsis size={16} aria-hidden />}
@@ -233,22 +252,22 @@ function StageHeaderComponent(props: {
           {(close) => (
             <>
               <MenuItem
-                title="Toggle sidebar"
+                title={t('sidebar.stage.toggleSidebar')}
                 shortcutAria={shortcutAria(keybindings.toggleSidebar)}
                 icon={<PanelLeft size={14} aria-hidden />}
                 onClick={() => closeThenRun(close, props.menuActions.toggleSidebar)}
               />
               <MenuItem
-                title="Toggle terminal"
-                detail={props.projectPath ? undefined : 'Select a project first'}
+                title={t('sidebar.stage.toggleTerminal')}
+                detail={props.projectPath ? undefined : t('sidebar.stage.needProject')}
                 shortcutAria={shortcutAria(keybindings.toggleTerminal)}
                 icon={<SquareTerminal size={14} aria-hidden />}
                 disabled={!props.projectPath}
                 onClick={() => closeThenRun(close, props.menuActions.toggleTerminal)}
               />
               <MenuItem
-                title="Toggle workspace tools"
-                detail={props.projectPath ? undefined : 'Select a project first'}
+                title={t('sidebar.stage.toggleWorkspace')}
+                detail={props.projectPath ? undefined : t('sidebar.stage.needProject')}
                 shortcutAria={shortcutAria(keybindings.toggleWorkspace)}
                 icon={<PanelRightOpen size={14} aria-hidden />}
                 disabled={!props.projectPath}
@@ -257,7 +276,7 @@ function StageHeaderComponent(props: {
               {/* The project's, so a new chat offers it too, not only a saved one. */}
               {isDesktop && props.projectPath ? (
                 <MenuItem
-                  title="Open in Explorer"
+                  title={t('sidebar.chat.openInExplorer')}
                   icon={<FolderOpen size={14} aria-hidden />}
                   onClick={() => {
                     void revealPath(props.projectPath!)
@@ -269,25 +288,25 @@ function StageHeaderComponent(props: {
               <div className="menu__rule" role="separator" />
 
               <MenuItem
-                title="New chat"
+                title={t('sidebar.stage.newChat')}
                 shortcutAria={shortcutAria(keybindings.newChat)}
                 icon={<SquarePen size={14} aria-hidden />}
                 onClick={() => closeThenRun(close, props.menuActions.newChat)}
               />
               <MenuItem
-                title="Search chats"
+                title={t('sidebar.stage.searchChats')}
                 shortcutAria={shortcutAria(keybindings.searchSessions)}
                 icon={<Search size={14} aria-hidden />}
                 onClick={() => closeThenRun(close, props.menuActions.searchSessions)}
               />
               <MenuItem
-                title="Command palette"
+                title={t('sidebar.stage.commandPalette')}
                 shortcutAria={shortcutAria(keybindings.commandPalette)}
                 icon={<Command size={14} aria-hidden />}
                 onClick={() => closeThenRun(close, props.menuActions.commandPalette)}
               />
               <MenuItem
-                title="Pull requests"
+                title={t('sidebar.stage.pullRequests')}
                 shortcutAria={shortcutAria(keybindings.openPullRequests)}
                 icon={<GitPullRequest size={14} aria-hidden />}
                 onClick={() => closeThenRun(close, props.menuActions.openPullRequests)}
@@ -296,13 +315,13 @@ function StageHeaderComponent(props: {
               <div className="menu__rule" role="separator" />
 
               <MenuItem
-                title="Settings"
+                title={t('settings.title')}
                 shortcutAria={shortcutAria(keybindings.settings)}
                 icon={<Settings size={14} aria-hidden />}
                 onClick={() => closeThenRun(close, props.menuActions.settings)}
               />
               <MenuItem
-                title="Keyboard shortcuts"
+                title={t('sidebar.stage.keyboardShortcuts')}
                 shortcutAria={shortcutAria(keybindings.keybindings)}
                 icon={<Keyboard size={14} aria-hidden />}
                 onClick={() => closeThenRun(close, props.menuActions.keybindings)}
@@ -313,7 +332,7 @@ function StageHeaderComponent(props: {
                   <div className="menu__rule" role="separator" />
 
                   <MenuItem
-                    title={props.pinned ? 'Unpin chat' : 'Pin chat'}
+                    title={props.pinned ? t('sidebar.chat.unpin') : t('sidebar.chat.pin')}
                     shortcutAria={shortcutAria(keybindings.toggleSessionPin)}
                     icon={
                       props.pinned ? (
@@ -328,7 +347,7 @@ function StageHeaderComponent(props: {
                     }}
                   />
                   <MenuItem
-                    title="Rename chat"
+                    title={t('sidebar.chat.renameAction')}
                     icon={<Pencil size={14} aria-hidden />}
                     onClick={() => {
                       setRenameTarget({ id: props.sessionId!, title: props.title })
@@ -336,7 +355,7 @@ function StageHeaderComponent(props: {
                     }}
                   />
                   <MenuItem
-                    title="Delete chat"
+                    title={t('sidebar.chat.delete')}
                     shortcutAria={shortcutAria(keybindings.archiveSession)}
                     icon={<Trash size={14} aria-hidden />}
                     onClick={() => {
@@ -346,7 +365,7 @@ function StageHeaderComponent(props: {
                   />
                   {props.checkpointCount > 0 ? (
                     <MenuItem
-                      title={`Checkpoint history (${props.checkpointCount})`}
+                      title={t('sidebar.stage.checkpointHistory', { count: props.checkpointCount })}
                       shortcutAria={shortcutAria(keybindings.rollback)}
                       icon={<History size={14} aria-hidden />}
                       onClick={() => {
@@ -357,7 +376,7 @@ function StageHeaderComponent(props: {
                   ) : null}
                   {props.worktreeBranch ? (
                     <MenuItem
-                      title="Isolated checkout"
+                      title={t('sidebar.stage.isolatedCheckout')}
                       detail={props.worktreeBranch}
                       icon={<GitBranch size={14} aria-hidden />}
                       disabled
@@ -377,8 +396,10 @@ function StageHeaderComponent(props: {
         <button
           type="button"
           className="stagehead__action stagehead__close-pane"
-          aria-label={`Close ${props.title ?? 'New chat'} pane`}
-          title="Close pane"
+          aria-label={t('sidebar.stage.closePaneNamed', {
+            title: props.title ?? t('sidebar.stage.untitled'),
+          })}
+          title={t('sidebar.stage.closePane')}
           onClick={props.onClosePane}
         >
           <Close size={16} aria-hidden />

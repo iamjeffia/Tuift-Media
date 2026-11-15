@@ -10,6 +10,7 @@ import type {
   ProviderHistorySource,
   ProviderId,
 } from '@harness/contracts'
+import { boundItem } from './item-output-bounds.js'
 import { Store, type ProviderHistoryListing } from './store.js'
 import { projectHistoryItems, withoutContinuationContext } from './side-chat.js'
 import {
@@ -200,7 +201,7 @@ export class ProviderHistory {
       accountHome === undefined && linked?.provider === thread.provider ? linked.session : undefined
     const id = thread.providerSessionId ?? session?.id
     if (!id) return []
-    return source.readSubagentTranscript(
+    const transcript = await source.readSubagentTranscript(
       session?.id === id
         ? session
         : {
@@ -213,6 +214,8 @@ export class ProviderHistory {
           },
       item,
     )
+    // Read from the provider's own files, not through the log: bound it the same way.
+    return transcript.map(boundItem)
   }
 
   /**
@@ -416,7 +419,7 @@ export class ProviderHistory {
               ) {
                 this.store.renameThread(threadId, session.title)
               }
-              // A session run outside TasteCode keeps the access level it last ran with
+              // A session run outside TUIFT Code keeps the access level it last ran with
               // there, until the chat has one of its own.
               if (session.approval && this.store.threadApproval(threadId) === undefined)
                 this.store.setThreadApproval(threadId, session.approval)
@@ -510,7 +513,7 @@ export class ProviderHistory {
           if (duplicateId === threadId)
             throw new Error('Saved provider chat is unavailable; try again')
           // A native chat keeps its own transcript; the copy only adds turns taken
-          // outside TasteCode. A copy that is gone (Codex archived the session and
+          // outside TUIFT Code. A copy that is gone (Codex archived the session and
           // its rollout was deleted) must not keep the chat from opening. This
           // revision is not read again; a changed copy is.
           current.loadedRevision = current.session.revision
@@ -721,7 +724,7 @@ export function importedEvents(
   )
   const echoed = new Set<string>()
   // A chat brought in from another app shows its saved prompts as rows of their own, so
-  // there TasteCode's wrappers come off them. A chat run here keeps its provider rows
+  // there TUIFT Code's wrappers come off them. A chat run here keeps its provider rows
   // exactly as they were saved.
   const importedChat = threadId.startsWith('external:') || threadId.startsWith('imported:')
   for (const event of events) {
@@ -790,7 +793,7 @@ export function importedEvents(
         type: 'item.completed',
         item: {
           ...event.item,
-          // A chat that ran in TasteCode before saved our wrappers around the user's words.
+          // A chat that ran in TUIFT Code before saved our wrappers around the user's words.
           ...(importedChat && event.item.role === 'user' && event.item.text !== undefined
             ? { text: shownWords(event.item.text) }
             : {}),
@@ -842,15 +845,15 @@ function isDesignPhasePrompt(text: string | undefined): boolean {
 }
 
 /** The first line of designBriefingPrompt since the 2026-08-14 rename. */
-const BRIEFING_START = 'You are running TasteCode Design Briefing mode.\n'
+const BRIEFING_START = 'You are running TUIFT Code Design Briefing mode.\n'
 /** The first line of designBriefingContinuation since the 2026-08-14 rename. */
 const BRIEFING_CONTINUATION_START =
-  'Continue the TasteCode Design Briefing using the answers below.\n'
+  'Continue the TUIFT Code Design Briefing using the answers below.\n'
 
 /**
- * What an imported chat shows of a prompt TasteCode wrapped before sending it: the
+ * What an imported chat shows of a prompt TUIFT Code wrapped before sending it: the
  * user's words, or the request a not_design continuation carried. Only exact
- * prefixes and markers TasteCode writes are taken off, never user prose.
+ * prefixes and markers TUIFT Code writes are taken off, never user prose.
  */
 function shownWords(text: string): string {
   let words = withoutRestoreNotice(text) ?? text
@@ -889,7 +892,7 @@ function sameUserMessage(left: Item, right: Item): boolean {
   if (text !== undefined) text = withoutUnreadSubagentResults(text)
   // Native logs contain our Design follow-up envelope; local history keeps only
   // the user's submission. Unwrap solely for echo matching, never arbitrary prose.
-  if (text?.startsWith('This is an ordinary user turn, not an active TasteCode Design phase. ')) {
+  if (text?.startsWith('This is an ordinary user turn, not an active TUIFT Code Design phase. ')) {
     const marker = '\n\nUser request:\n'
     const start = text.indexOf(marker)
     if (start !== -1) text = text.slice(start + marker.length)

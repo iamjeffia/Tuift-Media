@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { poolsOf } from '../account-pool.js'
 import { AccountLimits, type AccountLimitsState, summaryLimit } from './AccountLimits.js'
 import { dateTimeText } from './usage/usage-format.js'
+import { setLanguage } from '../i18n/index.js'
 
 afterEach(() => {
   cleanup()
@@ -70,6 +71,26 @@ const resetState: AccountLimitsState = {
 }
 
 describe('account limits', () => {
+  it('speaks Portuguese when the language is pt-BR', () => {
+    setLanguage('pt-BR', { persist: false })
+    render(
+      <AccountLimits
+        states={[
+          {
+            status: 'ready',
+            provider: 'codex',
+            summary: summary([{ label: 'Weekly', usedPercent: 12 }]),
+          },
+        ]}
+        onRetry={() => {}}
+      />,
+    )
+
+    const panel = screen.getByRole('region', { name: 'Limites do plano' })
+    expect(within(panel).getByText('88% restante')).toBeTruthy()
+    expect(within(panel).queryByText('88% left')).toBeNull()
+  })
+
   it('shows every provider at once, with no summary row to expand', () => {
     render(
       <AccountLimits

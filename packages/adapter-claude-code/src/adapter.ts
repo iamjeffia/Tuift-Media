@@ -63,10 +63,10 @@ export { CLAUDE_CAPABILITIES } from './capabilities.js'
 
 /**
  * Claude Code is hosted through Anthropic's Agent SDK, or through `claude -p`
- * with TasteCode speaking the same stream-json protocol itself (cli-runtime.ts).
- * Either way one streaming session stays alive, and the runtime calls TasteCode
+ * with TUIFT Code speaking the same stream-json protocol itself (cli-runtime.ts).
+ * Either way one streaming session stays alive, and the runtime calls TUIFT Code
  * back for permissions and structured questions. Claude's own executable still
- * owns authentication; TasteCode never reads a credential file.
+ * owns authentication; TUIFT Code never reads a credential file.
  */
 
 const SUPPORTED = '2.1'

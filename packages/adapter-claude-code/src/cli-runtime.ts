@@ -24,7 +24,7 @@ import {
 } from './sdk-runtime.js'
 
 /**
- * `claude -p` driven by TasteCode itself. Claude Code's print mode with
+ * `claude -p` driven by TUIFT Code itself. Claude Code's print mode with
  * stream-json on both pipes is the protocol the Agent SDK speaks under its
  * `query()`: user messages and control requests go in as JSON lines, and the
  * session's messages, control answers and its own requests (tool permission)

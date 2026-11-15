@@ -301,7 +301,7 @@ describe('SubagentBroker', () => {
     }
     await expect(
       f.broker.start({ threadId: 'third' }, { provider: 'codex', task: 'x' }),
-    ).rejects.toThrow(`TasteCode runs at most ${SUBAGENT_LIMITS.runningInApp} sub-agents at once`)
+    ).rejects.toThrow(`TUIFT Code runs at most ${SUBAGENT_LIMITS.runningInApp} sub-agents at once`)
   })
 
   it('updates the parent row at most once a second, and at once on a state change', async () => {
@@ -408,7 +408,7 @@ describe('SubagentBroker', () => {
     expect(short.length).toBe(SUBAGENT_LIMITS.resultCharacters)
     expect(short.startsWith('aaaa')).toBe(true)
     expect(short.endsWith('zzzz')).toBe(true)
-    expect(short).toContain('[… shortened by TasteCode …]')
+    expect(short).toContain('[… shortened by TUIFT Code …]')
   })
 })
 

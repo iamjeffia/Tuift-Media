@@ -6,10 +6,10 @@ import type { PageBlueprint } from './page.js'
 import { DESIGN_FONT_POOLS } from './typography.js'
 
 /**
- * Brand typefaces, downloaded by TasteCode itself before the Asset phase. A provider's sandbox
+ * Brand typefaces, downloaded by TUIFT Code itself before the Asset phase. A provider's sandbox
  * may block the network for the agent's own commands: a real Codex run could not download Syne
  * in three Asset passes, so Build later stopped on the missing font. Every family in the design
- * font pools is a Google Font, so TasteCode fetches its WOFF2 files and licence once, into the
+ * font pools is a Google Font, so TUIFT Code fetches its WOFF2 files and licence once, into the
  * project, and records them in the manifest itself.
  */
 export const BRAND_FONT_DIRECTORY = 'assets/fonts'
@@ -48,7 +48,7 @@ type Typeface = BrandSystem['typefaces'][number]
 const POOLED = new Set<string>(Object.values(DESIGN_FONT_POOLS).flat())
 
 /**
- * A family TasteCode can fetch: one of the design font pools, or one whose source names Google
+ * A family TUIFT Code can fetch: one of the design font pools, or one whose source names Google
  * Fonts. A system face or an existing brand's own font stays the agent's and the user's.
  */
 export function isGoogleFont({ family, source }: Pick<Typeface, 'family' | 'source'>): boolean {
@@ -204,7 +204,7 @@ async function downloadFamily(
     writeFileSync(path.join(staging, license.file), license.text)
     writeFileSync(
       path.join(staging, `${slug}.css`),
-      `/* ${family}, self-hosted from Google Fonts by TasteCode. ${license.name}: ${license.file}. */\n\n${stylesheet}\n`,
+      `/* ${family}, self-hosted from Google Fonts by TUIFT Code. ${license.name}: ${license.file}. */\n\n${stylesheet}\n`,
     )
     rmSync(target, { recursive: true, force: true })
     renameSync(staging, target)
@@ -244,7 +244,7 @@ async function googleLicense(family: string, fetchImpl: Fetch) {
   throw new Error(`no licence for ${family} in google/fonts`)
 }
 
-/** Manifest records for the brand fonts TasteCode downloaded, used by every page section. */
+/** Manifest records for the brand fonts TUIFT Code downloaded, used by every page section. */
 export function brandFontRecords(fonts: readonly BrandFont[], page: PageBlueprint): DesignAsset[] {
   return fonts.flatMap((font) =>
     font.status === 'ready'
@@ -281,7 +281,7 @@ function namesFamily(asset: DesignAsset, family: string): boolean {
 }
 
 /**
- * The manifest with TasteCode's records for the fonts it downloaded, in place of any font record
+ * The manifest with TUIFT Code's records for the fonts it downloaded, in place of any font record
  * the agent wrote for those families.
  */
 export function withBrandFonts(
@@ -343,7 +343,7 @@ export function validateBrandFontsResolved(
   const reasons = missing.map((family) => {
     const font = fonts.find((entry) => entry.family === family)
     return font?.status === 'failed'
-      ? `${family} (TasteCode could not download it: ${font.reason})`
+      ? `${family} (TUIFT Code could not download it: ${font.reason})`
       : family
   })
   throw new Error(

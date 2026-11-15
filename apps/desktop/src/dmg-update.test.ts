@@ -20,14 +20,14 @@ async function makeApp(folder: string, name: string, app: AppFixture = {}) {
     `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleExecutable</key><string>TasteCode</string>
-<key>CFBundleIdentifier</key><string>${app.id ?? 'dev.tastecode.desktop'}</string>
+<key>CFBundleExecutable</key><string>TUIFT Code</string>
+<key>CFBundleIdentifier</key><string>${app.id ?? 'media.tuift.code'}</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>${app.version ?? '0.1.3'}</string>
 </dict></plist>
 `,
   )
-  const executable = path.join(bundle, 'Contents', 'MacOS', 'TasteCode')
+  const executable = path.join(bundle, 'Contents', 'MacOS', 'TUIFT Code')
   await writeFile(executable, '#!/bin/sh\nexit 0\n')
   await chmod(executable, 0o755)
   if (app.sign ?? true) await exec('/usr/bin/codesign', ['--force', '--sign', '-', bundle])
@@ -36,21 +36,21 @@ async function makeApp(folder: string, name: string, app: AppFixture = {}) {
 
 // Each DMG takes hdiutil a few seconds to create, so all are built at once.
 const fixtures = {
-  valid: (folder) => makeApp(folder, 'Taste Code.app'),
-  otherApp: (folder) => makeApp(folder, 'Taste Code.app', { id: 'com.example.other' }),
-  otherVersion: (folder) => makeApp(folder, 'Taste Code.app', { version: '0.1.2' }),
-  unsigned: (folder) => makeApp(folder, 'Taste Code.app', { sign: false }),
-  tampered: (folder) => makeApp(folder, 'Taste Code.app', { tamper: true }),
+  valid: (folder) => makeApp(folder, 'TUIFT Code.app'),
+  otherApp: (folder) => makeApp(folder, 'TUIFT Code.app', { id: 'com.example.other' }),
+  otherVersion: (folder) => makeApp(folder, 'TUIFT Code.app', { version: '0.1.2' }),
+  unsigned: (folder) => makeApp(folder, 'TUIFT Code.app', { sign: false }),
+  tampered: (folder) => makeApp(folder, 'TUIFT Code.app', { tamper: true }),
   empty: async () => {},
   twoApps: async (folder) => {
-    await makeApp(folder, 'Taste Code.app')
-    await makeApp(folder, 'Taste Code 2.app')
+    await makeApp(folder, 'TUIFT Code.app')
+    await makeApp(folder, 'TUIFT Code 2.app')
   },
   link: async (folder) => {
     await makeApp(path.dirname(folder), `${path.basename(folder)}-elsewhere.app`)
     await symlink(
       path.join(path.dirname(folder), `${path.basename(folder)}-elsewhere.app`),
-      path.join(folder, 'Taste Code.app'),
+      path.join(folder, 'TUIFT Code.app'),
     )
   },
 } satisfies Record<string, (folder: string) => Promise<unknown>>
@@ -84,7 +84,7 @@ describe.skipIf(process.platform !== 'darwin')('DMG update preparation', () => {
           '-format',
           'UDZO',
           '-volname',
-          'TasteCode',
+          'TUIFT Code',
           '-srcfolder',
           folder,
           dmg,
@@ -98,7 +98,7 @@ describe.skipIf(process.platform !== 'darwin')('DMG update preparation', () => {
   })
 
   it.concurrent(
-    'turns a signed TasteCode DMG into the ZIP Squirrel installs',
+    'turns a signed TUIFT Code DMG into the ZIP Squirrel installs',
     async () => {
       const { work, zip } = await prepare('valid')
       expect(zip).toBe(path.join(work, 'update.zip'))
@@ -108,7 +108,7 @@ describe.skipIf(process.platform !== 'darwin')('DMG update preparation', () => {
         '--verify',
         '--deep',
         '--strict',
-        path.join(unpacked, 'Taste Code.app'),
+        path.join(unpacked, 'TUIFT Code.app'),
       ])
     },
     60_000,

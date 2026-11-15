@@ -43,7 +43,7 @@ export async function nativeAttachment(
   return attachment
 }
 
-/** Resolve old and current transcript references inside TasteCode's own paste folder. */
+/** Resolve old and current transcript references inside TUIFT Code's own paste folder. */
 export async function viewedImagePath(
   referenceValue: unknown,
   pastedRoots: string | readonly string[],

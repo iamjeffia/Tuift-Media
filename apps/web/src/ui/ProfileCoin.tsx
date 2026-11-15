@@ -14,6 +14,7 @@ import {
   TILE_GAP_DEGREES,
   annularSector,
 } from './GeneratedAvatar.js'
+import { useI18n } from '../i18n/index.js'
 
 const CENTER = AVATAR_SIZE / 2
 /** Typing waits for a pause before the seal is struck again, so it lands once per word, not per key. */
@@ -55,6 +56,7 @@ export function ProfileCoin(props: {
   label: string
   onTurn: () => void
 }) {
+  const { t } = useI18n()
   const avatar = useMemo(() => generatedAvatar(props.name), [props.name])
   const reading = useMemo(() => readSeal(props.name), [props.name])
   const mandala = avatar.style === 'mandala' ? avatar : undefined
@@ -142,7 +144,7 @@ export function ProfileCoin(props: {
                   alt=""
                 />
               ) : (
-                <span className="profile-coin__blank">Drop a photo</span>
+                <span className="profile-coin__blank">{t('settings.profileCoin.drop')}</span>
               )}
             </span>
           </span>

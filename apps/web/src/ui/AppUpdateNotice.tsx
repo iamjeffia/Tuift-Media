@@ -29,9 +29,11 @@ import {
   onAppUpdateState,
   type AppUpdateState,
 } from '../bridge.js'
+import { useI18n } from '../i18n/index.js'
 import { Menu, MenuItem } from './Menu.js'
 
 export function AppUpdateNotice() {
+  const { t } = useI18n()
   const [state, setState] = useState<AppUpdateState>()
   const [pending, setPending] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -81,14 +83,18 @@ export function AppUpdateNotice() {
     stopping ||
     install.phase === 'installing'
   const label = retry
-    ? 'Retry TasteCode update'
+    ? t('dialogs.appUpdate.retry')
     : downloading
-      ? `Downloading TasteCode update${state.progress === undefined ? '' : ` (${state.progress}%)`}`
+      ? state.progress === undefined
+        ? t('dialogs.appUpdate.downloading')
+        : t('dialogs.appUpdate.downloadingProgress', { progress: state.progress })
       : preparing
-        ? 'Preparing TasteCode update'
+        ? t('dialogs.appUpdate.preparing')
         : stopping
-          ? `Stopping ${chatCount(install.running)} to update TasteCode`
-          : `Restart to update TasteCode${state.version ? ` to ${state.version}` : ''}`
+          ? t('dialogs.appUpdate.stoppingToUpdate', { chats: chatCount(install.running) })
+          : state.version
+            ? t('dialogs.appUpdate.restartTo', { version: state.version })
+            : t('dialogs.appUpdate.restart')
   const act = async (focused: boolean) => {
     setPending(true)
     setFailed(false)
@@ -112,7 +118,11 @@ export function AppUpdateNotice() {
       aria-label={label}
       aria-busy={busy}
       title={
-        retry ? `${state.error ?? 'The update could not be completed.'} Click to retry.` : label
+        retry
+          ? t('dialogs.appUpdate.failedTitle', {
+              error: state.error ?? t('dialogs.appUpdate.failedDefault'),
+            })
+          : label
       }
       disabled={busy}
       onClick={(event) => void act(document.activeElement === event.currentTarget)}
@@ -135,6 +145,7 @@ export function AppUpdateNotice() {
  * them) or puts the install off.
  */
 function AppUpdateWaiting(props: { running: number; focusOnMount: boolean }) {
+  const { t } = useI18n()
   const [confirming, setConfirming] = useState(false)
   const icon = useRef<SVGSVGElement>(null)
   // Only the click that started the wait moves focus, once.
@@ -147,7 +158,7 @@ function AppUpdateWaiting(props: { running: number; focusOnMount: boolean }) {
     <Menu
       drop="up"
       align="right"
-      label={`${label}. Update options`}
+      label={t('dialogs.appUpdate.optionsLabel', { label })}
       triggerTitle={label}
       triggerClassName="account-update"
       panelClassName="menu--compact app-update-menu"
@@ -161,11 +172,11 @@ function AppUpdateWaiting(props: { running: number; focusOnMount: boolean }) {
     >
       {(close) =>
         confirming ? (
-          <WaitingChoices key="confirm" heading="Install now" focus="last">
+          <WaitingChoices key="confirm" heading={t('dialogs.appUpdate.installNow')} focus="last">
             <MenuItem
               className="menu__item--danger"
               icon={<IconSquare size={14} aria-hidden />}
-              title={`Stop ${chatCount(props.running)} and install`}
+              title={t('dialogs.appUpdate.stopAndInstall', { chats: chatCount(props.running) })}
               onClick={() => {
                 close()
                 void stopChatsAndInstall()
@@ -173,7 +184,7 @@ function AppUpdateWaiting(props: { running: number; focusOnMount: boolean }) {
             />
             <MenuItem
               icon={<IconHourglass size={14} aria-hidden />}
-              title="Keep waiting"
+              title={t('dialogs.appUpdate.keepWaiting')}
               onClick={() => setConfirming(false)}
             />
           </WaitingChoices>
@@ -181,13 +192,13 @@ function AppUpdateWaiting(props: { running: number; focusOnMount: boolean }) {
           <WaitingChoices key="choose" heading={label}>
             <MenuItem
               icon={<IconDownload size={14} aria-hidden />}
-              title="Install now"
-              detail={`Stops ${chatCount(props.running)} first`}
+              title={t('dialogs.appUpdate.installNow')}
+              detail={t('dialogs.appUpdate.stopsFirst', { chats: chatCount(props.running) })}
               onClick={() => setConfirming(true)}
             />
             <MenuItem
               icon={<IconX size={14} aria-hidden />}
-              title="Install later"
+              title={t('dialogs.appUpdate.installLater')}
               onClick={() => {
                 close()
                 cancelAppUpdateInstall()

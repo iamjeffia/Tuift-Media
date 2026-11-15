@@ -8,11 +8,13 @@ import { canNotifyChats, isDesktop } from '../../bridge.js'
 import type { Transport } from '../../transport.js'
 import { type Account, type ProviderStatus } from '@harness/contracts'
 import { useProviderAccounts } from '../../provider-accounts-state.js'
+import { useI18n } from '../../i18n/index.js'
 import { rememberedAccountReads } from '../../provider-account-reads.js'
 import { lastSignIn } from '../../remembered-sign-in.js'
 import { executablePathEntries, providerTuningEntries } from './provider-tuning-search.js'
 import { getFastServiceTier } from '../model-selector-utils.js'
 import {
+  localizeSettingsEntry,
   searchSettings,
   SETTINGS_SEARCH_ENTRIES,
   type SettingsSearchEntry,
@@ -31,6 +33,7 @@ export function SettingsSearch(props: {
   fontSmoothing: boolean
   onChoose: (entry: SettingsSearchEntry) => void
 }) {
+  const { t, tp } = useI18n()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const listId = useId()
@@ -95,22 +98,24 @@ export function SettingsSearch(props: {
   )
   const results = searchSettings(
     query,
-    [...SETTINGS_SEARCH_ENTRIES, ...providerEntries].filter(
-      (entry) =>
-        entry.visible?.({
-          phone: props.phone,
-          debug: props.debug,
-          desktop: isDesktop,
-          notifications: canNotifyChats,
-          haptics: props.haptics,
-          fontSmoothing: props.fontSmoothing,
-          backgroundMode: background.mode,
-          backgroundImage: background.image !== undefined,
-          material: windowMaterialSupport() === 'material',
-          backgroundEffort: backgroundOptions.effort,
-          backgroundSpeed: backgroundOptions.speed,
-        }) !== false,
-    ),
+    [...SETTINGS_SEARCH_ENTRIES, ...providerEntries]
+      .map((entry) => localizeSettingsEntry(entry, t))
+      .filter(
+        (entry) =>
+          entry.visible?.({
+            phone: props.phone,
+            debug: props.debug,
+            desktop: isDesktop,
+            notifications: canNotifyChats,
+            haptics: props.haptics,
+            fontSmoothing: props.fontSmoothing,
+            backgroundMode: background.mode,
+            backgroundImage: background.image !== undefined,
+            material: windowMaterialSupport() === 'material',
+            backgroundEffort: backgroundOptions.effort,
+            backgroundSpeed: backgroundOptions.speed,
+          }) !== false,
+      ),
   )
   const selected = Math.min(active, Math.max(0, results.length - 1))
   const choose = (entry: SettingsSearchEntry) => {
@@ -122,8 +127,8 @@ export function SettingsSearch(props: {
     <>
       <input
         className="set-input settings-search__input"
-        aria-label="Search settings"
-        placeholder="Search settings…"
+        aria-label={t('settings.search.label')}
+        placeholder={t('settings.search.placeholder')}
         role="combobox"
         aria-expanded={query.trim().length > 0}
         aria-controls={listId}
@@ -162,13 +167,13 @@ export function SettingsSearch(props: {
       {query.trim() ? (
         <>
           <div className="settings-search__count" role="status">
-            {results.length} {results.length === 1 ? 'result' : 'results'}
+            {tp('settings.search.count', results.length)}
           </div>
           <div
             className="settings__nav settings-search__results"
             role="listbox"
             id={listId}
-            aria-label="Settings results"
+            aria-label={t('settings.search.resultsLabel')}
           >
             {results.map((entry, index) => (
               <div
@@ -185,7 +190,7 @@ export function SettingsSearch(props: {
               </div>
             ))}
             {!results.length ? (
-              <p className="settings-search__empty">No matching settings</p>
+              <p className="settings-search__empty">{t('settings.search.empty')}</p>
             ) : null}
           </div>
         </>

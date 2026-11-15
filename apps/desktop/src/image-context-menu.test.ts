@@ -1,5 +1,6 @@
 import type { BrowserWindow, ContextMenuParams, WebContents } from 'electron'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Language } from './i18n.js'
 import { configureImageContextMenu } from './image-context-menu.js'
 
 const { buildFromTemplate, popup } = vi.hoisted(() => ({
@@ -14,10 +15,10 @@ describe('native image context menu', () => {
     buildFromTemplate.mockReturnValue({ popup })
   })
 
-  function setup() {
+  function setup(language: Language = 'en') {
     const contents = { on: vi.fn(), isDestroyed: vi.fn(() => false), copyImageAt: vi.fn() }
     const window = {} as BrowserWindow
-    configureImageContextMenu(contents as unknown as WebContents, window)
+    configureImageContextMenu(contents as unknown as WebContents, window, () => language)
     const open = (params: Partial<ContextMenuParams>) => contents.on.mock.calls[0]![1]({}, params)
     return { contents, window, open }
   }
@@ -31,6 +32,25 @@ describe('native image context menu', () => {
     expect(item.label).toBe('Copy Image')
     item.click()
     expect(contents.copyImageAt).toHaveBeenCalledWith(42, 73)
+  })
+
+  it('labels the menu in the language it is opened in', () => {
+    let language: Language = 'en'
+    const contents = { on: vi.fn(), isDestroyed: vi.fn(() => false), copyImageAt: vi.fn() }
+    configureImageContextMenu(
+      contents as unknown as WebContents,
+      {} as BrowserWindow,
+      () => language,
+    )
+    const open = (params: Partial<ContextMenuParams>) => contents.on.mock.calls[0]![1]({}, params)
+    open({ mediaType: 'image', hasImageContents: true })
+    language = 'pt-BR'
+    open({ mediaType: 'image', hasImageContents: true })
+    open({ linkURL: 'https://example.com' })
+    const labels = buildFromTemplate.mock.calls.map(([items]) =>
+      (items as Array<{ label?: string }>).flatMap((item) => (item.label ? [item.label] : [])),
+    )
+    expect(labels).toEqual([['Copy Image'], ['Copiar imagem'], ['Abrir', 'Copiar link']])
   })
 
   it.each([

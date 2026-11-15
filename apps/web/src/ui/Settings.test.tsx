@@ -390,7 +390,7 @@ describe('phone access in settings', () => {
 describe('settings v1 pages', () => {
   it.each([
     ['data', ['Reset app preferences']],
-    ['about', ['TasteCode', 'Updates', 'Source']],
+    ['about', ['TUIFT Code', 'Updates', 'Source']],
     [
       'debug',
       ['Onboarding', 'Usage history index', 'Simulate app update', 'Simulate provider updates'],

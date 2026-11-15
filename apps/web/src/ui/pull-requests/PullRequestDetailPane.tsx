@@ -49,6 +49,7 @@ import {
   IconX as X,
   IconCircleX as XCircle,
 } from '@tabler/icons-react'
+import { t as tNow, tp as tpNow, useI18n } from '../../i18n/index.js'
 import type { Transport } from '../../transport.js'
 import { AppSelect } from '../AppSelect.js'
 import { EmptyState } from '../EmptyState.js'
@@ -58,7 +59,7 @@ import { Menu, MenuItem } from '../Menu.js'
 import { Skeleton, SkeletonRows, SkeletonStatus } from '../Skeleton.js'
 import { PullRequestFiles } from './PullRequestFiles.js'
 import { PullRequestImages } from './PullRequestImages.js'
-import { comparePullRequestText, countLabel } from './pull-request-text.js'
+import { comparePullRequestText } from './pull-request-text.js'
 import { errorMessage as messageOf } from '../../boundary.js'
 import { isConfirmEnter } from '../../shortcuts.js'
 
@@ -89,6 +90,7 @@ export function PullRequestDetailPane(props: {
   onOpenChat: () => void
   onChanged: (detail: PullRequestDetail) => void
 }) {
+  const { t } = useI18n()
   const [detail, setDetail] = useState<PullRequestDetail>()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -253,11 +255,11 @@ export function PullRequestDetailPane(props: {
         className="pr-detail-error"
         role="alert"
         icon={<CircleAlert aria-hidden />}
-        title="Couldn't open this pull request"
+        title={t('workspace.pr.detail.openFailed')}
         detail={error}
       >
         <button type="button" className="pr-button is-secondary" onClick={() => void load(true)}>
-          Try again
+          {t('workspace.pr.tryAgain')}
         </button>
       </EmptyState>
     )
@@ -271,12 +273,12 @@ export function PullRequestDetailPane(props: {
   return (
     <div className="pr-detail">
       <header className="pr-detail-toolbar">
-        <div className="pr-detail-tabs" role="tablist" aria-label="Pull request detail">
+        <div className="pr-detail-tabs" role="tablist" aria-label={t('workspace.pr.detail.tabs')}>
           <DetailTabButton active={tab === 'summary'} onClick={() => setTab('summary')}>
-            Summary
+            {t('workspace.pr.detail.summary')}
           </DetailTabButton>
           <DetailTabButton active={tab === 'files'} onClick={() => setTab('files')}>
-            Files <span>{detail.changedFiles}</span>
+            {t('workspace.pr.detail.files')} <span>{detail.changedFiles}</span>
           </DetailTabButton>
         </div>
 
@@ -284,8 +286,8 @@ export function PullRequestDetailPane(props: {
           <button
             type="button"
             className="pr-icon-button"
-            aria-label="Refresh pull request"
-            title="Refresh pull request"
+            aria-label={t('workspace.pr.detail.refresh')}
+            title={t('workspace.pr.detail.refresh')}
             disabled={refreshing}
             onClick={() => void load(true)}
           >
@@ -296,8 +298,8 @@ export function PullRequestDetailPane(props: {
             href={detail.url}
             target="_blank"
             rel="noreferrer"
-            aria-label="Open on GitHub"
-            title="Open on GitHub"
+            aria-label={t('workspace.pr.detail.openOnGithub')}
+            title={t('workspace.pr.detail.openOnGithub')}
           >
             <ArrowUpRight size={14} aria-hidden />
           </a>
@@ -307,13 +309,13 @@ export function PullRequestDetailPane(props: {
             disabled={!detail.localProjectPath}
             title={
               detail.localProjectPath
-                ? 'Start a TasteCode chat in the local checkout'
-                : 'Add this repository as a TasteCode project to chat about it'
+                ? t('workspace.pr.detail.chatLocal')
+                : t('workspace.pr.detail.chatAdd')
             }
             onClick={props.onOpenChat}
           >
             <MessageSquare size={13} aria-hidden />
-            Chat
+            {t('workspace.pr.detail.chat')}
           </button>
           <AutoMergeMenu
             detail={detail}
@@ -325,13 +327,16 @@ export function PullRequestDetailPane(props: {
             disabled={!canMerge || pendingKeys.has('merge')}
             onChoose={(method) =>
               setConfirmation({
-                title: `Merge #${detail.number}?`,
+                title: t('workspace.pr.merge.confirm.title', { number: detail.number }),
                 detail:
-                  `This will ${mergeMethodLabel(method).toLowerCase()} ${detail.headRefName} into ${detail.baseRefName}.` +
+                  t(`workspace.pr.merge.confirm.${method}`, {
+                    head: detail.headRefName,
+                    base: detail.baseRefName,
+                  }) +
                   (detail.mergeMethods.deleteBranchOnMerge
-                    ? " GitHub will remove the source branch using this repository's merge setting."
+                    ? ` ${t('workspace.pr.merge.confirm.deleteBranch')}`
                     : ''),
-                confirmLabel: 'Merge pull request',
+                confirmLabel: t('workspace.pr.merge.confirm.button'),
                 action: {
                   type: 'merge',
                   method,
@@ -371,13 +376,13 @@ export function PullRequestDetailPane(props: {
           <span>{notice.text}</span>
           {notice.retry ? (
             <button type="button" className="pr-notice-action" onClick={() => void load(true)}>
-              Try again
+              {t('workspace.pr.tryAgain')}
             </button>
           ) : null}
           <button
             type="button"
-            aria-label="Dismiss"
-            title="Dismiss"
+            aria-label={t('workspace.pr.list.dismiss')}
+            title={t('workspace.pr.list.dismiss')}
             onClick={() => setNotice(undefined)}
           >
             <X size={12} aria-hidden />
@@ -412,9 +417,9 @@ export function PullRequestDetailPane(props: {
               }}
               onConfirmAction={(action) =>
                 setConfirmation({
-                  title: 'Delete this review comment?',
-                  detail: 'This removes the inline comment from GitHub and cannot be undone.',
-                  confirmLabel: 'Delete comment',
+                  title: t('workspace.pr.detail.deleteReview.title'),
+                  detail: t('workspace.pr.detail.deleteReview.detail'),
+                  confirmLabel: t('workspace.pr.files.deleteComment'),
                   danger: true,
                   action,
                 })
@@ -458,6 +463,7 @@ function PullRequestSummary(props: {
   onAction: RunPullRequestAction
   onConfirm: (confirmation: Confirmation) => void
 }) {
+  const { t, tp, language } = useI18n()
   const detail = props.detail
   const checks = checkSummary(detail)
   const status = pullRequestStatus(detail)
@@ -547,8 +553,8 @@ function PullRequestSummary(props: {
       <ChevronRight size={13} aria-hidden />
       <strong>{detail.baseRefName}</strong>
       <span className="pr-branch-stats">
-        <span className="is-addition">+{detail.additions.toLocaleString()}</span>
-        <span className="is-deletion">−{detail.deletions.toLocaleString()}</span>
+        <span className="is-addition">+{detail.additions.toLocaleString(language)}</span>
+        <span className="is-deletion">−{detail.deletions.toLocaleString(language)}</span>
       </span>
     </span>
   )
@@ -561,7 +567,7 @@ function PullRequestSummary(props: {
         {detail.reviewers.length > 5 ? <span>+{detail.reviewers.length - 5}</span> : null}
       </span>
     ) : (
-      <span className="is-muted">No reviewers</span>
+      <span className="is-muted">{t('workspace.pr.summary.noReviewers')}</span>
     )
   const assigneeValue =
     detail.assignees.length > 0 ? (
@@ -572,7 +578,7 @@ function PullRequestSummary(props: {
         {detail.assignees.length > 5 ? <span>+{detail.assignees.length - 5}</span> : null}
       </span>
     ) : (
-      <span className="is-muted">No assignees</span>
+      <span className="is-muted">{t('workspace.pr.summary.noAssignees')}</span>
     )
 
   return (
@@ -596,7 +602,7 @@ function PullRequestSummary(props: {
                 <button
                   type="button"
                   className="pr-inline-icon"
-                  aria-label="Edit title"
+                  aria-label={t('workspace.pr.summary.editTitle')}
                   disabled={props.pendingKeys.has('edit')}
                   onClick={beginTitleEditing}
                 >
@@ -612,12 +618,15 @@ function PullRequestSummary(props: {
           </div>
         </header>
 
-        <section className="pr-facts" aria-label="Pull request metadata">
-          <Fact icon={<GitBranch size={15} aria-hidden />} label="Branch">
+        <section className="pr-facts" aria-label={t('workspace.pr.summary.metadata')}>
+          <Fact
+            icon={<GitBranch size={15} aria-hidden />}
+            label={t('workspace.pr.summary.fact.branch')}
+          >
             {canManageMetadata && detail.state === 'OPEN' ? (
               <PullRequestMetadataPicker
-                label="Change base branch"
-                placeholder="Find a branch"
+                label={t('workspace.pr.summary.branch.label')}
+                placeholder={t('workspace.pr.summary.branch.find')}
                 indicator="chevron"
                 options={branches.map((branch) => ({
                   key: branch,
@@ -642,11 +651,14 @@ function PullRequestSummary(props: {
             )}
           </Fact>
 
-          <Fact icon={<Users size={15} aria-hidden />} label="Reviewers">
+          <Fact
+            icon={<Users size={15} aria-hidden />}
+            label={t('workspace.pr.summary.fact.reviewers')}
+          >
             {canManageMetadata && detail.state === 'OPEN' ? (
               <PullRequestMetadataPicker
-                label="Request reviewers"
-                placeholder="Request review from…"
+                label={t('workspace.pr.summary.reviewers.label')}
+                placeholder={t('workspace.pr.summary.reviewers.find')}
                 indicator="ellipsis"
                 options={reviewers.map((actorValue) => {
                   const key = actorValue.login.toLowerCase()
@@ -656,12 +668,12 @@ function PullRequestSummary(props: {
                     key: actorValue.login,
                     label: actorValue.login,
                     detail: requested
-                      ? 'Review requested'
+                      ? t('workspace.pr.summary.reviewers.requested')
                       : state
                         ? reviewerPickerStateLabel(state)
                         : actorValue.isBot
-                          ? 'Bot collaborator'
-                          : 'Collaborator',
+                          ? t('workspace.pr.summary.reviewers.bot')
+                          : t('workspace.pr.summary.reviewers.collaborator'),
                     selected: requested || Boolean(state),
                     icon: <MetadataActorMark actor={actorValue} />,
                   }
@@ -685,15 +697,18 @@ function PullRequestSummary(props: {
             )}
           </Fact>
 
-          <Fact icon={<UserRound size={15} aria-hidden />} label="Assignees">
+          <Fact
+            icon={<UserRound size={15} aria-hidden />}
+            label={t('workspace.pr.summary.fact.assignees')}
+          >
             {canManageMetadata ? (
               <PullRequestMetadataPicker
-                label="Manage assignees"
-                placeholder="Find an assignee"
+                label={t('workspace.pr.summary.assignees.label')}
+                placeholder={t('workspace.pr.summary.assignees.find')}
                 options={assignees.map((actorValue) => ({
                   key: actorValue.login,
                   label: actorValue.login,
-                  detail: actorValue.isBot ? 'Bot' : undefined,
+                  detail: actorValue.isBot ? t('workspace.pr.summary.assignees.bot') : undefined,
                   selected: currentAssignees.has(actorValue.login.toLowerCase()),
                   icon: <MetadataActorMark actor={actorValue} />,
                 }))}
@@ -716,11 +731,11 @@ function PullRequestSummary(props: {
             )}
           </Fact>
 
-          <Fact icon={<Tag size={15} aria-hidden />} label="Labels">
+          <Fact icon={<Tag size={15} aria-hidden />} label={t('workspace.pr.summary.fact.labels')}>
             {canManageMetadata ? (
               <PullRequestMetadataPicker
-                label="Manage labels"
-                placeholder="Find a label"
+                label={t('workspace.pr.summary.labels.label')}
+                placeholder={t('workspace.pr.summary.labels.find')}
                 options={labels.map((label) => ({
                   key: label.name,
                   label: label.name,
@@ -757,7 +772,7 @@ function PullRequestSummary(props: {
                       {detail.labels.length > 4 ? <span>+{detail.labels.length - 4}</span> : null}
                     </span>
                   ) : (
-                    <span className="is-muted">No labels</span>
+                    <span className="is-muted">{t('workspace.pr.summary.noLabels')}</span>
                   )
                 }
               />
@@ -770,20 +785,23 @@ function PullRequestSummary(props: {
                 ))}
               </span>
             ) : (
-              <span className="is-muted">No labels</span>
+              <span className="is-muted">{t('workspace.pr.summary.noLabels')}</span>
             )}
           </Fact>
 
-          <Fact icon={<Clock3 size={15} aria-hidden />} label="Milestone">
+          <Fact
+            icon={<Clock3 size={15} aria-hidden />}
+            label={t('workspace.pr.summary.fact.milestone')}
+          >
             {canManageMetadata ? (
               <PullRequestMetadataPicker
-                label="Manage milestone"
-                placeholder="Find a milestone"
+                label={t('workspace.pr.summary.milestone.label')}
+                placeholder={t('workspace.pr.summary.milestone.find')}
                 indicator="chevron"
                 options={[
                   {
                     key: '',
-                    label: 'No milestone',
+                    label: t('workspace.pr.summary.noMilestone'),
                     selected: !detail.milestone,
                     icon: <X size={13} aria-hidden />,
                   },
@@ -807,24 +825,32 @@ function PullRequestSummary(props: {
                   detail.milestone ? (
                     <span className="pr-milestone">{detail.milestone}</span>
                   ) : (
-                    <span className="is-muted">No milestone</span>
+                    <span className="is-muted">{t('workspace.pr.summary.noMilestone')}</span>
                   )
                 }
               />
             ) : detail.milestone ? (
               <span className="pr-milestone">{detail.milestone}</span>
             ) : (
-              <span className="is-muted">No milestone</span>
+              <span className="is-muted">{t('workspace.pr.summary.noMilestone')}</span>
             )}
           </Fact>
 
-          <Fact icon={<MessageSquare size={15} aria-hidden />} label="Comments">
-            <span>{countLabel(detail.comments.length, 'comment')}</span>
+          <Fact
+            icon={<MessageSquare size={15} aria-hidden />}
+            label={t('workspace.pr.summary.fact.comments')}
+          >
+            <span>{tp('workspace.pr.summary.comments', detail.comments.length)}</span>
             {detail.reviewThreads.some((thread) => !thread.resolved) ? (
-              <span>· {detail.reviewThreads.filter((thread) => !thread.resolved).length} open</span>
+              <span>
+                {tp(
+                  'workspace.pr.summary.openThreads',
+                  detail.reviewThreads.filter((thread) => !thread.resolved).length,
+                )}
+              </span>
             ) : null}
           </Fact>
-          <Fact icon={checks.icon} label="Checks">
+          <Fact icon={checks.icon} label={t('workspace.pr.summary.fact.checks')}>
             <span className={`pr-status-text is-${checks.tone}`}>
               {props.pendingKeys.has('checks') ? (
                 <LoaderCircle size={13} className="is-spinning" aria-hidden />
@@ -832,7 +858,7 @@ function PullRequestSummary(props: {
               {checks.label}
             </span>
           </Fact>
-          <Fact icon={status.icon} label="Status">
+          <Fact icon={status.icon} label={t('workspace.pr.summary.fact.status')}>
             <PullRequestStatusPicker
               detail={detail}
               status={status}
@@ -852,14 +878,14 @@ function PullRequestSummary(props: {
               aria-expanded={descriptionOpen}
               onClick={() => setDescriptionOpen((current) => !current)}
             >
-              Description
+              {t('workspace.pr.summary.description')}
               <ChevronDown size={13} aria-hidden />
             </button>
             {!descriptionEditing ? (
               <button
                 type="button"
                 className="pr-inline-icon"
-                aria-label="Edit description"
+                aria-label={t('workspace.pr.summary.editDescription')}
                 disabled={props.pendingKeys.has('edit')}
                 onClick={beginDescriptionEditing}
               >
@@ -888,7 +914,7 @@ function PullRequestSummary(props: {
                 className="pr-empty-description"
                 onClick={beginDescriptionEditing}
               >
-                Add a description
+                {t('workspace.pr.summary.addDescription')}
               </button>
             )
           ) : null}
@@ -914,6 +940,7 @@ function PullRequestTitleEditor(props: {
   onCancel: () => void
   onSave: (title: string) => Promise<void>
 }) {
+  const { t } = useI18n()
   const [title, setTitle] = useState(props.title)
   const cancelled = useRef(false)
   const submitting = useRef(false)
@@ -934,7 +961,7 @@ function PullRequestTitleEditor(props: {
   return (
     <input
       className="pr-title-editor"
-      aria-label="Pull request title"
+      aria-label={t('workspace.reviewComposer.pr.titleLabel')}
       aria-busy={props.busy}
       value={title}
       readOnly={props.busy}
@@ -963,6 +990,7 @@ function PullRequestDescriptionEditor(props: {
   onCancel: () => void
   onSave: (body: string) => Promise<void>
 }) {
+  const { t } = useI18n()
   const [body, setBody] = useState(props.body)
   const input = useRef<HTMLTextAreaElement>(null)
   const cancelled = useRef(false)
@@ -991,10 +1019,10 @@ function PullRequestDescriptionEditor(props: {
     <textarea
       ref={input}
       className="pr-description-editor"
-      aria-label="Pull request description"
+      aria-label={t('workspace.reviewComposer.pr.descriptionLabel')}
       aria-busy={props.busy}
       value={body}
-      placeholder="Add a description"
+      placeholder={t('workspace.pr.summary.addDescription')}
       readOnly={props.busy}
       autoFocus={props.autoFocus}
       onBlur={save}
@@ -1073,6 +1101,7 @@ function PullRequestMetadataPicker(props: PullRequestMetadataPickerProps) {
 function PullRequestMetadataPickerPanel(
   props: Omit<PullRequestMetadataPickerProps, 'trigger'> & { onClose: () => void },
 ) {
+  const { t } = useI18n()
   const [query, setQuery] = useState('')
   const [selectingKey, setSelectingKey] = useState<string>()
   useEffect(() => {
@@ -1133,24 +1162,24 @@ function PullRequestMetadataPickerPanel(
           </button>
         ))}
         {waiting ? (
-          <SkeletonStatus label="Loading from GitHub…" className="pr-picker-loading">
+          <SkeletonStatus label={t('workspace.pr.picker.loading')} className="pr-picker-loading">
             <SkeletonRows rows={options.length > 0 ? 2 : 4} icon="circle" detail />
           </SkeletonStatus>
         ) : null}
         {!waiting && options.length === 0 ? (
           <p className="pr-picker-empty">
-            {normalizedQuery ? 'No matching options' : 'No options available'}
+            {normalizedQuery ? t('workspace.pr.picker.noMatch') : t('workspace.pr.picker.none')}
           </p>
         ) : null}
       </div>
       {props.error ? (
         <button type="button" className="pr-picker-retry" onClick={() => void props.onLoad(true)}>
-          {props.error} · Retry
+          {t('workspace.pr.picker.retry', { error: props.error })}
         </button>
       ) : props.unavailable ? (
-        <p className="pr-picker-note">GitHub did not allow this option list to be loaded.</p>
+        <p className="pr-picker-note">{t('workspace.pr.picker.unavailable')}</p>
       ) : props.truncated ? (
-        <p className="pr-picker-note">Showing the first 1,000 repository options.</p>
+        <p className="pr-picker-note">{t('workspace.pr.picker.truncated')}</p>
       ) : null}
     </div>
   )
@@ -1164,6 +1193,7 @@ function PullRequestStatusPicker(props: {
   onAction: RunPullRequestAction
   onConfirm: (confirmation: Confirmation) => void
 }) {
+  const { t } = useI18n()
   const content = (
     <span className={`pr-status-pill is-${props.status.tone}`}>
       {props.status.label}
@@ -1193,7 +1223,7 @@ function PullRequestStatusPicker(props: {
       align="left"
       drop="down"
       disabled={props.busy}
-      label="Change pull request status"
+      label={t('workspace.pr.status.label')}
       triggerClassName={`pr-status-menu-trigger${props.busy ? ' is-pending' : ''}`}
       panelClassName="pr-status-menu"
       trigger={() => content}
@@ -1201,7 +1231,7 @@ function PullRequestStatusPicker(props: {
       {(close) => (
         <>
           <MenuItem
-            title="Draft"
+            title={t('workspace.pr.state.draft')}
             icon={<GitPullRequestDraft size={14} aria-hidden />}
             active={props.detail.state === 'OPEN' && props.detail.isDraft}
             onClick={() => {
@@ -1210,7 +1240,7 @@ function PullRequestStatusPicker(props: {
             }}
           />
           <MenuItem
-            title="Ready for review"
+            title={t('workspace.pr.status.ready')}
             icon={<CheckCircle2 size={14} aria-hidden />}
             active={props.detail.state === 'OPEN' && !props.detail.isDraft}
             onClick={() => {
@@ -1219,17 +1249,16 @@ function PullRequestStatusPicker(props: {
             }}
           />
           <MenuItem
-            title="Closed"
+            title={t('workspace.pr.state.closed')}
             icon={<GitPullRequestClosed size={14} aria-hidden />}
             active={props.detail.state === 'CLOSED'}
             onClick={() => {
               close()
               if (props.detail.state === 'CLOSED') return
               props.onConfirm({
-                title: `Close #${props.detail.number}?`,
-                detail:
-                  'The pull request can be reopened later, and its branch will remain untouched.',
-                confirmLabel: 'Close pull request',
+                title: t('workspace.pr.status.closeTitle', { number: props.detail.number }),
+                detail: t('workspace.pr.status.closeDetail'),
+                confirmLabel: t('workspace.pr.status.closeButton'),
                 danger: true,
                 action: { type: 'close' },
               })
@@ -1527,20 +1556,21 @@ function lowerSet(values: string[]): Set<string> {
 }
 
 function reviewerPickerStateLabel(state: PullRequestDetail['reviewers'][number]['state']): string {
-  if (state === 'REQUESTED') return 'Review requested'
-  if (state === 'APPROVED') return 'Approved'
-  if (state === 'CHANGES_REQUESTED') return 'Changes requested'
-  if (state === 'DISMISSED') return 'Review dismissed'
-  if (state === 'PENDING') return 'Review pending'
-  return 'Review submitted'
+  if (state === 'REQUESTED') return tNow('workspace.pr.summary.reviewers.requested')
+  if (state === 'APPROVED') return tNow('workspace.pr.reviewer.approved')
+  if (state === 'CHANGES_REQUESTED') return tNow('workspace.pr.status.changes')
+  if (state === 'DISMISSED') return tNow('workspace.pr.reviewer.dismissed')
+  if (state === 'PENDING') return tNow('workspace.pr.reviewer.pending')
+  return tNow('workspace.pr.reviewer.submitted')
 }
 
 function PullRequestChecks({ detail }: { detail: PullRequestDetail }) {
+  const { t } = useI18n()
   return (
     <section className="pr-checks">
       <div className="pr-section-title">
-        <h3>Checks</h3>
-        <span>{detail.checks.length} reported</span>
+        <h3>{t('workspace.pr.summary.fact.checks')}</h3>
+        <span>{t('workspace.pr.checks.reported', { count: detail.checks.length })}</span>
       </div>
       <div className="pr-check-list">
         {detail.checks.map((check, index) => {
@@ -1589,6 +1619,7 @@ function PullRequestActivity(props: {
   onAction: (action: PullRequestAction) => Promise<boolean>
   onConfirm: (confirmation: Confirmation) => void
 }) {
+  const { t, tp } = useI18n()
   const timeline = useMemo(
     () =>
       [
@@ -1603,9 +1634,12 @@ function PullRequestActivity(props: {
       {props.detail.reviewThreads.length > 0 ? (
         <section className="pr-review-conversations">
           <div className="pr-section-title">
-            <h3>Review conversations</h3>
+            <h3>{t('workspace.pr.activity.threads')}</h3>
             <span>
-              {props.detail.reviewThreads.filter((thread) => !thread.resolved).length} open
+              {tp(
+                'workspace.pr.activity.threadsOpen',
+                props.detail.reviewThreads.filter((thread) => !thread.resolved).length,
+              )}
             </span>
           </div>
           {props.detail.reviewThreads.map((thread) => (
@@ -1618,25 +1652,25 @@ function PullRequestActivity(props: {
             />
           ))}
           {props.detail.reviewThreadsTruncated ? (
-            <p className="pr-list-note">Older review conversations are available on GitHub.</p>
+            <p className="pr-list-note">{t('workspace.pr.activity.threadsTruncated')}</p>
           ) : null}
         </section>
       ) : null}
       {props.detail.reviewThreadsUnavailable ? (
         <p className="pr-list-note is-error" role="alert">
-          Review conversations could not be loaded. Refresh to try again.
+          {t('workspace.pr.activity.threadsUnavailable')}
         </p>
       ) : props.detail.reviewThreads.length === 0 && props.detail.reviewThreadsTruncated ? (
-        <p className="pr-list-note">Review conversations are available on GitHub.</p>
+        <p className="pr-list-note">{t('workspace.pr.activity.threadsOnGithub')}</p>
       ) : null}
 
       <section className="pr-timeline">
         <div className="pr-section-title">
-          <h3>Activity</h3>
-          <span>{countLabel(timeline.length, 'event')}</span>
+          <h3>{t('workspace.pr.activity.title')}</h3>
+          <span>{tp('workspace.pr.activity.events', timeline.length)}</span>
         </div>
         {timeline.length === 0 ? (
-          <p className="pr-activity-empty">No comments or reviews yet.</p>
+          <p className="pr-activity-empty">{t('workspace.pr.activity.empty')}</p>
         ) : (
           <div className="pr-timeline-list">
             {timeline.map((entry) =>
@@ -1649,9 +1683,9 @@ function PullRequestActivity(props: {
                   onDelete={() =>
                     entry.comment.databaseId
                       ? props.onConfirm({
-                          title: 'Delete this comment?',
-                          detail: 'This removes the comment from GitHub and cannot be undone.',
-                          confirmLabel: 'Delete comment',
+                          title: t('workspace.pr.activity.deleteTitle'),
+                          detail: t('workspace.pr.activity.deleteDetail'),
+                          confirmLabel: t('workspace.pr.files.deleteComment'),
                           danger: true,
                           action: {
                             type: 'delete_comment',
@@ -1679,6 +1713,7 @@ function ReviewThreadCard(props: {
   onAction: (action: PullRequestAction) => Promise<boolean>
   onConfirm: (confirmation: Confirmation) => void
 }) {
+  const { t } = useI18n()
   const [replying, setReplying] = useState(false)
   const [reply, setReply] = useState('')
   const rootComment = props.thread.comments[0]
@@ -1690,8 +1725,10 @@ function ReviewThreadCard(props: {
       <header>
         <div>
           <code>{props.thread.path}</code>
-          {props.thread.line ? <span>line {props.thread.line}</span> : null}
-          {props.thread.outdated ? <span>outdated</span> : null}
+          {props.thread.line ? (
+            <span>{t('workspace.pr.thread.line', { number: props.thread.line })}</span>
+          ) : null}
+          {props.thread.outdated ? <span>{t('workspace.pr.thread.outdated')}</span> : null}
         </div>
         <button
           type="button"
@@ -1709,7 +1746,7 @@ function ReviewThreadCard(props: {
             <Check size={12} aria-hidden />
             <RotateCcw size={12} aria-hidden />
           </IconMorph>
-          {props.thread.resolved ? 'Reopen' : 'Resolve'}
+          {props.thread.resolved ? t('workspace.pr.files.reopen') : t('workspace.pr.files.resolve')}
         </button>
       </header>
       {props.thread.comments.map((comment) => (
@@ -1723,13 +1760,13 @@ function ReviewThreadCard(props: {
       ))}
       {props.thread.commentsTruncated ? (
         <p className="pr-list-note">
-          Later replies are not shown.{' '}
+          {t('workspace.pr.thread.truncated')}{' '}
           {rootComment ? (
             <a href={rootComment.url} target="_blank" rel="noreferrer">
-              Read the whole conversation on GitHub
+              {t('workspace.pr.thread.readAll')}
             </a>
           ) : (
-            'Read the whole conversation on GitHub.'
+            t('workspace.pr.thread.readAllPlain')
           )}
         </p>
       ) : null}
@@ -1738,7 +1775,7 @@ function ReviewThreadCard(props: {
           <textarea value={reply} onChange={(event) => setReply(event.target.value)} autoFocus />
           <div>
             <button type="button" className="pr-button is-quiet" onClick={() => setReplying(false)}>
-              Cancel
+              {t('workspace.pr.cancel')}
             </button>
             <button
               type="button"
@@ -1761,13 +1798,13 @@ function ReviewThreadCard(props: {
                   })
               }}
             >
-              Reply
+              {t('workspace.pr.reply')}
             </button>
           </div>
         </div>
       ) : (
         <button type="button" className="pr-thread-reply-link" onClick={() => setReplying(true)}>
-          Reply
+          {t('workspace.pr.reply')}
         </button>
       )}
     </article>
@@ -1780,6 +1817,7 @@ function ReviewThreadComment(props: {
   onAction: (action: PullRequestAction) => Promise<boolean>
   onConfirm: (confirmation: Confirmation) => void
 }) {
+  const { t } = useI18n()
   const [editing, setEditing] = useState(false)
   const [body, setBody] = useState(props.comment.body)
 
@@ -1796,13 +1834,13 @@ function ReviewThreadComment(props: {
           <Menu
             align="right"
             drop="down"
-            label="Review comment actions"
+            label={t('workspace.pr.files.commentActions')}
             trigger={() => <Ellipsis size={13} aria-hidden />}
           >
             {(close) => (
               <>
                 <MenuItem
-                  title="Edit comment"
+                  title={t('workspace.pr.files.editComment')}
                   icon={<Pencil size={13} aria-hidden />}
                   onClick={() => {
                     if (!editing) setBody(props.comment.body)
@@ -1811,14 +1849,14 @@ function ReviewThreadComment(props: {
                   }}
                 />
                 <MenuItem
-                  title="Delete comment"
+                  title={t('workspace.pr.files.deleteComment')}
                   icon={<Trash2 size={13} aria-hidden />}
                   className="is-danger"
                   onClick={() => {
                     props.onConfirm({
-                      title: 'Delete this review comment?',
-                      detail: 'This removes the inline comment from GitHub and cannot be undone.',
-                      confirmLabel: 'Delete comment',
+                      title: t('workspace.pr.detail.deleteReview.title'),
+                      detail: t('workspace.pr.detail.deleteReview.detail'),
+                      confirmLabel: t('workspace.pr.files.deleteComment'),
                       danger: true,
                       action: {
                         type: 'delete_comment',
@@ -1846,7 +1884,7 @@ function ReviewThreadComment(props: {
                 setEditing(false)
               }}
             >
-              Cancel
+              {t('workspace.pr.cancel')}
             </button>
             <button
               type="button"
@@ -1864,7 +1902,7 @@ function ReviewThreadComment(props: {
                   .then((success) => success && setEditing(false))
               }}
             >
-              Save
+              {t('workspace.pr.save')}
             </button>
           </div>
         </div>
@@ -1881,6 +1919,7 @@ function CommentCard(props: {
   onAction: (action: PullRequestAction) => Promise<boolean>
   onDelete: () => void
 }) {
+  const { t } = useI18n()
   const [editing, setEditing] = useState(false)
   const [body, setBody] = useState(props.comment.body)
 
@@ -1895,7 +1934,7 @@ function CommentCard(props: {
         <header>
           <div className="pr-comment-byline">
             <strong>{props.comment.author.login}</strong>
-            <span>commented</span>
+            <span>{t('workspace.pr.comment.commented')}</span>
             <a
               className="pr-comment-permalink"
               href={props.comment.url}
@@ -1911,13 +1950,13 @@ function CommentCard(props: {
             <Menu
               align="right"
               drop="down"
-              label="Comment actions"
+              label={t('workspace.pr.comment.actions')}
               trigger={() => <Ellipsis size={14} aria-hidden />}
             >
               {(close) => (
                 <>
                   <MenuItem
-                    title="Edit comment"
+                    title={t('workspace.pr.files.editComment')}
                     icon={<Pencil size={13} aria-hidden />}
                     onClick={() => {
                       if (!editing) setBody(props.comment.body)
@@ -1926,7 +1965,7 @@ function CommentCard(props: {
                     }}
                   />
                   <MenuItem
-                    title="Delete comment"
+                    title={t('workspace.pr.files.deleteComment')}
                     icon={<Trash2 size={13} aria-hidden />}
                     className="is-danger"
                     onClick={() => {
@@ -1951,7 +1990,7 @@ function CommentCard(props: {
                   setEditing(false)
                 }}
               >
-                Cancel
+                {t('workspace.pr.cancel')}
               </button>
               <button
                 type="button"
@@ -1969,7 +2008,7 @@ function CommentCard(props: {
                     .then((success) => success && setEditing(false))
                 }}
               >
-                Save
+                {t('workspace.pr.save')}
               </button>
             </div>
           </div>
@@ -2020,6 +2059,7 @@ function PullRequestComposer(props: {
   busy: boolean
   onAction: (action: PullRequestAction) => Promise<boolean>
 }) {
+  const { t } = useI18n()
   const { body, setBody, mode, setMode } = props
   const input = useRef<HTMLTextAreaElement>(null)
   const canReview = props.detail.relationship === 'reviewing'
@@ -2055,12 +2095,12 @@ function PullRequestComposer(props: {
         onChange={(event) => setBody(event.target.value)}
         placeholder={
           mode === 'comment'
-            ? 'Leave a comment'
+            ? t('workspace.pr.composer.placeholderComment')
             : mode === 'approve'
-              ? 'Optional review note'
-              : 'Explain what needs to change'
+              ? t('workspace.pr.composer.placeholderApprove')
+              : t('workspace.pr.composer.placeholderChanges')
         }
-        aria-label="Pull request comment"
+        aria-label={t('workspace.pr.composer.label')}
         onKeyDown={(event) => {
           if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
             event.preventDefault()
@@ -2072,14 +2112,14 @@ function PullRequestComposer(props: {
         {canReview ? (
           <AppSelect
             className="pr-composer-mode"
-            ariaLabel="Submission type"
+            ariaLabel={t('workspace.pr.composer.type')}
             value={mode}
             onChange={setMode}
             drop="up"
             options={[
-              { value: 'comment', label: 'Comment' },
-              { value: 'approve', label: 'Approve' },
-              { value: 'request_changes', label: 'Request changes' },
+              { value: 'comment', label: t('workspace.pr.composer.comment') },
+              { value: 'approve', label: t('workspace.pr.composer.approve') },
+              { value: 'request_changes', label: t('workspace.pr.composer.requestChanges') },
             ]}
           />
         ) : null}
@@ -2088,7 +2128,7 @@ function PullRequestComposer(props: {
           className={`pr-send-button is-${mode}`}
           aria-label={
             mode === 'comment'
-              ? 'Send comment'
+              ? t('workspace.pr.composer.send')
               : reviewStateLabel(mode === 'approve' ? 'APPROVED' : 'CHANGES_REQUESTED')
           }
           disabled={props.busy || (needsBody && !body.trim())}
@@ -2113,16 +2153,17 @@ function AutoMergeMenu(props: {
   busy: boolean
   onAction: (action: PullRequestAction) => Promise<boolean>
 }) {
+  const { t } = useI18n()
   return (
     <Menu
       align="right"
       drop="down"
       disabled={props.busy || props.detail.state !== 'OPEN'}
-      label="Auto-merge options"
+      label={t('workspace.pr.autoMerge.label')}
       triggerClassName={`pr-toolbar-menu-trigger${props.busy ? ' is-pending' : ''}`}
       trigger={() => (
         <span className={`pr-toolbar-button${props.detail.autoMerge ? ' is-enabled' : ''}`}>
-          Auto-merge{' '}
+          {t('workspace.pr.autoMerge.button')}{' '}
           <IconMorph active={props.busy ? 1 : 0}>
             <ChevronDown size={12} aria-hidden />
             <LoaderCircle size={12} className="is-spinning" aria-hidden />
@@ -2134,8 +2175,10 @@ function AutoMergeMenu(props: {
         <>
           {props.detail.autoMerge ? (
             <MenuItem
-              title="Disable auto-merge"
-              detail={`${mergeMethodLabel(editableMergeMethod(props.detail.autoMerge.mergeMethod))} is currently queued`}
+              title={t('workspace.pr.autoMerge.disable')}
+              detail={t('workspace.pr.autoMerge.queued', {
+                method: mergeMethodLabel(editableMergeMethod(props.detail.autoMerge.mergeMethod)),
+              })}
               icon={<XCircle size={13} aria-hidden />}
               onClick={() => {
                 close()
@@ -2146,7 +2189,7 @@ function AutoMergeMenu(props: {
             mergeMethods(props.detail).map((method) => (
               <MenuItem
                 key={method}
-                title={`Enable with ${mergeMethodLabel(method)}`}
+                title={t('workspace.pr.autoMerge.enable', { method: mergeMethodLabel(method) })}
                 icon={<Clock3 size={13} aria-hidden />}
                 onClick={() => {
                   close()
@@ -2172,16 +2215,17 @@ function MergeMenu(props: {
   disabled: boolean
   onChoose: (method: MergeMethod) => void
 }) {
+  const { t } = useI18n()
   return (
     <Menu
       align="right"
       drop="down"
       disabled={props.disabled}
-      label="Merge pull request"
+      label={t('workspace.pr.merge.confirm.button')}
       triggerClassName="pr-toolbar-menu-trigger"
       trigger={() => (
         <span className="pr-toolbar-button is-primary">
-          Merge <ChevronDown size={12} aria-hidden />
+          {t('workspace.pr.merge.button')} <ChevronDown size={12} aria-hidden />
         </span>
       )}
     >
@@ -2199,7 +2243,7 @@ function MergeMenu(props: {
             />
           ))}
           {props.detail.mergeable === 'CONFLICTING' ? (
-            <p className="pr-menu-note">Resolve conflicts before merging.</p>
+            <p className="pr-menu-note">{t('workspace.pr.merge.conflicts')}</p>
           ) : null}
         </>
       )}
@@ -2213,12 +2257,13 @@ function MoreMenu(props: {
   onAction: (action: PullRequestAction) => Promise<boolean>
   onConfirm: (confirmation: Confirmation) => void
 }) {
+  const { t } = useI18n()
   return (
     <Menu
       align="right"
       drop="down"
       disabled={props.busy}
-      label="More pull request actions"
+      label={t('workspace.pr.more.label')}
       trigger={() => <Ellipsis size={15} aria-hidden />}
     >
       {(close) => (
@@ -2226,7 +2271,11 @@ function MoreMenu(props: {
           {props.detail.state === 'OPEN' ? (
             <>
               <MenuItem
-                title={props.detail.isDraft ? 'Mark ready for review' : 'Convert to draft'}
+                title={
+                  props.detail.isDraft
+                    ? t('workspace.pr.more.markReady')
+                    : t('workspace.pr.more.convertDraft')
+                }
                 icon={
                   props.detail.isDraft ? (
                     <GitPullRequest size={13} aria-hidden />
@@ -2240,7 +2289,7 @@ function MoreMenu(props: {
                 }}
               />
               <MenuItem
-                title="Update branch with merge"
+                title={t('workspace.pr.more.updateMerge')}
                 icon={<GitBranch size={13} aria-hidden />}
                 onClick={() => {
                   close()
@@ -2248,7 +2297,7 @@ function MoreMenu(props: {
                 }}
               />
               <MenuItem
-                title="Update branch with rebase"
+                title={t('workspace.pr.more.updateRebase')}
                 icon={<RefreshCw size={13} aria-hidden />}
                 onClick={() => {
                   close()
@@ -2258,7 +2307,7 @@ function MoreMenu(props: {
               {props.detail.checks.length > 0 ? (
                 <>
                   <MenuItem
-                    title="Rerun failed checks"
+                    title={t('workspace.pr.more.rerunFailed')}
                     icon={<RotateCcw size={13} aria-hidden />}
                     onClick={() => {
                       close()
@@ -2266,7 +2315,7 @@ function MoreMenu(props: {
                     }}
                   />
                   <MenuItem
-                    title="Rerun all checks"
+                    title={t('workspace.pr.more.rerunAll')}
                     icon={<RefreshCw size={13} aria-hidden />}
                     onClick={() => {
                       close()
@@ -2276,16 +2325,15 @@ function MoreMenu(props: {
                 </>
               ) : null}
               <MenuItem
-                title="Close pull request"
+                title={t('workspace.pr.status.closeButton')}
                 icon={<GitPullRequestClosed size={13} aria-hidden />}
                 className="is-danger"
                 onClick={() => {
                   close()
                   props.onConfirm({
-                    title: `Close #${props.detail.number}?`,
-                    detail:
-                      'The pull request can be reopened later, and its branch will remain untouched.',
-                    confirmLabel: 'Close pull request',
+                    title: t('workspace.pr.status.closeTitle', { number: props.detail.number }),
+                    detail: t('workspace.pr.status.closeDetail'),
+                    confirmLabel: t('workspace.pr.status.closeButton'),
                     danger: true,
                     action: { type: 'close' },
                   })
@@ -2294,7 +2342,7 @@ function MoreMenu(props: {
             </>
           ) : props.detail.state === 'CLOSED' ? (
             <MenuItem
-              title="Reopen pull request"
+              title={t('workspace.pr.more.reopen')}
               icon={<RotateCcw size={13} aria-hidden />}
               onClick={() => {
                 close()
@@ -2338,6 +2386,7 @@ function Dialog(props: {
   onClose: () => void
   compact?: boolean
 }) {
+  const { t } = useI18n()
   const onClose = useRef(props.onClose)
   const panel = useRef<HTMLElement>(null)
   onClose.current = props.onClose
@@ -2397,7 +2446,7 @@ function Dialog(props: {
           <button
             type="button"
             className="pr-icon-button"
-            aria-label="Close"
+            aria-label={t('workspace.pr.dialog.close')}
             onClick={props.onClose}
           >
             <X size={14} aria-hidden />
@@ -2414,10 +2463,11 @@ const FOCUSABLE_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
 
 function DialogActions(props: { children: ReactNode; onCancel: () => void }) {
+  const { t } = useI18n()
   return (
     <div className="pr-dialog-actions">
       <button type="button" className="pr-button is-secondary" onClick={props.onCancel}>
-        Cancel
+        {t('workspace.pr.cancel')}
       </button>
       {props.children}
     </div>
@@ -2489,11 +2539,12 @@ function GitHubAvatar(props: {
 }
 
 function PullRequestDetailSkeleton() {
+  const { t } = useI18n()
   return (
     <div
       className="pr-detail pr-detail-skeleton skeleton-group"
       role="status"
-      aria-label="Loading pull request"
+      aria-label={t('workspace.pr.detail.loading')}
       aria-busy="true"
     >
       <header className="pr-detail-toolbar">
@@ -2534,59 +2585,91 @@ type PullRequestPresentation = {
 
 function pullRequestStatus(detail: PullRequestDetail): PullRequestPresentation {
   if (detail.state === 'MERGED')
-    return { label: 'Merged', tone: 'merged', icon: <GitMerge size={15} aria-hidden /> }
+    return {
+      label: tNow('workspace.pr.state.merged'),
+      tone: 'merged',
+      icon: <GitMerge size={15} aria-hidden />,
+    }
   if (detail.state === 'CLOSED')
-    return { label: 'Closed', tone: 'closed', icon: <GitPullRequestClosed size={15} aria-hidden /> }
+    return {
+      label: tNow('workspace.pr.state.closed'),
+      tone: 'closed',
+      icon: <GitPullRequestClosed size={15} aria-hidden />,
+    }
   if (detail.isDraft)
-    return { label: 'Draft', tone: 'draft', icon: <GitPullRequestDraft size={15} aria-hidden /> }
+    return {
+      label: tNow('workspace.pr.state.draft'),
+      tone: 'draft',
+      icon: <GitPullRequestDraft size={15} aria-hidden />,
+    }
   if (detail.mergeable === 'CONFLICTING')
     return {
-      label: 'Conflicts need resolving',
+      label: tNow('workspace.pr.status.conflicts'),
       tone: 'failure',
       icon: <CircleAlert size={15} aria-hidden />,
     }
   if (detail.reviewDecision === 'CHANGES_REQUESTED')
-    return { label: 'Changes requested', tone: 'failure', icon: <XCircle size={15} aria-hidden /> }
+    return {
+      label: tNow('workspace.pr.status.changes'),
+      tone: 'failure',
+      icon: <XCircle size={15} aria-hidden />,
+    }
   if (detail.reviewDecision === 'APPROVED')
     return {
-      label: 'Approved and ready',
+      label: tNow('workspace.pr.status.approved'),
       tone: 'success',
       icon: <CheckCircle2 size={15} aria-hidden />,
     }
   if (detail.reviewDecision === 'REVIEW_REQUIRED')
-    return { label: 'Review required', tone: 'attention', icon: <Users size={15} aria-hidden /> }
-  return { label: 'Ready for review', tone: 'open', icon: <GitPullRequest size={15} aria-hidden /> }
+    return {
+      label: tNow('workspace.pr.status.required'),
+      tone: 'attention',
+      icon: <Users size={15} aria-hidden />,
+    }
+  return {
+    label: tNow('workspace.pr.status.ready'),
+    tone: 'open',
+    icon: <GitPullRequest size={15} aria-hidden />,
+  }
 }
 
 function checkSummary(detail: PullRequestDetail): PullRequestPresentation {
   if (detail.checks.length === 0)
-    return { label: 'No checks reported', tone: 'muted', icon: <CircleDot size={15} aria-hidden /> }
+    return {
+      label: tNow('workspace.pr.checks.none'),
+      tone: 'muted',
+      icon: <CircleDot size={15} aria-hidden />,
+    }
   const failed = detail.checks.filter(
     (check) => check.state === 'failure' || check.state === 'cancelled',
   ).length
   if (failed > 0)
-    return { label: `${failed} failing`, tone: 'failure', icon: <XCircle size={15} aria-hidden /> }
+    return {
+      label: tNow('workspace.pr.checks.failing', { count: failed }),
+      tone: 'failure',
+      icon: <XCircle size={15} aria-hidden />,
+    }
   const pending = detail.checks.filter((check) => check.state === 'pending').length
   if (pending > 0)
     return {
-      label: `${pending} pending`,
+      label: tNow('workspace.pr.checks.pending', { count: pending }),
       tone: 'attention',
       icon: <LoaderCircle size={15} aria-hidden />,
     }
   return {
-    label: `${detail.checks.length} successful`,
+    label: tNow('workspace.pr.checks.successful', { count: detail.checks.length }),
     tone: 'success',
     icon: <CheckCircle2 size={15} aria-hidden />,
   }
 }
 
 function checkStateLabel(state: PullRequestDetail['checks'][number]['state']): string {
-  if (state === 'success') return 'Successful'
-  if (state === 'failure') return 'Failed'
-  if (state === 'pending') return 'In progress'
-  if (state === 'cancelled') return 'Cancelled'
-  if (state === 'skipped') return 'Skipped'
-  return 'Neutral'
+  if (state === 'success') return tNow('workspace.pr.checks.state.success')
+  if (state === 'failure') return tNow('workspace.pr.checks.state.failure')
+  if (state === 'pending') return tNow('workspace.pr.checks.state.pending')
+  if (state === 'cancelled') return tNow('workspace.pr.checks.state.cancelled')
+  if (state === 'skipped') return tNow('workspace.pr.checks.state.skipped')
+  return tNow('workspace.pr.checks.state.neutral')
 }
 
 function mergeMethods(detail: PullRequestDetail): MergeMethod[] {
@@ -2594,17 +2677,17 @@ function mergeMethods(detail: PullRequestDetail): MergeMethod[] {
 }
 
 function mergeMethodLabel(method: MergeMethod): string {
-  if (method === 'rebase') return 'Rebase and merge'
-  if (method === 'squash') return 'Squash and merge'
-  return 'Create a merge commit'
+  if (method === 'rebase') return tNow('workspace.pr.merge.rebase')
+  if (method === 'squash') return tNow('workspace.pr.merge.squash')
+  return tNow('workspace.pr.merge.commit')
 }
 
 function reviewStateLabel(state: PullRequestReviewStateLike): string {
-  if (state === 'APPROVED') return 'approved these changes'
-  if (state === 'CHANGES_REQUESTED') return 'requested changes'
-  if (state === 'DISMISSED') return 'had a review dismissed'
-  if (state === 'PENDING') return 'has a pending review'
-  return 'reviewed these changes'
+  if (state === 'APPROVED') return tNow('workspace.pr.review.approved')
+  if (state === 'CHANGES_REQUESTED') return tNow('workspace.pr.review.changes')
+  if (state === 'DISMISSED') return tNow('workspace.pr.review.dismissed')
+  if (state === 'PENDING') return tNow('workspace.pr.review.pending')
+  return tNow('workspace.pr.review.reviewed')
 }
 
 type PullRequestReviewStateLike = PullRequestReview['state'] | 'APPROVED' | 'CHANGES_REQUESTED'
@@ -2627,15 +2710,15 @@ function activityDate(
 function longRelativeTime(value: string): string {
   const elapsed = Math.max(0, Date.now() - Date.parse(value))
   const minutes = Math.floor(elapsed / 60_000)
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 1) return tNow('workspace.recent.now')
+  if (minutes < 60) return tNow('workspace.recent.minutes', { count: minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return tNow('workspace.recent.hours', { count: hours })
   const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}d ago`
+  if (days < 30) return tNow('workspace.recent.days', { count: days })
   const months = Math.floor(days / 30)
-  if (months < 12) return `${months}mo ago`
-  return `${Math.floor(months / 12)}y ago`
+  if (months < 12) return tpNow('workspace.recent.months', months)
+  return tpNow('workspace.recent.years', Math.floor(months / 12))
 }
 
 function storedMergeMethod(method: MergeMethod): StoredMergeMethod {

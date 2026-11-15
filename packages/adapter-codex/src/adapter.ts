@@ -174,7 +174,7 @@ const IGNORABLE_NOTIFICATIONS = new Set([
   'item/plan/delta',
 ])
 
-/** Provider state TasteCode either does not expose or already derives from shared events. */
+/** Provider state TUIFT Code either does not expose or already derives from shared events. */
 export function isIgnorableCodexNotification(method: string): boolean {
   return IGNORABLE_NOTIFICATIONS.has(method)
 }
@@ -835,7 +835,7 @@ export class CodexAdapter extends EventEmitter<CodexAdapterEvents> {
       initialized = await rpc.request(
         'initialize',
         {
-          clientInfo: { name: CLIENT_NAME, title: 'TasteCode', version: '0.0.0' },
+          clientInfo: { name: CLIENT_NAME, title: 'TUIFT Code', version: '0.0.0' },
           // thread/resume.excludeTurns requires this protocol capability.
           capabilities: { experimentalApi: true },
         },
@@ -1625,7 +1625,7 @@ export class CodexAdapter extends EventEmitter<CodexAdapterEvents> {
     return { turnId, cancel: () => finish(undefined) }
   }
 
-  /** A turn TasteCode completes itself to show the answer to a request that runs no turn. */
+  /** A turn TUIFT Code completes itself to show the answer to a request that runs no turn. */
   #commandReply(threadId: string, text: string): string {
     const turnId = `tastecode-command-${crypto.randomUUID()}`
     const createdAt = Date.now()

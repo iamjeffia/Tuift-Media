@@ -31,7 +31,7 @@ export class PairingLinkError extends Error {
  */
 export function parsePairingLink(text: string, now = Date.now()): Pairing {
   const match = /tastecode:\/\/pair\?(?:[^\s&]*&)*p=([A-Za-z0-9_-]+)/.exec(text)
-  if (!match?.[1]) throw new PairingLinkError('That is not a TasteCode pairing code.')
+  if (!match?.[1]) throw new PairingLinkError('That is not a TUIFT Code pairing code.')
   let payload: Partial<PhonePairingPayload>
   try {
     payload = JSON.parse(decodeBase64Url(match[1])) as Partial<PhonePairingPayload>
@@ -41,7 +41,7 @@ export function parsePairingLink(text: string, now = Date.now()): Pairing {
     )
   }
   if (payload.v !== 1) {
-    throw new PairingLinkError('This pairing code is from a newer TasteCode. Update the app.')
+    throw new PairingLinkError('This pairing code is from a newer TUIFT Code. Update the app.')
   }
   const { name, key, port, hosts, secret, expiresAt } = payload
   if (

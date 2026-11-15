@@ -5,7 +5,14 @@ import path from 'node:path'
 import test from 'node:test'
 import { gzipSync } from 'node:zlib'
 import { omitFiles } from './skill-media.mjs'
-import { digestFiles, readManifest, skillFiles, syncBundle, verifyBundle } from './sync.js'
+import {
+  digestFiles,
+  localSkillFiles,
+  readManifest,
+  skillFiles,
+  syncBundle,
+  verifyBundle,
+} from './sync.js'
 
 function header(name, size, type) {
   const block = Buffer.alloc(512)
@@ -118,7 +125,7 @@ const patchedArchive = tar([
   ['demo-abc/skills/demo/assets/_demo/b.jpg', 'jpg'],
 ])
 
-/** A temp folder with TasteCode's copies of the patched files, and the bundle synced from them. */
+/** A temp folder with TUIFT Code's copies of the patched files, and the bundle synced from them. */
 async function patchedFixture() {
   const temp = await mkdtemp(path.join(os.tmpdir(), 'default-skills-patch-'))
   const root = path.join(temp, 'bundle')
@@ -208,7 +215,7 @@ test('bundles the patched copies, no library, and nothing that fetches one', asy
     )
     assert.match(
       (await verifyBundle(pinned, root, patches)).join('\n'),
-      /SKILL\.md is not TasteCode's patched copy/,
+      /SKILL\.md is not TUIFT Code's patched copy/,
     )
   } finally {
     await rm(temp, { recursive: true, force: true })
@@ -238,8 +245,13 @@ test('the committed manifest pins full commits and measured hashes', async () =>
   const manifest = await readManifest()
   assert.equal(manifest.plugin.name, 'tastecode')
   for (const entry of manifest.skills) {
-    assert.match(entry.commit, /^[0-9a-f]{40}$/)
-    assert.match(entry.archiveSha256, /^[0-9a-f]{64}$/)
+    if (entry.source === 'local') {
+      assert.ok(entry.license, `${entry.folder} names no license`)
+      assert.equal(entry.commit, undefined)
+    } else {
+      assert.match(entry.commit, /^[0-9a-f]{40}$/)
+      assert.match(entry.archiveSha256, /^[0-9a-f]{64}$/)
+    }
     assert.match(entry.treeSha256, /^[0-9a-f]{64}$/)
     assert.ok(entry.files > 0 && entry.bytes > 0)
     assert.ok(entry.summary.length <= 60, entry.folder)
@@ -247,4 +259,106 @@ test('the committed manifest pins full commits and measured hashes', async () =>
     assert.equal(entry.media, undefined, 'nothing is fetched after install')
   }
   assert.equal(digestFiles(new Map()).files, 0)
+})
+
+const localSkill = {
+  folder: 'mine',
+  source: 'local',
+  summary: 'a fixture skill',
+  license: 'MIT',
+  licenseFile: 'LICENSE',
+}
+
+/** A temp folder with a tiny skill of our own in tuift/, next to the pinned fixture skill. */
+async function localFixture() {
+  const temp = await mkdtemp(path.join(os.tmpdir(), 'default-skills-local-'))
+  const root = path.join(temp, 'bundle')
+  const locals = path.join(temp, 'tuift')
+  await mkdir(path.join(locals, 'mine', 'refs'), { recursive: true })
+  await writeFile(path.join(locals, 'mine', 'SKILL.md'), '---\nname: mine\n---\nOur own.\n')
+  await writeFile(path.join(locals, 'mine', 'LICENSE'), 'Our licence text')
+  await writeFile(path.join(locals, 'mine', 'refs', 'a.md'), 'a')
+  await writeFile(path.join(locals, 'mine', '.DS_Store'), 'junk')
+  const manifest = {
+    plugin: { name: 'tastecode' },
+    skills: [
+      { ...skill, archiveSha256: '', treeSha256: '', files: 0, bytes: 0 },
+      { ...localSkill },
+    ],
+  }
+  const fetchImpl = async () => new Response(gzipSync(archive))
+  const options = { root, locals, fetchImpl, log: () => {} }
+  const pinned = await syncBundle(manifest, { ...options, update: true })
+  return { temp, root, locals, pinned, options }
+}
+
+test('bundles a skill from tuift/ next to the pinned ones, with its own licence', async () => {
+  const { temp, root, locals, pinned } = await localFixture()
+  try {
+    const mine = pinned.skills[1]
+    assert.equal(mine.files, 3)
+    assert.ok(mine.bytes > 0)
+    assert.equal(mine.archiveSha256, undefined)
+    assert.match(mine.treeSha256, /^[0-9a-f]{64}$/)
+    assert.deepEqual(await verifyBundle(pinned, root, undefined, locals), [])
+    const skillDir = path.join(root, 'skills', 'mine')
+    assert.equal(await readFile(path.join(skillDir, 'LICENSE'), 'utf8'), 'Our licence text')
+    assert.equal(await readFile(path.join(skillDir, 'refs', 'a.md'), 'utf8'), 'a')
+    await assert.rejects(stat(path.join(skillDir, '.DS_Store')))
+    const copy = JSON.parse(await readFile(path.join(root, 'skills.json'), 'utf8'))
+    assert.equal(copy.skills[1].source, 'local')
+  } finally {
+    await rm(temp, { recursive: true, force: true })
+  }
+})
+
+test('needs no network once pinned, and notices an edit on either side', async () => {
+  const { temp, root, locals, pinned, options } = await localFixture()
+  const offline = async () => {
+    throw new Error('offline')
+  }
+  const own = { ...pinned, skills: [pinned.skills[1]] }
+  const sync = (extra = {}) => syncBundle(own, { ...options, fetchImpl: offline, ...extra })
+  try {
+    await rm(root, { recursive: true, force: true })
+    await sync()
+    assert.deepEqual(await verifyBundle(own, root, undefined, locals), [])
+
+    await writeFile(path.join(root, 'skills', 'mine', 'SKILL.md'), 'changed in the bundle')
+    assert.match((await verifyBundle(own, root, undefined, locals)).join('\n'), /mine differs/)
+
+    await sync()
+    await writeFile(path.join(locals, 'mine', 'refs', 'a.md'), 'edited in the repository')
+    assert.deepEqual(await verifyBundle(own, root, undefined, locals), [
+      'tuift/mine changed since it was pinned; run sync.js --update',
+    ])
+    await rm(root, { recursive: true, force: true })
+    await assert.rejects(sync(), /tuift\/mine changed since it was pinned/)
+    await assert.rejects(stat(root))
+    const repinned = await sync({ update: true })
+    assert.notEqual(repinned.skills[0].treeSha256, own.skills[0].treeSha256)
+  } finally {
+    await rm(temp, { recursive: true, force: true })
+  }
+})
+
+test('refuses a local skill without SKILL.md, licence file, licence name or usable folder', async () => {
+  const { temp, locals } = await localFixture()
+  const files = (entry) => localSkillFiles({ ...localSkill, ...entry }, locals)
+  try {
+    await assert.rejects(files({ license: undefined }), /name its license/)
+    await assert.rejects(files({ folder: 'gone' }), /tuift\/gone is missing/)
+    await assert.rejects(files({ folder: '..' }), /not a usable skill folder/)
+    await assert.rejects(files({ folder: 'a/b' }), /not a usable skill folder/)
+    await assert.rejects(files({ omit: { paths: ['x'] } }), /bundled as it is/)
+    await rm(path.join(locals, 'mine', 'LICENSE'))
+    await assert.rejects(files({}), /no LICENSE/)
+    await writeFile(path.join(locals, 'mine', 'LICENSE'), '')
+    await assert.rejects(files({}), /no LICENSE/)
+    await writeFile(path.join(locals, 'mine', 'LICENSE'), 'text')
+    await rm(path.join(locals, 'mine', 'SKILL.md'))
+    await assert.rejects(files({}), /no SKILL\.md/)
+  } finally {
+    await rm(temp, { recursive: true, force: true })
+  }
 })

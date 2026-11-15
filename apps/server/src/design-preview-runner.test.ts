@@ -199,7 +199,7 @@ createServer((_request, response) => response.end('expected preview')).listen(Nu
     await expect(fetch(preview.url, { signal: AbortSignal.timeout(500) })).rejects.toThrow()
   })
 
-  it('serves an exact-file static project with a TasteCode-owned response', async () => {
+  it('serves an exact-file static project with a TUIFT-Code-owned response', async () => {
     const workspace = mkdtempSync(path.join(os.tmpdir(), 'harness-preview-'))
     workspaces.push(workspace)
     const port = await freePort()
@@ -482,7 +482,7 @@ createServer((_request, response) => response.end('expected preview')).listen(Nu
       const preview = await startDesignPreview(workspace, plan(await freePort()), 5_000)
       previews.push(preview)
       expect(preview.url).toBe(`http://127.0.0.1:${runningPort}/`)
-      expect(preview.output()).toContain('TasteCode did not start it and leaves it running')
+      expect(preview.output()).toContain('TUIFT Code did not start it and leaves it running')
       await preview.stop()
       expect(await (await fetch(preview.url)).text()).toBe('employee profiles')
 

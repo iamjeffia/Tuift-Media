@@ -24,7 +24,7 @@ describe('browser commands', () => {
     browser.setCapability(window, true, ['other-chat'])
     browser.setCapability({ name: 'old client' }, undefined, ['chat-1'])
     await expect(browser.run('chat-1', { action: 'screenshot' })).rejects.toThrow(
-      'No TasteCode window shows this chat',
+      'No TUIFT Code window shows this chat',
     )
     expect(sent).toEqual([])
   })
@@ -51,7 +51,7 @@ describe('browser commands', () => {
     browser.setCapability(window, true, ['chat-1'])
     browser.setCapability(window, true, ['chat-2'])
     await expect(browser.run('chat-1', { action: 'screenshot' })).rejects.toThrow(
-      'No TasteCode window shows this chat',
+      'No TUIFT Code window shows this chat',
     )
   })
 
@@ -61,9 +61,9 @@ describe('browser commands', () => {
     browser.setCapability(window, true, ['chat-1'])
     const running = browser.run('chat-1', { action: 'screenshot' })
     browser.remove(window)
-    await expect(running).rejects.toThrow('The TasteCode window showing the chat closed.')
+    await expect(running).rejects.toThrow('The TUIFT Code window showing the chat closed.')
     await expect(browser.run('chat-1', { action: 'screenshot' })).rejects.toThrow(
-      'No TasteCode window shows this chat',
+      'No TUIFT Code window shows this chat',
     )
     expect(sent).toHaveLength(1)
   })
@@ -124,7 +124,7 @@ describe('browser commands', () => {
     browser.setCapability(window, true, ['chat-1'])
     const running = browser.run('chat-1', { action: 'screenshot' })
     browser.setCapability(window, true, ['chat-2'])
-    await expect(running).rejects.toThrow('The chat is no longer shown in TasteCode.')
+    await expect(running).rejects.toThrow('The chat is no longer shown in TUIFT Code.')
   })
 
   it('refuses a page outside http and https, and an answer from another window', () => {

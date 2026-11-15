@@ -100,7 +100,7 @@ describe('a window whose desktop started its server', () => {
     const listing = transport.request('projects.list', {})
     const other = FakeSocket.instances.at(-1)!
     expect(other.protocols).toEqual(['tastecode', 'tastecode.window-a'])
-    // Another TasteCode's server, which does not check windows, picks the first one.
+    // Another TUIFT Code's server, which does not check windows, picks the first one.
     other.protocol = 'tastecode'
     other.open()
     // What that server sends must reach nothing: a push, and an answer to the first request id.
@@ -421,7 +421,7 @@ describe('Transport', () => {
         expect(parse).toHaveBeenCalledTimes(attempt)
         await expect(invalid).rejects.toBeInstanceOf(IndeterminateRequestError)
         await expect(invalid).rejects.toThrow(
-          'The server sent an invalid reply to thread.sendTurn. Restart TasteCode if this keeps happening.',
+          'The server sent an invalid reply to thread.sendTurn. Restart TUIFT Code if this keeps happening.',
         )
         expect(parse).toHaveBeenCalledOnce()
       }

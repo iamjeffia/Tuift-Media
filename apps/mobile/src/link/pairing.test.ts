@@ -47,7 +47,7 @@ describe('pairing links', () => {
 
   it('refuses anything else with a sentence the screen can show', () => {
     expect(() => parsePairingLink('https://example.com', 1_000)).toThrow(PairingLinkError)
-    expect(() => parsePairingLink(link({ ...payload, v: 2 }), 1_000)).toThrow(/newer TasteCode/)
+    expect(() => parsePairingLink(link({ ...payload, v: 2 }), 1_000)).toThrow(/newer TUIFT Code/)
     expect(() => parsePairingLink(link({ ...payload, hosts: [] }), 1_000)).toThrow(/incomplete/)
     expect(() => parsePairingLink(link({ ...payload, key: 'short' }), 1_000)).toThrow(/incomplete/)
     expect(() => parsePairingLink(link(payload), 3_000)).toThrow(/expired/)

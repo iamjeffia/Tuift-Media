@@ -93,7 +93,11 @@ async function resolveAccountToken(refreshToken: boolean, signal?: AbortSignal):
     await rpc.request(
       'initialize',
       {
-        clientInfo: { name: 'tastecode_dictation', title: 'TasteCode dictation', version: '1.0.0' },
+        clientInfo: {
+          name: 'tastecode_dictation',
+          title: 'TUIFT Code dictation',
+          version: '1.0.0',
+        },
       },
       { timeoutMs: 10_000 },
     )

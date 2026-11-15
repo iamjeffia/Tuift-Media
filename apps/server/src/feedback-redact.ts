@@ -4,7 +4,7 @@
  * The secret patterns mirror the desktop diagnostics scrubber
  * (`apps/desktop/src/local-diagnostics.ts`); the server cannot import desktop
  * code, and feedback needs two things diagnostics does not: a count for the
- * preview, and stripping every file path from text TasteCode attaches on its
+ * preview, and stripping every file path from text TUIFT Code attaches on its
  * own. Every replacement is counted so the dialog can say what changed.
  */
 
@@ -126,7 +126,7 @@ function finish(text: string, max: number): string {
 }
 
 /**
- * Text TasteCode attaches on its own (an error it showed). No path, query
+ * Text TUIFT Code attaches on its own (an error it showed). No path, query
  * string, email or secret-shaped value survives: the user did not type it,
  * so the "no file path leaves the machine" promise applies in full.
  */

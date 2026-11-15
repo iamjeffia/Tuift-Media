@@ -5,6 +5,7 @@ import {
   useContext,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type ComponentPropsWithoutRef,
   type ReactNode,
@@ -20,6 +21,7 @@ import 'streamdown/styles.css'
 import { createMathPlugin } from '@streamdown/math'
 import 'katex/dist/katex.min.css'
 import { canRevealProjectFile, revealProjectFile } from '../bridge.js'
+import { openProjectFileInPanel, useCanOpenProjectFileInPanel } from '../project-file-open.js'
 import {
   preserveProjectFileLinks,
   preserveRelativeLink,
@@ -31,6 +33,7 @@ import {
   isInlineFileReference,
   isInlineFolderReference,
 } from './file-reference.js'
+import { FileContextMenu } from './FileContextMenu.js'
 import { FileTypeIcon } from './FileTypeIcon.js'
 import { shikiPlugin } from './highlighter.js'
 import { STREAMDOWN_ICONS } from './streamdown-icons.js'
@@ -48,14 +51,15 @@ type InlineCodeProps = ComponentPropsWithoutRef<'code'> & { node?: unknown }
 
 function InlineCode({ children, node: _node, ...props }: InlineCodeProps) {
   const projectPath = useContext(ProjectPathContext)
+  const inPanel = useCanOpenProjectFileInPanel()
+  const canOpen = canRevealProjectFile || inPanel
   const text = typeof children === 'string' ? children : undefined
   const file = text !== undefined && isInlineFileReference(text)
   const folder = text !== undefined && !file && isInlineFolderReference(text)
   if (text === undefined || (!file && !folder)) return <code {...props}>{children}</code>
 
   // A path the reply names in code opens like a file link when it resolves inside the project.
-  const reference =
-    projectPath && canRevealProjectFile ? projectFileReference(text, projectPath) : undefined
+  const reference = projectPath && canOpen ? projectFileReference(text, projectPath) : undefined
   if (projectPath && reference?.kind === 'safe') {
     return (
       <RevealProjectFileButton path={reference.path} projectPath={projectPath} iconPath={text}>
@@ -88,24 +92,50 @@ function RevealProjectFileButton({
   children,
 }: RevealProjectFileButtonProps) {
   const [revealFailed, setRevealFailed] = useState(false)
-  return (
-    <button
-      className="md-file-link md-file-link--action"
-      type="button"
-      title={revealFailed ? `Try showing ${path} again` : `Show ${path} in its folder`}
-      onClick={() => {
+  const target = useRef<HTMLButtonElement>(null)
+  const inPanel = useCanOpenProjectFileInPanel()
+  const reveal = canRevealProjectFile
+    ? () => {
         setRevealFailed(false)
         void revealProjectFile(path, projectPath).catch(() => setRevealFailed(true))
-      }}
-    >
-      <FileTypeIcon path={iconPath ?? path} />
-      {children}
-      {revealFailed ? (
-        <span className="md-file-link__reason" role="alert">
-          Could not show file
-        </span>
-      ) : null}
-    </button>
+      }
+    : undefined
+  // Opens beside the chat; without a panel to open it in, it is shown in its folder as before.
+  const open = () => {
+    setRevealFailed(false)
+    if (!openProjectFileInPanel({ path, projectPath })) reveal?.()
+  }
+  return (
+    <>
+      <button
+        ref={target}
+        className="md-file-link md-file-link--action"
+        type="button"
+        title={
+          revealFailed
+            ? `Try ${inPanel ? 'opening' : 'showing'} ${path} again`
+            : inPanel
+              ? `Open ${path} in the side panel`
+              : `Show ${path} in its folder`
+        }
+        onClick={open}
+      >
+        <FileTypeIcon path={iconPath ?? path} />
+        {children}
+        {revealFailed ? (
+          <span className="md-file-link__reason" role="alert">
+            Could not show file
+          </span>
+        ) : null}
+      </button>
+      <FileContextMenu
+        targetRef={target}
+        label="File options"
+        path={path}
+        onOpenInPanel={inPanel ? open : undefined}
+        onOpenInExplorer={reveal}
+      />
+    </>
   )
 }
 
@@ -115,6 +145,8 @@ const ProjectPathContext = createContext<string | undefined>(undefined)
 
 function MarkdownLink({ children, href: source, node: _node, ...props }: MarkdownLinkProps) {
   const projectPath = useContext(ProjectPathContext)
+  const inPanel = useCanOpenProjectFileInPanel()
+  const canOpen = canRevealProjectFile || inPanel
   const images = useContext(MarkdownImageContext)
   const href = images && source ? repositoryLink(source, images.normalize) : source
   const fileLink = href ? localFileLink(href) : undefined
@@ -122,7 +154,7 @@ function MarkdownLink({ children, href: source, node: _node, ...props }: Markdow
     if (projectPath) {
       // projectFileReference decodes the path itself, so it gets the still-encoded href.
       const reference = projectFileReference(fileLink.href, projectPath)
-      if (reference?.kind === 'safe' && canRevealProjectFile) {
+      if (reference?.kind === 'safe' && canOpen) {
         return (
           <RevealProjectFileButton path={reference.path} projectPath={projectPath}>
             {children}

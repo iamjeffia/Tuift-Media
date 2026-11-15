@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-/// Noise_IK_25519_ChaChaPoly_SHA256, the phone's side of the TasteCode link.
+/// Noise_IK_25519_ChaChaPoly_SHA256, the phone's side of the TUIFT Code link.
 ///
 ///   <- s
 ///   ...

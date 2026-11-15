@@ -8,6 +8,7 @@ import {
 } from '@harness/contracts'
 import { accountsOf, useProviderAccounts } from '../provider-accounts-state.js'
 import { providerMark } from '../provider-presentation.js'
+import { useI18n } from '../i18n/index.js'
 import type { Transport } from '../transport.js'
 import { ProviderIcon } from './ProviderIcon.js'
 import { SettingsEmpty, SettingsRow } from './settings/SettingsLayout.js'
@@ -85,6 +86,7 @@ export function ProfileAccounts(props: {
   current?: CurrentAccount | undefined
   onManage?: (() => void) | undefined
 }) {
+  const { t } = useI18n()
   const titleId = useId()
   // A provider signs in with an account when its adapter declares a sign-in setup.
   const signIns = (props.providers ?? []).filter(
@@ -160,25 +162,28 @@ export function ProfileAccounts(props: {
       <div className="profile-section__head">
         <div className="profile-section__heading">
           <h2 className="profile-section__title" id={titleId}>
-            Accounts
+            {t('settings.profileAccounts.title')}
           </h2>
         </div>
         {props.onManage ? (
           <div className="profile-section__actions">
             <button className="set-button set-button--quiet" type="button" onClick={props.onManage}>
-              Manage
+              {t('settings.profileAccounts.manage')}
             </button>
           </div>
         ) : null}
       </div>
       {!props.providers ? (
-        <SkeletonStatus label="Loading accounts…" className="profile-accounts__loading">
+        <SkeletonStatus
+          label={t('settings.profileAccounts.loading')}
+          className="profile-accounts__loading"
+        >
           <SkeletonRows rows={2} icon="circle" />
         </SkeletonStatus>
       ) : signIns.length === 0 ? (
         <SettingsEmpty
-          title="No provider is set up yet"
-          detail="Providers lists the ones you can install and sign in to."
+          title={t('settings.profileAccounts.empty.title')}
+          detail={t('settings.profileAccounts.empty.detail')}
         />
       ) : (
         signIns.flatMap((status) => {
@@ -219,6 +224,7 @@ export function ProfileAccounts(props: {
  * "Signed out", as the provider rows here do.
  */
 function FurtherAccountRow(props: { account: ProviderAccount; provider: ProviderStatus }) {
+  const { t } = useI18n()
   const { account } = props
   const signedIn = account.email !== undefined || account.plan !== undefined
   return (
@@ -232,19 +238,23 @@ function FurtherAccountRow(props: { account: ProviderAccount; provider: Provider
       tone={signedIn ? undefined : 'muted'}
     >
       {signedIn ? (
-        <span>{account.plan ?? 'Signed in'}</span>
+        <span>{account.plan ?? t('settings.profileAccounts.signedIn')}</span>
       ) : (
-        <span className="profile-accounts__state">Signed out</span>
+        <span className="profile-accounts__state">{t('settings.profileAccounts.signedOut')}</span>
       )}
     </SettingsRow>
   )
 }
 
 function AccountValue(props: { read: AccountRead; provider: string }) {
+  const { t } = useI18n()
   const { read } = props
   if (read.phase === 'loading') {
     return (
-      <SkeletonStatus label={`Checking ${props.provider}…`} className="profile-accounts__checking">
+      <SkeletonStatus
+        label={t('settings.profileAccounts.checking', { provider: props.provider })}
+        className="profile-accounts__checking"
+      >
         <Skeleton width={56} height={9} />
       </SkeletonStatus>
     )
@@ -252,10 +262,14 @@ function AccountValue(props: { read: AccountRead; provider: string }) {
   if (read.phase === 'error') {
     return (
       <span className="profile-accounts__state" title={read.message}>
-        Unavailable
+        {t('settings.profileAccounts.unavailable')}
       </span>
     )
   }
-  if (!read.account.signedIn) return <span className="profile-accounts__state">Signed out</span>
-  return <span>{read.account.plan ?? 'Signed in'}</span>
+  if (!read.account.signedIn) {
+    return (
+      <span className="profile-accounts__state">{t('settings.profileAccounts.signedOut')}</span>
+    )
+  }
+  return <span>{read.account.plan ?? t('settings.profileAccounts.signedIn')}</span>
 }

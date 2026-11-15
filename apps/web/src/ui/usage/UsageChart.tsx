@@ -6,6 +6,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
 } from 'react'
+import { useI18n } from '../../i18n/index.js'
 import { formatTokens } from './usage-format.js'
 import { formatValue, type AxisTick, type SheetSlot } from './usage-sheets.js'
 
@@ -54,6 +55,7 @@ export const UsageChart = memo(function UsageChart(props: {
   /** "day", or "week" on a long period. */
   unit: string
 }) {
+  const { t } = useI18n()
   const { slots, axis } = props
   const count = slots.length
   const [element, setElement] = useState<HTMLDivElement | null>(null)
@@ -93,7 +95,10 @@ export const UsageChart = memo(function UsageChart(props: {
         className="usage-chart__plot"
         tabIndex={0}
         role="img"
-        aria-label={`${props.name} tokens a ${props.unit}. Use the arrow keys to read a ${props.unit}.`}
+        aria-label={t(
+          props.unit === 'week' ? 'settings.usageChart.labelWeek' : 'settings.usageChart.labelDay',
+          { name: props.name },
+        )}
         onPointerMove={(event) => {
           const index = indexAt(event)
           if (index !== active) setHover(index)
@@ -177,6 +182,7 @@ function ChartTip(props: {
   title: string
   entry: SheetSlot
 }) {
+  const { t } = useI18n()
   const { entry } = props
   const [element, setElement] = useState<HTMLDivElement | null>(null)
   const [tipWidth, setTipWidth] = useState(0)
@@ -187,7 +193,11 @@ function ChartTip(props: {
   const left = right + tipWidth <= props.width ? right : props.x - TIP_GAP - tipWidth
   // Tokens with no value come from models without an API price, not free use.
   const value =
-    entry.tokens <= 0 ? undefined : entry.value > 0 ? formatValue(entry.value) : 'not priced'
+    entry.tokens <= 0
+      ? undefined
+      : entry.value > 0
+        ? formatValue(entry.value)
+        : t('settings.usageChart.notPriced')
   return (
     <div
       ref={setElement}
@@ -196,7 +206,9 @@ function ChartTip(props: {
     >
       <span className="usage-chart__tip-date">{props.title}</span>
       <span className="usage-chart__tip-tokens">
-        {entry.tokens > 0 ? `${formatTokens(entry.tokens)} tokens` : 'No use'}
+        {entry.tokens > 0
+          ? t('settings.usageChart.tokens', { tokens: formatTokens(entry.tokens) })
+          : t('settings.usageChart.noUse')}
       </span>
       {value ? <span className="usage-chart__tip-value">{value}</span> : null}
     </div>

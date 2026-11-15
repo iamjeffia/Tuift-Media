@@ -5,7 +5,7 @@ import type { DatabaseSync, StatementSync } from './sqlite.js'
 /** The task as the row's tool call shows it, sent with every update. */
 const ROW_TASK_CHARACTERS = 2_000
 /** Why a run that was unfinished when the app closed ended. */
-export const RESTART_SUMMARY = 'TasteCode closed while this subagent ran.'
+export const RESTART_SUMMARY = 'TUIFT Code closed while this subagent ran.'
 
 /**
  * Where one sub-agent run stands, as its parent agent sees it. A run waits for
@@ -274,7 +274,7 @@ export function subagentRunItem(run: StoredSubagentRun): Item {
 /** Keeps the start and the end, where a report puts its summary and its conclusion. */
 export function shorten(text: string, limit: number): string {
   if (text.length <= limit) return text
-  const marker = '\n\n[… shortened by TasteCode …]\n\n'
+  const marker = '\n\n[… shortened by TUIFT Code …]\n\n'
   const keep = limit - marker.length
   const head = Math.ceil(keep / 2)
   return `${text.slice(0, head)}${marker}${text.slice(text.length - (keep - head))}`

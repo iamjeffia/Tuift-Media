@@ -51,6 +51,34 @@ describe('default skills', () => {
     )
   })
 
+  it('treats a skill kept in this repository like a pinned one', async () => {
+    const root = await writeDefaultSkillsFixture(await tempDir(), ['cook'])
+    await writeFile(
+      path.join(root, 'skills.json'),
+      JSON.stringify({
+        plugin: { name: 'tastecode' },
+        skills: [
+          {
+            folder: 'cook',
+            source: 'local',
+            summary: 'our own loop',
+            license: 'MIT',
+            licenseFile: 'LICENSE',
+            treeSha256: '0'.repeat(64),
+            files: 2,
+            bytes: 40,
+          },
+        ],
+      }),
+    )
+    const loaded = loadDefaultSkills(root)
+    expect(loaded.skills.map((skill) => [skill.id, skill.scope])).toEqual([
+      ['tastecode:cook', 'system'],
+    ])
+    expect(loaded.catalog).toContain('- cook: our own loop')
+    expect(loaded.commands.map((command) => command.name)).toEqual(['cook'])
+  })
+
   it('uses the skill name with a manifest plugin alias, and lists none without a plugin', async () => {
     const root = await writeDefaultSkillsFixture(await tempDir(), ['cook'])
     await writeFile(
@@ -129,7 +157,7 @@ describe('default skills', () => {
       'AppData',
       'Local',
       'Programs',
-      'Taste Code',
+      'TUIFT Code',
       'resources',
     )
     await mkdir(deep, { recursive: true })

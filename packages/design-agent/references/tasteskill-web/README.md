@@ -15,10 +15,10 @@ file's upstream path and SHA-256; a test fails when a file no longer matches it.
 | `LICENSE`      | `LICENSE`                                    | The MIT license that accompanies every copy                            |
 
 `src/tasteskill-web.ts` quotes whole `##` sections of these files into the Page, Build and Review
-prompts of a website run (`WEBSITE_RULE_SECTIONS` lists which). It puts TasteCode's adaptations in
+prompts of a website run (`WEBSITE_RULE_SECTIONS` lists which). It puts TUIFT Code's adaptations in
 front of them:
 
-- TasteCode does not install or run the skill's kit.
+- TUIFT Code does not install or run the skill's kit.
 - The reference deck decides composition, and the brand system decides type, colour, radius and spacing.
 - There is no picture library: pictures come from the brief, the user's files and the Asset phase.
 - Motion follows `src/website-motion.ts`.

@@ -690,7 +690,7 @@ export function computerName(hostname = os.hostname()): string {
     .replace(/\.local$/i, '')
     .replace(/[-_]+/g, ' ')
     .trim()
-  return name.slice(0, 120) || 'TasteCode computer'
+  return name.slice(0, 120) || 'TUIFT Code computer'
 }
 
 function ipv4Number(address: string): number {

@@ -206,7 +206,7 @@ describe('app sheet and rules', () => {
   it('renders the dealt sheet with tokens, type and shell, without tasteskill commands', () => {
     const direction = selectAppDirection(brief('Budget dashboard for our household'), first)
     const sheet = appSheetGuidance(direction)
-    expect(sheet).toContain('APP SHEET: dealt by TasteCode from tasteskill v2.5')
+    expect(sheet).toContain('APP SHEET: dealt by TUIFT Code from tasteskill v2.5')
     expect(sheet).toContain('1. The style: Achromatic ledger (achromatic-ledger, light)')
     expect(sheet).toContain('The move: No brand colour anywhere in the chrome')
     expect(sheet).toContain('  --ground: #f8f8f8;')

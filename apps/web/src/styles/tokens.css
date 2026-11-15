@@ -96,6 +96,18 @@
   --composer-design-beam-stroke-strength: 1;
   --composer-design-beam-inner-strength: 1;
   --composer-design-beam-bloom-strength: 1;
+  /* Motion toggle: TUIFT Media orange as the accent, its rainbow in the beam. */
+  --composer-motion-accent: #f9670e;
+  --composer-motion-blue: #8fc4ff;
+  --composer-motion-lime: #c6f06a;
+  --composer-motion-yellow: #ffe45c;
+  --composer-motion-orange: #ff9f3d;
+  --composer-motion-pink: #ff5fae;
+  --composer-motion-border-active: color-mix(
+    in srgb,
+    var(--composer-motion-accent) 55%,
+    var(--composer-design-border-active)
+  );
   --model-picker-bg: var(--surface-2);
   --model-picker-controls-bg: transparent;
   --model-picker-title-bg: var(--model-picker-bg);

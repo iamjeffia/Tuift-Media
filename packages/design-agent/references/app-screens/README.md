@@ -18,7 +18,7 @@ upstream path and SHA-256; a test fails when a file no longer matches it.
 The library holds no images. Its styles were distilled from a study of 23 product screens that
 stay private, so dashboards need no reference images and no image-capable provider.
 
-TasteCode does not run tasteskill's scripts. `src/app-screens.ts` ports the deal of
+TUIFT Code does not run tasteskill's scripts. `src/app-screens.ts` ports the deal of
 `scripts/lib/app-draw.mjs` (style, shell and one pattern per screen, without the per-user
 history file) and renders the app sheet for the phase prompts. Before a dashboard run's Brand
 phase the server writes `app.css`, `charts.js`, `app-screens.md` and `LICENSE` to

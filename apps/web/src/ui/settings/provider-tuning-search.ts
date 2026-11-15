@@ -4,6 +4,7 @@ import {
   type ProviderAccount,
   type ProviderStatus,
 } from '@harness/contracts'
+import { t, type MessageKey } from '../../i18n/index.js'
 import type { SettingsSearchEntry } from './settings-search.js'
 
 /** These labels are shared with the rows they describe. */
@@ -15,6 +16,13 @@ export const TUNING_LABELS = {
 } as const
 /** The executable path control's label, shared with its search entry. */
 export const EXECUTABLE_PATH_LABEL = 'Executable path'
+/** How each shared label reads in a search result: "{name}" is the provider or account. */
+const TUNING_TITLE_KEYS = {
+  Model: 'settings.search.tuning.model',
+  Access: 'settings.search.tuning.access',
+  Context: 'settings.search.tuning.context',
+  Runtime: 'settings.search.tuning.runtime',
+} as const satisfies Record<(typeof TUNING_LABELS)[keyof typeof TUNING_LABELS], MessageKey>
 export function executablePathSearchId(source: string): string {
   return `provider:${source}:executable-path`
 }
@@ -25,7 +33,7 @@ export function executablePathEntries(statuses: readonly ProviderStatus[]): Sett
     .map((status) => ({
       id: executablePathSearchId(status.id),
       section: 'providers' as const,
-      title: `${status.displayName} ${EXECUTABLE_PATH_LABEL}`,
+      title: t('settings.search.executablePath', { name: status.displayName }),
       keywords: 'cli binary command location custom path',
     }))
 }
@@ -65,7 +73,7 @@ export function providerTuningEntries(
       ].map((label) => ({
         id: tuningSearchId(status.id, name, label),
         section: 'providers' as const,
-        title: `${name} ${label}`,
+        title: t(TUNING_TITLE_KEYS[label], { name }),
         keywords: 'provider defaults new chat',
       })),
     )

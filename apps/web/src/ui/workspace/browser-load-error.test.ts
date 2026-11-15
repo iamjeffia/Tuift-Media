@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { browserLoadFailureView, loadRejectionFailure } from './browser-load-error.js'
+import { en } from '../../i18n/en.js'
 import { PLAIN_HTTP_LOOPBACK_ONLY } from './browser-url.js'
 
 describe('browserLoadFailureView', () => {
@@ -58,7 +59,7 @@ describe('browserLoadFailureView', () => {
       'ERR_BLOCKED_BY_CLIENT',
       'http://example.com/',
       "Can't reach example.com",
-      PLAIN_HTTP_LOOPBACK_ONLY,
+      en[PLAIN_HTTP_LOOPBACK_ONLY],
     ],
     [-2, 'ERR_FAILED', 'https://a.test/', "Can't reach a.test", 'The page could not be loaded.'],
     [

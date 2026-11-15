@@ -1,6 +1,7 @@
 import { Component, Suspense, type KeyboardEvent, type ReactNode } from 'react'
 import { IconAlertTriangle, IconRefresh } from '@tabler/icons-react'
 import { reportRendererError } from '../bridge.js'
+import { t } from '../i18n/index.js'
 import { SurfaceLoadError } from '../surface-load-error.js'
 import '../styles/renderer-recovery.css'
 
@@ -77,12 +78,12 @@ export class SurfaceErrorBoundary extends Component<Props, State> {
             <IconAlertTriangle size={18} stroke={1.75} />
           </span>
           <h1 id="surface-recovery-title" className="renderer-recovery__title">
-            {failure === 'load' ? `${name} couldn’t load` : `${name} ran into a problem`}
+            {failure === 'load'
+              ? t('dialogs.surface.loadFailed', { name })
+              : t('dialogs.surface.renderFailed', { name })}
           </h1>
           <p className="renderer-recovery__body">
-            {failure === 'load'
-              ? 'Reload the window to try again.'
-              : 'The rest of TasteCode is still running.'}
+            {failure === 'load' ? t('dialogs.surface.loadBody') : t('dialogs.surface.renderBody')}
           </p>
           <div className="renderer-recovery-actions">
             <button
@@ -90,7 +91,7 @@ export class SurfaceErrorBoundary extends Component<Props, State> {
               className="renderer-recovery__secondary"
               onClick={this.props.onClose}
             >
-              Back to app
+              {t('settings.back')}
             </button>
             {failure === 'load' ? (
               <button
@@ -100,7 +101,7 @@ export class SurfaceErrorBoundary extends Component<Props, State> {
                 onClick={() => (this.props.reload ?? (() => window.location.reload()))()}
               >
                 <IconRefresh size={15} stroke={2} aria-hidden="true" />
-                Reload window
+                {t('dialogs.common.reloadWindow')}
               </button>
             ) : (
               <button
@@ -109,7 +110,7 @@ export class SurfaceErrorBoundary extends Component<Props, State> {
                 ref={this.#focusPrimary}
                 onClick={() => this.setState({ failure: 'none' })}
               >
-                Try again
+                {t('dialogs.common.tryAgain')}
               </button>
             )}
           </div>

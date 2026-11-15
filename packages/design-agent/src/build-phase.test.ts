@@ -132,7 +132,7 @@ describe('build phase', () => {
     expect(prompt).toContain('Build and Review must preserve it')
     expect(prompt).toContain('only fulfilled image needs may reach Build')
     expect(prompt).toContain('Do not scaffold a second app')
-    expect(prompt).toContain('TasteCode owns Preview next')
+    expect(prompt).toContain('TUIFT Code owns Preview next')
     // A real Codex run without a browser host stopped on the font check it could not run.
     expect(prompt).toContain(
       'Where no browser can launch, check instead that every approved family',

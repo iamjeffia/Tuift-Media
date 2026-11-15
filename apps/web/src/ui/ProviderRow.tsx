@@ -5,6 +5,7 @@ import { RowIssue } from './RowIssue.js'
 import { providerMark, type ProviderMark } from '../model-catalog.js'
 import { ProviderIcon } from './ProviderIcon.js'
 import { Skeleton } from './Skeleton.js'
+import { useI18n } from '../i18n/index.js'
 
 export type ProviderIssue = { message: string; announce?: boolean | undefined }
 export type ProviderAction = {
@@ -50,6 +51,7 @@ export function ProviderRow(props: {
   primary?: ProviderAction | undefined
   secondary?: ProviderAction | undefined
 }) {
+  const { t } = useI18n()
   return (
     <div
       className="provider-row"
@@ -69,7 +71,9 @@ export function ProviderRow(props: {
         role={props.live ? 'status' : undefined}
         aria-atomic={props.live || undefined}
       >
-        {props.issue ? <RowIssue {...props.issue} label="Problem details" /> : null}
+        {props.issue ? (
+          <RowIssue {...props.issue} label={t('settings.providerRow.problemDetails')} />
+        ) : null}
         <span className="provider-row__status-text">{props.status}</span>
       </div>
       <div className="provider-row__secondary">

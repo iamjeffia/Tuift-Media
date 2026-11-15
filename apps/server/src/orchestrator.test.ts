@@ -1781,6 +1781,86 @@ describe('structured user input', () => {
   })
 })
 
+describe('machine output in the log', () => {
+  const server = (status: 'started' | 'completed', text?: string): DomainEvent => ({
+    type: status === 'started' ? 'item.started' : 'item.completed',
+    item: {
+      id: 'exec-server',
+      turnId: 't1',
+      type: 'command',
+      command: 'python -m http.server 8891',
+      status,
+      createdAt: 1,
+      ...(text === undefined ? {} : { text }),
+    },
+  })
+  const output = (textDelta: string): DomainEvent => ({
+    type: 'item.delta',
+    turnId: 't1',
+    itemId: 'exec-server',
+    textDelta,
+  })
+
+  it('does not record or send what a background server prints after its turn', async () => {
+    const { orchestrator, sessions, received, store } = harness()
+    try {
+      const thread = await orchestrator.startThread('codex', process.cwd())
+      const session = sessions[0]!
+      session.emit(turnStarted(thread.id, 't1'))
+      session.emit(server('started'))
+      session.emit(output('Serving HTTP on 127.0.0.1 port 8891\n'))
+      session.emit(message('Open the page.'))
+      session.emit(server('completed'))
+      session.emit({ type: 'turn.completed', turnId: 't1', status: 'completed' })
+      for (let line = 0; line < 200; line += 1) {
+        session.emit(output(`127.0.0.1 - - "GET /frames/f_${line}.png HTTP/1.1" 200 -\n`))
+      }
+      await orchestrator.history(thread.id)
+
+      const deltas = (events: DomainEvent[]) => events.filter(({ type }) => type === 'item.delta')
+      expect(deltas(store.history(thread.id).map(({ event }) => event))).toHaveLength(1)
+      expect(deltas(received.map(({ event }) => event))).toHaveLength(1)
+    } finally {
+      await orchestrator.disposeAll()
+      store.close()
+    }
+  })
+
+  it('records and sends a bounded copy of a command that printed a lot', async () => {
+    const { orchestrator, sessions, received, store } = harness()
+    try {
+      const thread = await orchestrator.startThread('codex', process.cwd())
+      const session = sessions[0]!
+      session.emit(turnStarted(thread.id, 't1'))
+      session.emit(server('started'))
+      for (let chunk = 0; chunk < 40; chunk += 1) session.emit(output('x'.repeat(10_000)))
+      session.emit(server('completed', `HEAD${'-'.repeat(2_000_000)}TAIL`))
+      await orchestrator.history(thread.id)
+
+      const textOf = (events: DomainEvent[]) =>
+        events.flatMap((event) =>
+          event.type === 'item.completed'
+            ? [event.item.text ?? '']
+            : event.type === 'item.delta'
+              ? [event.textDelta]
+              : [],
+        )
+      for (const events of [
+        store.history(thread.id).map(({ event }) => event),
+        received.map(({ event }) => event),
+      ]) {
+        const texts = textOf(events)
+        expect(texts.reduce((sum, text) => sum + text.length, 0)).toBeLessThan(2 * 66_000)
+        expect(texts.at(-1)!.startsWith('HEAD')).toBe(true)
+        expect(texts.at(-1)!.endsWith('TAIL')).toBe(true)
+      }
+    } finally {
+      await orchestrator.disposeAll()
+      store.close()
+    }
+  })
+})
+
 describe('sidebar status revision', () => {
   it('advances across starting, working, and completed turn state', async () => {
     const { orchestrator, sessions } = harness()
@@ -2039,14 +2119,14 @@ describe('default skills', () => {
       if (PROVIDER_CAPABILITIES[provider].defaultSkillsPlugin) {
         // Loaded natively as a plugin, so the catalog would only repeat it.
         expect(startedOptions[0]?.skillPlugin).toBe(root)
-        expect(startedOptions[0]?.instructions).not.toContain('Skills included with TasteCode')
+        expect(startedOptions[0]?.instructions).not.toContain('Skills included with TUIFT Code')
       } else {
-        expect(startedOptions[0]?.instructions).toContain('Skills included with TasteCode')
+        expect(startedOptions[0]?.instructions).toContain('Skills included with TUIFT Code')
         expect(startedOptions[0]?.instructions).toContain(path.join(root, 'skills'))
         expect(startedOptions[0]?.instructions).toContain('- cook: long reference-matching loops')
         expect(startedOptions[0]?.skillPlugin).toBeUndefined()
       }
-      expect(startedOptions[1]?.instructions).not.toContain('Skills included with TasteCode')
+      expect(startedOptions[1]?.instructions).not.toContain('Skills included with TUIFT Code')
       expect(startedOptions[1]?.skillPlugin).toBeUndefined()
       await orchestrator.disposeAll()
     },
@@ -2055,7 +2135,7 @@ describe('default skills', () => {
   it('starts without a catalog when no bundle was given', async () => {
     const { orchestrator, startedOptions } = harness()
     await orchestrator.startThread('cursor', process.cwd())
-    expect(startedOptions[0]?.instructions).not.toContain('Skills included with TasteCode')
+    expect(startedOptions[0]?.instructions).not.toContain('Skills included with TUIFT Code')
     await orchestrator.disposeAll()
   })
 
@@ -2179,7 +2259,7 @@ describe('default skills', () => {
     const { orchestrator } = await skillsHarness()
     await expect(
       orchestrator.setSkillEnabled('codex', process.cwd(), 'tastecode:cook', false),
-    ).rejects.toThrow(/included with TasteCode/)
+    ).rejects.toThrow(/included with TUIFT Code/)
     await orchestrator.disposeAll()
   })
 })
@@ -3812,6 +3892,17 @@ describe('provider-neutral design briefing', () => {
         ),
     },
     {
+      shape: 'more entries than the scan bound',
+      write: (workspace: string) => {
+        for (let folder = 0; folder < 26; folder++) {
+          const directory = path.join(workspace, `media-${folder}`)
+          mkdirSync(directory)
+          for (let file = 0; file < 1_000; file++)
+            writeFileSync(path.join(directory, `${file}.txt`), '')
+        }
+      },
+    },
+    {
       shape: 'a tree deeper than the scan bound',
       write: (workspace: string) =>
         mkdirSync(path.join(workspace, ...Array.from({ length: 42 }, (_, index) => `d${index}`)), {
@@ -3842,85 +3933,93 @@ describe('provider-neutral design briefing', () => {
         rmSync(workspace, { recursive: true, force: true, maxRetries: 3, retryDelay: 20 })
       }
     },
+    // Creating more than 25,000 files is slow on Windows.
+    60_000,
   )
 
-  it('finishes a Repair without the source checks when the workspace was too large to scan', async () => {
-    const workspace = mkdtempSync(path.join(os.tmpdir(), 'harness-design-scan-skipped-'))
-    writePreviewArtifacts(workspace)
-    const store = new Store(':memory:')
-    store.addProject(workspace)
-    store.addThread({
-      id: 'scan-skipped',
-      projectPath: workspace,
-      provider: 'codex',
-      title: 'Site',
-    })
-    const {
-      designSourceBaseline: _source,
-      buildFileBaseline: _files,
-      ...snapshot
-    } = approvalSnapshot(workspace)
-    store.setDesignRun('scan-skipped', {
-      ...snapshot,
-      designScanSkipped: 'Design workspace scan exceeds 25000 entries',
-      originalRequest: 'Build a site.',
-      phase: 'repair',
-      pendingPrompt: 'Repair the visual findings.',
-      previewPlan: {
-        version: 1,
-        kind: 'static',
-        entry: 'index.html',
-        cwd: '.',
-        url: 'http://127.0.0.1:4173',
-        viewports: [
-          { name: 'desktop', width: 1440, height: 1000 },
-          { name: 'mobile', width: 390, height: 844 },
-        ],
-      },
-      review: {
-        version: 1,
-        verdict: 'repair',
-        summary: 'Fix overflow.',
-        findings: [
-          {
-            id: 'overflow',
-            severity: 'major',
-            area: 'hero',
-            evidence: 'Text clips.',
-            repair: 'Fit the heading.',
-          },
-        ],
-      },
-      repairAttempt: 1,
-      askedQuestions: false,
-      explicitAnswers: [],
-    })
-    const { orchestrator, sessions, received, logs } = harness(undefined, store)
-    try {
-      const queued = await orchestrator.submitTurn('scan-skipped', 'Afterward')
-      if (queued.queued) orchestrator.deleteQueuedTurn('scan-skipped', queued.queuedTurn.id)
-      await vi.waitFor(() => expect(sessions[0]!.sent).toHaveLength(1))
-      await new Promise<void>((resolve) => setImmediate(resolve))
-      // Without the skip this drawn filler fails the source-quality check.
-      writeFileSync(path.join(workspace, 'filler.svg'), '<svg><circle r="10" /></svg>')
-      const report = JSON.stringify({
-        status: 'complete',
-        summary: 'Fitted the heading.',
-        files: ['filler.svg'],
-        checks: [],
+  it.each(['skipped when the run started', 'grew past the bound after the run started'])(
+    'finishes a Repair without the source checks when the workspace was too large to scan (%s)',
+    async (when) => {
+      const workspace = mkdtempSync(path.join(os.tmpdir(), 'harness-design-scan-skipped-'))
+      writePreviewArtifacts(workspace)
+      const store = new Store(':memory:')
+      store.addProject(workspace)
+      store.addThread({
+        id: 'scan-skipped',
+        projectPath: workspace,
+        provider: 'codex',
+        title: 'Site',
       })
-      sessions[0]!.emit(message(report, 's1-turn'))
-      sessions[0]!.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
-      await vi.waitFor(() => expect(sessions[0]!.sent).toHaveLength(2))
-      expect(JSON.stringify(sessions[0]!.sent[1])).not.toContain('design source quality failed')
-      expect(received.some(({ event }) => event.type === 'thread.error')).toBe(false)
-      expect(logs.some((line) => line.includes('source check not run'))).toBe(true)
-    } finally {
-      await orchestrator.disposeAll()
-      store.close()
-      rmSync(workspace, { recursive: true, force: true, maxRetries: 3, retryDelay: 20 })
-    }
-  })
+      const started = approvalSnapshot(workspace)
+      const { designSourceBaseline: _source, buildFileBaseline: _files, ...skipped } = started
+      if (when.startsWith('grew'))
+        mkdirSync(path.join(workspace, ...Array.from({ length: 42 }, (_, index) => `d${index}`)), {
+          recursive: true,
+        })
+      store.setDesignRun('scan-skipped', {
+        ...(when.startsWith('grew') ? started : skipped),
+        ...(when.startsWith('grew')
+          ? {}
+          : { designScanSkipped: 'Design workspace scan exceeds 25000 entries' }),
+        originalRequest: 'Build a site.',
+        phase: 'repair',
+        pendingPrompt: 'Repair the visual findings.',
+        previewPlan: {
+          version: 1,
+          kind: 'static',
+          entry: 'index.html',
+          cwd: '.',
+          url: 'http://127.0.0.1:4173',
+          viewports: [
+            { name: 'desktop', width: 1440, height: 1000 },
+            { name: 'mobile', width: 390, height: 844 },
+          ],
+        },
+        review: {
+          version: 1,
+          verdict: 'repair',
+          summary: 'Fix overflow.',
+          findings: [
+            {
+              id: 'overflow',
+              severity: 'major',
+              area: 'hero',
+              evidence: 'Text clips.',
+              repair: 'Fit the heading.',
+            },
+          ],
+        },
+        repairAttempt: 1,
+        askedQuestions: false,
+        explicitAnswers: [],
+      })
+      const { orchestrator, sessions, received, logs } = harness(undefined, store)
+      try {
+        const queued = await orchestrator.submitTurn('scan-skipped', 'Afterward')
+        if (queued.queued) orchestrator.deleteQueuedTurn('scan-skipped', queued.queuedTurn.id)
+        await vi.waitFor(() => expect(sessions[0]!.sent).toHaveLength(1))
+        await new Promise<void>((resolve) => setImmediate(resolve))
+        // Without the skip this drawn filler fails the source-quality check.
+        writeFileSync(path.join(workspace, 'filler.svg'), '<svg><circle r="10" /></svg>')
+        const report = JSON.stringify({
+          status: 'complete',
+          summary: 'Fitted the heading.',
+          files: ['filler.svg'],
+          checks: [],
+        })
+        sessions[0]!.emit(message(report, 's1-turn'))
+        sessions[0]!.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+        await vi.waitFor(() => expect(sessions[0]!.sent).toHaveLength(2))
+        expect(JSON.stringify(sessions[0]!.sent[1])).not.toContain('design source quality failed')
+        expect(received.some(({ event }) => event.type === 'thread.error')).toBe(false)
+        expect(logs.some((line) => line.includes('source check not run'))).toBe(true)
+      } finally {
+        await orchestrator.disposeAll()
+        store.close()
+        rmSync(workspace, { recursive: true, force: true, maxRetries: 3, retryDelay: 20 })
+      }
+    },
+  )
 
   it('starts Design with an existing comparison HTML file larger than 2 MB', async () => {
     const workspace = mkdtempSync(path.join(os.tmpdir(), 'harness-design-large-source-'))
@@ -4659,7 +4758,7 @@ describe('provider-neutral design briefing', () => {
         received.some(
           ({ event }) =>
             event.type === 'thread.error' &&
-            event.message.includes('TasteCode restored brief.json'),
+            event.message.includes('TUIFT Code restored brief.json'),
         ),
       ).toBe(true)
       expect(capturePreview).not.toHaveBeenCalled()
@@ -5748,7 +5847,7 @@ describe('provider-neutral design briefing', () => {
           },
         )
 
-        expect(sessions[0]?.sent[0]).toContain('TasteCode Design Briefing mode')
+        expect(sessions[0]?.sent[0]).toContain('TUIFT Code Design Briefing mode')
         expect(sessions[0]?.sent[0]).toContain('plain-language progress updates')
         expect(sessions[0]?.sentAttachments[0]).toEqual([referencePath])
         sessions[0]?.emit({
@@ -5868,7 +5967,7 @@ describe('provider-neutral design briefing', () => {
           ? appDirectionTypefaces(parseAppDirection(stored.appDirection))[0]
           : typography.sans[0]
         if (appScreen) {
-          expect(sessions[0]?.sent[1]).toContain('APP SHEET: dealt by TasteCode')
+          expect(sessions[0]?.sent[1]).toContain('APP SHEET: dealt by TUIFT Code')
           expect(sessions[0]?.sent[1]).not.toContain(JSON.stringify(typography))
           expect(readdirSync(path.join(workspace, '.taste', 'app-kit')).sort()).toEqual([
             'LICENSE',
@@ -5939,7 +6038,7 @@ describe('provider-neutral design briefing', () => {
         if (appScreen) {
           expect(sessions[0]?.sent[2]).toContain('for an app screen')
           expect(sessions[0]?.sent[2]).toContain('"mode":"operate_monitor"')
-          expect(sessions[0]?.sent[2]).toContain('APP SHEET: dealt by TasteCode')
+          expect(sessions[0]?.sent[2]).toContain('APP SHEET: dealt by TUIFT Code')
           expect(sessions[0]?.sent[2]).not.toContain('normally plan at least eight')
         }
         expect(sessions[0]?.sent[2]).toContain('user-reference-1')
@@ -6006,7 +6105,7 @@ describe('provider-neutral design briefing', () => {
         expect(sessions[0]?.sent[4]).toContain('Build phase')
         if (appScreen) {
           expect(sessions[0]?.sent[4]).toContain(
-            'Build phase of TasteCode Design Mode for an app screen',
+            'Build phase of TUIFT Code Design Mode for an app screen',
           )
           expect(sessions[0]?.sent[4]).toContain('DASHBOARD INTERACTION AND MOTION')
           expect(sessions[0]?.sent[4]).not.toContain('<reference-reveal-source>')
@@ -7949,7 +8048,7 @@ describe('persisted threads', () => {
     const { orchestrator } = harness(undefined, store)
 
     await expect(orchestrator.submitTurn('claude-thread', 'continue')).rejects.toThrow(
-      'claude-code sessions cannot resume after TasteCode restarts yet',
+      'claude-code sessions cannot resume after TUIFT Code restarts yet',
     )
   })
 })
@@ -10736,7 +10835,7 @@ describe('session-owned subagent snapshots', () => {
   })
 
   it.each(['disconnect', 'idle release', 'shutdown'] as const)(
-    "leaves TasteCode's own subagents to the broker on %s",
+    "leaves TUIFT Code's own subagents to the broker on %s",
     async (end) => {
       if (end === 'idle release') vi.useFakeTimers()
       const { orchestrator, sessions, store } = harness(undefined, new Store(':memory:'), 8, 1_000)

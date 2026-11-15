@@ -165,7 +165,7 @@ function transcript(random: () => number) {
 // about ten times slower than macOS while other packages test in parallel, so several of them
 // take 3.5-5 s there; they get the same 20 s budget as apps/server.
 describe('Claude Code saved history', { timeout: 20_000 }, () => {
-  it('maps legacy TasteCode thread IDs to native session IDs', () => {
+  it('maps legacy TUIFT Code thread IDs to native session IDs', () => {
     const source = createClaudeHistorySource()
     expect(source.resolveSessionId?.('claude-11111111-1111-4111-8111-111111111111')).toBe(
       '11111111-1111-4111-8111-111111111111',

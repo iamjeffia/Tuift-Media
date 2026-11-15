@@ -94,7 +94,7 @@ describe('attachment preview bridge', () => {
 
   it('resolves a persisted pasted-file path through its safe basename', async () => {
     const preview = {
-      path: '/private/tmp/TasteCode/pasted-files/uuid-reference.png',
+      path: '/private/tmp/TUIFT Code/pasted-files/uuid-reference.png',
       name: 'uuid-reference.png',
       mediaType: 'image' as const,
       previewUrl: 'tastecode-attachment://preview/pasted',

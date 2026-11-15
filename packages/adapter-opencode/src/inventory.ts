@@ -9,7 +9,7 @@ import type {
 import { z } from 'zod'
 
 /**
- * OpenCode's commands, skills and MCP status as TasteCode shows them.
+ * OpenCode's commands, skills and MCP status as TUIFT Code shows them.
  *
  * Read from the documented `GET /command`, `GET /skill` and `GET /mcp` routes
  * of `opencode serve` (1.18.13; see its served OpenAPI at `/doc`), scoped with
@@ -19,7 +19,7 @@ import { z } from 'zod'
  */
 
 /**
- * TasteCode adds project servers through `OPENCODE_CONFIG_CONTENT`, and the
+ * TUIFT Code adds project servers through `OPENCODE_CONFIG_CONTENT`, and the
  * same layer turns an inherited server off (captured: a project server set to
  * `enabled: false` there reported `disabled`).
  */

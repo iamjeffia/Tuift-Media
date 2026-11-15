@@ -3,7 +3,7 @@ import { Provider, type ProviderRuntimeOptions } from 'electron-updater/out/prov
 import { eq, gt, lte, rcompare, valid } from 'semver'
 import { z } from 'zod'
 
-export const releaseRepository = 'Leonxlnx/tastecode'
+export const releaseRepository = 'iamjeffia/Tuift-Media'
 const releasePage = `https://github.com/${releaseRepository}/releases`
 const releaseApi = `https://api.github.com/repos/${releaseRepository}/releases`
 const FEED_ENTRIES = 10
@@ -38,7 +38,7 @@ export class UpdateCheckDeferredError extends Error {
   constructor(readonly retryAt: number) {
     const minutes = Math.max(1, Math.ceil((retryAt - Date.now()) / 60_000))
     super(
-      `GitHub is limiting update checks from this network. TasteCode will try again in about ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+      `GitHub is limiting update checks from this network. TUIFT Code will try again in about ${minutes} minute${minutes === 1 ? '' : 's'}.`,
     )
     this.name = 'UpdateCheckDeferredError'
   }
@@ -76,7 +76,7 @@ export function feedTags(feed: string): string[] {
     try {
       tags.push(decodeURIComponent(encoded!))
     } catch {
-      // A malformed escape cannot name a tag TasteCode released.
+      // A malformed escape cannot name a tag TUIFT Code released.
     }
   }
   return tags
@@ -98,7 +98,7 @@ export function selectLatestRelease(rows: unknown[]): Release {
     .filter((release) => !release.draft && release.published_at && versionFromTag(release.tag_name))
   releases.sort((a, b) => rcompare(versionFromTag(a.tag_name)!, versionFromTag(b.tag_name)!))
   const latest = releases[0]
-  if (!latest) throw new Error('No published TasteCode release is available.')
+  if (!latest) throw new Error('No published TUIFT Code release is available.')
   return latest
 }
 
@@ -112,7 +112,7 @@ export function releaseUpdateInfo(
   const target = platform === 'darwin' ? 'mac' : platform === 'win32' ? 'win' : undefined
   if (!target) throw new Error('App updates are supported on Windows and macOS.')
   const extension = target === 'mac' ? 'dmg' : 'exe'
-  const name = `TasteCode-${version}-${target}-${arch}.${extension}`
+  const name = `TUIFT-Code-${version}-${target}-${arch}.${extension}`
   const matches = release.assets.filter(
     (asset) =>
       typeof asset === 'object' && asset !== null && 'name' in asset && asset.name === name,
@@ -121,7 +121,7 @@ export function releaseUpdateInfo(
   const asset = assetSchema.parse(matches[0])
   const expected = `https://github.com/${releaseRepository}/releases/download/${encodeURIComponent(release.tag_name)}/${encodeURIComponent(name)}`
   if (asset.browser_download_url !== expected)
-    throw new Error('The update asset URL does not match the TasteCode release.')
+    throw new Error('The update asset URL does not match the TUIFT Code release.')
   // GitHub supplies SHA-256, not electron-updater's required SHA-512. The download
   // adapter verifies SHA-256 first, then supplies real SHA-512 metadata locally.
   return { version, releaseDate: release.published_at, files: [], path: '', sha512: '', asset }
@@ -176,7 +176,7 @@ export class GitHubReleaseProvider extends Provider<UpdateInfo> {
     // feed is not part of that limit, so a check that finds nothing newer
     // spends none of it, apart from a daily look past a full feed.
     const feed = await this.request(`${releasePage}.atom`, 'application/atom+xml')
-    if (!feed) throw new Error('GitHub could not find the TasteCode release feed.')
+    if (!feed) throw new Error('GitHub could not find the TUIFT Code release feed.')
     const atom = await feed.text()
     const tags = feedTags(atom)
     const entries = atom.match(/<entry(?:\s|>)/g)?.length ?? 0

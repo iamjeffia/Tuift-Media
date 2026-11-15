@@ -15,7 +15,7 @@ export const HISTORY_HELP = `History commands:
 
 Prune previews eligible closed tasks by default. Applying it first saves their
 history to a new archive. Active tasks and tasks with private checkouts stay.
-Close TasteCode and its core server before using history commands.
+Close TUIFT Code and its core server before using history commands.
 Archives contain conversation records, not a backup of workspace files.
 Compact removes streamed text fragments that completed messages already contain,
 then reclaims free database pages. HARNESS_DATA_DIR selects the data folder.

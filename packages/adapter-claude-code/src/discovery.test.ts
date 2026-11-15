@@ -62,7 +62,7 @@ describe('Claude project discovery', () => {
     expect(onUpdate).toHaveBeenCalledOnce()
     const early = onUpdate.mock.calls[0]![0] as Awaited<typeof reading>
     expect(early.commands.map((command) => command.name)).toContain('code-review')
-    // TasteCode owns the model and the chat, so their commands stay out.
+    // TUIFT Code owns the model and the chat, so their commands stay out.
     expect(early.commands.map((command) => command.name)).not.toContain('model')
     expect(ids(early.servers)).toContainEqual(['plugin:acme-docs:acme-docs', 'starting'])
 

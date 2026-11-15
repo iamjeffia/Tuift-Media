@@ -1,9 +1,9 @@
 {
   "plugin": {
     "name": "tastecode",
-    "description": "Agent Skills that ship with TasteCode.",
+    "description": "Agent Skills that ship with TUIFT Code.",
     "author": {
-      "name": "TasteCode"
+      "name": "TUIFT Code"
     }
   },
   "skills": [
@@ -35,7 +35,7 @@
       "files": 496,
       "bytes": 5611599,
       "omit": {
-        "about": "Never bundled and never fetched: the photo library, the sample photographs of the demos and hero templates, the demo icon sets, the objects kit's sample posters and sample product specs, and their credits files. TasteCode gives no default images (Leon, 2026-11-05).",
+        "about": "Never bundled and never fetched: the photo library, the sample photographs of the demos and hero templates, the demo icon sets, the objects kit's sample posters and sample product specs, and their credits files. TUIFT Code gives no default images (Leon, 2026-11-05).",
         "paths": [
           "assets/photos/",
           "assets/layout/img/",
@@ -51,7 +51,7 @@
         ]
       },
       "patch": {
-        "about": "TasteCode copies in patches/design-taste-frontend/ that point the skill at the user's own pictures; each value is the sha256 of the upstream file the copy was written against.",
+        "about": "TUIFT Code copies in patches/design-taste-frontend/ that point the skill at the user's own pictures; each value is the sha256 of the upstream file the copy was written against.",
         "files": {
           "SKILL.md": "c16f47478c2da4911232de8210c938cb6efe41a78ae24bfdcc502d8336f2303b",
           "references/photos.md": "cd7fd222a950c6a44159cf1679fe502ad897798f72a14968aae1cc73ce225d3f",

@@ -82,14 +82,14 @@ describe('packaged native binding proof', () => {
 
   it('requires module entries and both bindings from the packaged archive', () => {
     expect(() =>
-      assertPackagedNativeModules('C:\\Taste Code\\resources\\app.asar\\dist\\proof.js', {
+      assertPackagedNativeModules('C:\\TUIFT Code\\resources\\app.asar\\dist\\proof.js', {
         moduleEntries: [
-          'C:\\Taste Code\\resources\\app.asar\\node_modules\\node-pty\\lib\\index.js',
-          'C:\\Taste Code\\resources\\app.asar\\node_modules\\@napi-rs\\keyring\\index.js',
+          'C:\\TUIFT Code\\resources\\app.asar\\node_modules\\node-pty\\lib\\index.js',
+          'C:\\TUIFT Code\\resources\\app.asar\\node_modules\\@napi-rs\\keyring\\index.js',
         ],
         nativeBindings: [
-          'C:\\Taste Code\\resources\\app.asar.unpacked\\node_modules\\node-pty\\build\\pty.node',
-          'C:\\Taste Code\\resources\\app.asar.unpacked\\node_modules\\@napi-rs\\keyring-win32-x64-msvc\\keyring.node',
+          'C:\\TUIFT Code\\resources\\app.asar.unpacked\\node_modules\\node-pty\\build\\pty.node',
+          'C:\\TUIFT Code\\resources\\app.asar.unpacked\\node_modules\\@napi-rs\\keyring-win32-x64-msvc\\keyring.node',
         ],
       }),
     ).not.toThrow()

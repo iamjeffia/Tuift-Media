@@ -185,16 +185,16 @@ describe('provider accounts', () => {
     expect(() => create(path.join(brought, 'inner'))).toThrow(
       'That folder is inside the folder of the account "Second".',
     )
-    // Another provider's managed folder, the accounts root and the data folder are TasteCode's.
+    // Another provider's managed folder, the accounts root and the data folder are TUIFT Code's.
     expect(() => create(claudeManaged.home!)).toThrow(
-      "That folder is inside TasteCode's own data folder.",
+      "That folder is inside TUIFT Code's own data folder.",
     )
-    expect(() => create(root)).toThrow("That folder is inside TasteCode's own data folder.")
-    expect(() => create(path.dirname(root))).toThrow("That folder is TasteCode's own data folder.")
+    expect(() => create(root)).toThrow("That folder is inside TUIFT Code's own data folder.")
+    expect(() => create(path.dirname(root))).toThrow("That folder is TUIFT Code's own data folder.")
     // A managed account of the same provider is named only when it is the very folder.
     const managed = accounts.create('codex', 'Work', { kind: 'managed' })
     expect(() => create(managed.home!)).toThrow('The account "Work" already uses that folder.')
-    expect(() => create(path.dirname(root))).toThrow("That folder is TasteCode's own data folder.")
+    expect(() => create(path.dirname(root))).toThrow("That folder is TUIFT Code's own data folder.")
     expect(accounts.list('codex').accounts.map((each) => each.label)).toEqual([
       'Default',
       'Second',
@@ -258,7 +258,7 @@ describe('provider accounts', () => {
     expect(() => accounts.home('codex', kept.id)).toThrow('That account does not exist any more.')
 
     await expect(accounts.remove('codex', existing.id, true)).rejects.toThrow(
-      'TasteCode deletes only folders it created. This folder stays as it is.',
+      'TUIFT Code deletes only folders it created. This folder stays as it is.',
     )
     expect(readdirSync(brought)).toEqual(['mine.txt'])
     expect(accounts.home('codex', existing.id)).toBe(brought)
@@ -280,7 +280,7 @@ describe('provider accounts', () => {
     changed.length = 0
 
     expect(() => accounts.removal('codex', existing.id, true)).toThrow(
-      'TasteCode deletes only folders it created. This folder stays as it is.',
+      'TUIFT Code deletes only folders it created. This folder stays as it is.',
     )
     expect(() => accounts.removal('codex', 'default')).toThrow(
       'The default account cannot be removed.',

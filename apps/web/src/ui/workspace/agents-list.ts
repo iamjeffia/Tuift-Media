@@ -8,7 +8,7 @@ export type AgentGroups = { running: AgentEntry[]; finished: AgentEntry[] }
 const EMPTY_GROUPS: AgentGroups = { running: [], finished: [] }
 
 /**
- * The sub-agents a transcript shows, native and TasteCode's alike. The caller
+ * The sub-agents a transcript shows, native and TUIFT Code's alike. The caller
  * passes the structural items, whose identity changes at item boundaries only,
  * so this never runs per streamed delta.
  */

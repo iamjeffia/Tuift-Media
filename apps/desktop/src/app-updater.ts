@@ -239,8 +239,8 @@ export function createAppUpdateController(
      *
      * The quit itself ends those agents, so installing would not cut anything
      * off. But the person was in the middle of work and is likely to start
-     * TasteCode again right away, and on Windows the update runs as a separate
-     * installer after the app has exited, which closes a TasteCode that is
+     * TUIFT Code again right away, and on Windows the update runs as a separate
+     * installer after the app has exited, which closes a TUIFT Code that is
      * running and replaces its files. A quick relaunch would race it, and so
      * would the agents started in it. On macOS this flag no longer matters
      * once the update is ready: Squirrel.Mac already holds it and applies it

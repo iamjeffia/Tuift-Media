@@ -42,7 +42,7 @@ export const ChatImportChatSchema = z.object({
   createdAt: z.number(),
   updatedAt: z.number(),
   continuation: ChatImportContinuationSchema,
-  /** Already a chat in TasteCode, by this import or any other way. */
+  /** Already a chat in TUIFT Code, by this import or any other way. */
   imported: z.boolean(),
   archived: z.boolean().optional(),
 })

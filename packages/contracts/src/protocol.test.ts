@@ -2202,7 +2202,7 @@ describe('subagent contracts', () => {
     )
   })
 
-  it('carries where a TasteCode sub-agent runs, and still reads snapshots without it', () => {
+  it('carries where a TUIFT Code sub-agent runs, and still reads snapshots without it', () => {
     const crossProvider = {
       ...subagent,
       threadId: 'codex-child-1',
@@ -2224,13 +2224,13 @@ describe('subagent contracts', () => {
     ['empty model', { model: '' }],
     ['empty agent', { agent: '' }],
     ['unknown attention', { attention: 'review' }],
-  ])('rejects a TasteCode sub-agent with %s', (_name, change) => {
+  ])('rejects a TUIFT Code sub-agent with %s', (_name, change) => {
     expect(ItemSchema.safeParse({ ...call, subagent: { ...subagent, ...change } }).success).toBe(
       false,
     )
   })
 
-  it('lists a chat’s TasteCode sub-agents with the row that shows each', () => {
+  it('lists a chat’s TUIFT Code sub-agents with the row that shows each', () => {
     expect(methods['thread.subagents'].params.parse({ threadId: 'th1' })).toEqual({
       threadId: 'th1',
     })
@@ -2315,7 +2315,7 @@ describe('provider account contracts', () => {
     id: 'work',
     provider: 'codex',
     label: 'Work',
-    home: 'C:\\Users\\me\\AppData\\Roaming\\TasteCode\\accounts\\codex\\work',
+    home: 'C:\\Users\\me\\AppData\\Roaming\\TUIFT Code\\accounts\\codex\\work',
     managed: true,
     email: 'me@example.com',
     plan: 'pro',

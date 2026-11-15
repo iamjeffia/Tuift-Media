@@ -21,7 +21,7 @@ afterEach(async () => {
 async function fixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), 'tastecode-viewed-image-'))
   temporaryDirectories.push(root)
-  const pasted = path.join(root, 'TasteCode', 'pasted-files')
+  const pasted = path.join(root, 'TUIFT Code', 'pasted-files')
   await mkdir(pasted, { recursive: true })
   return { root, pasted }
 }

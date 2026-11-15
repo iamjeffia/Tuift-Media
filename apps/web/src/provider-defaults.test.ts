@@ -85,7 +85,7 @@ describe('pinnable models', () => {
 
 describe('providerApprovalDefault', () => {
   it('starts where the composer starts a new chat', () => {
-    expect(providerApprovalDefault(undefined, true)).toBe('auto-review')
+    expect(providerApprovalDefault(undefined, true)).toBe('full')
     expect(providerApprovalDefault(undefined, false)).toBe('full')
     expect(providerApprovalDefault('ask', false)).toBe('ask')
   })

@@ -98,8 +98,8 @@ export function pinnedModelChoice(
 }
 
 /**
- * The access a new chat on this provider starts with. A remembered
- * auto-review falls back to full access where the engine has no reviewer,
+ * The access a new chat on this provider starts with: Full access unless the
+ * user chose otherwise. A remembered auto-review falls back to full access where the engine has no reviewer,
  * which is what the session would actually get.
  */
 export function providerApprovalDefault(
@@ -107,7 +107,7 @@ export function providerApprovalDefault(
   autoReview: boolean,
 ): ApprovalMode {
   if (stored === 'auto-review' && !autoReview) return 'full'
-  return stored ?? (autoReview ? 'auto-review' : 'full')
+  return stored ?? 'full'
 }
 
 export function writeProviderDefaults(defaults: ProviderDefaults): void {

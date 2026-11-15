@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   ChatAttention,
   MAX_REPORTED_CHATS,
-  NOTICE_TEXT,
+  NOTICE_KEY,
   parseChatAttentionReport,
   type ChatState,
   type NotificationMode,
 } from './chat-attention.js'
+import { en } from './i18n.js'
 
 function report(
   chats: Record<string, ChatState>,
@@ -50,12 +51,12 @@ describe('ChatAttention', () => {
   })
 
   it('says what happened in a few words', () => {
-    expect(NOTICE_TEXT).toEqual({
-      approval: 'Needs your approval',
-      input: 'Has a question',
-      failed: 'Failed',
-      finished: 'Finished',
-    })
+    expect(Object.values(NOTICE_KEY).map((key) => en[key])).toEqual([
+      'Needs your approval',
+      'Has a question',
+      'Failed',
+      'Finished',
+    ])
   })
 
   it('never notifies while the window is in front', () => {

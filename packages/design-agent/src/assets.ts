@@ -1,6 +1,7 @@
 import { existsSync, realpathSync, statSync } from 'node:fs'
 import { readDesignArtifact, writeDesignArtifact } from './artifact-store.js'
 import {
+  DesignScanLimitError,
   containedWorkspaceFile,
   normalizeWorkspaceFile,
   readWorkspaceFile,
@@ -498,7 +499,18 @@ function expandFontDirectories(manifest: AssetManifest, workspaceRoot: string): 
       true,
     )
     if (!statSync(directory).isDirectory()) return [asset]
-    const files = workspaceEntries(directory).filter(
+    let entries
+    try {
+      entries = workspaceEntries(directory)
+    } catch (error) {
+      // A scan limit here is not a check that can be left out: the fonts cannot be resolved.
+      // Say so, so the Assets phase points the asset at a smaller folder.
+      if (!(error instanceof DesignScanLimitError)) throw error
+      throw new Error(
+        `font asset ${asset.id} directory is too large to list (${error.message}); point it at the folder holding the font files`,
+      )
+    }
+    const files = entries.filter(
       ({ file, relative }) => file && /\.(?:ttf|otf|woff2?)$/iu.test(relative),
     )
     if (!files.length) throw new Error(`font asset ${asset.id} directory contains no font files`)

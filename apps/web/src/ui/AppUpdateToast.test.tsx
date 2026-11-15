@@ -67,7 +67,7 @@ it('says nothing until an update is ready, then offers Update', async () => {
   await act(async () => {})
   expect(screen.queryByRole('status')).toBeNull()
   act(() => bridge.listener?.(ready))
-  expect(await screen.findByText('TasteCode 0.5.0 is ready')).toBeTruthy()
+  expect(await screen.findByText('TUIFT Code 0.5.0 is ready')).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Update' })).toBeTruthy()
 })
 
@@ -85,7 +85,7 @@ it('stays under the header instead of measuring a docked composer', async () => 
   try {
     bridge.read.mockResolvedValue(ready)
     render(<AppUpdateToast />)
-    await screen.findByText('TasteCode 0.5.0 is ready')
+    await screen.findByText('TUIFT Code 0.5.0 is ready')
     expect(openNotice()?.getAttribute('style') ?? '').not.toContain('--notice-bottom')
     expect(measure).not.toHaveBeenCalled()
   } finally {
@@ -100,7 +100,7 @@ it('restarts into the update at once when no agent is running', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Update' }))
   await waitFor(() => expect(gate.calls).toEqual(['install']))
   expect(gate.stopRunningChats).not.toHaveBeenCalled()
-  expect(screen.getByText('Restarting TasteCode…')).toBeTruthy()
+  expect(screen.getByText('Restarting TUIFT Code…')).toBeTruthy()
 })
 
 it('asks in the notice before stopping running agents, then stops them and restarts', async () => {
@@ -157,7 +157,7 @@ it('remembers a dismissed version, and shows the next one', async () => {
   await act(async () => {})
   expect(screen.queryByRole('status')).toBeNull()
   act(() => bridge.listener?.({ ...ready, version: '0.5.1' }))
-  expect(await screen.findByText('TasteCode 0.5.1 is ready')).toBeTruthy()
+  expect(await screen.findByText('TUIFT Code 0.5.1 is ready')).toBeTruthy()
 })
 
 it('asks here when the sidebar button is clicked, even after a dismissal', async () => {

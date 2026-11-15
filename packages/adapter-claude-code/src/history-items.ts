@@ -55,7 +55,7 @@ function soleText(row: SavedRecord): string | undefined {
   return blocks.length === 1 && blocks[0]!.type === 'text' ? string(blocks[0]!.text) : undefined
 }
 
-/** `/name args` for a saved slash-command row: what the user typed and TasteCode sent. */
+/** `/name args` for a saved slash-command row: what the user typed and TUIFT Code sent. */
 export function slashCommandPrompt(row: SavedRecord): string | undefined {
   const text = soleText(row)
   if (!text?.trimStart().startsWith('<command-')) return undefined

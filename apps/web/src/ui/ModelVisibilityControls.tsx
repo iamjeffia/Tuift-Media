@@ -1,3 +1,4 @@
+import { useI18n } from '../i18n/index.js'
 import type { ModelChoice } from '../model-catalog.js'
 import { formatModelName } from './model-selector-utils.js'
 import { SettingsRow } from './settings/SettingsLayout.js'
@@ -15,6 +16,7 @@ export function ModelBulkActions(props: {
   hiddenModels: ReadonlySet<string>
   onModelsVisibilityChange: (keys: readonly string[], visible: boolean) => void
 }) {
+  const { t } = useI18n()
   const visibleCount = props.choices.filter((choice) => !props.hiddenModels.has(choice.key)).length
   const allVisible = visibleCount === props.choices.length
   const noneVisible = visibleCount === 0
@@ -32,19 +34,19 @@ export function ModelBulkActions(props: {
     <div className="model-visibility__bulk-actions" role="group" aria-label={props.groupLabel}>
       <button
         type="button"
-        aria-label={`Show all ${props.name} in model picker`}
+        aria-label={t('settings.modelVisibility.showAll', { name: props.name })}
         disabled={allVisible}
         onClick={() => setAllVisible(true)}
       >
-        All
+        {t('settings.modelVisibility.all')}
       </button>
       <button
         type="button"
-        aria-label={`Hide all ${props.name} from model picker`}
+        aria-label={t('settings.modelVisibility.hideAll', { name: props.name })}
         disabled={noneVisible}
         onClick={() => setAllVisible(false)}
       >
-        None
+        {t('settings.modelVisibility.none')}
       </button>
     </div>
   )
@@ -56,6 +58,7 @@ export function ModelVisibilityRow(props: {
   visible: boolean
   onModelVisibilityChange: (key: string, visible: boolean) => void
 }) {
+  const { t } = useI18n()
   const { choice, visible } = props
   const name = formatModelName(choice.model.displayName)
   return (
@@ -68,7 +71,7 @@ export function ModelVisibilityRow(props: {
         className={`switch${visible ? ' is-on' : ''}`}
         type="button"
         role="switch"
-        aria-label={`Include ${name} in model picker`}
+        aria-label={t('settings.modelVisibility.include', { name })}
         aria-checked={visible}
         onClick={() => props.onModelVisibilityChange(choice.key, !visible)}
       >

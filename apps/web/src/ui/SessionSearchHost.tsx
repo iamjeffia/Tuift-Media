@@ -10,6 +10,7 @@ import {
   useState,
   type ComponentProps,
 } from 'react'
+import { t } from '../i18n/index.js'
 import type { SessionSearch as SessionSearchComponent } from './SessionSearch.js'
 import { ChatSearchSkeleton } from './SurfaceSkeletons.js'
 
@@ -89,15 +90,18 @@ const SessionSearchHostComponent = forwardRef<SessionSearchHandle, SessionSearch
 
 export const SessionSearchHost = memo(SessionSearchHostComponent)
 
-const RESTORED_FOCUS_FALLBACKS = [
-  '[aria-label="Search chats"]',
-  '[aria-label="Search threads"]',
-  'textarea[placeholder="Do anything"]',
-  '.titlebar__toggle',
-] as const
+/** The labels are read at call time: the rail and Inbox search names follow the language. */
+function restoredFocusFallbacks(): string[] {
+  return [
+    `[aria-label="${t('sidebar.rail.searchChats')}"]`,
+    `[aria-label="${t('sidebar.inbox.search')}"]`,
+    'textarea[placeholder="Do anything"]',
+    '.titlebar__toggle',
+  ]
+}
 
 function restoredFocusFallback(): HTMLElement | undefined {
-  for (const selector of RESTORED_FOCUS_FALLBACKS) {
+  for (const selector of restoredFocusFallbacks()) {
     // In a split the first composer can be the dormant pane's, which is inert;
     // the focused pane's composer is the one to return to.
     for (const target of document.querySelectorAll<HTMLElement>(selector)) {

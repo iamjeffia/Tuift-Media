@@ -1437,7 +1437,7 @@ describe('usage history in a release build', () => {
     expect(await scannedArchives()).toEqual(every)
   })
 
-  it("counts none of TasteCode's usage events for a hidden provider and names no source for it", async () => {
+  it("counts none of TUIFT Code's usage events for a hidden provider and names no source for it", async () => {
     takeEdition({ HARNESS_EDITION: 'release' })
     const root = temporaryDirectory()
     const codexRoot = path.join(root, 'codex')

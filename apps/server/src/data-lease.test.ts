@@ -20,7 +20,7 @@ describe('database ownership', () => {
     const file = database()
     const release = acquireDataLease(file)
     try {
-      expect(() => acquireDataLease(file)).toThrow(/Close TasteCode/)
+      expect(() => acquireDataLease(file)).toThrow(/Close TUIFT Code/)
     } finally {
       release()
     }
@@ -54,7 +54,7 @@ describe('database ownership', () => {
     roots.push(alias)
     const release = acquireDataLease(file)
     try {
-      expect(() => acquireDataLease(path.join(alias, 'tastecode.db'))).toThrow(/Close TasteCode/)
+      expect(() => acquireDataLease(path.join(alias, 'tastecode.db'))).toThrow(/Close TUIFT Code/)
     } finally {
       release()
     }

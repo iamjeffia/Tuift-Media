@@ -63,7 +63,7 @@ export function parseReferenceDeck(value: unknown): ReferenceDirection[] {
 export function referenceLibraryRoot(): string {
   if (process.env.TASTECODE_REFERENCE_LIBRARY)
     return path.resolve(process.env.TASTECODE_REFERENCE_LIBRARY)
-  const configPath = path.join(os.homedir(), '.tastecode', 'design-references.json')
+  const configPath = path.join(os.homedir(), '.tuift-code', 'design-references.json')
   if (existsSync(configPath)) {
     const config = record(
       JSON.parse(readWorkspaceFile(configPath, 16_384).toString()),

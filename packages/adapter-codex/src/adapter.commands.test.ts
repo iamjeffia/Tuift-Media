@@ -150,7 +150,7 @@ describe('Codex slash commands', () => {
     }
   })
 
-  it("sends /init as a normal turn with TasteCode's AGENTS.md prompt", async () => {
+  it("sends /init as a normal turn with TUIFT Code's AGENTS.md prompt", async () => {
     expect(codexCommandRequest('t', '/init')).toBeUndefined()
     expect(codexPromptCommand('/init')).toBe(CODEX_INIT_PROMPT)
     expect(codexPromptCommand(' /INIT the server only ')).toBe(

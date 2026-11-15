@@ -57,7 +57,7 @@ export function storeLocation(env: NodeJS.ProcessEnv = process.env): string {
         ? path.join(home, 'Library', 'Application Support')
         : (absolute(env['XDG_DATA_HOME']) ?? path.join(home, '.local', 'share'))
   return migrateDatabase(
-    path.join(base, 'TasteCode', 'tastecode.db'),
-    path.join(base, 'PersonalHarness', 'harness.db'),
+    path.join(base, 'TUIFT Code', 'tastecode.db'),
+    path.join(base, 'TUIFTCode', 'harness.db'),
   )
 }

@@ -72,7 +72,7 @@ describe('validator module failures', () => {
     try {
       rejectLoad(new Error('Failed to fetch dynamically imported module'))
       expect(await result).toBeInstanceOf(IndeterminateRequestError)
-      expect(await result).toHaveProperty('message', expect.stringContaining('Restart TasteCode'))
+      expect(await result).toHaveProperty('message', expect.stringContaining('Restart TUIFT Code'))
       expect(await result).toHaveProperty('message', expect.stringContaining('may have completed'))
       expect(onEvent).not.toHaveBeenCalled()
       expect(transport.state).toBe('reconnecting')

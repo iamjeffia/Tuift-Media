@@ -30,7 +30,7 @@ import {
 export { shorten }
 
 const UNREAD_RESULTS_NOTICE =
-  'TasteCode: sub-agents you started earlier finished without you reading their results.'
+  'TUIFT Code: sub-agents you started earlier finished without you reading their results.'
 const UNREAD_RESULTS_END = '</subagent>\n\nThe user’s message follows.\n\n'
 
 /** A prompt without the unread sub-agent results `unreadResults` put in front of it. */
@@ -105,7 +105,7 @@ export interface SubagentHost {
 
 /** What a sub-agent's chat is told before its task. */
 export const SUBAGENT_INSTRUCTIONS = [
-  'You are a sub-agent: another agent started you in TasteCode for one task, in the same checkout it works in.',
+  'You are a sub-agent: another agent started you in TUIFT Code for one task, in the same checkout it works in.',
   'Your final message is returned to the agent that started you, so make it a complete report: what you did, what you found, the files you changed, and anything left open.',
   'Do not start other agents. Work only on the files your task names or needs; another agent may be editing the rest.',
 ].join('\n')
@@ -209,14 +209,14 @@ export class SubagentBroker implements AgentToolsBroker {
         : "only when the user's own message asks for that provider or model",
       ...(providers.length === 0
         ? {
-            note: 'No provider has listed its models in TasteCode yet. Open the model picker once, then try again.',
+            note: 'No provider has listed its models in TUIFT Code yet. Open the model picker once, then try again.',
           }
         : {}),
     }
   }
 
   async start(caller: AgentToolsCaller, args: StartAgentArgs): Promise<unknown> {
-    if (this.#disposed) throw new AgentToolError('TasteCode is shutting down.')
+    if (this.#disposed) throw new AgentToolError('TUIFT Code is shutting down.')
     const parent = this.#host.parent(caller.threadId)
     const choice = this.#host.choices().find((entry) => entry.provider === args.provider)
     if (!choice) {
@@ -549,7 +549,7 @@ export class SubagentBroker implements AgentToolsBroker {
     this.#allowed.delete(parentThreadId)
   }
 
-  /** The sub-agents TasteCode started for a chat, newest first, as `thread.subagents` lists them. */
+  /** The sub-agents TUIFT Code started for a chat, newest first, as `thread.subagents` lists them. */
   list(parentThreadId: string): ThreadSubagent[] {
     return this.#runs.ofParent(parentThreadId).map((run) => {
       const live = this.#live.get(run.itemId)
@@ -596,7 +596,7 @@ export class SubagentBroker implements AgentToolsBroker {
     }
     if (runningInApp >= SUBAGENT_LIMITS.runningInApp) {
       throw new AgentToolError(
-        `TasteCode runs at most ${SUBAGENT_LIMITS.runningInApp} sub-agents at once. Wait for one to finish.`,
+        `TUIFT Code runs at most ${SUBAGENT_LIMITS.runningInApp} sub-agents at once. Wait for one to finish.`,
       )
     }
     const startedThisTurn = this.#runs

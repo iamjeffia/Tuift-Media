@@ -338,7 +338,7 @@ describe('agent browser tools', () => {
     })
     expect(Date.now() - started).toBeLessThan(5_000)
     expect(call.json.result.isError).toBe(true)
-    expect(call.json.result.content[0].text).toMatch(/No TasteCode window shows this chat/)
+    expect(call.json.result.content[0].text).toMatch(/No TUIFT Code window shows this chat/)
   })
 
   it('refuses pages outside http and https, bad arguments, and passes refusals on', async () => {

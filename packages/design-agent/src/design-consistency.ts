@@ -170,7 +170,7 @@ export function enforceDesignConsistencyFindings(
   return {
     ...review,
     verdict: 'repair',
-    summary: `${review.summary} TasteCode source audit found ${automated.length} design-language finding${automated.length === 1 ? '' : 's'}.`,
+    summary: `${review.summary} TUIFT Code source audit found ${automated.length} design-language finding${automated.length === 1 ? '' : 's'}.`,
     findings: [...review.findings.filter(({ id }) => !owned.has(id)), ...automated],
   }
 }

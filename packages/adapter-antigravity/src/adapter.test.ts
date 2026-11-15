@@ -382,7 +382,7 @@ describe('Antigravity turn invocation', () => {
     const child = new FakeChild()
     const adapter = new AntigravityAdapter({ spawn: fakeSpawn(record, child) })
     const thread = await adapter.startThread('C:\\repo')
-    const image = 'C:\\Temp\\TasteCode\\attachments\\shot.png'
+    const image = 'C:\\Temp\\TUIFT Code\\attachments\\shot.png'
     await adapter.sendTurn(thread.id, 'What is wrong here?', [image])
     const prompt = record.args?.[record.args.indexOf('-p') + 1]
     // The first prompt also carries the session note in front of the request.

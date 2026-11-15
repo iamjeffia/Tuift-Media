@@ -28,7 +28,7 @@ export function validateAcpMcpServer(
     )
 }
 
-/** Translate TasteCode's credential-safe config into the ACP session shape. */
+/** Translate TUIFT Code's credential-safe config into the ACP session shape. */
 export function prepareAcpMcpServers(
   servers: McpServerConfig[],
   credentials: Record<string, string>,

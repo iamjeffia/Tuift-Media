@@ -12,6 +12,7 @@ import type {
   Skill,
   Usage,
 } from '@harness/contracts'
+import { FILE_LINK_DEMO_CHAT, FILE_VIEWER_DEMO_FILES } from './demo-files.js'
 
 /**
  * The made-up world the design sandbox shows: three signed-in providers,
@@ -399,7 +400,8 @@ export type DemoChat = {
   turns: DemoTurn[]
 }
 
-export type DemoFile = { path: string; content: string }
+/** `size` stands in for the length of a file whose bytes the sandbox does not keep (media). */
+export type DemoFile = { path: string; content: string; size?: number }
 
 export type DemoProject = {
   name: string
@@ -473,9 +475,10 @@ export const DEMO_PROJECTS: ReadonlyArray<DemoProject> = [
     pinned: true,
     createdAgoMs: 40 * DAY,
     files: [
+      ...FILE_VIEWER_DEMO_FILES,
       {
         path: 'README.md',
-        content: '# TasteCode\n\nA desktop app for coding agents. (Sandbox copy.)\n',
+        content: '# TUIFT Code\n\nA desktop app for coding agents. (Sandbox copy.)\n',
       },
       {
         path: 'package.json',
@@ -492,6 +495,7 @@ export const DEMO_PROJECTS: ReadonlyArray<DemoProject> = [
       { path: 'apps/web/src/ui/Thread.tsx', content: 'export function Thread() {}\n' },
     ],
     chats: [
+      FILE_LINK_DEMO_CHAT,
       {
         id: 'demo-focus-ring',
         title: 'Soften the prompt bar focus ring',
@@ -686,7 +690,7 @@ export const DEMO_PROJECTS: ReadonlyArray<DemoProject> = [
                 '24 pull requests',
               ),
               assistant(
-                '## TasteCode 0.5.0\n\n**New**\n- Sub-agents show live progress in the transcript.\n- A design sandbox for trying the UI in a browser with dummy data.\n\n**Better**\n- Settings open faster with many providers.\n- The prompt bar focus ring is softer in dark mode.\n\n**Fixed**\n- Large chats reconnect without reloading the whole history.\n- The sidebar keeps its scroll position after a chat finishes.',
+                '## TUIFT Code 0.5.0\n\n**New**\n- Sub-agents show live progress in the transcript.\n- A design sandbox for trying the UI in a browser with dummy data.\n\n**Better**\n- Settings open faster with many providers.\n- The prompt bar focus ring is softer in dark mode.\n\n**Fixed**\n- Large chats reconnect without reloading the whole history.\n- The sidebar keeps its scroll position after a chat finishes.',
               ),
             ],
             usage: usage(29_800, 200_000, 'claude-sonnet-5-5'),

@@ -10,6 +10,7 @@ import {
   type ProviderPresentation,
 } from '../provider-presentation.js'
 import type { Transport } from '../transport.js'
+import { translate, useI18n, type Language } from '../i18n/index.js'
 import { SourceIdentity } from './SourceIdentity.js'
 import { isComposingKey, isConfirmEnter } from '../shortcuts.js'
 import { AppSelect } from './AppSelect.js'
@@ -56,8 +57,9 @@ const SKELETON_RESULT_TITLES = ['58%', '42%', '66%']
 
 /** Result-shaped rows: a title, the project and source line, two lines of snippet. */
 function SessionSearchSkeleton() {
+  const { t } = useI18n()
   return (
-    <SkeletonStatus label="Searching…">
+    <SkeletonStatus label={t('sidebar.search.searching')}>
       <Skeleton className="session-search__skeleton-group" width={38} height={8} />
       {SKELETON_RESULT_TITLES.map((width, index) => (
         <div className="session-search__skeleton-result" key={index}>
@@ -84,6 +86,7 @@ function SessionSearchComponent(props: {
   onSelect: (threadId: string, turnId?: string) => void
   onClose: () => void
 }) {
+  const { t, tp, language } = useI18n()
   const [query, setQuery] = useState('')
   const [projectPath, setProjectPath] = useState(props.initialProjectPath ?? '')
   const [provider, setProvider] = useState<ProviderId | ''>('')
@@ -267,7 +270,7 @@ function SessionSearchComponent(props: {
       className="command-palette session-search"
       role="dialog"
       aria-modal="true"
-      aria-label="Search all chats"
+      aria-label={t('sidebar.search.dialog')}
       onKeyDown={(event) => {
         if (isComposingKey(event)) return
         if (event.key === 'Escape') {
@@ -291,7 +294,7 @@ function SessionSearchComponent(props: {
       <button
         className="command-palette__scrim"
         onClick={props.onClose}
-        aria-label="Close search"
+        aria-label={t('sidebar.search.closeSearch')}
         tabIndex={-1}
       />
       <div className="command-palette__panel session-search__panel">
@@ -320,11 +323,11 @@ function SessionSearchComponent(props: {
                 choose(displayResults[selected])
               }
             }}
-            placeholder="Search every chat…"
+            placeholder={t('sidebar.search.placeholder')}
             spellCheck={false}
             autoComplete="off"
             role="combobox"
-            aria-label="Search every chat"
+            aria-label={t('sidebar.search.inputLabel')}
             aria-autocomplete="list"
             aria-expanded="true"
             aria-controls="session-search-results"
@@ -333,19 +336,23 @@ function SessionSearchComponent(props: {
             }
           />
           {searching ? <LoaderCircle className="session-search__spinner" aria-hidden /> : null}
-          <button className="icon-btn icon-btn--always" onClick={props.onClose} aria-label="Close">
+          <button
+            className="icon-btn icon-btn--always"
+            onClick={props.onClose}
+            aria-label={t('sidebar.search.close')}
+          >
             <X size={13} aria-hidden />
           </button>
         </div>
         <div className="session-search__filters">
           <label>
-            <span>Project</span>
+            <span>{t('sidebar.search.project')}</span>
             <AppSelect
-              ariaLabel="Project"
+              ariaLabel={t('sidebar.search.project')}
               value={projectPath}
               onChange={setProjectPath}
               options={[
-                { value: '', label: 'All projects' },
+                { value: '', label: t('sidebar.search.allProjects') },
                 ...props.projects.map((project) => ({
                   value: project.path,
                   label: project.name ?? basename(project.path),
@@ -354,13 +361,13 @@ function SessionSearchComponent(props: {
             />
           </label>
           <label>
-            <span>Agent</span>
+            <span>{t('sidebar.search.agent')}</span>
             <AppSelect
-              ariaLabel="Agent"
+              ariaLabel={t('sidebar.search.agent')}
               value={provider}
               onChange={setProvider}
               options={[
-                { value: '', label: 'All agents' },
+                { value: '', label: t('sidebar.search.allAgents') },
                 ...availableProviders.map((entry) => ({
                   value: entry.id,
                   label: entry.label,
@@ -374,25 +381,25 @@ function SessionSearchComponent(props: {
           className="session-search__results"
           id="session-search-results"
           role="listbox"
-          aria-label="Search results"
+          aria-label={t('sidebar.search.results')}
           aria-busy={searching}
         >
           {error ? (
             <div className="session-search__state" role="alert">
               <span>{error}</span>
               <button className="ghost" onClick={() => setRetry((value) => value + 1)}>
-                Retry
+                {t('sidebar.search.retry')}
               </button>
             </div>
           ) : null}
           {!term ? (
             <div className="session-search__intro">
               <Search size={28} strokeWidth={1.5} aria-hidden />
-              <h2>Find a past conversation</h2>
-              <p>Search chat titles, messages, commands, and tool output across projects.</p>
+              <h2>{t('sidebar.search.introTitle')}</h2>
+              <p>{t('sidebar.search.introBody')}</p>
             </div>
           ) : !searchable ? (
-            <p className="command-palette__empty">Type a letter or number to search.</p>
+            <p className="command-palette__empty">{t('sidebar.search.needLetter')}</p>
           ) : (
             <>
               {displayResults.map((result, index) => {
@@ -401,7 +408,9 @@ function SessionSearchComponent(props: {
                   <div key={result.key} role="presentation">
                     {startsGroup ? (
                       <p className="session-search__group">
-                        {result.kind === 'title' ? 'Chats' : 'Messages and output'}
+                        {result.kind === 'title'
+                          ? t('sidebar.search.groupChats')
+                          : t('sidebar.search.groupMessages')}
                       </p>
                     ) : null}
                     <button
@@ -413,14 +422,25 @@ function SessionSearchComponent(props: {
                       onFocus={() => setSelectedKey(result.key)}
                       role="option"
                       aria-selected={index === selected}
-                      aria-label={`${result.threadTitle}, ${result.kind === 'title' ? 'title match, ' : ''}${result.projectName}, ${resultProviderLabel(result)}`}
+                      aria-label={t(
+                        result.kind === 'title'
+                          ? 'sidebar.search.resultLabelTitleMatch'
+                          : 'sidebar.search.resultLabel',
+                        {
+                          title: result.threadTitle,
+                          project: result.projectName,
+                          provider: resultProviderLabel(result),
+                        },
+                      )}
                     >
                       <span className="session-search__title">
                         {renderHighlightedParts(result.titleParts)}
                       </span>
                       <span className="session-search__meta">
                         {result.kind === 'title' ? (
-                          <span className="session-search__match-kind">Title match</span>
+                          <span className="session-search__match-kind">
+                            {t('sidebar.search.titleMatch')}
+                          </span>
                         ) : null}
                         <span>{result.projectName}</span>
                         <span aria-hidden>·</span>
@@ -430,9 +450,9 @@ function SessionSearchComponent(props: {
                         />
                         <time
                           dateTime={new Date(result.createdAt).toISOString()}
-                          title={new Date(result.createdAt).toLocaleString()}
+                          title={new Date(result.createdAt).toLocaleString(language)}
                         >
-                          {formatResultDate(result.createdAt)}
+                          {formatResultDate(result.createdAt, language)}
                         </time>
                       </span>
                       {result.snippet ? (
@@ -447,7 +467,7 @@ function SessionSearchComponent(props: {
               {searching && displayResults.length === 0 ? <SessionSearchSkeleton /> : null}
               {!searching && !error && displayResults.length === 0 ? (
                 <p className="command-palette__empty" role="status">
-                  No matches found.
+                  {t('sidebar.search.noMatches')}
                 </p>
               ) : null}
               {nextCursor ? (
@@ -456,7 +476,7 @@ function SessionSearchComponent(props: {
                   disabled={loadingMore}
                   onClick={() => void loadMore()}
                 >
-                  {loadingMore ? 'Loading…' : 'Load more results'}
+                  {loadingMore ? t('sidebar.search.loading') : t('sidebar.search.loadMore')}
                 </button>
               ) : null}
             </>
@@ -465,11 +485,15 @@ function SessionSearchComponent(props: {
         {searchable && displayResults.length > 0 ? (
           <div className="session-search__footer" role="status">
             <span>
-              {searching ? 'Updating…' : `${displayResults.length}${nextCursor ? '+' : ''} shown`}
+              {searching
+                ? t('sidebar.search.updating')
+                : tp('sidebar.search.shown', displayResults.length, {
+                    more: nextCursor ? '+' : '',
+                  })}
             </span>
             <span className="session-search__keys">
               <kbd>↑</kbd>
-              <kbd>↓</kbd> navigate <kbd>↵</kbd> open
+              <kbd>↓</kbd> {t('sidebar.search.navigate')} <kbd>↵</kbd> {t('sidebar.search.open')}
             </span>
           </div>
         ) : null}
@@ -596,16 +620,16 @@ function renderHighlightedParts(parts: SearchSnippetPart[]) {
   )
 }
 
-function formatResultDate(timestamp: number): string {
+function formatResultDate(timestamp: number, language: Language): string {
   const date = new Date(timestamp)
   const today = new Date()
   if (sameDate(date, today)) {
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    return date.toLocaleTimeString(language, { hour: 'numeric', minute: '2-digit' })
   }
   const yesterday = new Date(today)
   yesterday.setDate(today.getDate() - 1)
-  if (sameDate(date, yesterday)) return 'Yesterday'
-  return date.toLocaleDateString([], {
+  if (sameDate(date, yesterday)) return translate(language, 'sidebar.time.yesterday')
+  return date.toLocaleDateString(language, {
     month: 'short',
     day: 'numeric',
     ...(!(date.getFullYear() === today.getFullYear()) ? { year: 'numeric' } : {}),

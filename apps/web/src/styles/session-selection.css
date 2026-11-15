@@ -1,0 +1,10 @@
+/* Chats gathered with Ctrl+click or Shift+click wear the tint the inbox gives
+   its multi-selected threads, over the row's own hover fill. */
+.sessrow.is-selected {
+  --sess-bg: color-mix(in oklab, var(--attention) 7%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--attention) 30%, transparent);
+}
+
+.sessrow.is-selected .sess__title {
+  color: var(--rail-text);
+}

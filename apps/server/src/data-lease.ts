@@ -24,7 +24,7 @@ export function acquireDataLease(database: string): () => void {
     lease.close()
     if (error instanceof Error && 'errcode' in error && error.errcode === 5) {
       throw new Error(
-        'Close TasteCode and its core server before running history maintenance or opening this data folder again.',
+        'Close TUIFT Code and its core server before running history maintenance or opening this data folder again.',
       )
     }
     throw error

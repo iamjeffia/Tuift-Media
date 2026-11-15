@@ -15,7 +15,7 @@ import {
  * Finds the `$skill`, `@server` and `/command` tokens in a sent prompt, so the
  * transcript can draw them as the chips they were in the composer.
  *
- * A prompt is plain text, so a token is only trusted where TasteCode puts one:
+ * A prompt is plain text, so a token is only trusted where TUIFT Code puts one:
  * - at the very start of the prompt, where commands always are and where
  *   earlier versions put picked skills and servers (`$cook\n\n/goal …`). There
  *   a `/name` or a lowercase `$name` counts on its own;
