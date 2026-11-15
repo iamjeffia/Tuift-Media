@@ -52,7 +52,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
   - [x] 2.5c Adaptar `motion-app-ae` e `composicao-trilha` para qualquer cliente (dependem dos itens 11 e 12).
   - [x] 2.5d Limpar e trazer `ui-profissional`, `gravar-janela`, `humanizer` e `stageshow`. No lugar da `better-portuguese`, que é de um autor externo e não tem licença, entrou a `escrita-pt-br`, escrita do zero pela casa (15/11).
   - [x] 2.5e Revisão de privacidade do coordenador antes de publicar: nenhum nome, marca interna, cliente, caminho do PC ou chave.
-- [ ] 2.6 Teste: o instalador leva as skills e o agente enxerga cada uma.
+- [~] 2.6 O instalador leva as skills de vídeo como pacote Motion (feito). Falta o agente enxergar o pacote num chat Motion (fase 3 do Motion).
 - [ ] 2.8 Ficam de fora por enquanto, pela licença de cada uma: `transitions-dev`, `transitions-polish` e `transitions-ui-generation` (a licença proíbe republicar), `remotion-best-practices` e as sete `21st-*` (sem licença declarada). Ideia: oferecer no app a instalação direto do repositório do autor, sem embutir.
 - [x] 2.9 Medir o uso real das skills (transcrições das sessões e anotações de agosto a novembro) e levar só o que vale: 24 skills entram. Ficam de fora por falta de uso registrado: `edvid`, os pacotes de design de terceiros (Emil Kowalski, Jakub Krehel), as skills da Higgsfield, os fluxos e blocos extras do HyperFrames e as avulsas. Podem entrar depois, se passarem a ser usadas.
 - [ ] 2.10 Decidir sobre a telemetria da skill `media-use` (envia uso anônimo ao autor; dá para desligar por variável de ambiente) e sobre o prefixo `tda.` das operações do MCP citadas nas skills.
@@ -120,27 +120,28 @@ Definição do dono do projeto (15/11): ligar o Motion transforma aquele chat nu
 Depende dos itens 2 (skills) e 3 (MCP). O botão do item 6.2 é a porta de entrada. A cena dos bonecos é a exceção combinada à regra do chat intocado.
 
 - [x] 9.1 Plano em `branding/plano-modo-motion.md`, aprovado pelo dono do projeto em 15/11, com os padrões propostos nas seis decisões.
-- [~] 9.2 Fase 1, cena dos bonecos (só visual), em andamento:
-  - [ ] 9.2a Levar as seis cabeças da identidade v2 para o app e registrar a origem.
-  - [ ] 9.2b Componente da cena acima da conversa, sem tocar no chat nem no campo de texto, com estilo carregado à parte.
-  - [ ] 9.2c Entrada, destaque e respiração com os tokens de movimento do app; sem animação para quem pediu menos movimento.
-  - [ ] 9.2d Janela estreita, leitor de tela e tradução de papéis e etapas.
-  - [ ] 9.2e Testes e prova no ambiente de demonstração, tema claro e escuro.
+- [x] 9.2 Fase 1, cena dos bonecos (só visual), feita em 15/11. Num chat novo os bonecos ficam acima do título (decisão do dono do projeto):
+  - [x] 9.2a Levar as seis cabeças da identidade v2 para o app e registrar a origem.
+  - [x] 9.2b Componente da cena acima da conversa, sem tocar no chat nem no campo de texto, com estilo carregado à parte.
+  - [x] 9.2c Entrada, destaque e respiração com os tokens de movimento do app; sem animação para quem pediu menos movimento.
+  - [x] 9.2d Janela estreita, leitor de tela e tradução de papéis e etapas.
+  - [x] 9.2e Testes e prova no ambiente de demonstração, tema claro e escuro.
 - [ ] 9.3 Fase 2, o Motion guardado no chat:
-  - [~] 9.3a Contrato: modo (`motion` ou `design`) e etapa nas configurações do chat; pedido para trocar o modo.
-  - [ ] 9.3b Servidor guarda e avisa; a tela lê, e o que estava só local é migrado uma vez.
+  - [x] 9.3a Contrato: modo (`motion` ou `design`) e etapa nas configurações do chat; pedido para trocar o modo.
+  - [~] 9.3b Servidor guarda e avisa (feito; o celular pareado também pode trocar o modo). Falta a tela ler o modo do servidor e migrar o que estava só local.
   - [ ] 9.3c Testes: o modo sobrevive a reiniciar o app e às gravações que já existem.
 - [ ] 9.4 Fase 3, pacote Motion:
-  - [~] 9.4a As skills de vídeo vão no instalador como pacote separado (fecha o item 2.6).
+  - [x] 9.4a As skills de vídeo vão no instalador como pacote separado (fecha o item 2.6).
   - [ ] 9.4b Instrução curta de papel e etapas no início da sessão, em Codex, Claude Code e Grok.
   - [ ] 9.4c Pacote ligado só em chats Motion; ligar e desligar no meio do chat.
-  - [ ] 9.4d Provar com os programas reais os dois pontos de risco do plano.
+  - [~] 9.4d Provar com os programas reais os dois pontos de risco: Claude Code provado (lista o pacote só quando ele é passado); no Codex falta um turno real lendo uma skill do pacote.
 - [ ] 9.5 Fase 4, etapas:
   - [ ] 9.5a Ferramenta `motion_stage` no canal do app, só em chats Motion.
   - [ ] 9.5b Etapa guardada e avisada à tela; o boneco certo acende.
   - [ ] 9.5c A pessoa troca a etapa clicando num boneco.
 - [ ] 9.6 Fase 5, After Effects (depende do item 11): MCP ligado só em chats Motion e aviso claro quando o After Effects não está instalado.
 - [ ] 9.7 Fase 6, a cena reage: estado "esperando você" e subagente com nome de boneco acende o boneco.
+- [x] 9.10 Feixe do Motion em volta do campo de texto, como o Design tem, em cores mais fortes do elenco (pedido de 15/11).
 - [ ] 9.8 Elenco e papéis: Zig lidera (o laranja de óculos escuros, principal), Moss pesquisa as referências, Bun escreve o roteiro, Pip organiza o projeto, Cloud monta o vídeo no After Effects (o lilás) e Penny revisa cada quadro.
 - [ ] 9.9 Validação do dono do projeto no app instalado, com um vídeo de verdade.
 
@@ -210,5 +211,5 @@ Cada frente roda num worktree próprio em `C:/Dev/tuift-wt/<frente>`, numa branc
 | 1b   | `skills-ae-trilha`                                                                                   | 2.5c            | na `main` (15/11)          |
 | 1b   | `skills-misc`                                                                                        | 2.5d            | na `main` (15/11)          |
 | 1b   | `readme`                                                                                             | 14.1 a 14.5     | na `main` (15/11)          |
-| 3    | `motion-cast`, `motion-state`, `motion-pack`                                                         | 9.2, 9.3a, 9.4a | em andamento (15/11)       |
+| 3    | `motion-cast`, `motion-state`, `motion-pack`                                                         | 9.2, 9.3a, 9.4a | na `main` (15/11), testada |
 | 2    | `i18n-settings`, `i18n-sidebar`, `i18n-onboarding`, `i18n-workspace`, `i18n-dialogs`, `i18n-desktop` | 1.4 a 1.12      | na `main` (15/11), testada |
