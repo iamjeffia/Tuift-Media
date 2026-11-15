@@ -91,9 +91,9 @@
       "pack": "motion",
       "license": "Apache-2.0",
       "licenseFile": "LICENSE",
-      "treeSha256": "cfb43ddffc448635e8db773aad53ad4b72162e8d0d2dcc7fca70c80d6c950597",
+      "treeSha256": "6a5c123bcfb73089141357f05fa12b565ac9e89bcb5327556a259f3b8c00a8ad",
       "files": 15,
-      "bytes": 78282
+      "bytes": 78310
     },
     {
       "folder": "composicao-trilha",

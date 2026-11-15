@@ -55,7 +55,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
 - [~] 2.6 O instalador leva as skills de vídeo como pacote Motion (feito). Falta o agente enxergar o pacote num chat Motion (fase 3 do Motion).
 - [ ] 2.8 Ficam de fora por enquanto, pela licença de cada uma: `transitions-dev`, `transitions-polish` e `transitions-ui-generation` (a licença proíbe republicar), `remotion-best-practices` e as sete `21st-*` (sem licença declarada). Ideia: oferecer no app a instalação direto do repositório do autor, sem embutir.
 - [x] 2.9 Medir o uso real das skills (transcrições das sessões e anotações de agosto a novembro) e levar só o que vale: 24 skills entram. Ficam de fora por falta de uso registrado: `edvid`, os pacotes de design de terceiros (Emil Kowalski, Jakub Krehel), as skills da Higgsfield, os fluxos e blocos extras do HyperFrames e as avulsas. Podem entrar depois, se passarem a ser usadas.
-- [x] 2.10 Decisão de 15/11: a skill `media-use` fica como o autor publicou, com o envio de uso anônimo e o aviso no índice das skills (quem quiser desliga pela variável de ambiente). O prefixo `tda.` das operações do MCP do After Effects é decidido junto com o item 11.
+- [x] 2.10 Decisão de 15/11: a skill `media-use` fica como o autor publicou, com o envio de uso anônimo e o aviso no índice das skills (quem quiser desliga pela variável de ambiente). As operações de movimento do MCP do After Effects usam o prefixo `tuift.` (decisão do dono do projeto); as skills já dizem `tuift.*`, e o nome antigo segue aceito pelo MCP para projetos existentes.
 - [ ] 2.11 O dono do projeto relê os trechos reescritos que as frentes marcaram (morph de UI, método de captura, rotas do After Effects, arco de trilha).
 
 ## 3. Página de MCP servers no estilo Claude Desktop
@@ -156,7 +156,7 @@ Visão do dono do projeto (15/11): o TUIFT Code é a alternativa ao Claude Code,
 
 ## 11. MCP do After Effects embutido por padrão
 
-Decisão de 15/11: o MCP de After Effects da casa (`ae-mcp-tda`) vem dentro do app, para o cliente usar sem instalar mais nada.
+Decisão de 15/11: o MCP de After Effects da casa vem dentro do app, para o cliente usar sem instalar mais nada.
 
 - [ ] 11.1 Levantar o que o MCP precisa para rodar na máquina do cliente (After Effects instalado, ponte, scripts) e a origem e a licença de cada parte que veio de MCPs públicos.
 - [ ] 11.2 Empacotar o MCP com o app.

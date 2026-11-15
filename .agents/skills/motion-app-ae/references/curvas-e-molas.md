@@ -38,15 +38,15 @@ if (n > 0) {
 }
 ```
 
-A mola precisa de velocidade na chegada. Com easy ease nos dois lados a velocidade é zero e a mola não aparece: use chaves lineares. A operação `tda.mola` do MCP já faz isso (duração 0,25 s, amp 0,05, freq 2, decay 4 por padrão). Para texto com ultrapassagem menor, amp 0,04, freq 1,8, decay 3.
+A mola precisa de velocidade na chegada. Com easy ease nos dois lados a velocidade é zero e a mola não aparece: use chaves lineares. A operação `tuift.mola` do MCP já faz isso (duração 0,25 s, amp 0,05, freq 2, decay 4 por padrão). Para texto com ultrapassagem menor, amp 0,04, freq 1,8, decay 3.
 
 ## Escalonamento
 
-Elementos de um grupo não começam no mesmo quadro (o revisor acusa início simultâneo de três ou mais). Valores de partida: 1 quadro entre pontos e letras, 2 quadros entre palavras, linhas e balões, 3 quadros entre itens de uma pílula, 0,15 s entre seções. `tda.stagger` desloca as chaves de camadas selecionadas por esses passos.
+Elementos de um grupo não começam no mesmo quadro (o revisor acusa início simultâneo de três ou mais). Valores de partida: 1 quadro entre pontos e letras, 2 quadros entre palavras, linhas e balões, 3 quadros entre itens de uma pílula, 0,15 s entre seções. `tuift.stagger` desloca as chaves de camadas selecionadas por esses passos.
 
 ## Vida na pausa
 
-Parar morto entre dois movimentos parece robô. Mantenha uma deriva lenta: posição com `wiggle(0.1, 14)`, rotação de 0,4° a 1,5°, respiração de escala de 2 a 6%, câmera que anda 40% do deslocamento entre dois pontos. `tda.vivo` e `tda.camera_viva` aplicam isso. Câmera perfeita demais também parece robô: se a referência treme, meça a tremida antes de ajustar, em vez de chutar.
+Parar morto entre dois movimentos parece robô. Mantenha uma deriva lenta: posição com `wiggle(0.1, 14)`, rotação de 0,4° a 1,5°, respiração de escala de 2 a 6%, câmera que anda 40% do deslocamento entre dois pontos. `tuift.vivo` e `tuift.camera_viva` aplicam isso. Câmera perfeita demais também parece robô: se a referência treme, meça a tremida antes de ajustar, em vez de chutar.
 
 ## Desfoque de movimento
 

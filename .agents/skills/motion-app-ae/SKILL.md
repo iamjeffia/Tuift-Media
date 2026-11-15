@@ -28,10 +28,10 @@ O servidor é o MCP do After Effects que acompanha o TUIFT Code. Confira que ele
 Ciclo de trabalho, na ordem:
 
 1. **Plano.** Cenas e tempos num JSON; `ae_plano_check` aponta buracos, sobreposição, texto demais e fala sem cena, e não precisa do After Effects. `ae_context` e `ae_get_skill` (nome `ae-clean-rig`) antes de construir.
-2. **Construir** com `ae_do` (`batch.run` com o parâmetro `ops`; a lista de operações vem de `ae_catalog`). Marque cada cena com `tda.cena`.
+2. **Construir** com `ae_do` (`batch.run` com o parâmetro `ops`; a lista de operações vem de `ae_catalog`). Marque cada cena com `tuift.cena`.
 3. **Ver** com `ae_see`: folha de contato como imagem, incluindo o meio dos movimentos e não só as poses. Com `reference`, monta REF, NOSSO e DIF lado a lado.
 4. **Revisar** com `ae_review_motion` ("humano ou robotizado?"): câmera que para morta, pausa congelada, linear sem mola, entradas simultâneas, texto pequeno, margem. Se o projeto tiver `identidade.json` (fontes, paleta, margem, raios), a revisão também confere por ele.
-5. **Corrigir** com as operações de movimento do MCP, categoria `tda`: `tda.mola` (entrada de cartão, botão, balão, selo, morph de interface), `tda.entrada` e `tda.saida`, `tda.stagger`, `tda.vivo` (a pausa nunca fica morta), `tda.camera_viva`, `tda.curva`, `tda.morph` (uma camada vira outra com mola). Os números padrão vêm do estilo configurado no MCP e podem ser trocados por vídeo.
+5. **Corrigir** com as operações de movimento do MCP, categoria `tuift`: `tuift.mola` (entrada de cartão, botão, balão, selo, morph de interface), `tuift.entrada` e `tuift.saida`, `tuift.stagger`, `tuift.vivo` (a pausa nunca fica morta), `tuift.camera_viva`, `tuift.curva`, `tuift.morph` (uma camada vira outra com mola). Os números padrão vêm do estilo configurado no MCP e podem ser trocados por vídeo.
 6. **Expressões:** `ae_expressions_check` depois de escrever qualquer uma.
 7. **Som:** `ae_sound_cues` lista onde cabem efeitos a partir das chaves; `ae_place_sfx` põe cada arquivo com o pico no instante do evento; `ae_beats` marca as batidas de uma música na comp. Ver [som-e-mixagem.md](references/som-e-mixagem.md).
 8. **Render** com `ae_render_video` em segundo plano e `ae_render_status`; nota do arquivo final com `ae_avaliar_render`. Ver [render-e-revisao.md](references/render-e-revisao.md).
