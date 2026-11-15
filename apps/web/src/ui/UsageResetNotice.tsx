@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { IconClockPause, IconPlayerPlay } from '@tabler/icons-react'
+import { useI18n } from '../i18n/index.js'
 import { NoticeBody } from './Notice.js'
 import '../styles/usage-reset.css'
 
@@ -13,10 +14,11 @@ export type UsageResetNoticeProps = {
 
 /** A shelf row in the one notice look (ui/Notice.tsx): resume this chat when usage resets. */
 export function UsageResetNotice(props: UsageResetNoticeProps) {
+  const { t, language } = useI18n()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string>()
   const date = props.resetsAt === undefined ? undefined : new Date(props.resetsAt)
-  const reset = date?.toLocaleString(undefined, {
+  const reset = date?.toLocaleString(language, {
     weekday: 'short',
     hour: 'numeric',
     minute: '2-digit',
@@ -25,7 +27,7 @@ export function UsageResetNotice(props: UsageResetNoticeProps) {
     <div
       className="composer__error-row composer__usage-reset"
       data-notice-tone="info"
-      aria-label="Resume at usage reset"
+      aria-label={t('chat.usageReset.label')}
     >
       <NoticeBody
         tone="info"
@@ -44,32 +46,39 @@ export function UsageResetNotice(props: UsageResetNoticeProps) {
               setError(undefined)
               void props
                 .schedule()
-                .catch(() => setError('Could not schedule a resume. Try again.'))
+                .catch(() => setError(t('chat.usageReset.scheduleFailed')))
                 .finally(() => setSaving(false))
             }}
           >
             {!props.scheduled && <IconPlayerPlay size={13} aria-hidden />}
-            {saving ? 'Snoozing…' : props.scheduled ? 'Cancel auto-resume' : 'Resume at reset'}
+            {saving
+              ? t('chat.usageReset.snoozing')
+              : props.scheduled
+                ? t('chat.usageReset.cancel')
+                : t('chat.usageReset.resume')}
           </button>
         }
       >
         <span className="composer__usage-reset-copy" role={props.scheduled ? 'status' : undefined}>
           <strong>
-            {props.scheduled ? 'Snoozed until usage resets' : 'Continue when usage resets'}
+            {props.scheduled
+              ? t('chat.usageReset.snoozedUntil')
+              : t('chat.usageReset.continueWhen')}
           </strong>
           <span>
             {date ? (
               <>
-                {props.source} · {props.scheduled ? 'Resumes' : 'Resets'}{' '}
-                <time dateTime={date.toISOString()} title={date.toLocaleString()}>
+                {props.source} ·{' '}
+                {props.scheduled ? t('chat.usageReset.resumes') : t('chat.usageReset.resets')}{' '}
+                <time dateTime={date.toISOString()} title={date.toLocaleString(language)}>
                   {reset}
                 </time>
               </>
             ) : (
-              'This provider has not shared a reset time yet.'
+              t('chat.usageReset.noTime')
             )}
           </span>
-          {date && <span>Keep TUIFT Code open, or reopen it after the reset.</span>}
+          {date && <span>{t('chat.usageReset.keepOpen')}</span>}
           {error && <span role="alert">{error}</span>}
         </span>
       </NoticeBody>

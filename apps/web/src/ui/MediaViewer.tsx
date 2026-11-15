@@ -21,6 +21,7 @@ import {
   IconVideoOff as VideoOff,
   IconX as X,
 } from '@tabler/icons-react'
+import { useI18n } from '../i18n/index.js'
 import { IconMorph } from './IconMorph.js'
 import '../styles/media-viewer.css'
 
@@ -37,6 +38,7 @@ export function MediaViewer(props: {
   onReveal?: (() => void) | undefined
   onClose: () => void
 }) {
+  const { t } = useI18n()
   const [zoom, setZoom] = useState(1)
   const [paused, setPaused] = useState(true)
   const [currentTime, setCurrentTime] = useState(0)
@@ -224,19 +226,19 @@ export function MediaViewer(props: {
       className={`media-viewer media-viewer--${props.mediaType}`}
       role="dialog"
       aria-modal="true"
-      aria-label={`Preview ${props.name}`}
+      aria-label={t('chat.media.preview', { name: props.name })}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose.current()
       }}
     >
-      <div className="media-viewer__actions" role="toolbar" aria-label="Media actions">
+      <div className="media-viewer__actions" role="toolbar" aria-label={t('chat.media.actions')}>
         {props.onReveal ? (
           <button
             className="media-viewer__action"
             type="button"
             onClick={props.onReveal}
-            aria-label="Show in folder"
-            title="Show in folder"
+            aria-label={t('chat.media.reveal')}
+            title={t('chat.media.reveal')}
           >
             <FolderOpen size={17} aria-hidden />
           </button>
@@ -245,8 +247,12 @@ export function MediaViewer(props: {
             className="media-viewer__action"
             href={props.src}
             download={props.name}
-            aria-label={`Download ${props.mediaType}`}
-            title="Download"
+            aria-label={
+              props.mediaType === 'image'
+                ? t('chat.media.downloadImage')
+                : t('chat.media.downloadVideo')
+            }
+            title={t('chat.media.download')}
           >
             <Download size={17} aria-hidden />
           </a>
@@ -256,8 +262,8 @@ export function MediaViewer(props: {
           className="media-viewer__action"
           type="button"
           onClick={() => onClose.current()}
-          aria-label="Close media viewer"
-          title="Close"
+          aria-label={t('chat.media.close')}
+          title={t('dialogs.common.close')}
         >
           <X size={18} aria-hidden />
         </button>
@@ -359,28 +365,28 @@ export function MediaViewer(props: {
                 <span
                   className="media-viewer__video-loading"
                   role="status"
-                  aria-label="Loading video"
+                  aria-label={t('chat.media.loadingVideo')}
                 />
               ) : null}
               {videoError ? (
                 <div className="media-viewer__video-error" role="status">
                   <VideoErrorIcon />
-                  <span>This video format can’t be played here.</span>
+                  <span>{t('chat.media.videoUnsupported')}</span>
                 </div>
               ) : null}
 
               <div
                 className="media-viewer__video-controls"
                 role="group"
-                aria-label="Video controls"
+                aria-label={t('chat.media.videoControls')}
                 onDoubleClick={(event) => event.stopPropagation()}
               >
                 <button
                   type="button"
                   onClick={togglePlayback}
                   disabled={videoError}
-                  aria-label={paused ? 'Play video' : 'Pause video'}
-                  title={paused ? 'Play' : 'Pause'}
+                  aria-label={paused ? t('chat.media.playVideo') : t('chat.media.pauseVideo')}
+                  title={paused ? t('chat.media.play') : t('chat.media.pause')}
                 >
                   <IconMorph active={paused ? 0 : 1}>
                     <Play size={16} fill="currentColor" aria-hidden />
@@ -400,17 +406,17 @@ export function MediaViewer(props: {
                     if (video.current) video.current.currentTime = nextTime
                     setCurrentTime(nextTime)
                   }}
-                  aria-label="Video progress"
+                  aria-label={t('chat.media.progress')}
                   style={mediaProgressStyle(progress)}
                 />
-                <output className="media-viewer__time" aria-label="Video time">
+                <output className="media-viewer__time" aria-label={t('chat.media.time')}>
                   {formatTime(currentTime)} <span>/</span> {formatTime(duration)}
                 </output>
                 <button
                   type="button"
                   onClick={toggleMuted}
-                  aria-label={muted ? 'Unmute video' : 'Mute video'}
-                  title={muted ? 'Unmute' : 'Mute'}
+                  aria-label={muted ? t('chat.media.unmuteVideo') : t('chat.media.muteVideo')}
+                  title={muted ? t('chat.media.unmute') : t('chat.media.mute')}
                 >
                   <IconMorph active={muted ? 1 : 0}>
                     <Volume2 size={16} aria-hidden />
@@ -420,8 +426,10 @@ export function MediaViewer(props: {
                 <button
                   type="button"
                   onClick={toggleFullscreen}
-                  aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-                  title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                  aria-label={
+                    fullscreen ? t('chat.media.exitFullscreen') : t('chat.media.enterFullscreen')
+                  }
+                  title={fullscreen ? t('chat.media.exitFullscreen') : t('chat.media.fullscreen')}
                 >
                   <IconMorph active={fullscreen ? 1 : 0}>
                     <Maximize2 size={16} aria-hidden />
@@ -435,12 +443,12 @@ export function MediaViewer(props: {
       </div>
 
       {props.mediaType === 'image' ? (
-        <div className="media-viewer__zoom" aria-label="Image zoom controls">
+        <div className="media-viewer__zoom" aria-label={t('chat.media.zoomControls')}>
           <button
             type="button"
             onClick={() => setZoom((current) => Math.max(MIN_ZOOM, current - ZOOM_STEP))}
             disabled={zoom === MIN_ZOOM}
-            aria-label="Zoom out"
+            aria-label={t('chat.media.zoomOut')}
           >
             <Minus size={15} aria-hidden />
           </button>
@@ -449,7 +457,7 @@ export function MediaViewer(props: {
             type="button"
             onClick={() => setZoom((current) => Math.min(MAX_ZOOM, current + ZOOM_STEP))}
             disabled={zoom === MAX_ZOOM}
-            aria-label="Zoom in"
+            aria-label={t('chat.media.zoomIn')}
           >
             <Plus size={15} aria-hidden />
           </button>

@@ -81,6 +81,7 @@ import {
 } from './composer-chips.js'
 import { browserCommentImages, browserCommentsAsPlainText } from './browser-comments.js'
 import { composerTextWithChips, composerTextWithCommentChips } from './message-chips.js'
+import { useI18n } from '../i18n/index.js'
 import { Menu, MenuItem } from './Menu.js'
 import { IconMorph } from './IconMorph.js'
 import { LazyMediaViewer as MediaViewer, preloadMediaViewer } from './LazyMediaViewer.js'
@@ -195,6 +196,7 @@ function VoiceControlSkeleton() {
 }
 
 function ResourcePickerSkeleton(props: { marker: ComposerResourceMarker }) {
+  useI18n()
   const labels = composerResourceListLabel(props.marker)
   return (
     <div className="composer-skeleton-picker">
@@ -255,6 +257,7 @@ function BranchMenu(props: {
   activeBranch: string | undefined
   onSelect: (branch: string) => void
 }) {
+  const { t } = useI18n()
   const [query, setQuery] = useState('')
   const results = useRef<HTMLDivElement>(null)
   const orderedBranches = useMemo(
@@ -280,8 +283,8 @@ function BranchMenu(props: {
       <ModelSearchField
         className="branch-menu__search"
         value={query}
-        label="Search branches"
-        placeholder="Search branches"
+        label={t('chat.composer.searchBranches')}
+        placeholder={t('chat.composer.searchBranches')}
         autoFocus
         onChange={setQuery}
         onNavigate={focusResult}
@@ -299,7 +302,7 @@ function BranchMenu(props: {
           ))
         ) : (
           <p className="branch-menu__empty" role="status">
-            No matching branches.
+            {t('chat.composer.noMatchingBranches')}
           </p>
         )}
       </div>
@@ -682,6 +685,7 @@ function ComposerComponent(props: {
    */
   dormant?: boolean | undefined
 }) {
+  const { t, language } = useI18n()
   const keybindings = props.keybindings ?? DEFAULT_KEYBINDINGS
   // The textarea owns its full draft. React only needs the blank/nonblank
   // boundary, so ordinary typing does not rerender the complete composer.
@@ -791,6 +795,7 @@ function ComposerComponent(props: {
       modelPickerAvailable,
       permissionsAvailable,
       screensAvailable,
+      language,
     ],
   )
 
@@ -1726,24 +1731,24 @@ function ComposerComponent(props: {
       ...(props.sendAvailability === 'no-provider' ? { tone: 'info' as const } : {}),
       message:
         props.sendAvailability === 'no-provider'
-          ? 'Add a provider to start chatting.'
+          ? t('chat.setup.noProvider')
           : props.sendAvailability === 'unavailable'
-            ? 'Provider unavailable'
+            ? t('chat.setup.unavailable')
             : props.providerSignInRequired
-              ? 'Sign in to use this provider.'
-              : 'Set up this provider to start chatting.',
+              ? t('chat.setup.signInRequired')
+              : t('chat.setup.setUpRequired'),
       action: {
         label:
           props.sendAvailability === 'no-provider'
-            ? 'Add provider'
+            ? t('settings.providers.add')
             : props.sendAvailability === 'unavailable'
-              ? 'Check setup'
+              ? t('chat.setup.checkSetup')
               : props.providerSignInRequired
-                ? 'Sign in'
-                : 'Set up provider',
+                ? t('chat.setup.signIn')
+                : t('chat.setup.setUpProvider'),
       },
     }
-  }, [props.provider, props.sendAvailability, props.providerSignInRequired])
+  }, [props.provider, props.sendAvailability, props.providerSignInRequired, t])
   const composerErrors = [
     ...(props.errors ?? []),
     props.providerError ??
@@ -2101,7 +2106,7 @@ function ComposerComponent(props: {
             {props.newSession ? (
               <div className="composer__shelf composer__shelf--project">
                 <Menu
-                  label="Choose project"
+                  label={t('chat.composer.chooseProject')}
                   drop="down"
                   triggerClassName="shelf-control shelf-control--project"
                   panelClassName="menu--compact menu--project-picker"
@@ -2111,7 +2116,7 @@ function ComposerComponent(props: {
                       {props.projectName === undefined && props.projectsLoading ? (
                         <Skeleton className="skeleton-group" width={56} height={9} />
                       ) : (
-                        <span>{props.projectName ?? 'Choose project'}</span>
+                        <span>{props.projectName ?? t('chat.composer.chooseProject')}</span>
                       )}
                     </span>
                   )}
@@ -2133,7 +2138,7 @@ function ComposerComponent(props: {
                       ))}
                       {/* With no project yet the list was empty, and no folder could be chosen here (#2194). */}
                       <MenuItem
-                        title="New project"
+                        title={t('chat.composer.newProject')}
                         icon={<FolderPlus size={14} aria-hidden />}
                         onClick={() => {
                           close()
@@ -2145,7 +2150,7 @@ function ComposerComponent(props: {
                 </Menu>
 
                 <Menu
-                  label="Workspace mode"
+                  label={t('chat.composer.workspaceMode')}
                   drop="down"
                   triggerClassName="shelf-control shelf-control--mode"
                   panelClassName="menu--compact menu--mode"
@@ -2156,14 +2161,16 @@ function ComposerComponent(props: {
                         <Laptop size={15} aria-hidden />
                         <GitBranch size={15} aria-hidden />
                       </IconMorph>
-                      <span>{props.isolate ? 'Isolated' : 'Local'}</span>
+                      <span>
+                        {props.isolate ? t('chat.composer.isolated') : t('chat.composer.local')}
+                      </span>
                     </span>
                   )}
                 >
                   {(close) => (
                     <>
                       <MenuItem
-                        title="Local"
+                        title={t('chat.composer.local')}
                         icon={<Laptop size={14} aria-hidden />}
                         checked={!props.isolate}
                         onClick={() => {
@@ -2172,7 +2179,7 @@ function ComposerComponent(props: {
                         }}
                       />
                       <MenuItem
-                        title="Isolated"
+                        title={t('chat.composer.isolated')}
                         icon={<GitBranch size={14} aria-hidden />}
                         detail={props.isolateUnavailable}
                         disabled={props.isolateUnavailable !== undefined}
@@ -2188,17 +2195,17 @@ function ComposerComponent(props: {
 
                 {props.branches.length > 0 ? (
                   <Menu
-                    label="Choose branch"
+                    label={t('chat.composer.chooseBranch')}
                     drop="down"
                     triggerClassName="shelf-control shelf-control--branch"
                     panelRole="dialog"
-                    panelLabel="Choose branch"
+                    panelLabel={t('chat.composer.chooseBranch')}
                     panelClassName="branch-menu"
                     onOpen={props.onBranchMenuOpen}
                     trigger={() => (
                       <span className="shelf-control__content">
                         <GitBranch size={15} aria-hidden />
-                        <span>{props.branch ?? 'No branch'}</span>
+                        <span>{props.branch ?? t('chat.composer.noBranch')}</span>
                       </span>
                     )}
                   >
@@ -2215,7 +2222,7 @@ function ComposerComponent(props: {
                   </Menu>
                 ) : props.branchesLoading ? (
                   <SkeletonStatus
-                    label="Loading branches"
+                    label={t('chat.composer.loadingBranches')}
                     className="menutrigger shelf-control shelf-control--branch composer-skeleton-branch"
                   >
                     <span className="shelf-control__content">

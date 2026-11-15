@@ -9,6 +9,7 @@ import {
 } from 'react'
 import type { McpServer, ProviderCommand, ProviderId, Skill } from '@harness/contracts'
 import type { AppCommand } from '../app-commands.js'
+import { t, tp, useI18n, type MessageKey } from '../i18n/index.js'
 import { providerDisplayName } from '../provider-presentation.js'
 import type { Transport } from '../transport.js'
 import '../styles/composer-resource-picker.css'
@@ -44,25 +45,20 @@ type MenuRow = { resource: ComposerResource; rank: number }
 type MarkerMenu = {
   /** The inventories this marker lists, so `@` never waits for commands. */
   sources: readonly InventorySource[]
-  /** Fills "No … match", "No more … are available" and "… has no … for this project". */
-  noun: string
-  browse: string
+  /** Which of the `chat.menu.<name>.…` messages this menu's empty states are. */
+  name: 'slash' | 'skill' | 'mcp'
 }
 
 const INVENTORY_SOURCES: readonly InventorySource[] = ['skills', 'mcp', 'commands']
 const SOURCE_LABELS = {
-  skills: 'skills',
-  mcp: 'MCP servers',
-  commands: 'commands',
-} satisfies Record<InventorySource, string>
+  skills: 'chat.menu.source.skills',
+  mcp: 'chat.menu.source.mcp',
+  commands: 'chat.menu.source.commands',
+} satisfies Record<InventorySource, MessageKey>
 const MARKER_MENUS = {
-  '/': {
-    sources: ['commands', 'skills'],
-    noun: 'commands or skills',
-    browse: 'Choose a project to browse commands and skills.',
-  },
-  $: { sources: ['skills'], noun: 'skills', browse: 'Choose a project to browse skills.' },
-  '@': { sources: ['mcp'], noun: 'MCP servers', browse: 'Choose a project to browse MCP servers.' },
+  '/': { sources: ['commands', 'skills'], name: 'slash' },
+  $: { sources: ['skills'], name: 'skill' },
+  '@': { sources: ['mcp'], name: 'mcp' },
 } satisfies Record<ComposerResourceMarker, MarkerMenu>
 const NO_SOURCES: ReadonlySet<InventorySource> = new Set()
 const NO_APP_COMMANDS: readonly AppCommand[] = []
@@ -85,6 +81,7 @@ export const ComposerResourcePicker = forwardRef<
     onSelect: (resource: ComposerResource) => void
   }
 >(function ComposerResourcePicker(props, ref) {
+  const { language } = useI18n()
   const [inventory, setInventory] = useState<Inventory>({})
   const [loading, setLoading] = useState<ReadonlySet<InventorySource>>(NO_SOURCES)
   const [failed, setFailed] = useState<ReadonlySet<InventorySource>>(NO_SOURCES)
@@ -185,7 +182,11 @@ export const ComposerResourcePicker = forwardRef<
   ])
 
   const ownCommands = props.appCommands ?? NO_APP_COMMANDS
-  const entries = useMemo(() => menuEntries(inventory, ownCommands), [inventory, ownCommands])
+  // The language is a dependency: the rows hold text written in it.
+  const entries = useMemo(
+    () => menuEntries(inventory, ownCommands),
+    [inventory, ownCommands, language],
+  )
   const markerEntries = entries[marker]
   const query = props.trigger?.query.trim().toLocaleLowerCase() ?? ''
   const filtered = useMemo(
@@ -242,25 +243,27 @@ export const ComposerResourcePicker = forwardRef<
   if (!props.trigger) return null
 
   const labels = composerResourceListLabel(marker)
-  const { sources, noun, browse } = markerMenu(marker)
+  const { sources, name } = markerMenu(marker)
   const commandsPending = marker === '/' && inventory.commands?.loading === true
   const pending =
     Boolean(props.projectPath) && (commandsPending || sources.some((source) => loading.has(source)))
   const failedSources = props.projectPath ? sources.filter((source) => failed.has(source)) : []
   const status = !props.projectPath
     ? filtered.length === 0
-      ? browse
+      ? t(`chat.menu.${name}.browse`)
       : undefined
     : pending || filtered.length > 0
       ? undefined
       : query
-        ? `No ${noun} match “${props.trigger.query}”.`
+        ? t(`chat.menu.${name}.noMatch`, { query: props.trigger.query })
         : markerEntries.length > 0
-          ? `No more ${noun} are available.`
-          : `${providerDisplayName(props.provider)} has no ${noun} for this project.`
+          ? t(`chat.menu.${name}.noMore`)
+          : t(`chat.menu.${name}.none`, { provider: providerDisplayName(props.provider) })
   const message =
     failedSources.length > 0
-      ? `Couldn’t load ${joinLabels(failedSources.map((source) => SOURCE_LABELS[source]))}.`
+      ? t('chat.menu.loadFailed', {
+          list: joinLabels(failedSources.map((source) => t(SOURCE_LABELS[source]))),
+        })
       : status
 
   return (
@@ -452,7 +455,7 @@ function commandResource(command: ProviderCommand): ComposerResource {
     kind: 'command',
     id: command.name,
     name: `/${command.name}`,
-    description: command.description.trim() || commandScope(command),
+    description: command.description.trim() || commandKindLabel(command),
     scope: commandScope(command),
     token: `/${command.name}`,
     available: true,
@@ -499,9 +502,21 @@ function commandScope(command: ProviderCommand): string {
   return command.source === 'custom' ? 'Custom command' : 'Command'
 }
 
+/** The same words as `commandScope`, in the current language: what a command row shows when the provider gave it no description. */
+function commandKindLabel(command: ProviderCommand): string {
+  if (command.source === 'mcp') return t('chat.menu.kind.mcpPrompt')
+  if (command.kind === 'skill') {
+    return command.source === 'plugin' ? t('chat.menu.kind.pluginSkill') : t('chat.menu.kind.skill')
+  }
+  if (command.source === 'plugin') return t('chat.menu.kind.pluginCommand')
+  return command.source === 'custom'
+    ? t('chat.menu.kind.customCommand')
+    : t('chat.menu.kind.command')
+}
+
 function skillResource(skill: Skill): ComposerResource {
   const dependency = skill.dependencyErrors[0]?.message
-  const unavailableReason = !skill.enabled ? 'Disabled' : dependency
+  const unavailableReason = !skill.enabled ? t('chat.menu.disabled') : dependency
   return {
     key: `skill:${skill.id}`,
     kind: 'skill',
@@ -518,11 +533,11 @@ function skillResource(skill: Skill): ComposerResource {
 /** `canSignIn`: TUIFT Code can start this provider's MCP sign-in from MCP settings. */
 function mcpResource(server: McpServer, canSignIn: boolean): ComposerResource {
   const unavailableReason = !server.enabled
-    ? 'Disabled'
+    ? t('chat.menu.disabled')
     : server.auth?.status === 'sign_in_required'
       ? canSignIn
-        ? 'Sign in required'
-        : 'Sign in outside TUIFT Code'
+        ? t('chat.menu.signInRequired')
+        : t('chat.menu.signInOutside')
       : server.startup?.state === 'failed'
         ? server.startup.message
         : undefined
@@ -534,8 +549,8 @@ function mcpResource(server: McpServer, canSignIn: boolean): ComposerResource {
     description:
       server.description?.trim() ||
       (server.tools.length > 0
-        ? `${server.tools.length} ${server.tools.length === 1 ? 'tool' : 'tools'} available`
-        : 'Configured MCP server'),
+        ? tp('chat.menu.tools', server.tools.length)
+        : t('chat.menu.mcpConfigured')),
     scope: server.scope === 'project' ? 'Project' : 'Personal',
     token: server.id.startsWith('@') ? server.id : `@${server.id}`,
     available: unavailableReason === undefined,
@@ -577,6 +592,6 @@ function lowercase(value: string): string {
 }
 
 function joinLabels(labels: string[]): string {
-  if (labels.length < 2) return labels[0] ?? 'resources'
-  return `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}`
+  if (labels.length < 2) return labels[0] ?? t('chat.menu.source.resources')
+  return t('chat.menu.and', { head: labels.slice(0, -1).join(', '), last: labels.at(-1)! })
 }

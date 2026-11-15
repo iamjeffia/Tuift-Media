@@ -21,6 +21,7 @@ import 'streamdown/styles.css'
 import { createMathPlugin } from '@streamdown/math'
 import 'katex/dist/katex.min.css'
 import { canRevealProjectFile, revealProjectFile } from '../bridge.js'
+import { useI18n } from '../i18n/index.js'
 import { openProjectFileInPanel, useCanOpenProjectFileInPanel } from '../project-file-open.js'
 import {
   preserveProjectFileLinks,
@@ -91,6 +92,7 @@ function RevealProjectFileButton({
   iconPath,
   children,
 }: RevealProjectFileButtonProps) {
+  const { t } = useI18n()
   const [revealFailed, setRevealFailed] = useState(false)
   const target = useRef<HTMLButtonElement>(null)
   const inPanel = useCanOpenProjectFileInPanel()
@@ -130,7 +132,7 @@ function RevealProjectFileButton({
       </button>
       <FileContextMenu
         targetRef={target}
-        label="File options"
+        label={t('chat.fileOptions')}
         path={path}
         onOpenInPanel={inPanel ? open : undefined}
         onOpenInExplorer={reveal}

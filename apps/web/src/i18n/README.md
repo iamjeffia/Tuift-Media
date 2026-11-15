@@ -38,7 +38,7 @@ function Example(props: { count: number; name: string }) {
   the language at call time, so never evaluate them at module load into a constant: that would
   freeze the language. Keep keys in the constant and translate at render, as `GeneralSettings.tsx`
   does with `Option.label: MessageKey`.
-- **Add a key**: write it in the English file of its area (`areas/<area>.en.ts`), then in `areas/<area>.pt-BR.ts`. TypeScript names the missing side. `en.ts` and `pt-BR.ts` hold the shell, navigation and General keys and spread the area files; the areas are `settings`, `sidebar`, `onboarding`, `workspace` and `dialogs`.
+- **Add a key**: write it in the English file of its area (`areas/<area>.en.ts`), then in `areas/<area>.pt-BR.ts`. TypeScript names the missing side. `en.ts` and `pt-BR.ts` hold the shell, navigation and General keys and spread the area files; the areas are `settings`, `sidebar`, `onboarding`, `workspace`, `dialogs` and `chat`.
 - **Naming**: `area.component.thing`, camelCase segments, dots between them
   (`general.settle.name`, `settings.nav.mcp`, `settings.search.empty`). Group by screen, not by
   word, so two places that happen to share a word can read differently in Portuguese.
@@ -53,7 +53,7 @@ function Example(props: { count: number; name: string }) {
 - **Attributes**: `aria-label`, `title`, `placeholder`, `alt` and tooltips are translated too.
 - **Do not translate**: product and feature names that are proper names (TUIFT Code, Design,
   Motion, Full access), provider and model names, shortcuts keys, file paths, code, anything the
-  user or the AI wrote, and the chat surface below.
+  user or the AI wrote, and the chat itself (see "The boundary of the chat").
 - **Glossary** (keep it consistent): chat / chats (the owner's word), provedor, projeto,
   workspace, Configurações, Geral, Aparência, Atalhos (Keybinds), Servidores MCP, Skills, Uso
   (Usage), Importar chats, Dados e privacidade, Depuração (Debug), Sobre, Barra lateral,
@@ -75,33 +75,62 @@ English assertions, even after `vi.resetModules()` or `localStorage.clear()`. A 
 Portuguese calls `setLanguage('pt-BR', { persist: false })` (it is reset before the next test).
 The default itself (`pt-BR` when nothing is stored) is covered by `i18n.test.ts`.
 
-## The chat surface is never translated
+## The boundary of the chat
 
-Rule 2 of `TUIFT-CHECKLIST.md`: AI messages, the process rows ("Working for…", "Ran 5
-commands") and the composer text field are not translated and not restyled. Verified against
-the code; these files, and the strings they build, are out of bounds:
+Rule 2 of `TUIFT-CHECKLIST.md` keeps the chat itself out of translation, and the owner fixed the
+exact line on 15/11/2026 (checklist 1.15). The chat is English and untouched; the app chrome next to
+it is translated through the `chat` catalog (`areas/chat.*.ts`, keys `chat.…`).
 
-- Transcript: `ui/Thread.tsx`, `ui/LazyThread.tsx` (the "Working for…" and turn-summary rows are
-  built in `Thread.tsx`), `ui/TurnRail.tsx` + `ui/turn-rail.ts`, `ui/turns.ts`,
-  `ui/SubagentRow.tsx` ("Ran {subagent}"), `ui/tool-call-text.ts`, `ui/Approval.tsx` and
-  `ui/Plan.tsx` (approval and plan prompts inside the thread), `ui/Diff.tsx` (tool diffs, used
-  only by the thread), `ui/PromptText.tsx`, `ui/Markdown.tsx`, `ui/CompletedMarkdown.tsx`,
-  `ui/MarkdownImage.tsx`, `ui/LargeCodeBlock.tsx`, `ui/live-markdown.ts`,
-  `ui/markdown-blocks.ts`, `ui/message-chips.ts`, `ui/browser-comments.ts` (comment text sent
-  with a message).
-- Composer text field and its controls: `ui/Composer.tsx`, `ui/ComposerChipOverlay.tsx`,
-  `ui/ComposerErrors.tsx`, `ui/ComposerResourcePicker.tsx`, `ui/ComposerVoiceControl.tsx`,
-  `ui/ComposerVoiceRecorderBar.tsx`, `ui/VoiceWaveform.tsx`, `ui/ContextUsage.tsx`,
-  `ui/DesignBeam.tsx`, `ui/composer-chips.ts`, `ui/composer-inventory.ts`,
-  `ui/composer-resource.ts`, `ui/approval-modes.ts` (access-mode labels shown in the composer),
-  and the model picker opened from it: `ui/ModelSelector.tsx`, `ui/ModelSelectorPanel.tsx`,
-  `ui/ModelSearchField.tsx`.
+**Stays in English, never translated and never restyled (the chat itself):**
 
-Decision needed from the owner before wave 2 touches them (they sit next to the chat but are
-app chrome, not transcript or composer): `ui/ThreadSearch.tsx` (find bar over the transcript),
-`ui/RollbackDialog.tsx` (checkpoint dialog opened from the thread), `ui/ChatDropOverlay.tsx`
-(drop-files overlay over the chat), `ui/CopyButton.tsx` and `ui/MediaViewer.tsx` (shared with
-the thread). Proposed default: translate them, they are dialogs and controls, not chat text.
+- What the AI and the user write, and everything a message carries: `ui/Markdown.tsx`,
+  `ui/CompletedMarkdown.tsx` (except the one `aria-label` below), `ui/MarkdownImage.tsx`,
+  `ui/LargeCodeBlock.tsx`, `ui/PromptText.tsx`, `ui/live-markdown.ts`, `ui/markdown-blocks.ts`,
+  `ui/message-chips.ts`, `ui/browser-comments.ts` (comment text sent with a message).
+- The process rows and the transcript: `ui/Thread.tsx`, `ui/LazyThread.tsx` ("Working for…",
+  "Worked for 18s", "Ran 5 commands", "Explored 3 files", "Edited X"), `ui/TurnRail.tsx` +
+  `ui/turn-rail.ts`, `ui/turns.ts`, `ui/SubagentRow.tsx`, `ui/tool-call-text.ts`, `ui/Diff.tsx`.
+- Approval and plan prompts inside the thread: `ui/Approval.tsx`, `ui/Plan.tsx`.
+- The composer text field and its controls: the placeholder ("Do anything", "Ask for follow-up
+  changes", and "Stopping…" while a turn stops), `ui/ComposerChipOverlay.tsx`, the access modes
+  (Full access, Auto-review, Auto, Ask first: `ui/approval-modes.ts`), the Design and Motion
+  buttons and `ui/DesignBeam.tsx`, the model picker and effort names (`ui/ModelSelector.tsx`,
+  `ui/ModelSelectorPanel.tsx`, `ui/ModelSearchField.tsx`), voice (`ui/ComposerVoiceControl.tsx`,
+  `ui/ComposerVoiceRecorderBar.tsx`, `ui/VoiceWaveform.tsx`), context usage (`ui/ContextUsage.tsx`),
+  the queue shelf and its errors, the attachment chips and their errors, `ui/composer-chips.ts`,
+  `ui/composer-inventory.ts`.
+- Text that comes from the server and is shown as the error of a turn or an action (`thread.error`,
+  `actionError`, `currentModelError`, `providerProblem`) and the "can't ask before running
+  commands" notes, which name the access modes.
+
+**Translated now (app chrome that sits next to the chat):**
+
+- The project and location shelf of a new chat in `ui/Composer.tsx` ("Choose project", "New
+  project", "Workspace mode", "Local", "Isolated", the branch menu), and the provider setup notice
+  it puts in the tray ("Add a provider to start chatting." and its button). Only literals were
+  replaced there; project and branch names are data.
+- The notice tray: `ui/ComposerErrors.tsx`, `ui/UsageResetNotice.tsx`, the `composerErrors` block of
+  `App.tsx` ("Reconnecting…", "Retry", "Sign in", "Continued on…", "Switch to…", "Your next message
+  switches…"), `continue-account.ts` (`continuationNote`) and `isolateUnavailable`.
+- The "/" menu: `app-commands.ts` (descriptions and argument hints; the names a user types, such as
+  `/side` and `/feedback`, stay) and the chrome of `ui/ComposerResourcePicker.tsx` and
+  `ui/composer-resource.ts` (list names, empty states, "Disabled", "Sign in required", fallback
+  descriptions). What a provider, skill or MCP server wrote about itself is data.
+- The neighbours: `ui/ThreadSearch.tsx`, `ui/RollbackDialog.tsx`, `ui/ChatDropOverlay.tsx` (it holds
+  no text), `ui/CopyButton.tsx` (its default tooltip and failure text; a caller's own `label`, such as
+  "Copy response" in the thread, stays English), `ui/MediaViewer.tsx`, `ui/BrowserCommentCard.tsx`
+  and the `aria-label` `ui/CompletedMarkdown.tsx` gives the file context menu.
+- Default chat titles: the server and the store keep writing "New session", "New chat", "Untitled
+  chat" and "Side chat". `chat-title.ts` maps exactly those four strings to `chat.title.*` when a
+  title is shown: the sidebar rows (`sidebarProjects`), the header and split pane labels, session
+  search and the palette's chat search (`localizeChatTitles`), and the continuation and checkout
+  notes. A title the user or the AI wrote is never touched, and `renameSidebarSession` ignores a
+  rename that only repeats the translated default, so the stored default survives. Never translate
+  a title anywhere else, and never send a mapped title to a provider.
+
+Text that code compares (`startsWith('Design mode failed')`, `/^unknown method/`,
+`existingSession?.title === 'New session'`) is never translated; see
+`branding/i18n-texto-do-servidor.md` in the repository.
 
 ## Wave 2: what is left to translate
 
@@ -121,6 +150,9 @@ and benches excluded). It undercounts template strings and conditionals; read it
 | 1.9  | Native menus, tray and notifications    | `apps/desktop/src/app-menu.ts` (12 menu labels), `chat-notifier.ts`, `image-context-menu.ts`, `main.ts` dialogs (19). The main process cannot import the web module: it needs a small mirror and the current language passed over the bridge. No tray file exists yet                                                                                | ~70           |
 | 1.10 | Text that comes from the server         | `apps/server/src`: ~480 string literals, a minority user-visible: `orchestrator.ts` (92), `store.ts` (63), `provider-controls.ts` (53), `pull-requests.ts` (30), `adapters.ts` (26), `checkout-pull-request.ts`. Survey first: prefer error codes the web maps to catalog keys over translating on the server                                        | ~480 (survey) |
 | 1.12 | Layout check                            | Portuguese runs 20 to 30 percent longer. On General, "E ao concluir" (notification choice) was shortened to fit one line in the 3-choice grid; check the same in the other pages as they convert                                                                                                                                                     | n/a           |
+
+`MediaViewer`, `RollbackDialog` and `UsageResetNotice` in row 1.8 belong to the chat front (1.15) and are
+translated in the `chat` area.
 
 Date, time and number formatting (relative times, usage figures) use `Intl` with the default
 locale today; wave 2 should pass `getLanguage()` as the locale where the text is shown.
