@@ -7,6 +7,7 @@ import {
   type DomainEvent,
   type Item,
   type MethodName,
+  type MotionStage,
   type ParamsOf,
   type ProviderContextSettingsMap,
   type ProviderId,
@@ -63,6 +64,8 @@ export type DemoServerOptions = {
   now?: () => number
   /** Opt-in usage-limit scenario for exercising the real recovery UI. */
   usageResetMs?: number
+  /** Chats that start as Motion chats at the given stage, as a server would have kept them. */
+  motionChats?: Record<string, MotionStage>
 }
 
 type Handler<M extends MethodName> = (params: ParamsOf<M>) => ResultOf<M> | Promise<ResultOf<M>>
@@ -151,6 +154,10 @@ export class DemoServer {
     this.platform = options.platform ?? detectDemoPlatform()
     this.home = demoHome(this.platform)
     this.#seed()
+    for (const [id, stage] of Object.entries(options.motionChats ?? {})) {
+      const thread = this.#threads.get(id)
+      if (thread) thread.settings = { ...thread.settings, mode: 'motion', motionStage: stage }
+    }
     if (this.#usageResetAt !== undefined) {
       const thread = this.#thread('demo-focus-ring')
       const turnId = 'demo-usage-limited'

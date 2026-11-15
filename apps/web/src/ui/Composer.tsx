@@ -605,8 +605,10 @@ function ComposerComponent(props: {
   /** Why this project cannot start an isolated chat; the option is disabled with it. */
   isolateUnavailable?: string | undefined
   designMode: boolean
-  /** Visual, remembered toggle only for now: it never changes what a prompt sends. */
+  /** The chat's Motion mode: the server's for a chat that exists, the draft's for a new one. */
   motionMode: boolean
+  /** A turn runs, so the server would refuse a change of mode. */
+  motionLocked?: boolean | undefined
   /** Why Ask first cannot run with this provider; the option is disabled with it. */
   askFirstUnavailable?: string | undefined
   keybindings?: Keybindings | undefined
@@ -2629,8 +2631,15 @@ function ComposerComponent(props: {
                           aria-pressed={props.motionMode}
                           onFocus={preloadDesignBeamStyles}
                           onPointerEnter={preloadDesignBeamStyles}
+                          disabled={props.motionLocked}
                           onClick={() => props.onMotionModeChange(!props.motionMode)}
-                          title={props.motionMode ? 'Turn off Motion mode' : 'Turn on Motion mode'}
+                          title={
+                            props.motionLocked
+                              ? t('chat.motion.locked')
+                              : props.motionMode
+                                ? 'Turn off Motion mode'
+                                : 'Turn on Motion mode'
+                          }
                         >
                           <Movie size={13} aria-hidden />
                           <span>Motion</span>

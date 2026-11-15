@@ -16,6 +16,7 @@ import {
 } from '../theme.js'
 import { backdropColorScheme } from '../theme-colors.js'
 import { applyDocumentLanguage } from '../i18n/index.js'
+import { MotionStageSchema } from '@harness/contracts'
 import { DemoTransport } from './demo-transport.js'
 import '../styles/tokens.css'
 import '../styles/app.css'
@@ -47,11 +48,19 @@ document.documentElement.dataset['shell'] = 'web'
 
 // `?usageReset=60&chat=demo-focus-ring` exercises a quota reset in sixty seconds.
 const usageResetSeconds = Number(new URLSearchParams(window.location.search).get('usageReset'))
-const transport = new DemoTransport(
-  usageResetSeconds > 0 && Number.isFinite(usageResetSeconds)
+// `?motion=demo-focus-ring:motion` makes that chat a Motion chat at the stage `motion`.
+const [motionChat, motionStage] = (
+  new URLSearchParams(window.location.search).get('motion') ?? ''
+).split(':')
+const transport = new DemoTransport({
+  ...(usageResetSeconds > 0 && Number.isFinite(usageResetSeconds)
     ? { usageResetMs: Math.min(usageResetSeconds, 604_800) * 1000 }
-    : {},
-)
+    : {}),
+  ...(motionChat
+    ? { motionChats: { [motionChat]: MotionStageSchema.catch('idea').parse(motionStage) } }
+    : {}),
+})
+Object.assign(window, { sandboxTransport: transport })
 
 createRoot(root).render(
   <StrictMode>

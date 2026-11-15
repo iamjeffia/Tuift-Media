@@ -2399,6 +2399,17 @@ describe('Composer Motion mode', () => {
     )
   })
 
+  it('cannot change Motion while its chat runs, and says when it can', () => {
+    const onMotionModeChange = vi.fn()
+    renderComposer(vi.fn(), { motionMode: true, motionLocked: true, onMotionModeChange })
+    const motion = screen.getByRole('button', { name: 'Motion' }) as HTMLButtonElement
+    expect(motion.disabled).toBe(true)
+    expect(motion.getAttribute('aria-pressed')).toBe('true')
+    expect(motion.getAttribute('title')).toBe('Motion can change when the reply ends')
+    fireEvent.click(motion)
+    expect(onMotionModeChange).not.toHaveBeenCalled()
+  })
+
   it('shares the Design chip and beam classes, so size, hover and narrow layout match', () => {
     renderComposer(vi.fn())
     const design = screen.getByRole('button', { name: 'Design' })
