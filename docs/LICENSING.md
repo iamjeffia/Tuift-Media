@@ -19,5 +19,12 @@ Before publishing each desktop build:
 4. Review provider terms and trademarks separately from the source-code license.
 5. Publish release artifacts with SHA-256 checksums.
 
+The After Effects MCP server is the one part of the installer that is neither an npm dependency of
+this repository nor a default skill: it is a pinned release of its own MIT-licensed repository
+(`packages/after-effects-mcp/server.json`), shipped as files in `resources/after-effects-mcp`
+with its `LICENSE`, `NOTICE.md` and `THIRD_PARTY_LICENSES.txt`. `pnpm licenses:verify` fails a
+bundle on disk that lacks them, and `verify-release-assets` fails an installer whose folder is not
+the pinned release.
+
 Apache-2.0 covers TasteCode source code. It does not grant rights to third-party product
 names, logos, provider services, or bundled dependencies beyond their own terms.

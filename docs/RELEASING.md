@@ -323,6 +323,7 @@ that fails here must stop the release, not be worked around.
 
    ```sh
    pnpm install --frozen-lockfile
+   pnpm --filter @harness/after-effects-mcp sync
    pnpm licenses:verify && pnpm lint && pnpm typecheck && pnpm test
    pnpm --filter @harness/default-skills sync && pnpm build
    pnpm --filter @harness/desktop exec node scripts/build-preload.js

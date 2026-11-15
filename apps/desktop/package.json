@@ -19,9 +19,9 @@
     "typecheck": "tsc -b",
     "start": "tsc -b && node scripts/build-main.js && node scripts/build-preload.js && node scripts/start.js",
     "test": "vitest run src --passWithNoTests",
-    "dist": "pnpm -w licenses:verify && pnpm --filter @harness/default-skills sync && pnpm -w build && node scripts/build-preload.js && electron-builder -c.extraMetadata.tastecodeEdition=dev",
-    "dist:dir": "pnpm -w licenses:verify && pnpm --filter @harness/default-skills sync && pnpm -w build && node scripts/build-preload.js && electron-builder --dir -c.extraMetadata.tastecodeEdition=dev",
-    "dist:release": "pnpm -w licenses:verify && pnpm --filter @harness/default-skills sync && pnpm -w build && node scripts/build-preload.js && electron-builder",
+    "dist": "pnpm --filter @harness/after-effects-mcp sync && pnpm -w licenses:verify && pnpm --filter @harness/default-skills sync && pnpm -w build && node scripts/build-preload.js && electron-builder -c.extraMetadata.tastecodeEdition=dev",
+    "dist:dir": "pnpm --filter @harness/after-effects-mcp sync && pnpm -w licenses:verify && pnpm --filter @harness/default-skills sync && pnpm -w build && node scripts/build-preload.js && electron-builder --dir -c.extraMetadata.tastecodeEdition=dev",
+    "dist:release": "pnpm --filter @harness/after-effects-mcp sync && pnpm -w licenses:verify && pnpm --filter @harness/default-skills sync && pnpm -w build && node scripts/build-preload.js && electron-builder",
     "verify:native-bindings": "node scripts/run-native-binding-proof.js"
   },
   "dependencies": {
@@ -115,6 +115,10 @@
       {
         "from": "../../packages/default-skills/bundle",
         "to": "default-skills"
+      },
+      {
+        "from": "../../packages/after-effects-mcp/bundle/after-effects-mcp",
+        "to": "after-effects-mcp"
       },
       {
         "from": "dist/feedback",
