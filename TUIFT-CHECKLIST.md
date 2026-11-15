@@ -36,7 +36,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
 - [x] 1.12 Conferir no app que texto mais longo não quebra layout.
 - [ ] 1.13 O dono do projeto confirma os termos usados: "chats", "Atalhos" (Keybinds), "Caixa de entrada" (Inbox), "Trilho" (seletor de modelo em duas etapas), e se os controles vizinhos do chat (busca no chat, desfazer, copiar) são traduzidos.
 - [ ] 1.14 Traduzir os textos de tela que vêm do servidor (erros de pull request, provedores, MCP, nomes de limite), conforme a proposta do 1.10.
-- [~] 1.15 Fronteira fina do chat, decidida em 15/11 (traduzir o que é do app, manter em inglês o que é da conversa): faixa de avisos acima do campo de texto, "Choose project" e "Add provider" dentro do campo, menu "/", conversa de exemplo do onboarding, erros no campo de mensagem e títulos padrão de chat ("New session").
+- [x] 1.15 Fronteira fina do chat (15/11): traduzido o que é do app em volta da conversa (rótulos da tela inicial, faixa de avisos, descrições do menu "/", busca no chat, restaurar, copiar, visualizador de mídia, títulos padrão só na hora de mostrar). Continuam em inglês as mensagens, as linhas de processo, o texto de exemplo do campo, os modos de acesso, Design, Motion e o seletor de modelo. Erros da fila e de anexos ainda em inglês.
 - [ ] 1.16 Restos pequenos ainda em inglês: página de laboratório de avatar (Depuração), erros da imagem de fundo, busca da paleta pelo nome do grupo em português, separador de milhar em contagens grandes.
 - [ ] 1.17 Conferir no app instalado: menus nativos, bandeja, notificações, troca de idioma em tempo real e as telas que só existem lá (Importar chats com dados, celular, navegador interno, terminal).
 
@@ -119,19 +119,19 @@ Definição do dono do projeto (15/11): ligar o Motion transforma aquele chat nu
 
 Depende dos itens 2 (skills) e 3 (MCP). O botão do item 6.2 é a porta de entrada. A cena dos bonecos é a exceção combinada à regra do chat intocado.
 
-- [x] 9.1 Plano escrito em `branding/plano-modo-motion.md` (15/11). **Falta o dono do projeto aprovar** o plano e as seis decisões do fim dele.
-- [ ] 9.2 Fase 1, cena dos bonecos (só visual):
+- [x] 9.1 Plano em `branding/plano-modo-motion.md`, aprovado pelo dono do projeto em 15/11, com os padrões propostos nas seis decisões.
+- [~] 9.2 Fase 1, cena dos bonecos (só visual), em andamento:
   - [ ] 9.2a Levar as seis cabeças da identidade v2 para o app e registrar a origem.
   - [ ] 9.2b Componente da cena acima da conversa, sem tocar no chat nem no campo de texto, com estilo carregado à parte.
   - [ ] 9.2c Entrada, destaque e respiração com os tokens de movimento do app; sem animação para quem pediu menos movimento.
   - [ ] 9.2d Janela estreita, leitor de tela e tradução de papéis e etapas.
   - [ ] 9.2e Testes e prova no ambiente de demonstração, tema claro e escuro.
 - [ ] 9.3 Fase 2, o Motion guardado no chat:
-  - [ ] 9.3a Contrato: modo (`motion` ou `design`) e etapa nas configurações do chat; pedido para trocar o modo.
+  - [~] 9.3a Contrato: modo (`motion` ou `design`) e etapa nas configurações do chat; pedido para trocar o modo.
   - [ ] 9.3b Servidor guarda e avisa; a tela lê, e o que estava só local é migrado uma vez.
   - [ ] 9.3c Testes: o modo sobrevive a reiniciar o app e às gravações que já existem.
 - [ ] 9.4 Fase 3, pacote Motion:
-  - [ ] 9.4a As skills de vídeo vão no instalador como pacote separado (fecha o item 2.6).
+  - [~] 9.4a As skills de vídeo vão no instalador como pacote separado (fecha o item 2.6).
   - [ ] 9.4b Instrução curta de papel e etapas no início da sessão, em Codex, Claude Code e Grok.
   - [ ] 9.4c Pacote ligado só em chats Motion; ligar e desligar no meio do chat.
   - [ ] 9.4d Provar com os programas reais os dois pontos de risco do plano.
@@ -195,19 +195,20 @@ Pedido de 15/11: o repositório é público e a página inicial precisa ser visu
 
 Cada frente roda num worktree próprio em `C:/Dev/tuift-wt/<frente>`, numa branch `tuift/<frente>`, e volta para a `main` por merge depois de conferida.
 
-| Onda | Frente                                                                                               | Subtarefas    | Estado                     |
-| ---- | ---------------------------------------------------------------------------------------------------- | ------------- | -------------------------- |
-| 1    | `i18n-core`                                                                                          | 1.1, 1.2, 1.3 | na `main` (15/11), testada |
-| 1    | `mcp-cards`                                                                                          | 3.1 a 3.5     | na `main` (15/11), testada |
-| 1    | `bulk-delete`                                                                                        | 4.1 a 4.4     | na `main` (15/11), testada |
-| 1    | `file-viewers`                                                                                       | 5.1 a 5.7     | na `main` (15/11), testada |
-| 1    | `composer`                                                                                           | 6.1, 6.2      | na `main` (15/11), testada |
-| 1    | `design-scan`                                                                                        | 6.3           | na `main` (15/11), testada |
-| 1    | `skills`                                                                                             | 2.1, 2.3, 2.4 | na `main` (15/11), testada |
-| 1    | `chat-leak`                                                                                          | 8.1 a 8.4     | na `main` (15/11), testada |
-| 1b   | `skills-pin`                                                                                         | 2.5a          | na `main` (15/11)          |
-| 1b   | `skills-motion`                                                                                      | 2.5b          | na `main` (15/11)          |
-| 1b   | `skills-ae-trilha`                                                                                   | 2.5c          | na `main` (15/11)          |
-| 1b   | `skills-misc`                                                                                        | 2.5d          | na `main` (15/11)          |
-| 1b   | `readme`                                                                                             | 14.1 a 14.5   | na `main` (15/11)          |
-| 2    | `i18n-settings`, `i18n-sidebar`, `i18n-onboarding`, `i18n-workspace`, `i18n-dialogs`, `i18n-desktop` | 1.4 a 1.12    | na `main` (15/11), testada |
+| Onda | Frente                                                                                               | Subtarefas      | Estado                     |
+| ---- | ---------------------------------------------------------------------------------------------------- | --------------- | -------------------------- |
+| 1    | `i18n-core`                                                                                          | 1.1, 1.2, 1.3   | na `main` (15/11), testada |
+| 1    | `mcp-cards`                                                                                          | 3.1 a 3.5       | na `main` (15/11), testada |
+| 1    | `bulk-delete`                                                                                        | 4.1 a 4.4       | na `main` (15/11), testada |
+| 1    | `file-viewers`                                                                                       | 5.1 a 5.7       | na `main` (15/11), testada |
+| 1    | `composer`                                                                                           | 6.1, 6.2        | na `main` (15/11), testada |
+| 1    | `design-scan`                                                                                        | 6.3             | na `main` (15/11), testada |
+| 1    | `skills`                                                                                             | 2.1, 2.3, 2.4   | na `main` (15/11), testada |
+| 1    | `chat-leak`                                                                                          | 8.1 a 8.4       | na `main` (15/11), testada |
+| 1b   | `skills-pin`                                                                                         | 2.5a            | na `main` (15/11)          |
+| 1b   | `skills-motion`                                                                                      | 2.5b            | na `main` (15/11)          |
+| 1b   | `skills-ae-trilha`                                                                                   | 2.5c            | na `main` (15/11)          |
+| 1b   | `skills-misc`                                                                                        | 2.5d            | na `main` (15/11)          |
+| 1b   | `readme`                                                                                             | 14.1 a 14.5     | na `main` (15/11)          |
+| 3    | `motion-cast`, `motion-state`, `motion-pack`                                                         | 9.2, 9.3a, 9.4a | em andamento (15/11)       |
+| 2    | `i18n-settings`, `i18n-sidebar`, `i18n-onboarding`, `i18n-workspace`, `i18n-dialogs`, `i18n-desktop` | 1.4 a 1.12      | na `main` (15/11), testada |
