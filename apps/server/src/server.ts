@@ -325,6 +325,7 @@ export function startServer(
       }
     },
     agentTools: true,
+    onThreadSettings: (threadId) => announceSettings(threadId),
     browserTools: {
       run: (caller, request, signal) => browserCommands.run(caller.threadId, request, signal),
     },
