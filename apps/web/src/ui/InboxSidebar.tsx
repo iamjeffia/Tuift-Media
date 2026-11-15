@@ -1,6 +1,8 @@
 import {
   createContext,
+  lazy,
   memo,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -49,10 +51,22 @@ import {
 import { AppSelect } from './AppSelect.js'
 import { isComposingKey, isConfirmEnter } from '../shortcuts.js'
 import { Menu, MenuItem } from './Menu.js'
-import { isTextEntryTarget, nearestSurvivor } from './session-selection.js'
+import {
+  bulkDeleteCopy,
+  isLiveStatus,
+  isTextEntryTarget,
+  nearestSurvivor,
+} from './session-selection.js'
+import { SelectionBar } from './SelectionBar.js'
 import type { Project, Session } from './Sidebar.js'
 import { SourceIdentity } from './SourceIdentity.js'
 import { InboxCardsSkeleton } from './SurfaceSkeletons.js'
+
+const SidebarConfirmDialog = lazy(() =>
+  import('./SidebarConfirmDialog.js').then((module) => ({
+    default: module.SidebarConfirmDialog,
+  })),
+)
 
 const PAGE_SIZE = 25
 const INITIAL_ACTIVE_LIMIT = 12
@@ -179,6 +193,8 @@ function InboxSidebarComponent(props: {
   const [settledLimit, setSettledLimit] = useState(INITIAL_SETTLED_LIMIT)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [selectionAnchor, setSelectionAnchor] = useState<string>()
+  // Deleting several threads asks first, as the project sidebar does.
+  const [deleting, setDeleting] = useState<{ ids: string[]; running: number }>()
   const [eagerRowActions, setEagerRowActions] = useState(
     () => globalThis.matchMedia?.(NARROW_VIEWPORT_QUERY).matches ?? false,
   )
@@ -276,7 +292,9 @@ function InboxSidebarComponent(props: {
   const orderedRef = useRef(visibleOrdered)
   const selectedIdsRef = useRef(selectedIds)
   const selectionAnchorRef = useRef(selectionAnchor)
+  const projectsRef = useRef(props.projects)
   orderedRef.current = visibleOrdered
+  projectsRef.current = props.projects
   selectedIdsRef.current = selectedIds
   selectionAnchorRef.current = selectionAnchor
 
@@ -356,6 +374,35 @@ function InboxSidebarComponent(props: {
     },
     [props.onArchiveSession, props.onArchiveSessions],
   )
+  const requestDelete = useCallback((ids: string[]) => {
+    if (ids.length === 0) return
+    setDeleting({
+      ids,
+      running: ids.filter((id) => {
+        const found = findSession(projectsRef.current, id)
+        return found !== undefined && isLiveStatus(found.session.status)
+      }).length,
+    })
+  }, [])
+  const confirmDelete = useCallback(
+    (ids: string[]) => {
+      const next = nearestSurvivor(
+        orderedRef.current.map((entry) => entry.session.id),
+        new Set(ids),
+      )
+      archiveSessions(ids)
+      setSelectedIds(new Set())
+      // The rows leave once the delete lands; focus goes to the nearest one that stays.
+      if (next) window.setTimeout(() => rowRefs.current.get(next)?.focus(), 0)
+    },
+    [archiveSessions],
+  )
+  // The bar's clear button leaves with the bar: focus goes back to a chat.
+  const clearFromBar = useCallback(() => {
+    const first = orderedRef.current.find((entry) => selectedIdsRef.current.has(entry.session.id))
+    setSelectedIds(new Set())
+    if (first) window.setTimeout(() => rowRefs.current.get(first.session.id)?.focus(), 0)
+  }, [])
   // Escape ends the selection and Delete acts on all of it, as the row menu does.
   const onBodyKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
@@ -368,17 +415,10 @@ function InboxSidebarComponent(props: {
         setSelectedIds(new Set())
       } else if (event.key === 'Delete') {
         event.preventDefault()
-        const next = nearestSurvivor(
-          orderedRef.current.map((entry) => entry.session.id),
-          selected,
-        )
-        archiveSessions([...selected])
-        setSelectedIds(new Set())
-        // The rows leave once the delete lands; focus goes to the nearest one that stays.
-        if (next) window.setTimeout(() => rowRefs.current.get(next)?.focus(), 0)
+        requestDelete([...selected])
       }
     },
-    [archiveSessions],
+    [requestDelete],
   )
   const [announcement, setAnnouncement] = useState('')
   const announcedCount = useRef(0)
@@ -493,12 +533,6 @@ function InboxSidebarComponent(props: {
           <InboxCardsSkeleton />
         ) : (
           <div className="inbox">
-            {selectedIds.size > 1 ? (
-              <p className="inbox__selection-count">
-                {tp('sidebar.inbox.selectedCount', selectedIds.size)}
-              </p>
-            ) : null}
-
             {!normalizedQuery || active.length > 0 ? (
               <>
                 <SectionHeading title={t('sidebar.inbox.active')} count={active.length} />
@@ -524,7 +558,7 @@ function InboxSidebarComponent(props: {
                           onRename={props.onRenameSession}
                           onTogglePin={props.onToggleSessionPin}
                           onArchive={props.onArchiveSession}
-                          onArchiveMany={archiveSessions}
+                          onArchiveMany={requestDelete}
                           onClearSelection={clearSelection}
                         />
                       )
@@ -574,7 +608,7 @@ function InboxSidebarComponent(props: {
                         onRename={props.onRenameSession}
                         onTogglePin={props.onToggleSessionPin}
                         onArchive={props.onArchiveSession}
-                        onArchiveMany={archiveSessions}
+                        onArchiveMany={requestDelete}
                         onAction={unsnooze}
                         onClearSelection={clearSelection}
                       />
@@ -622,7 +656,7 @@ function InboxSidebarComponent(props: {
                         onRename={props.onRenameSession}
                         onTogglePin={props.onToggleSessionPin}
                         onArchive={props.onArchiveSession}
-                        onArchiveMany={archiveSessions}
+                        onArchiveMany={requestDelete}
                         onAction={unsettle}
                         onClearSelection={clearSelection}
                       />
@@ -650,7 +684,26 @@ function InboxSidebarComponent(props: {
             ) : null}
           </div>
         )}
+        {selectedIds.size > 1 ? (
+          <SelectionBar
+            count={selectedIds.size}
+            onDelete={() => requestDelete([...selectedIds])}
+            onClear={clearFromBar}
+          />
+        ) : null}
       </div>
+      {deleting ? (
+        <Suspense fallback={null}>
+          <SidebarConfirmDialog
+            {...bulkDeleteCopy(deleting.ids.length, deleting.running)}
+            onConfirm={() => {
+              confirmDelete(deleting.ids)
+              setDeleting(undefined)
+            }}
+            onClose={() => setDeleting(undefined)}
+          />
+        </Suspense>
+      ) : null}
     </InboxClock>
   )
 }
@@ -1234,15 +1287,15 @@ function ThreadMenu(props: {
               }
               icon={<Trash2 size={13} aria-hidden />}
               className="menu__item--danger"
-              onClick={() =>
-                finish(close, () => {
-                  if (multiple) {
-                    props.onArchiveMany(props.entries.map((entry) => entry.session.id))
-                  } else {
-                    props.onArchive()
-                  }
-                })
-              }
+              onClick={() => {
+                // Several threads ask first, so the selection stays until the answer.
+                if (multiple) {
+                  close()
+                  props.onArchiveMany(props.entries.map((entry) => entry.session.id))
+                } else {
+                  finish(close, () => props.onArchive())
+                }
+              }}
             />
           </>
         )

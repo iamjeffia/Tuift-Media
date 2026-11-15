@@ -161,6 +161,17 @@ export function nearestSurvivor(order: readonly string[], gone: ReadonlySet<stri
   )
 }
 
+/** A chat in one of these states is running or waiting on the user. */
+export function isLiveStatus(status: string): boolean {
+  return (
+    status === 'starting' ||
+    status === 'working' ||
+    status === 'queued' ||
+    status === 'approval' ||
+    status === 'input'
+  )
+}
+
 export function selectedCountLabel(count: number): string {
   return tp('sidebar.chat.count', count)
 }

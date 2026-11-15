@@ -100,6 +100,20 @@ describe('sidebar in Portuguese', () => {
     expect(within(dialog).getByRole('button', { name: 'Excluir 3 chats' })).toBeTruthy()
   })
 
+  it('writes the selection bar in Portuguese, with plurals', () => {
+    setLanguage('pt-BR', { persist: false })
+    render(sidebar())
+
+    const chats = ['First plain chat', 'Second plain chat']
+    for (const title of chats)
+      fireEvent.click(screen.getByText(title).closest('button')!, { ctrlKey: true })
+    const bar = document.querySelector<HTMLElement>('.selection-bar')!
+    expect(within(bar).getByText('2 selecionados')).toBeTruthy()
+    expect(within(bar).getByRole('button', { name: 'Excluir 2 chats' }).textContent).toBe('Excluir')
+    expect(within(bar).getByRole('button', { name: 'Limpar seleção' })).toBeTruthy()
+    expect(bar.getAttribute('aria-label')).toBe('Seleção')
+  })
+
   it('counts chats with the plural of the language', () => {
     setLanguage('pt-BR', { persist: false })
     expect(selectedCountLabel(1)).toBe('1 chat')

@@ -104,6 +104,7 @@ import { rememberProjectOpen, wasProjectOpen } from './project-open-memory.js'
 import {
   bulkDeleteCopy,
   createSessionSelection,
+  isLiveStatus,
   isTextEntryTarget,
   nearestSurvivor,
   runningStopLabel,
@@ -111,6 +112,7 @@ import {
   useSessionSelected,
   type SessionSelectionActions,
 } from './session-selection.js'
+import { SessionSelectionBar } from './SelectionBar.js'
 import '../styles/account-card.css'
 import '../styles/session-selection.css'
 import '../styles/rail-motion.css'
@@ -1025,6 +1027,7 @@ function SidebarComponent(props: {
                   onDeleteSession={deleteSession}
                 />
               ) : null}
+              <SessionSelectionBar />
             </div>
           </>
         )}
@@ -2180,17 +2183,6 @@ function SessionRow(props: {
         }}
       </Menu>
     </li>
-  )
-}
-
-/** A chat in one of these states is running or waiting on the user. */
-function isLiveStatus(status: Session['status']): boolean {
-  return (
-    status === 'starting' ||
-    status === 'working' ||
-    status === 'queued' ||
-    status === 'approval' ||
-    status === 'input'
   )
 }
 
