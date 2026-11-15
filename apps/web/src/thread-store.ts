@@ -1,4 +1,10 @@
-import type { DomainEvent, Item, Usage } from '@harness/contracts'
+import {
+  endsWithStreamCut,
+  itemTextLimit,
+  type DomainEvent,
+  type Item,
+  type Usage,
+} from '@harness/contracts'
 import {
   EMPTY_LIVE_ITEMS,
   emptyThread,
@@ -28,6 +34,20 @@ const liveItemTransitions = new WeakMap<
 >()
 
 export type ItemDeltaEvent = Extract<DomainEvent, { type: 'item.delta' }>
+
+/**
+ * An item that reached its text limit ends with the server's cut marker and takes no more text.
+ * The server already drops what comes after; this keeps the copy here from growing if some does.
+ * The length is read first because it costs nothing, while the marker is read only for a text
+ * that is long enough to have been cut. A saved chat whose text is longer, from before the
+ * limits, has no marker and is read as it was written.
+ */
+function atTextLimit(item: Item): boolean {
+  const text = item.text
+  if (text === undefined) return false
+  const limit = itemTextLimit(item)
+  return limit !== undefined && text.length >= limit.max && endsWithStreamCut(text)
+}
 
 /**
  * Keeps large live-item snapshots immutable without copying every unchanged
@@ -546,7 +566,7 @@ export function reduceDeltas(state: ThreadState, deltas: ItemDeltaEvent[]): Thre
     }
 
     const existing = liveItemUpdates?.get(index)?.item ?? threadItemAt(items, liveItems, index)
-    if (existing?.status === 'started') {
+    if (existing?.status === 'started' && !atTextLimit(existing)) {
       liveItemUpdates ??= new Map()
       liveItemUpdates.set(index, {
         item: { ...existing, text: (existing.text ?? '') + textDelta },
@@ -606,7 +626,7 @@ function reduceSingleItemDeltas(
   }
 
   const existing = threadItemAt(state.items, state.liveItems, index)
-  if (existing?.status !== 'started') return state
+  if (existing?.status !== 'started' || atTextLimit(existing)) return state
   const update = {
     item: { ...existing, text: (existing.text ?? '') + textDelta },
     version: state.itemVersion + 1,
@@ -730,7 +750,7 @@ class ReplayItems {
     }
 
     const existing = this.items[index]
-    if (existing?.status === 'started') {
+    if (existing?.status === 'started' && !atTextLimit(existing)) {
       this.items[index] = { ...existing, text: (existing.text ?? '') + textDelta }
     }
   }

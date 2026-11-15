@@ -49,7 +49,7 @@ import { z } from 'zod'
 import type { TurnOptions } from './adapters.js'
 import { canonicalDataPath } from './data-lease.js'
 import type { HistoryCarry } from './history-page.js'
-import { boundItemEvent } from './item-output-bounds.js'
+import { boundItemEvent, boundOutputEvent } from './item-output-bounds.js'
 import {
   historyIndexKeys,
   HISTORY_STATE_EVENT_TYPES,
@@ -2177,10 +2177,15 @@ export class Store {
         const payload = JSON.stringify(event)
         const existing = previous.get(key)
         if (event.type === 'turn.started') turnAt = event.turn.createdAt
+        // A message or diff the log already holds over its limit is left as it was saved:
+        // only what was bounded before the limits on messages and diffs is brought to its cap.
+        const unchanged =
+          existing?.active &&
+          (existing.payload === payload ||
+            existing.payload === JSON.stringify(boundOutputEvent(imported)))
         if (
           !(retired && event.type === 'thread.started') &&
-          ((existing?.active && existing.payload === payload) ||
-            (restoredAt != null && turnAt <= Number(restoredAt)))
+          (unchanged || (restoredAt != null && turnAt <= Number(restoredAt)))
         )
           continue
         if (existing)

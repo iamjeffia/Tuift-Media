@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { isCutDiff } from '@harness/contracts'
 import { IconChevronDown as ChevronDown, IconFilePencil as FilePenLine } from '@tabler/icons-react'
 import type { Transport } from '../transport.js'
 import { DiffReview } from './DiffReview.js'
@@ -37,6 +38,8 @@ export function Diff({
   onUndo?: (() => Promise<void>) | undefined
 }) {
   const parsed = useMemo(() => (diff ? parseDiff(diff) : null), [diff])
+  // A diff cut to its size limit is a part of the change: undoing it would undo only a part.
+  const cut = useMemo(() => (diff ? isCutDiff(diff) : false), [diff])
   const [reviewing, setReviewing] = useState(false)
   const [showAllFiles, setShowAllFiles] = useState(false)
   const [undoing, setUndoing] = useState(false)
@@ -108,7 +111,7 @@ export function Diff({
           <ChangeStats added={parsed.added} removed={parsed.removed} className="diff__stat" />
         </span>
         <div className="diff__actions">
-          {onUndo ? (
+          {onUndo && !cut ? (
             <button
               ref={undoButton}
               type="button"

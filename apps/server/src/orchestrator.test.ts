@@ -1863,6 +1863,88 @@ describe('machine output in the log', () => {
       store.close()
     }
   })
+
+  it('records and sends a message that streams past 1 MiB cut once, and no more of it', async () => {
+    const { orchestrator, sessions, received, store } = harness()
+    try {
+      const thread = await orchestrator.startThread('codex', process.cwd())
+      const session = sessions[0]!
+      session.emit(turnStarted(thread.id, 't1'))
+      session.emit({
+        type: 'item.started',
+        item: {
+          id: 'reply',
+          turnId: 't1',
+          type: 'message',
+          role: 'assistant',
+          status: 'started',
+          createdAt: 1,
+        },
+      })
+      for (let chunk = 0; chunk < 30; chunk += 1) {
+        session.emit({
+          type: 'item.delta',
+          turnId: 't1',
+          itemId: 'reply',
+          textDelta: 'x'.repeat(100_000),
+        })
+      }
+      await orchestrator.history(thread.id)
+
+      const streamed = (events: DomainEvent[]) =>
+        events.flatMap((event) =>
+          event.type === 'item.delta' && event.itemId === 'reply' ? [event.textDelta] : [],
+        )
+      for (const events of [
+        store.history(thread.id).map(({ event }) => event),
+        received.map(({ event }) => event),
+      ]) {
+        expect(streamed(events).join('')).toBe(
+          `${'x'.repeat(1024 * 1024)}\n… message truncated …\n`,
+        )
+      }
+    } finally {
+      await orchestrator.disposeAll()
+      store.close()
+    }
+  })
+
+  it('records a turn diff over 1 MiB cut at a line, and refuses to undo what was cut', async () => {
+    const { orchestrator, sessions, received, store } = harness()
+    try {
+      const thread = await orchestrator.startThread('codex', process.cwd())
+      const session = sessions[0]!
+      session.emit(turnStarted(thread.id, 't1'))
+      const line = `+${'x'.repeat(98)}`
+      const diff = [
+        'diff --git a/big.txt b/big.txt',
+        'new file mode 100644',
+        '--- /dev/null',
+        '+++ b/big.txt',
+        '@@ -0,0 +1,20000 @@',
+        ...Array.from({ length: 20_000 }, () => line),
+      ].join('\n')
+      expect(diff.length).toBeGreaterThan(1024 * 1024)
+      session.emit({ type: 'diff.updated', turnId: 't1', diff })
+      session.emit({ type: 'turn.completed', turnId: 't1', status: 'completed' })
+      await orchestrator.history(thread.id)
+
+      const stored = store.turnDiff(thread.id, 't1')!
+      expect(stored.length).toBeLessThan(1024 * 1024 + 64)
+      expect(stored.startsWith('diff --git a/big.txt b/big.txt\nnew file mode 100644\n')).toBe(true)
+      expect(stored).toMatch(/\n… \d+ characters omitted …$/)
+      const sent = received.flatMap(({ event }) =>
+        event.type === 'diff.updated' ? [event.diff] : [],
+      )
+      expect(sent).toEqual([stored])
+      await expect(orchestrator.undoTurnChanges(thread.id, 't1', stored)).rejects.toThrow(
+        'too large to keep whole',
+      )
+    } finally {
+      await orchestrator.disposeAll()
+      store.close()
+    }
+  })
 })
 
 describe('sidebar status revision', () => {

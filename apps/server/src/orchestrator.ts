@@ -16,6 +16,7 @@ import type {
 import { isDesignBriefAttachment } from '@harness/design-agent/attachment'
 import {
   DEFAULT_ACCOUNT_ID,
+  isCutDiff,
   JsonValueSchema,
   PreviewDomAuditSchema,
   ProviderIdSchema,
@@ -4128,6 +4129,10 @@ export class Orchestrator {
         const diff = this.#store.turnDiff(threadId, turnId)
         if (!diff || diff !== expectedDiff) {
           throw new Error('This edit block changed. Reload the session and try again.')
+        }
+        // A diff cut to its size limit is only a part of the change; reversing it would undo part.
+        if (isCutDiff(diff)) {
+          throw new Error('This edit block is too large to keep whole, so it cannot be undone.')
         }
         try {
           await reverseUnifiedDiff(this.#repoPath(threadId), diff)
