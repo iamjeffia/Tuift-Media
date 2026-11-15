@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { generatedAvatar, type AvatarStyle } from '../generated-avatar.js'
+import { setLanguage } from '../i18n/index.js'
 import { GeneratedAvatarLab, avatarRecipe } from './GeneratedAvatarLab.js'
 
 afterEach(cleanup)
@@ -52,6 +53,22 @@ describe('generated avatar lab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Marble', pressed: false }))
     expect(screen.getByText(recipe('Leon', 'marble'))).toBeTruthy()
     expect(document.querySelectorAll('.avatar-lab__preview circle')).toHaveLength(3 * 4)
+  })
+
+  it('speaks Portuguese in its labels, buttons and recipe', () => {
+    setLanguage('pt-BR', { persist: false })
+    render(<GeneratedAvatarLab initialName="Leon" />)
+
+    expect(screen.getByRole('textbox', { name: 'Nome' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Nome aleatório' })).toBeTruthy()
+    expect(screen.getByRole('group', { name: 'Estilo do avatar' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Mandala · em uso/u, pressed: true })).toBeTruthy()
+    expect(screen.getByLabelText('Avatar gerado nos tamanhos em uso')).toBeTruthy()
+    expect(screen.getByLabelText('Nomes de exemplo')).toBeTruthy()
+    expect(screen.getByText('Perfil · 88px')).toBeTruthy()
+    expect(screen.getByText('Barra lateral · 18px')).toBeTruthy()
+    expect(screen.getByText(recipe('Leon'))).toBeTruthy()
+    expect(recipe('Leon')).toMatch(/(escuro|claro) · matiz \d+/u)
   })
 
   it('falls back to the local profile name and offers a random one', () => {

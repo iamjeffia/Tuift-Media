@@ -97,7 +97,7 @@ it is translated through the `chat` catalog (`areas/chat.*.ts`, keys `chat.…`)
   buttons and `ui/DesignBeam.tsx`, the model picker and effort names (`ui/ModelSelector.tsx`,
   `ui/ModelSelectorPanel.tsx`, `ui/ModelSearchField.tsx`), voice (`ui/ComposerVoiceControl.tsx`,
   `ui/ComposerVoiceRecorderBar.tsx`, `ui/VoiceWaveform.tsx`), context usage (`ui/ContextUsage.tsx`),
-  the queue shelf and its errors, the attachment chips and their errors, `ui/composer-chips.ts`,
+  the queue shelf and the attachment chips, `ui/composer-chips.ts`,
   `ui/composer-inventory.ts`.
 - Text that comes from the server and is shown as the error of a turn or an action (`thread.error`,
   `actionError`, `currentModelError`, `providerProblem`) and the "can't ask before running
@@ -109,6 +109,10 @@ it is translated through the `chat` catalog (`areas/chat.*.ts`, keys `chat.…`)
   project", "Workspace mode", "Local", "Isolated", the branch menu), and the provider setup notice
   it puts in the tray ("Add a provider to start chatting." and its button). Only literals were
   replaced there; project and branch names are data.
+- The composer's own error notices: attachments (too large, not supported, could not attach, paste or drop
+  in the web build) and a queued prompt that cannot be removed (`chat.attach.*`, `chat.queue.*`). A reason
+  the server wrote stays as it came. The copy buttons of a prompt and a response take their `aria-label`
+  from `chat.copy.*`.
 - The notice tray: `ui/ComposerErrors.tsx`, `ui/UsageResetNotice.tsx`, the `composerErrors` block of
   `App.tsx` ("Reconnecting…", "Retry", "Sign in", "Continued on…", "Switch to…", "Your next message
   switches…"), `continue-account.ts` (`continuationNote`) and `isolateUnavailable`.
@@ -156,3 +160,5 @@ translated in the `chat` area.
 
 Date, time and number formatting (relative times, usage figures) use `Intl` with the default
 locale today; wave 2 should pass `getLanguage()` as the locale where the text is shown.
+For a number shown to the user outside the transcript, call `formatNumber(value, options?)` from the
+index: it follows the current language (`1,234` in English, `1.234` in Portuguese).

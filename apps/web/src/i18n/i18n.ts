@@ -131,6 +131,20 @@ export function setLanguage(language: Language, options: { persist?: boolean } =
   for (const listener of listeners) listener()
 }
 
+const NUMBER_LOCALES = { en: 'en-US', 'pt-BR': 'pt-BR' } as const satisfies Record<Language, string>
+const numberFormats = new Map<string, Intl.NumberFormat>()
+
+/** A number in the current language: `1,234` in English, `1.234` in Portuguese. */
+export function formatNumber(value: number, options: Intl.NumberFormatOptions = {}): string {
+  const key = `${current}:${JSON.stringify(options)}`
+  let format = numberFormats.get(key)
+  if (!format) {
+    format = new Intl.NumberFormat(NUMBER_LOCALES[current], options)
+    numberFormats.set(key, format)
+  }
+  return format.format(value)
+}
+
 export function t(key: MessageKey, vars?: MessageVars): string {
   return translate(current, key, vars)
 }

@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { HighlightOptions } from 'streamdown'
+import { formatNumber } from '../../i18n/index.js'
 import { DARK_THEME, LIGHT_THEME } from '../highlighter-config.js'
 import type { HighlightResult } from '../highlighter-protocol.js'
 import { shikiPlugin } from '../highlighter.js'
@@ -140,7 +141,7 @@ const CodeLine = memo(function CodeLine(props: {
       <span>{props.number}</span>
       <code>
         {cut
-          ? `${props.text.slice(0, MAX_DISPLAY_LINE)}… (${(props.text.length - MAX_DISPLAY_LINE).toLocaleString()} more characters)`
+          ? `${props.text.slice(0, MAX_DISPLAY_LINE)}… (${formatNumber(props.text.length - MAX_DISPLAY_LINE)} more characters)`
           : props.tokens
             ? props.tokens.map((token, index) => (
                 <span key={index} style={tokenStyle(token)}>

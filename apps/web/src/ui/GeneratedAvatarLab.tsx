@@ -7,14 +7,15 @@ import {
   type AvatarStyle,
   type GeneratedAvatar as Model,
 } from '../generated-avatar.js'
+import { t as tNow, tp as tpNow, useI18n, type MessageKey } from '../i18n/index.js'
 import { GeneratedAvatar } from './GeneratedAvatar.js'
 
 /** The three sizes the picture actually ships at: profile page, account menu, rail. */
 const PREVIEW_SIZES = [
-  { size: 88, label: 'Profile' },
-  { size: 32, label: 'Menu' },
-  { size: 18, label: 'Rail' },
-] as const
+  { size: 88, label: 'settings.debug.avatarLab.sizeProfile' },
+  { size: 32, label: 'settings.debug.avatarLab.sizeMenu' },
+  { size: 18, label: 'settings.debug.avatarLab.sizeRail' },
+] as const satisfies ReadonlyArray<{ size: number; label: MessageKey }>
 
 const STYLE_LABELS = {
   mandala: 'Mandala',
@@ -44,14 +45,17 @@ function randomName(): string {
 }
 
 export function avatarRecipe(avatar: Model): string {
-  const tone = `${avatar.dark ? 'dark' : 'light'} · hue ${avatar.hue}`
+  const tone = tNow('settings.debug.avatarLab.tone', {
+    mode: tNow(avatar.dark ? 'settings.debug.avatarLab.dark' : 'settings.debug.avatarLab.light'),
+    hue: avatar.hue,
+  })
   switch (avatar.style) {
     case 'mandala':
       return `${STYLE_LABELS.mandala} · ${avatar.symmetry} · ${tone}`
     case 'orb':
       return `${STYLE_LABELS.orb} · ${avatar.angle}° · ${tone}`
     case 'marble':
-      return `${STYLE_LABELS.marble} · ${avatar.drops.length} drops · ${tone}`
+      return `${STYLE_LABELS.marble} · ${tpNow('settings.debug.avatarLab.drops', avatar.drops.length)} · ${tone}`
   }
 }
 
@@ -62,6 +66,7 @@ export function avatarRecipe(avatar: Model): string {
  * can be judged at a glance.
  */
 export function GeneratedAvatarLab(props: { initialName?: string | undefined }) {
+  const { t } = useI18n()
   const [name, setName] = useState(props.initialName?.trim() || 'Local profile')
   const [style, setStyle] = useState<AvatarStyle>(DEFAULT_AVATAR_STYLE)
   const inputId = useId()
@@ -71,7 +76,7 @@ export function GeneratedAvatarLab(props: { initialName?: string | undefined }) 
     <div className="avatar-lab">
       <div className="avatar-lab__controls">
         <label className="avatar-lab__field" htmlFor={inputId}>
-          <span>Name</span>
+          <span>{t('settings.debug.avatarLab.name')}</span>
           <input
             className="set-input"
             id={inputId}
@@ -83,10 +88,14 @@ export function GeneratedAvatarLab(props: { initialName?: string | undefined }) 
         </label>
         <button className="set-button" type="button" onClick={() => setName(randomName())}>
           <Shuffle size={14} aria-hidden />
-          <span>Random name</span>
+          <span>{t('settings.debug.avatarLab.randomName')}</span>
         </button>
       </div>
-      <div className="avatar-lab__styles" role="group" aria-label="Avatar style">
+      <div
+        className="avatar-lab__styles"
+        role="group"
+        aria-label={t('settings.debug.avatarLab.styles')}
+      >
         {AVATAR_STYLES.map((candidate) => (
           <button
             key={candidate}
@@ -100,12 +109,14 @@ export function GeneratedAvatarLab(props: { initialName?: string | undefined }) 
             </span>
             <span>
               {STYLE_LABELS[candidate]}
-              {candidate === DEFAULT_AVATAR_STYLE ? <small> · shipping</small> : null}
+              {candidate === DEFAULT_AVATAR_STYLE ? (
+                <small> · {t('settings.debug.avatarLab.shipping')}</small>
+              ) : null}
             </span>
           </button>
         ))}
       </div>
-      <div className="avatar-lab__previews" aria-label="Generated avatar at shipped sizes">
+      <div className="avatar-lab__previews" aria-label={t('settings.debug.avatarLab.previews')}>
         {PREVIEW_SIZES.map((preview) => (
           <figure key={preview.size} className="avatar-lab__preview">
             <span
@@ -115,7 +126,10 @@ export function GeneratedAvatarLab(props: { initialName?: string | undefined }) 
               <GeneratedAvatar name={name} style={style} />
             </span>
             <figcaption>
-              {preview.label} · {preview.size}px
+              {t('settings.debug.avatarLab.size', {
+                label: t(preview.label),
+                size: preview.size,
+              })}
             </figcaption>
           </figure>
         ))}
@@ -123,7 +137,7 @@ export function GeneratedAvatarLab(props: { initialName?: string | undefined }) 
           <code>{avatarRecipe(avatar)}</code>
         </p>
       </div>
-      <ul className="avatar-lab__samples" aria-label="Sample names">
+      <ul className="avatar-lab__samples" aria-label={t('settings.debug.avatarLab.samples')}>
         {SAMPLE_NAMES.map((sample) => (
           <li key={sample}>
             <button

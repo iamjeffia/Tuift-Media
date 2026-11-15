@@ -6,6 +6,7 @@ import {
   MAX_VISIBLE_PALETTE_COMMANDS,
   type PaletteCommand,
 } from './CommandPalette.js'
+import { setLanguage } from '../i18n/index.js'
 
 afterEach(cleanup)
 
@@ -76,6 +77,29 @@ describe('CommandPalette', () => {
 
     expect(ran).toEqual(['settings'])
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('finds the commands of a group by its Portuguese name, and still by the English one', () => {
+    setLanguage('pt-BR', { persist: false })
+    const { commands } = makeCommands()
+    render(<CommandPalette commands={commands} scope="all" onClose={vi.fn()} />)
+    const input = screen.getByRole('textbox', { name: 'Buscar comandos' })
+    const rows = () => document.querySelectorAll('.command-palette__item')
+
+    fireEvent.change(input, { target: { value: 'ações' } })
+    expect(screen.getByText('New chat')).toBeTruthy()
+    expect(screen.getByText('Settings')).toBeTruthy()
+    expect(screen.queryByText('Project A')).toBeNull()
+    expect(rows()).toHaveLength(2)
+
+    fireEvent.change(input, { target: { value: 'projetos' } })
+    expect(screen.getByText('Project A')).toBeTruthy()
+    expect(screen.queryByText('New chat')).toBeNull()
+
+    // People paste the English name too.
+    fireEvent.change(input, { target: { value: 'actions' } })
+    expect(screen.getByText('New chat')).toBeTruthy()
+    expect(screen.queryByText('Project A')).toBeNull()
   })
 
   it('leaves the Enter that confirms an IME conversion to the input method', () => {

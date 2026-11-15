@@ -65,7 +65,7 @@ describe('workspace panel in Portuguese', () => {
       />,
     )
     expect(screen.getByText('Arquivo binário')).toBeTruthy()
-    expect(screen.getByText('logo.bin tem 2.0 KB e não pode ser exibido como texto.')).toBeTruthy()
+    expect(screen.getByText('logo.bin tem 2,0 KB e não pode ser exibido como texto.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Abrir no Explorer' })).toBeTruthy()
   })
 

@@ -6,6 +6,7 @@ import type {
   PullRequestListItem,
   PullRequestListResult,
 } from '@harness/contracts'
+import { setLanguage } from '../../i18n/index.js'
 import { resetInstalls } from '../../provider-install.js'
 import { TestTransport } from '../../test-transport.js'
 import { PullRequestsView } from './PullRequestsView.js'
@@ -119,6 +120,26 @@ function scriptedListTransport(...replies: Array<PullRequestListResult | Error>)
 const listPane = () => within(document.querySelector<HTMLElement>('.pr-list-pane')!)
 
 describe('PullRequestsView', () => {
+  it.each([
+    ['en', '+1.2k', '−13k'],
+    ['pt-BR', '+1,2k', '−13k'],
+  ] as const)('writes large line counts in %s', async (language, added, removed) => {
+    setLanguage(language, { persist: false })
+    const [first] = result.items
+    const transport = scriptedListTransport({
+      ...result,
+      items: [{ ...first!, additions: 1234, deletions: 12_800 }],
+    })
+
+    render(
+      <PullRequestsView transport={transport} onOpenChat={vi.fn()} onSetupTerminalOpen={vi.fn()} />,
+    )
+
+    await screen.findByText('Authored change')
+    expect(document.querySelector('.pr-list-item .is-addition')?.textContent).toBe(added)
+    expect(document.querySelector('.pr-list-item .is-deletion')?.textContent).toBe(removed)
+  })
+
   it('says a failed search apart from a capped one', async () => {
     const transport = scriptedListTransport({ ...result, searchFailed: 'timeout' })
 

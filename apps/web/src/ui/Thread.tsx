@@ -2364,7 +2364,7 @@ const Row = memo(function Row({
         ) : null}
         {item.text ? (
           <div className="response-actions said__actions" aria-label="Prompt actions">
-            <CopyButton text={browserCommentsAsPlainText(item.text)} label="Copy prompt" />
+            <CopyButton text={browserCommentsAsPlainText(item.text)} labelKey="chat.copy.prompt" />
             {onEditMessage ? (
               <button
                 type="button"
@@ -3785,7 +3785,7 @@ function ResponseActions({
 }) {
   return (
     <div className="response-actions" aria-label="Response actions">
-      <CopyButton text={text} label="Copy response" />
+      <CopyButton text={text} labelKey="chat.copy.response" />
       {checkpoint && onRevertCheckpoint ? (
         <button
           type="button"

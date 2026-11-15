@@ -327,8 +327,6 @@ const COMPOSER_QUEUE_ANIMATION_ID = 'harness-composer-queue'
 // Match --dur-slow and --ease-rail so the panel and row reveal settle together.
 const COMPOSER_QUEUE_MOTION_MS = 260
 const COMPOSER_QUEUE_EASING = 'cubic-bezier(0.32, 0.72, 0, 1)'
-const ATTACHMENTS_UNSUPPORTED = 'Attachments aren’t supported by this source.'
-const ATTACHMENTS_BLOCK_SEND = 'Remove attachments or switch to a source that supports them.'
 const MAX_PASTED_FILE_BYTES = 25 * 1024 * 1024
 const PREVIEWABLE_IMAGE_TYPES = new Set([
   'image/png',
@@ -1386,7 +1384,7 @@ function ComposerComponent(props: {
   const attachFiles = (files: Array<PickedAttachment | string>) => {
     if (files.length === 0) return
     if (!attachmentsSupportedRef.current) {
-      setAttachmentError(ATTACHMENTS_UNSUPPORTED)
+      setAttachmentError(t('chat.attach.unsupported'))
       return
     }
     setAttachmentError(undefined)
@@ -1398,7 +1396,7 @@ function ComposerComponent(props: {
     setAttachmentError(undefined)
     for (const file of files) {
       if (file.size > MAX_PASTED_FILE_BYTES) {
-        setAttachmentError(`“${file.name}” is larger than 25 MB. Use the file picker instead.`)
+        setAttachmentError(t('chat.attach.tooLarge', { name: file.name }))
         continue
       }
       const mediaType = previewMediaType(file.type, file.name)
@@ -1423,7 +1421,7 @@ function ComposerComponent(props: {
           if (!saved) {
             removeAttachment(id, previewUrl)
             setAttachmentError(
-              `${source === 'drop' ? 'Dropping' : 'Pasting'} files is available in the desktop app.`,
+              t(source === 'drop' ? 'chat.attach.dropDesktopOnly' : 'chat.attach.pasteDesktopOnly'),
             )
             return undefined
           }
@@ -1450,7 +1448,7 @@ function ComposerComponent(props: {
           if (!mounted.current || draftRequestRef.current?.request !== owner) return undefined
           removeAttachment(id, previewUrl)
           setAttachmentError(
-            `Couldn’t attach “${file.name || 'that file'}”. Use the file picker instead.`,
+            t('chat.attach.failed', { name: file.name || t('chat.attach.thatFile') }),
           )
           return undefined
         })
@@ -1483,7 +1481,7 @@ function ComposerComponent(props: {
 
   const addDroppedFiles = (files: File[]) => {
     if (!attachmentsSupportedRef.current) {
-      setAttachmentError(ATTACHMENTS_UNSUPPORTED)
+      setAttachmentError(t('chat.attach.unsupported'))
       return
     }
 
@@ -1648,9 +1646,7 @@ function ComposerComponent(props: {
         return
       }
       if (removed !== true) {
-        setQueueError(
-          'Could not remove the queued prompt. It may have already started; no copy was added.',
-        )
+        setQueueError(t('chat.queue.removeFailedStarted'))
         return
       }
       // Preserve text typed while the deletion was in flight.
@@ -1661,9 +1657,7 @@ function ComposerComponent(props: {
       addFiles(queuedTurn.attachments.filter((path) => !linked.has(path)))
     } catch (error) {
       if (mounted.current && draftRequestRef.current?.request === owner) {
-        setQueueError(
-          error instanceof Error ? error.message : 'Could not remove the queued prompt.',
-        )
+        setQueueError(error instanceof Error ? error.message : t('chat.queue.removeFailed'))
       }
     } finally {
       handBack(undefined)
@@ -1677,9 +1671,7 @@ function ComposerComponent(props: {
       await props.onDeleteQueuedTurn(queuedTurnId)
     } catch (error) {
       if (mounted.current) {
-        setQueueError(
-          error instanceof Error ? error.message : 'Could not remove the queued prompt.',
-        )
+        setQueueError(error instanceof Error ? error.message : t('chat.queue.removeFailed'))
       }
     }
   }
@@ -1716,9 +1708,9 @@ function ComposerComponent(props: {
   const unsupportedAttachmentIssue = useMemo<ComposerError | undefined>(
     () =>
       !props.attachmentsSupported && attachments.length > 0
-        ? { id: crypto.randomUUID(), message: ATTACHMENTS_BLOCK_SEND }
+        ? { id: crypto.randomUUID(), message: t('chat.attach.blockSend') }
         : undefined,
-    [props.attachmentsSupported, attachments.length],
+    [props.attachmentsSupported, attachments.length, t],
   )
 
   const setupError = useMemo<
@@ -2490,7 +2482,7 @@ function ComposerComponent(props: {
                     if (materialized.length > 0 || paths.length > 0) {
                       e.preventDefault()
                       if (!props.attachmentsSupported) {
-                        setAttachmentError(ATTACHMENTS_UNSUPPORTED)
+                        setAttachmentError(t('chat.attach.unsupported'))
                         return
                       }
                       attachFiles(paths)
