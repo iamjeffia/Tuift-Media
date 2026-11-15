@@ -58,9 +58,9 @@ export const ptBR = {
   'general.terminal.right': 'Direita',
   'general.modelPicker.name': 'Seletor de modelo',
   'general.modelPicker.note':
-    'Trilho escolhe primeiro o provedor e depois o modelo. Lista mostra todos os modelos de uma vez.',
+    'Por provedor escolhe primeiro o provedor e depois o modelo. Lista mostra todos os modelos de uma vez.',
   'general.modelPicker.list': 'Lista',
-  'general.modelPicker.rail': 'Trilho',
+  'general.modelPicker.rail': 'Por provedor',
   'general.notifications.name': 'Notificações',
   'general.notifications.note':
     'Com o TUIFT Code em segundo plano: avisa sobre aprovações, perguntas e falhas, ou também quando um chat termina.',

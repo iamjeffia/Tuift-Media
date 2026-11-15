@@ -72,6 +72,7 @@ import { ProjectRootContext, projectRelativePath } from './project-relative-path
 import { parseToolCall, toolArgumentEntries, toolArgumentSnippet } from './tool-call-text.js'
 import { browserCommentsAsPlainText } from './browser-comments.js'
 import { CopyButton } from './CopyButton.js'
+import { MessageActionButton } from './MessageActionButton.js'
 import { LazyMediaViewer as MediaViewer, preloadMediaViewer } from './LazyMediaViewer.js'
 import { Markdown } from './Markdown.js'
 import { Plan } from './Plan.js'
@@ -2366,24 +2367,20 @@ const Row = memo(function Row({
           <div className="response-actions said__actions" aria-label="Prompt actions">
             <CopyButton text={browserCommentsAsPlainText(item.text)} labelKey="chat.copy.prompt" />
             {onEditMessage ? (
-              <button
-                type="button"
+              <MessageActionButton
+                labelKey="chat.actions.editAsNewPrompt"
                 onClick={() => onEditMessage(item.text!, item.attachments)}
-                aria-label="Edit as new prompt"
-                title="Edit as new prompt"
               >
                 <Pencil aria-hidden />
-              </button>
+              </MessageActionButton>
             ) : null}
             {checkpoint && onRevertCheckpoint ? (
-              <button
-                type="button"
+              <MessageActionButton
+                labelKey="chat.actions.restoreBeforePrompt"
                 onClick={() => onRevertCheckpoint(checkpoint)}
-                aria-label="Restore to before this prompt"
-                title="Restore to before this prompt"
               >
                 <History aria-hidden />
-              </button>
+              </MessageActionButton>
             ) : null}
           </div>
         ) : null}
@@ -3787,14 +3784,12 @@ function ResponseActions({
     <div className="response-actions" aria-label="Response actions">
       <CopyButton text={text} labelKey="chat.copy.response" />
       {checkpoint && onRevertCheckpoint ? (
-        <button
-          type="button"
+        <MessageActionButton
+          labelKey="chat.actions.restoreBeforeTurn"
           onClick={() => onRevertCheckpoint(checkpoint)}
-          aria-label="Restore to before this turn"
-          title="Restore to before this turn"
         >
           <History aria-hidden />
-        </button>
+        </MessageActionButton>
       ) : null}
       <time dateTime={new Date(createdAt).toISOString()}>{RESPONSE_TIME.format(createdAt)}</time>
     </div>

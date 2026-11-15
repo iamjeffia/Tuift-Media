@@ -34,10 +34,10 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
 - [x] 1.10 Levantamento dos textos que vêm do servidor: cerca de 565 mensagens, 170 delas de telas do app. Proposta em `branding/i18n-texto-do-servidor.md`: o servidor manda um código junto com o inglês e a tela traduz fora do chat (3 a 4 dias). Traduzir é o item 1.14.
 - [x] 1.11 Teste que garante as mesmas chaves e os mesmos `{placeholders}` nos dois idiomas (web e desktop). A revisão do português pela skill `better-portuguese` fica para a leitura final do dono do projeto.
 - [x] 1.12 Conferir no app que texto mais longo não quebra layout.
-- [ ] 1.13 O dono do projeto confirma os termos usados: "chats", "Atalhos" (Keybinds), "Caixa de entrada" (Inbox), "Trilho" (seletor de modelo em duas etapas), e se os controles vizinhos do chat (busca no chat, desfazer, copiar) são traduzidos.
-- [ ] 1.14 Traduzir os textos de tela que vêm do servidor (erros de pull request, provedores, MCP, nomes de limite), conforme a proposta do 1.10.
+- [x] 1.13 Termos decididos pelo dono do projeto (15/11): ficam "chats", "Atalhos" e "Caixa de entrada"; "Trilho" virou "Por provedor" (par de "Lista" no seletor de modelo). Os botões de ícone ao lado das mensagens (copiar, editar como novo prompt, restaurar) são do app e ficam traduzidos; as mensagens e as linhas de processo seguem em inglês.
+- [ ] 1.14 Traduzir os textos de tela que vêm do servidor (erros de pull request, provedores, MCP, nomes de limite), conforme a proposta do 1.10. Decisão de 15/11: entra depois do modo Motion.
 - [x] 1.15 Fronteira fina do chat (15/11): traduzido o que é do app em volta da conversa (rótulos da tela inicial, faixa de avisos, descrições do menu "/", busca no chat, restaurar, copiar, visualizador de mídia, títulos padrão só na hora de mostrar). Continuam em inglês as mensagens, as linhas de processo, o texto de exemplo do campo, os modos de acesso, Design, Motion e o seletor de modelo. Os erros da fila e de anexos foram traduzidos no 1.16.
-- [x] 1.16 Restos pequenos traduzidos (15/11): erros de anexo e da fila do campo de texto, página de laboratório de avatar, erros da imagem de fundo, busca da paleta pelo nome do grupo em português (o nome em inglês continua achando), separador de milhar e decimal conforme o idioma, e o nome acessível dos botões de copiar. Ficam em inglês, junto com a conversa: "Restore to before this turn", "Edit as new prompt" e os números das linhas de processo. A busca da paleta ainda diferencia acento ("acoes" não acha "Ações").
+- [x] 1.16 Restos pequenos traduzidos (15/11): erros de anexo e da fila do campo de texto, página de laboratório de avatar, erros da imagem de fundo, busca da paleta pelo nome do grupo em português (o nome em inglês continua achando), separador de milhar e decimal conforme o idioma, e o nome acessível dos botões de copiar. Ficam em inglês, junto com a conversa, os números das linhas de processo. A busca da paleta ainda diferencia acento ("acoes" não acha "Ações").
 - [ ] 1.17 Conferir no app instalado: menus nativos, bandeja, notificações, troca de idioma em tempo real e as telas que só existem lá (Importar chats com dados, celular, navegador interno, terminal).
 
 ## 2. Skills da Criação de Conteúdo dentro do app
@@ -55,7 +55,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
 - [~] 2.6 O instalador leva as skills de vídeo como pacote Motion (feito). Falta o agente enxergar o pacote num chat Motion (fase 3 do Motion).
 - [ ] 2.8 Ficam de fora por enquanto, pela licença de cada uma: `transitions-dev`, `transitions-polish` e `transitions-ui-generation` (a licença proíbe republicar), `remotion-best-practices` e as sete `21st-*` (sem licença declarada). Ideia: oferecer no app a instalação direto do repositório do autor, sem embutir.
 - [x] 2.9 Medir o uso real das skills (transcrições das sessões e anotações de agosto a novembro) e levar só o que vale: 24 skills entram. Ficam de fora por falta de uso registrado: `edvid`, os pacotes de design de terceiros (Emil Kowalski, Jakub Krehel), as skills da Higgsfield, os fluxos e blocos extras do HyperFrames e as avulsas. Podem entrar depois, se passarem a ser usadas.
-- [ ] 2.10 Decidir sobre a telemetria da skill `media-use` (envia uso anônimo ao autor; dá para desligar por variável de ambiente) e sobre o prefixo `tda.` das operações do MCP citadas nas skills.
+- [x] 2.10 Decisão de 15/11: a skill `media-use` fica como o autor publicou, com o envio de uso anônimo e o aviso no índice das skills (quem quiser desliga pela variável de ambiente). O prefixo `tda.` das operações do MCP do After Effects é decidido junto com o item 11.
 - [ ] 2.11 O dono do projeto relê os trechos reescritos que as frentes marcaram (morph de UI, método de captura, rotas do After Effects, arco de trilha).
 
 ## 3. Página de MCP servers no estilo Claude Desktop
@@ -65,7 +65,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
 - [x] 3.3 Conectar e desconectar com resposta visual forte (conectando, conectado, erro).
 - [x] 3.4 Manter tudo o que a página faz hoje (editar, herdados, por provedor).
 - [x] 3.5 Testes e prova visual.
-- [ ] 3.6 O dono do projeto decide se quer um botão "Disconnect" separado (hoje desligar é a chave liga/desliga) e testa com servidores MCP reais.
+- [~] 3.6 Decisão de 15/11: sem botão "Disconnect" separado; desligar continua sendo a chave liga/desliga. Falta o teste com servidores MCP reais no app instalado.
 
 ## 4. Apagar chats em massa
 
@@ -73,7 +73,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
 - [x] 4.2 Ação de apagar os selecionados, com confirmação.
 - [x] 4.3 Teclado (Delete, Esc) e leitor de tela.
 - [x] 4.4 Testes.
-- [ ] 4.5 O dono do projeto decide se quer um botão visível de "N selecionados" (hoje é menu do botão direito e tecla Delete) e confirmação também no modo Caixa de entrada.
+- [~] 4.5 Decisão de 15/11: aviso discreto de "N selecionados" com o botão de apagar, só com 2 ou mais chats selecionados, e confirmação também na Caixa de entrada. Em andamento (frente `bulk-count`).
 
 ## 5. Sair menos do app: arquivos abrem dentro dele
 
@@ -84,7 +84,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
 - [x] 5.5 Imagem, vídeo e áudio, cada um com o seu visualizador. PDF ainda abre fora: embutir pede afrouxar a regra de segurança da janela (`frame-src`), e isso espera decisão.
 - [x] 5.6 Medir e otimizar os visualizadores que já existem.
 - [x] 5.7 Lista do que mais tira o cliente do app, para as próximas rodadas.
-- [ ] 5.8 PDF dentro do app: decidir e testar o visualizador do Chromium no app empacotado.
+- [~] 5.8 Decisão de 15/11: PDF abre no painel lateral, com o leitor que já vem no motor do app. Em andamento (frente `pdf-viewer`); falta testar no app instalado.
 - [ ] 5.9 Próximos pontos em que o app manda o cliente para fora: link externo nas respostas (abrir na aba Browser do painel), links de pull request, links do terminal, login de provedores e de MCP, "abrir no editor" (não existe).
 - [ ] 5.10 Validar no app instalado: clique real, vídeo, áudio e "Open in Explorer".
 
@@ -111,7 +111,7 @@ Relato do dono do projeto (15/11): numa conversa com o Codex, o log de um servid
 - [x] 8.4 Testes que reproduzem o caso e travam o teto.
 - [ ] 8.5 Imagens em base64 no histórico do Claude Code: maior peso medido (438 imagens somavam 20 MB de 21,8 MB numa conversa). Guardar em arquivo ou miniatura.
 - [ ] 8.6 Provedores ACP reenviam a saída acumulada inteira a cada atualização: gravar só a diferença.
-- [ ] 8.7 O dono do projeto decide os tetos que ficaram abertos: 64 KiB por comando (aplicado), diffs (sem teto) e mensagem da IA (sem teto; proposta de 1 MiB).
+- [~] 8.7 Decisão de 15/11: teto de 1 MiB na mensagem da IA e nos diffs, com aviso de corte (o de 64 KiB por comando já está aplicado). Em andamento (frente `output-caps`).
 
 ## 9. Modo Motion
 
@@ -177,7 +177,7 @@ Ideia de 15/11: a biblioteca de tonal sounds aparece dentro do app, só quando o
 
 Decisão de 15/11: quando a sessão começa com o botão Design ligado, as skills de design, frontend e UI são carregadas, do mesmo jeito que o Motion carrega as de vídeo (item 9.3).
 
-- [ ] 13.1 Lista das skills que formam o pacote Design. Na medição de uso, só `ui-profissional`, `stageshow` e `design-taste-frontend` têm uso registrado; falta decidir se o pacote leva também skills de design de terceiros que a casa ainda não usa.
+- [ ] 13.1 Lista das skills que formam o pacote Design. Na medição de uso, só `ui-profissional`, `stageshow` e `design-taste-frontend` têm uso registrado; falta decidir se o pacote leva também skills de design de terceiros que a casa ainda não usa. Decisão de 15/11: `design-taste-frontend` continua em todos os chats, como no TasteCode; o pacote Design leva as skills extras.
 - [ ] 13.2 Carregar o pacote quando a sessão começa com Design ligado, pelo mesmo mecanismo do pacote Motion (fase 7 do plano do Motion).
 - [ ] 13.3 Testes e validação no app.
 
@@ -191,6 +191,14 @@ Pedido de 15/11: o repositório é público e a página inicial precisa ser visu
 - [x] 14.4 Créditos e licença compactos, mantendo a atribuição ao TasteCode.
 - [x] 14.5 Prova: README renderizado em tema claro e escuro, largura normal e celular.
 - [x] 14.6 Índice `.agents/skills/README.md` com o mesmo cabeçalho do README principal (marca, selos e atalhos para cada grupo), feito em 15/11.
+
+## 15. Roteiro visível dentro do app (build in public)
+
+Ideia do dono do projeto em 15/11: este checklist fica público porque pode virar um roteiro visual dentro do app, para quem usa acompanhar o que está pronto e o que vem.
+
+- [ ] 15.1 Definir o que o roteiro mostra (itens, estado, data) e de onde lê: este arquivo no repositório ou um resumo gerado dele.
+- [ ] 15.2 Tela do roteiro com os componentes que o app já tem.
+- [ ] 15.3 Manter este arquivo sem dado privado, já que ele passa a aparecer para o cliente.
 
 ## Ondas de trabalho
 

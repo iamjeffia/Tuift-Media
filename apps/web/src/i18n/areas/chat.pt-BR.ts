@@ -164,6 +164,11 @@ export const chatPt = {
   'chat.copy.response': 'Copiar resposta',
   'chat.copy.prompt': 'Copiar prompt',
 
+  // Icon buttons beside a message
+  'chat.actions.editAsNewPrompt': 'Editar como novo prompt',
+  'chat.actions.restoreBeforePrompt': 'Restaurar para antes deste prompt',
+  'chat.actions.restoreBeforeTurn': 'Restaurar para antes deste turno',
+
   // Notices of the composer: attachments and the queue of prompts
   'chat.attach.unsupported': 'Este provedor não aceita anexos.',
   'chat.attach.blockSend': 'Remova os anexos ou troque para um provedor que aceite anexos.',

@@ -150,6 +150,11 @@ export const chatEn = {
   'chat.copy.response': 'Copy response',
   'chat.copy.prompt': 'Copy prompt',
 
+  // Icon buttons beside a message
+  'chat.actions.editAsNewPrompt': 'Edit as new prompt',
+  'chat.actions.restoreBeforePrompt': 'Restore to before this prompt',
+  'chat.actions.restoreBeforeTurn': 'Restore to before this turn',
+
   // Notices of the composer: attachments and the queue of prompts
   'chat.attach.unsupported': 'Attachments aren’t supported by this source.',
   'chat.attach.blockSend': 'Remove attachments or switch to a source that supports them.',
