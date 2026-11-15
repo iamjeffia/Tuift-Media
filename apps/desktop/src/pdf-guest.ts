@@ -50,7 +50,12 @@ export function configurePdfGuest(guest: WebContents, policy: PdfGuestPolicy): v
     // Programmatic loads skip will-navigate, so the request API is the gate (see the browser
     // guest: cancelling inside did-start-navigation can crash Chromium).
     pdfSession.webRequest.onBeforeRequest((details, callback) => {
-      callback({ cancel: details.resourceType === 'mainFrame' && !mayLoad(policy, details.url) })
+      // The session serves signed PDFs and the viewer's own extension; it never needs the web.
+      callback({
+        cancel:
+          isWebLink(details.url) ||
+          (details.resourceType === 'mainFrame' && !mayLoad(policy, details.url)),
+      })
     })
     pdfSession.setPermissionCheckHandler(() => false)
     pdfSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))

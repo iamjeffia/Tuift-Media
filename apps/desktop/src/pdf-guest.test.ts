@@ -42,6 +42,10 @@ describe('PDF guest', () => {
       // The viewer's own extension frames and fetches are not main-frame requests.
       ['subFrame', 'chrome-extension://viewer/index.html', false],
       ['xhr', 'chrome-extension://viewer/data', false],
+      // A PDF has no business on the network, whatever kind of request it is.
+      ['xhr', 'https://example.com/collect', true],
+      ['image', 'http://example.com/pixel.png', true],
+      ['subFrame', 'https://example.com/', true],
     ] as const) {
       const callback = vi.fn()
       beforeRequest({ resourceType, url }, callback)
