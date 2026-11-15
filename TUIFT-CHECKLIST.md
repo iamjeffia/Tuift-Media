@@ -73,7 +73,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
 - [x] 4.2 Ação de apagar os selecionados, com confirmação.
 - [x] 4.3 Teclado (Delete, Esc) e leitor de tela.
 - [x] 4.4 Testes.
-- [~] 4.5 Decisão de 15/11: aviso discreto de "N selecionados" com o botão de apagar, só com 2 ou mais chats selecionados, e confirmação também na Caixa de entrada. Em andamento (frente `bulk-count`).
+- [x] 4.5 Aviso discreto de "N selecionados" com Excluir e limpar, só com 2 ou mais chats selecionados, na barra lateral e na Caixa de entrada; a Caixa de entrada agora também confirma antes de apagar vários (15/11). Falta ver no app instalado.
 
 ## 5. Sair menos do app: arquivos abrem dentro dele
 
@@ -84,7 +84,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
 - [x] 5.5 Imagem, vídeo e áudio, cada um com o seu visualizador. PDF ainda abre fora: embutir pede afrouxar a regra de segurança da janela (`frame-src`), e isso espera decisão.
 - [x] 5.6 Medir e otimizar os visualizadores que já existem.
 - [x] 5.7 Lista do que mais tira o cliente do app, para as próximas rodadas.
-- [~] 5.8 Decisão de 15/11: PDF abre no painel lateral, com o leitor que já vem no motor do app. Em andamento (frente `pdf-viewer`); falta testar no app instalado.
+- [x] 5.8 PDF abre no painel lateral com o leitor que já vem no motor do app, numa área isolada (sem acesso à internet, sem navegar a janela, links abrem no navegador do sistema) e sem biblioteca nova (15/11). Falta ver na tela do app instalado.
 - [ ] 5.9 Próximos pontos em que o app manda o cliente para fora: link externo nas respostas (abrir na aba Browser do painel), links de pull request, links do terminal, login de provedores e de MCP, "abrir no editor" (não existe).
 - [ ] 5.10 Validar no app instalado: clique real, vídeo, áudio e "Open in Explorer".
 
@@ -111,7 +111,7 @@ Relato do dono do projeto (15/11): numa conversa com o Codex, o log de um servid
 - [x] 8.4 Testes que reproduzem o caso e travam o teto.
 - [ ] 8.5 Imagens em base64 no histórico do Claude Code: maior peso medido (438 imagens somavam 20 MB de 21,8 MB numa conversa). Guardar em arquivo ou miniatura.
 - [ ] 8.6 Provedores ACP reenviam a saída acumulada inteira a cada atualização: gravar só a diferença.
-- [~] 8.7 Decisão de 15/11: teto de 1 MiB na mensagem da IA e nos diffs, com aviso de corte (o de 64 KiB por comando já está aplicado). Em andamento (frente `output-caps`).
+- [x] 8.7 Teto de 1 MiB na mensagem da IA e no diff que vai para a tela, com nota do corte (15/11). O diff inteiro continua guardado no servidor: o Undo funciona em qualquer tamanho e o cartão mostra os totais reais. O painel de revisão por trechos não é cortado.
 
 ## 9. Modo Motion
 
@@ -126,14 +126,14 @@ Depende dos itens 2 (skills) e 3 (MCP). O botão do item 6.2 é a porta de entra
   - [x] 9.2c Entrada, destaque e respiração com os tokens de movimento do app; sem animação para quem pediu menos movimento.
   - [x] 9.2d Janela estreita, leitor de tela e tradução de papéis e etapas.
   - [x] 9.2e Testes e prova no ambiente de demonstração, tema claro e escuro.
-- [ ] 9.3 Fase 2, o Motion guardado no chat:
+- [x] 9.3 Fase 2, o Motion guardado no chat:
   - [x] 9.3a Contrato: modo (`motion` ou `design`) e etapa nas configurações do chat; pedido para trocar o modo.
-  - [~] 9.3b Servidor guarda e avisa (feito; o celular pareado também pode trocar o modo). Falta a tela ler o modo do servidor e migrar o que estava só local.
-  - [ ] 9.3c Testes: o modo sobrevive a reiniciar o app e às gravações que já existem.
-- [ ] 9.4 Fase 3, pacote Motion:
+  - [x] 9.3b Servidor guarda e avisa; a tela lê o modo e a etapa do servidor (inclusive mudança vinda do celular) e migra, uma vez por chat, o que estava só local. O botão Motion fica travado enquanto a resposta é gerada.
+  - [x] 9.3c Testes: o modo sobrevive a reiniciar a tela e às gravações que já existem.
+- [x] 9.4 Fase 3, pacote Motion:
   - [x] 9.4a As skills de vídeo vão no instalador como pacote separado (fecha o item 2.6).
-  - [ ] 9.4b Instrução curta de papel e etapas no início da sessão, em Codex, Claude Code e Grok.
-  - [ ] 9.4c Pacote ligado só em chats Motion; ligar e desligar no meio do chat.
+  - [x] 9.4b Instrução curta de papel e das dez etapas no início da sessão (cerca de 250 tokens), pelo mesmo canal do catálogo de skills, em todos os provedores.
+  - [x] 9.4c Pacote ligado só em chats Motion (no Claude Code como plugin; nos outros, catálogo de cerca de 630 tokens); chat comum começa exatamente como antes. Ligar ou desligar no meio do chat vale no turno seguinte; em Grok, Cursor, Pi, Antigravity e ACP isso abre uma sessão nova do provedor, com a conversa levada como texto.
   - [x] 9.4d Provados com os programas reais os dois pontos de risco (15/11): o Claude Code lista o pacote só quando ele é passado; o Codex, num turno real, leu uma skill do pacote e rodou o script dela a partir de uma pasta com espaço no caminho.
 - [ ] 9.5 Fase 4, etapas:
   - [ ] 9.5a Ferramenta `motion_stage` no canal do app, só em chats Motion.
@@ -204,21 +204,22 @@ Ideia do dono do projeto em 15/11: este checklist fica público porque pode vira
 
 Cada frente roda num worktree próprio em `C:/Dev/tuift-wt/<frente>`, numa branch `tuift/<frente>`, e volta para a `main` por merge depois de conferida.
 
-| Onda | Frente                                                                                               | Subtarefas      | Estado                     |
-| ---- | ---------------------------------------------------------------------------------------------------- | --------------- | -------------------------- |
-| 1    | `i18n-core`                                                                                          | 1.1, 1.2, 1.3   | na `main` (15/11), testada |
-| 1    | `mcp-cards`                                                                                          | 3.1 a 3.5       | na `main` (15/11), testada |
-| 1    | `bulk-delete`                                                                                        | 4.1 a 4.4       | na `main` (15/11), testada |
-| 1    | `file-viewers`                                                                                       | 5.1 a 5.7       | na `main` (15/11), testada |
-| 1    | `composer`                                                                                           | 6.1, 6.2        | na `main` (15/11), testada |
-| 1    | `design-scan`                                                                                        | 6.3             | na `main` (15/11), testada |
-| 1    | `skills`                                                                                             | 2.1, 2.3, 2.4   | na `main` (15/11), testada |
-| 1    | `chat-leak`                                                                                          | 8.1 a 8.4       | na `main` (15/11), testada |
-| 1b   | `skills-pin`                                                                                         | 2.5a            | na `main` (15/11)          |
-| 1b   | `skills-motion`                                                                                      | 2.5b            | na `main` (15/11)          |
-| 1b   | `skills-ae-trilha`                                                                                   | 2.5c            | na `main` (15/11)          |
-| 1b   | `skills-misc`                                                                                        | 2.5d            | na `main` (15/11)          |
-| 1b   | `readme`                                                                                             | 14.1 a 14.5     | na `main` (15/11)          |
-| 3    | `motion-cast`, `motion-state`, `motion-pack`                                                         | 9.2, 9.3a, 9.4a | na `main` (15/11), testada |
-| 2    | `i18n-settings`, `i18n-sidebar`, `i18n-onboarding`, `i18n-workspace`, `i18n-dialogs`, `i18n-desktop` | 1.4 a 1.12      | na `main` (15/11), testada |
-| 4    | `restos-i18n`                                                                                        | 1.16            | na `main` (15/11), testada |
+| Onda | Frente                                                                                               | Subtarefas                            | Estado                     |
+| ---- | ---------------------------------------------------------------------------------------------------- | ------------------------------------- | -------------------------- |
+| 1    | `i18n-core`                                                                                          | 1.1, 1.2, 1.3                         | na `main` (15/11), testada |
+| 1    | `mcp-cards`                                                                                          | 3.1 a 3.5                             | na `main` (15/11), testada |
+| 1    | `bulk-delete`                                                                                        | 4.1 a 4.4                             | na `main` (15/11), testada |
+| 1    | `file-viewers`                                                                                       | 5.1 a 5.7                             | na `main` (15/11), testada |
+| 1    | `composer`                                                                                           | 6.1, 6.2                              | na `main` (15/11), testada |
+| 1    | `design-scan`                                                                                        | 6.3                                   | na `main` (15/11), testada |
+| 1    | `skills`                                                                                             | 2.1, 2.3, 2.4                         | na `main` (15/11), testada |
+| 1    | `chat-leak`                                                                                          | 8.1 a 8.4                             | na `main` (15/11), testada |
+| 1b   | `skills-pin`                                                                                         | 2.5a                                  | na `main` (15/11)          |
+| 1b   | `skills-motion`                                                                                      | 2.5b                                  | na `main` (15/11)          |
+| 1b   | `skills-ae-trilha`                                                                                   | 2.5c                                  | na `main` (15/11)          |
+| 1b   | `skills-misc`                                                                                        | 2.5d                                  | na `main` (15/11)          |
+| 1b   | `readme`                                                                                             | 14.1 a 14.5                           | na `main` (15/11)          |
+| 3    | `motion-cast`, `motion-state`, `motion-pack`                                                         | 9.2, 9.3a, 9.4a                       | na `main` (15/11), testada |
+| 2    | `i18n-settings`, `i18n-sidebar`, `i18n-onboarding`, `i18n-workspace`, `i18n-dialogs`, `i18n-desktop` | 1.4 a 1.12                            | na `main` (15/11), testada |
+| 4    | `restos-i18n`                                                                                        | 1.16                                  | na `main` (15/11), testada |
+| 5    | `motion-read`, `motion-session`, `bulk-count`, `pdf-viewer`, `output-caps`                           | 9.3b, 9.3c, 9.4b, 9.4c, 4.5, 5.8, 8.7 | na `main` (15/11), testada |
