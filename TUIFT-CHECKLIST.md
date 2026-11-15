@@ -119,14 +119,30 @@ Definição do dono do projeto (15/11): ligar o Motion transforma aquele chat nu
 
 Depende dos itens 2 (skills) e 3 (MCP). O botão do item 6.2 é a porta de entrada. A cena dos bonecos é a exceção combinada à regra do chat intocado.
 
-- [ ] 9.1 Plano do modo Motion, para o dono do projeto aprovar antes de construir: o que liga, onde o estado fica, como aparece.
-- [ ] 9.2 Estado do Motion guardado no chat (não só no visual), para o servidor saber que aquele chat é de vídeo.
-- [ ] 9.3 Pacote Motion: lista do que carrega (skills de motion, After Effects, Remotion, HyperFrames; MCPs) e como entra no contexto sem pesar, carregando sob demanda.
-- [ ] 9.4 Papel do agente: a instrução que faz o agente agir como motion designer e editor naquele chat.
-- [ ] 9.5 Visual: cena de entrada dos bonecos acima do chat e sinal claro de que o chat é um projeto de vídeo.
-- [ ] 9.6 Etapas: de onde vem o sinal da etapa atual e qual boneco fica em destaque em cada uma.
-- [ ] 9.7 Elenco: os seis bonecos da identidade v2 (cada arquivo já com o nome certo). **Zig é o principal** (o laranja de óculos escuros e fone; confirmado pelo dono do projeto em 15/11) e lidera. Moss pesquisa as referências, Bun escreve o roteiro, Pip organiza o projeto, Cloud monta o vídeo (o lilás de headset) e Penny revisa cada quadro. O README do protótipo v2 chamava o laranja de Cloud; vale o que o dono do projeto disse.
-- [ ] 9.8 Testes e validação no app.
+- [x] 9.1 Plano escrito em `branding/plano-modo-motion.md` (15/11). **Falta o dono do projeto aprovar** o plano e as seis decisões do fim dele.
+- [ ] 9.2 Fase 1, cena dos bonecos (só visual):
+  - [ ] 9.2a Levar as seis cabeças da identidade v2 para o app e registrar a origem.
+  - [ ] 9.2b Componente da cena acima da conversa, sem tocar no chat nem no campo de texto, com estilo carregado à parte.
+  - [ ] 9.2c Entrada, destaque e respiração com os tokens de movimento do app; sem animação para quem pediu menos movimento.
+  - [ ] 9.2d Janela estreita, leitor de tela e tradução de papéis e etapas.
+  - [ ] 9.2e Testes e prova no ambiente de demonstração, tema claro e escuro.
+- [ ] 9.3 Fase 2, o Motion guardado no chat:
+  - [ ] 9.3a Contrato: modo (`motion` ou `design`) e etapa nas configurações do chat; pedido para trocar o modo.
+  - [ ] 9.3b Servidor guarda e avisa; a tela lê, e o que estava só local é migrado uma vez.
+  - [ ] 9.3c Testes: o modo sobrevive a reiniciar o app e às gravações que já existem.
+- [ ] 9.4 Fase 3, pacote Motion:
+  - [ ] 9.4a As skills de vídeo vão no instalador como pacote separado (fecha o item 2.6).
+  - [ ] 9.4b Instrução curta de papel e etapas no início da sessão, em Codex, Claude Code e Grok.
+  - [ ] 9.4c Pacote ligado só em chats Motion; ligar e desligar no meio do chat.
+  - [ ] 9.4d Provar com os programas reais os dois pontos de risco do plano.
+- [ ] 9.5 Fase 4, etapas:
+  - [ ] 9.5a Ferramenta `motion_stage` no canal do app, só em chats Motion.
+  - [ ] 9.5b Etapa guardada e avisada à tela; o boneco certo acende.
+  - [ ] 9.5c A pessoa troca a etapa clicando num boneco.
+- [ ] 9.6 Fase 5, After Effects (depende do item 11): MCP ligado só em chats Motion e aviso claro quando o After Effects não está instalado.
+- [ ] 9.7 Fase 6, a cena reage: estado "esperando você" e subagente com nome de boneco acende o boneco.
+- [ ] 9.8 Elenco e papéis: Zig lidera (o laranja de óculos escuros, principal), Moss pesquisa as referências, Bun escreve o roteiro, Pip organiza o projeto, Cloud monta o vídeo no After Effects (o lilás) e Penny revisa cada quadro.
+- [ ] 9.9 Validação do dono do projeto no app instalado, com um vídeo de verdade.
 
 ## 10. Um provedor por tipo de tarefa
 
@@ -152,7 +168,7 @@ Decisão de 15/11: o MCP de After Effects da casa (`ae-mcp-tda`) vem dentro do a
 Ideia de 15/11: a biblioteca de tonal sounds aparece dentro do app, só quando o botão Motion do chat está ligado.
 
 - [ ] 12.1 Definir quais sons o app pode distribuir e de onde vêm. O banco usado hoje é um pacote comprado de terceiros.
-- [ ] 12.2 Biblioteca de sons no modo Motion: ouvir, buscar e escolher.
+- [ ] 12.2 Biblioteca de sons no modo Motion: ouvir, buscar e escolher (fase 8 do plano do Motion, bloqueada pelo 12.1).
 - [ ] 12.3 Ligação com a skill `composicao-trilha`.
 - [ ] 12.4 Testes e validação no app.
 
@@ -161,7 +177,7 @@ Ideia de 15/11: a biblioteca de tonal sounds aparece dentro do app, só quando o
 Decisão de 15/11: quando a sessão começa com o botão Design ligado, as skills de design, frontend e UI são carregadas, do mesmo jeito que o Motion carrega as de vídeo (item 9.3).
 
 - [ ] 13.1 Lista das skills que formam o pacote Design. Na medição de uso, só `ui-profissional`, `stageshow` e `design-taste-frontend` têm uso registrado; falta decidir se o pacote leva também skills de design de terceiros que a casa ainda não usa.
-- [ ] 13.2 Carregar o pacote quando a sessão começa com Design ligado, pelo mesmo mecanismo do pacote Motion.
+- [ ] 13.2 Carregar o pacote quando a sessão começa com Design ligado, pelo mesmo mecanismo do pacote Motion (fase 7 do plano do Motion).
 - [ ] 13.3 Testes e validação no app.
 
 ## 14. README bonito no GitHub
