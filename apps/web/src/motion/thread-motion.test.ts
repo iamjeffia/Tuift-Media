@@ -50,6 +50,13 @@ function makeStore(options: {
 
 const entry = (store: ThreadMotionStore, id: string) => store.snapshot().get(id)
 
+/**
+ * Settings as a server that says whether After Effects can be used sends them.
+ * The contract does not carry the field yet, so the test builds it by hand.
+ */
+const withAfterEffects = (settings: ThreadSettings, afterEffects: unknown) =>
+  ({ ...settings, afterEffects }) as ThreadSettings
+
 describe('ThreadMotionStore', () => {
   it('adopts the mode and stage a chat has on the server, and a push that changes them', () => {
     const { store } = makeStore({})
@@ -72,12 +79,55 @@ describe('ThreadMotionStore', () => {
 
   it('shows the same view until the server says something about Motion', () => {
     const { store } = makeStore({})
-    expect(store.view('a')).toBe('|')
+    expect(store.view('a')).toBe('||')
     store.adopt('a', { model: 'm' })
-    expect(store.view('a')).toBe('|')
+    expect(store.view('a')).toBe('||')
     store.adopt('a', { mode: 'motion', motionStage: 'motion' })
-    expect(store.view('a')).toBe('motion|motion')
-    expect(store.view(undefined)).toBe('|')
+    expect(store.view('a')).toBe('motion|motion|')
+    expect(store.view(undefined)).toBe('||')
+  })
+
+  it('adopts whether After Effects can be used, and a push that changes it', () => {
+    const { store } = makeStore({})
+    const motion = { mode: 'motion', motionStage: 'motion' } as const
+    store.adopt('a', withAfterEffects(motion, 'not-installed'))
+    expect(entry(store, 'a')).toEqual({
+      mode: 'motion',
+      stage: 'motion',
+      afterEffects: 'not-installed',
+    })
+    expect(store.view('a')).toBe('motion|motion|not-installed')
+    store.adopt('a', withAfterEffects(motion, 'unavailable'))
+    expect(entry(store, 'a')?.afterEffects).toBe('unavailable')
+    store.adopt('a', withAfterEffects(motion, 'ready'))
+    expect(store.view('a')).toBe('motion|motion|ready')
+    // An older server does not say: unknown, not "ready".
+    store.adopt('a', motion)
+    expect(store.view('a')).toBe('motion|motion|')
+  })
+
+  it('knows no value but the three it was given', () => {
+    const { store } = makeStore({})
+    store.adopt('a', withAfterEffects({ mode: 'motion' }, 'broken'))
+    expect(entry(store, 'a')?.afterEffects).toBeUndefined()
+    store.adopt('a', withAfterEffects({ mode: 'motion' }, 1))
+    expect(entry(store, 'a')?.afterEffects).toBeUndefined()
+  })
+
+  it('keeps the same snapshot when only other settings change, After Effects included', () => {
+    const { store } = makeStore({})
+    store.adopt('a', withAfterEffects({ mode: 'motion', motionStage: 'idea' }, 'ready'))
+    const before = store.snapshot()
+    store.adopt('a', withAfterEffects({ model: 'x', mode: 'motion', motionStage: 'idea' }, 'ready'))
+    expect(store.snapshot()).toBe(before)
+  })
+
+  it('keeps what it knows about After Effects while a stage or the mode is on its way', async () => {
+    const { store } = makeStore({})
+    store.adopt('a', withAfterEffects({ mode: 'motion', motionStage: 'script' }, 'not-installed'))
+    const pending = store.setStage('a', 'motion')
+    expect(store.view('a')).toBe('motion|motion|not-installed')
+    await pending
   })
 
   it('asks the server to turn Motion on and off, and shows what the server answers', async () => {
@@ -468,6 +518,48 @@ describe('useThreadMotion', () => {
   })
 })
 
+describe('After Effects state of the chat on screen', () => {
+  afterEach(cleanup)
+  const request = vi.fn()
+  const transport = { request } as never
+
+  it('shows what the server says for the open chat, and follows its pushes', () => {
+    const legacy = legacyFlags()
+    const view = renderHook(() =>
+      useThreadMotion({
+        transport,
+        legacy,
+        onError: vi.fn(),
+        activeId: 'a',
+        running: false,
+      }),
+    )
+    expect(view.result.current.motionAfterEffects).toBeUndefined()
+    act(() =>
+      view.result.current.adoptMotion(
+        'a',
+        withAfterEffects({ mode: 'motion', motionStage: 'motion' }, 'unavailable'),
+      ),
+    )
+    expect(view.result.current.motionAfterEffects).toBe('unavailable')
+    act(() =>
+      view.result.current.adoptMotion(
+        'a',
+        withAfterEffects({ mode: 'motion', motionStage: 'motion' }, 'ready'),
+      ),
+    )
+    expect(view.result.current.motionAfterEffects).toBe('ready')
+    // Another chat's state is not this one's.
+    act(() =>
+      view.result.current.adoptMotion(
+        'b',
+        withAfterEffects({ mode: 'motion', motionStage: 'motion' }, 'not-installed'),
+      ),
+    )
+    expect(view.result.current.motionAfterEffects).toBe('ready')
+  })
+})
+
 describe('useChatMotion', () => {
   afterEach(cleanup)
   const store = () =>
@@ -487,6 +579,21 @@ describe('useChatMotion', () => {
     expect(view.result.current).toEqual({ mode: true, stage: 'review' })
     act(() => motion.adopt('beside', { motionStage: 'review' }))
     expect(view.result.current).toEqual({ mode: false, stage: 'review' })
+  })
+
+  it('shows the After Effects state of its own chat, apart from the other pane', () => {
+    const motion = store()
+    const beside = renderHook(() => useChatMotion(motion, 'beside', false))
+    const other = renderHook(() => useChatMotion(motion, 'other', false))
+    act(() => {
+      motion.adopt('beside', withAfterEffects({ mode: 'motion' }, 'not-installed'))
+      motion.adopt('other', withAfterEffects({ mode: 'motion' }, 'ready'))
+    })
+    expect(beside.result.current.afterEffects).toBe('not-installed')
+    expect(other.result.current.afterEffects).toBe('ready')
+    act(() => motion.adopt('beside', withAfterEffects({ mode: 'motion' }, 'unavailable')))
+    expect(beside.result.current.afterEffects).toBe('unavailable')
+    expect(other.result.current.afterEffects).toBe('ready')
   })
 
   it('keeps what the pane showed until the server has been asked about the chat', () => {
