@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { MOTION_STAGES, ProviderIdSchema } from '@harness/contracts'
 import type { DefaultSkillPack } from './default-skills.js'
 import {
+  AFTER_EFFECTS_SENTENCES,
   MOTION_ROLE_INSTRUCTION,
   MOTION_ROLE_WITH_STAGE_TOOL,
   modeChangeRestart,
@@ -113,5 +114,38 @@ describe('modeChangeRestart', () => {
         expect(PROVIDER_CAPABILITIES[provider].resume).toBe(true)
       }
     }
+  })
+})
+
+describe('the After Effects sentence of the Motion role', () => {
+  const start = (state?: 'ready' | 'not-installed' | 'unavailable', stageTool = false) =>
+    modeSessionStart('motion', true, () => undefined, stageTool, state)!.instructions
+
+  it('says nothing when the server was built without After Effects', () => {
+    expect(start(undefined)).toBe(MOTION_ROLE_INSTRUCTION)
+  })
+
+  it('says the tools are there when ready, and one place to build when they are not', () => {
+    expect(start('ready')).toContain(AFTER_EFFECTS_SENTENCES.ready)
+    expect(start('ready')).not.toContain('HyperFrames')
+    for (const state of ['not-installed', 'unavailable'] as const) {
+      expect(start(state)).toContain(AFTER_EFFECTS_SENTENCES.unavailable)
+      expect(start(state)).not.toContain(AFTER_EFFECTS_SENTENCES.ready)
+    }
+  })
+
+  it('goes between the stage list and the closing lines, and stays small', () => {
+    const paragraphs = start('ready', true).split(String.fromCharCode(10, 10))
+    expect(paragraphs.slice(-3)).toEqual([
+      AFTER_EFFECTS_SENTENCES.ready,
+      expect.stringMatching(/^When you move to another stage/),
+      expect.stringMatching(/^The final wording/),
+    ])
+    for (const sentence of Object.values(AFTER_EFFECTS_SENTENCES)) {
+      expect(sentence.length).toBeLessThan(120)
+      expect(sentence).not.toContain('—')
+    }
+    // The whole instruction, with the stage tool and the sentence, stays near 400 tokens.
+    expect(start('unavailable', true).length).toBeLessThan(1800)
   })
 })

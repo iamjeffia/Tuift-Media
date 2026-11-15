@@ -24,6 +24,7 @@ import { stopModelListings } from './runtime-loader.js'
 import { readWorkspaceDiff, StaleDiffSnapshotError } from './diff-review.js'
 import { Orchestrator, resolveWorkspacePath, type LifecycleScheduleHint } from './orchestrator.js'
 import { defaultSkillsRoot } from './default-skills.js'
+import { afterEffectsSource } from './motion-after-effects.js'
 import { checkForUpdates } from './update-check.js'
 import type { FeedbackConfig } from './feedback-config.js'
 import { FeedbackService, providerVersionLabel } from './feedback.js'
@@ -354,6 +355,7 @@ export function startServer(
     onLimitsChanged: (source) => push.broadcast('usage.limits', { source }),
     providerBinary: async (provider) => (await providerService).providerBinary(provider),
     defaultSkillsRoot: defaultSkillsRoot(),
+    afterEffects: afterEffectsSource(),
     onModelsChanged: (provider, agent, accountId) =>
       push.broadcast('models.changed', {
         provider,
@@ -724,9 +726,15 @@ export function startServer(
     }, 50)
   }
 
+  /** The stored setup, plus the one answer a Motion chat gets computed fresh: After Effects. */
+  function threadSettings(threadId: string): ThreadSettings {
+    const afterEffects = orchestrator.afterEffectsState(threadId)
+    return { ...store.threadSettings(threadId), ...(afterEffects ? { afterEffects } : {}) }
+  }
+
   /** Tells every client a chat's setup, after any change to it. */
   function announceSettings(threadId: string): ThreadSettings {
-    const settings = store.threadSettings(threadId)
+    const settings = threadSettings(threadId)
     push.broadcast('thread.settings', { threadId, settings })
     // The project list names each chat's model, so lists filtered by it follow.
     announceListChange()
@@ -1879,7 +1887,7 @@ export function startServer(
 
       case 'thread.settings': {
         const p = parseParams(method, params)
-        return store.threadSettings(p.threadId)
+        return threadSettings(p.threadId)
       }
 
       case 'thread.setSettings': {

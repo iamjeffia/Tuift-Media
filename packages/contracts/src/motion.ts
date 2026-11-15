@@ -41,3 +41,12 @@ export const MOTION_STAGE_OWNERS = {
 /** What a chat is for, beyond plain coding. Nothing sets `design` yet. */
 export const ThreadModeSchema = z.enum(['motion', 'design'])
 export type ThreadMode = z.infer<typeof ThreadModeSchema>
+
+/**
+ * Whether a Motion chat can use After Effects, computed by the server and never
+ * stored. `ready`: a server is attached (or the person's own is there) and After
+ * Effects is installed. `not-installed`: After Effects was not found. `unavailable`:
+ * After Effects is installed but this chat has no server to reach it.
+ */
+export const AfterEffectsStateSchema = z.enum(['ready', 'not-installed', 'unavailable'])
+export type AfterEffectsState = z.infer<typeof AfterEffectsStateSchema>

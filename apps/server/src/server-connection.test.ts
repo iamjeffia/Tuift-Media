@@ -53,6 +53,8 @@ const state = vi.hoisted(() => ({
     string,
     { model?: string; effort?: string; serviceTier?: string; mode?: string; motionStage?: string }
   >(),
+  /** What the orchestrator says about After Effects for a chat in Motion mode. */
+  afterEffects: undefined as string | undefined,
   /** Threads whose turn is over; every other thread has one running. */
   idle: new Set<string>(),
   approvals: new Map<string, string>(),
@@ -215,6 +217,9 @@ vi.mock('./orchestrator.js', () => ({
     }
     async modeChanged(threadId: string) {
       state.handled.push(`orchestrator.modeChanged(${threadId})`)
+    }
+    afterEffectsState(threadId: string) {
+      return state.settings.get(threadId)?.mode === 'motion' ? state.afterEffects : undefined
     }
     markThreadRead(threadId: string) {
       state.read.push(threadId)
@@ -1989,6 +1994,43 @@ describe('chat mode', () => {
         result: { model: 'gpt-5.5', mode: 'motion', motionStage: 'script' },
       })
     } finally {
+      first.client.terminate()
+      second.client.terminate()
+    }
+  })
+
+  it('adds the After Effects state to the answer and the push of a Motion chat only', async () => {
+    state.threads.set('t', { projectPath: '/p', provider: 'codex' })
+    state.idle.add('t')
+    state.afterEffects = 'not-installed'
+    const { port } = await listen()
+    const first = await connect(port)
+    const second = await connect(port)
+    try {
+      // Not in Motion yet: nothing is added, however the orchestrator would answer.
+      expect(await first.ask('thread.settings', { threadId: 't' })).toEqual({
+        id: expect.any(String),
+        result: {},
+      })
+      expect(await first.ask('thread.setMode', { threadId: 't', mode: 'motion' })).toMatchObject({
+        result: { mode: 'motion', afterEffects: 'not-installed' },
+      })
+      await vi.waitFor(() =>
+        expect(second.pushes().at(-1)).toMatchObject({
+          data: { threadId: 't', settings: { mode: 'motion', afterEffects: 'not-installed' } },
+        }),
+      )
+      expect(await second.ask('thread.settings', { threadId: 't' })).toMatchObject({
+        result: { mode: 'motion', afterEffects: 'not-installed' },
+      })
+      // Computed, never stored: another answer shows at once, and the mode off drops it.
+      state.afterEffects = 'ready'
+      expect(await first.ask('thread.settings', { threadId: 't' })).toMatchObject({
+        result: { afterEffects: 'ready' },
+      })
+      expect(state.settings.get('t')).not.toHaveProperty('afterEffects')
+    } finally {
+      state.afterEffects = undefined
       first.client.terminate()
       second.client.terminate()
     }

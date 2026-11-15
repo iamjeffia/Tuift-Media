@@ -3,6 +3,7 @@ import {
   MOTION_STAGE_OWNERS,
   MOTION_STAGES,
   MotionStageSchema,
+  type AfterEffectsState,
   type MotionStage,
   type ThreadMode,
 } from '@harness/contracts'
@@ -42,6 +43,13 @@ export const MOTION_STAGE_SKILLS = {
   delivery: ['hyperframes-cli'],
 } as const satisfies Record<MotionStage, readonly string[]>
 
+/**
+ * The `motion` stage without After Effects: the HyperFrames skills, which run
+ * anywhere, come first and the ones built around After Effects come last.
+ */
+const WITHOUT_AFTER_EFFECTS_FIRST: readonly string[] = ['hyperframes', 'motion-graphics']
+const WITHOUT_AFTER_EFFECTS_LAST: readonly string[] = ['motion-app-ae', 'captura-de-movimento']
+
 export const MOTION_STAGE_TOOL = {
   name: 'motion_stage',
   description: [
@@ -78,6 +86,8 @@ export interface MotionStageBroker {
   setStage(threadId: string, stage: MotionStage): void
   /** The Motion pack as installed, or undefined when it is not on disk. */
   pack(): DefaultSkillPack | undefined
+  /** What the chat's session has of After Effects; absent, the skills keep their order. */
+  afterEffects?(threadId: string): AfterEffectsState | undefined
 }
 
 /** The broker over the store: a stage change is announced through `announce`. */
@@ -85,6 +95,7 @@ export function motionStageBroker(
   store: Pick<Store, 'threadSettings' | 'setThreadMode'>,
   announce: (threadId: string) => void,
   pack: () => DefaultSkillPack | undefined,
+  afterEffects?: (threadId: string) => AfterEffectsState | undefined,
 ): MotionStageBroker {
   return {
     mode: (threadId) => store.threadSettings(threadId).mode,
@@ -94,14 +105,29 @@ export function motionStageBroker(
       announce(threadId)
     },
     pack,
+    ...(afterEffects ? { afterEffects } : {}),
   }
 }
 
-function describeStage(stage: MotionStage, pack: DefaultSkillPack | undefined) {
+function describeStage(
+  stage: MotionStage,
+  pack: DefaultSkillPack | undefined,
+  afterEffects: AfterEffectsState | undefined,
+) {
   const index = MOTION_STAGES.indexOf(stage)
-  // A skill missing from this install is left out rather than pointed at.
-  const skills = MOTION_STAGE_SKILLS[stage]
+  // A skill missing from this install is left out rather than pointed at, and
+  // the skills are ordered by what can run in this chat.
+  const rank = (folder: string) =>
+    stage !== 'motion' || afterEffects === undefined || afterEffects === 'ready'
+      ? 0
+      : WITHOUT_AFTER_EFFECTS_FIRST.includes(folder)
+        ? -1
+        : WITHOUT_AFTER_EFFECTS_LAST.includes(folder)
+          ? 1
+          : 0
+  const skills = [...MOTION_STAGE_SKILLS[stage]]
     .filter((folder) => !pack || pack.skills.includes(folder))
+    .sort((a, b) => rank(a) - rank(b))
     .map((folder) => ({
       name: folder,
       ...(pack ? { path: path.join(pack.pluginDir, 'skills', folder, 'SKILL.md') } : {}),
@@ -126,7 +152,9 @@ export function runMotionStage(broker: MotionStageBroker, threadId: string, inpu
   if (args.data.stage === undefined) {
     const current = broker.stage(threadId)
     return {
-      ...(current ? describeStage(current, broker.pack()) : { stage: null }),
+      ...(current
+        ? describeStage(current, broker.pack(), broker.afterEffects?.(threadId))
+        : { stage: null }),
       stages: MOTION_STAGES.map((stage) => ({ stage, owner: MOTION_STAGE_OWNERS[stage] })),
     }
   }
@@ -137,5 +165,5 @@ export function runMotionStage(broker: MotionStageBroker, threadId: string, inpu
     )
   }
   broker.setStage(threadId, stage.data)
-  return describeStage(stage.data, broker.pack())
+  return describeStage(stage.data, broker.pack(), broker.afterEffects?.(threadId))
 }
