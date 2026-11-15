@@ -82,6 +82,14 @@ export type StartOptions = {
    * Code plugin. Passed only to providers that declare `defaultSkillsPlugin`.
    */
   skillPlugin?: string | undefined
+  /** More plugin folders of skills (a mode's pack), loaded next to `skillPlugin`. */
+  packPlugins?: string[] | undefined
+}
+
+/** The plugin folders a Claude Code session loads, or undefined when there are none. */
+const skillPlugins = ({ skillPlugin, packPlugins = [] }: StartOptions): string[] | undefined => {
+  const folders = [...(skillPlugin ? [skillPlugin] : []), ...packPlugins]
+  return folders.length ? folders : undefined
 }
 
 export type TurnOptions = Pick<StartOptions, 'model' | 'serviceTier' | 'effort'>
@@ -1064,7 +1072,7 @@ function claudeRuntime(
           mcpServers: options.mcpServers,
           mcpCredentials: options.mcpCredentials,
           context: options.context,
-          plugins: options.skillPlugin ? [options.skillPlugin] : undefined,
+          plugins: skillPlugins(options),
         }),
       )
     },
@@ -1085,7 +1093,7 @@ function claudeRuntime(
             mcpServers: options.mcpServers,
             mcpCredentials: options.mcpCredentials,
             context: options.context,
-            plugins: options.skillPlugin ? [options.skillPlugin] : undefined,
+            plugins: skillPlugins(options),
           },
         ),
       )
@@ -1103,7 +1111,7 @@ function claudeRuntime(
             mcpServers: options.mcpServers,
             mcpCredentials: options.mcpCredentials,
             context: options.context,
-            plugins: options.skillPlugin ? [options.skillPlugin] : undefined,
+            plugins: skillPlugins(options),
           }),
         ),
       )

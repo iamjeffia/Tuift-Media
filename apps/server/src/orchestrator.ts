@@ -90,7 +90,14 @@ import {
 import { handoverBudget, handoverPrompt } from './handover.js'
 import { REPLY_STYLE_INSTRUCTIONS } from './reply-style.js'
 import { LOCAL_SKILL_CAPABILITIES, listLocalSkills, mergeSkills } from './skill-inventory.js'
-import { isDefaultSkillId, loadDefaultSkills, type DefaultSkills } from './default-skills.js'
+import {
+  isDefaultSkillId,
+  loadDefaultSkillPack,
+  loadDefaultSkills,
+  type DefaultSkillPack,
+  type DefaultSkills,
+} from './default-skills.js'
+import { modeChangeRestart, modeSessionStart } from './motion-session.js'
 import type { ProviderAccountSnapshotKind, Store, StoredCheckpoint } from './store.js'
 import {
   carryUncommittedChanges,
@@ -135,6 +142,7 @@ import type {
   Thread,
   ThreadInboxStatus,
   ThreadLifecycle,
+  ThreadMode,
   ThreadSubagent,
   UsageReadIntent,
 } from '@harness/contracts'
@@ -913,6 +921,7 @@ export class Orchestrator {
   #worktreeRoot: string
   readonly #defaultSkillsRoot: string | undefined
   #defaultSkills: DefaultSkills | undefined
+  #skillPacks = new Map<string, DefaultSkillPack | undefined>()
   #onEvent: RecordedEventHandler
   #onSideEvent: RecordedEventHandler
   #onQueue: (threadId: string, state: QueueState) => void
@@ -1826,23 +1835,36 @@ export class Orchestrator {
   /**
    * The instructions a session starts with: reply style, then the default
    * skills (as a plugin where the provider loads them itself, as a short
-   * catalog everywhere else), then any instructions of the caller. Side work
-   * that is not a chat of its own leaves the skills out.
+   * catalog everywhere else), then the role and skill pack of the chat's mode,
+   * then any instructions of the caller. Side work that is not a chat of its own
+   * leaves the skills out.
    */
   #sessionStart(
     provider: ProviderId,
     instructions?: string,
-    { skills = true }: { skills?: boolean } = {},
-  ): Pick<StartOptions, 'instructions' | 'skillPlugin'> {
+    { skills = true, mode }: { skills?: boolean; mode?: ThreadMode | undefined } = {},
+  ): Pick<StartOptions, 'instructions' | 'skillPlugin' | 'packPlugins'> {
     const bundled = skills ? this.#bundledSkills() : undefined
     const native = this.#controls.forProvider(provider).capabilities.defaultSkillsPlugin
     const catalog = bundled && !native ? bundled.catalog : ''
+    const modeStart = skills
+      ? modeSessionStart(mode, native, (name) => this.#bundledPack(name))
+      : undefined
     return {
       instructions: composeInstructions(
-        [catalog, instructions?.trim()].filter(Boolean).join('\n\n'),
+        [catalog, modeStart?.instructions, instructions?.trim()].filter(Boolean).join('\n\n'),
       ),
       ...(bundled?.skills.length && native ? { skillPlugin: bundled.root } : {}),
+      ...(modeStart?.plugins.length ? { packPlugins: modeStart.plugins } : {}),
     }
+  }
+
+  /** Read once per server, like the base bundle; none when no bundle was given. */
+  #bundledPack(name: string): DefaultSkillPack | undefined {
+    const root = this.#defaultSkillsRoot
+    if (!root) return undefined
+    if (!this.#skillPacks.has(name)) this.#skillPacks.set(name, loadDefaultSkillPack(name, root))
+    return this.#skillPacks.get(name)
   }
 
   async setSkillEnabled(
@@ -2272,6 +2294,8 @@ export class Orchestrator {
       accountId?: AccountId | undefined
       /** An earlier chat whose conversation this one carries on. */
       continueFrom?: string | undefined
+      /** The mode the chat starts in: its role and skill pack are in its first session. */
+      mode?: ThreadMode | undefined
     } = {},
   ): Promise<Thread> {
     const resolved = resolveWorkspacePath(workspacePath)
@@ -2487,7 +2511,9 @@ export class Orchestrator {
         ...(target.effort ? { effort: target.effort } : {}),
         ...(target.serviceTier ? { serviceTier: target.serviceTier } : {}),
         ...(approval ? { approval } : {}),
-        ...this.#sessionStart(target.provider),
+        ...this.#sessionStart(target.provider, undefined, {
+          mode: this.#store.threadSettings(threadId).mode,
+        }),
         ...(this.#offersAgentTools(target.provider)
           ? (
               await this.#agentToolsOptions(
@@ -2669,6 +2695,7 @@ export class Orchestrator {
     options: StartOptions & {
       accountId?: AccountId | undefined
       continueFrom?: string | undefined
+      mode?: ThreadMode | undefined
     },
     generation: { dispose: number; panic: number; project: number },
   ): Promise<Thread> {
@@ -2702,8 +2729,13 @@ export class Orchestrator {
     {
       accountId: requestedAccount,
       continueFrom,
+      mode,
       ...options
-    }: StartOptions & { accountId?: AccountId | undefined; continueFrom?: string | undefined },
+    }: StartOptions & {
+      accountId?: AccountId | undefined
+      continueFrom?: string | undefined
+      mode?: ThreadMode | undefined
+    },
     generation: { dispose: number; panic: number; project: number },
     mcpOptions: StartOptions,
   ): Promise<Thread> {
@@ -2730,6 +2762,7 @@ export class Orchestrator {
       ...options,
       ...this.#sessionStart(provider, options.instructions, {
         skills: !options.ephemeral,
+        mode,
       }),
       ...mcpOptions,
       ...this.#contextRuntimeOptions(provider, options.agent, accountId),
@@ -5204,6 +5237,30 @@ export class Orchestrator {
     }
   }
 
+  /**
+   * The chat's mode changed in the store (the server refuses that while a turn
+   * runs), so its next turn must start a session with the new role and skills.
+   * The session is released without stopping the chat; the next prompt resumes it
+   * (see `modeChangeRestart` for what each provider carries over). A session that
+   * cannot be resumed keeps running as it is, since releasing it would lose the chat.
+   */
+  async modeChanged(threadId: string): Promise<void> {
+    const stored = this.#store.thread(threadId)
+    if (!stored || stored.closedAt !== undefined || stored.ephemeral) return
+    const restart = modeChangeRestart(stored.provider)
+    if (restart === 'none' || this.#changingProvider.has(threadId)) return
+    try {
+      await this.#resumingThreads.get(threadId)?.catch(() => undefined)
+      const attached = this.#threads.get(threadId)
+      if (attached && !attached.resumable) return
+      if (restart === 'fresh') this.#store.rearmThreadHandover(threadId)
+      if (attached) await this.#disposeThreadRuntime(threadId, 'disconnect')
+    } catch (error) {
+      // The mode is stored; only the restart failed, and the chat still runs.
+      this.#onLog(`[mode] could not restart the session of ${threadId}: ${errorMessage(error)}`)
+    }
+  }
+
   /** A move starts its session in the mode it was given; a change meanwhile would be lost. */
   #refuseApprovalDuringMove(threadId: string): void {
     if (this.#changingProvider.has(threadId)) {
@@ -6098,6 +6155,7 @@ export class Orchestrator {
     }
     const sessionStart = this.#sessionStart(stored.provider, undefined, {
       skills: !stored.ephemeral,
+      mode: this.#store.threadSettings(threadId).mode,
     })
     let freshSessionId: string | undefined
     // The provider has no saved conversation for this chat's session. With no turn ever
