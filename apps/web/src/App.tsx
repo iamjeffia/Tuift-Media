@@ -65,6 +65,7 @@ import { readTerminalPlacement, subscribeTerminalPlacement } from './terminal-pl
 import { useChatNotifications } from './use-chat-notifications.js'
 import { useAppUpdateInstallGate } from './app-update-install.js'
 import { ProviderUpdateNotice } from './ui/ProviderUpdates.js'
+import { LazyMotionCast } from './motion/LazyMotionCast.js'
 import { AppUpdateToast } from './ui/AppUpdateToast.js'
 import { NoticeBody } from './ui/Notice.js'
 import { IndeterminateRequestError, Transport, type MissingServer } from './transport.js'
@@ -8080,6 +8081,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                             <div
                               className={`stage__conversation${activeId ? '' : ' is-new-session'}`}
                             >
+                              <LazyMotionCast mode={motionMode} running={visibleRunning} />
                               {activeId ? (
                                 <AccountLabelContext.Provider value={accountLabel}>
                                   <ModelNameContext.Provider value={modelName}>
@@ -8154,6 +8156,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                             <div
                               className={`stage__conversation${besideId ? '' : ' is-new-session'}`}
                             >
+                              <LazyMotionCast mode={split.frozen.composer.motionMode} />
                               {besideId ? (
                                 <AccountLabelContext.Provider value={accountLabel}>
                                   <ModelNameContext.Provider value={modelName}>

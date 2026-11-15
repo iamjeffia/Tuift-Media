@@ -79,6 +79,12 @@ metadata; it never copies license bodies. The reviewed license files themselves 
 with each Windows and macOS distribution. When an npm package omits that file, the exact reviewed
 fallback and its upstream source are recorded in `licenses/direct-runtime-dependencies.json`.
 
+## TUIFT Media artwork
+
+The six character images in `apps/web/src/motion/cast/` (Zig, Moss, Bun, Pip, Cloud and Penny, shown
+by the Motion mode) are original TUIFT Media art. They are not third-party material and are used
+under the repository's own license.
+
 ## Workspace Agent Skills (`.agents/skills/`)
 
 The workspace skills are plain files read by coding agents working in this repository. Two groups
