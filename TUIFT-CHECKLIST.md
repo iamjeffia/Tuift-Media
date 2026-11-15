@@ -135,10 +135,10 @@ Depende dos itens 2 (skills) e 3 (MCP). O botão do item 6.2 é a porta de entra
   - [x] 9.4b Instrução curta de papel e das dez etapas no início da sessão (cerca de 250 tokens), pelo mesmo canal do catálogo de skills, em todos os provedores.
   - [x] 9.4c Pacote ligado só em chats Motion (no Claude Code como plugin; nos outros, catálogo de cerca de 630 tokens); chat comum começa exatamente como antes. Ligar ou desligar no meio do chat vale no turno seguinte; em Grok, Cursor, Pi, Antigravity e ACP isso abre uma sessão nova do provedor, com a conversa levada como texto.
   - [x] 9.4d Provados com os programas reais os dois pontos de risco (15/11): o Claude Code lista o pacote só quando ele é passado; o Codex, num turno real, leu uma skill do pacote e rodou o script dela a partir de uma pasta com espaço no caminho.
-- [ ] 9.5 Fase 4, etapas:
-  - [ ] 9.5a Ferramenta `motion_stage` no canal do app, só em chats Motion.
-  - [ ] 9.5b Etapa guardada e avisada à tela; o boneco certo acende.
-  - [ ] 9.5c A pessoa troca a etapa clicando num boneco.
+- [x] 9.5 Fase 4, etapas:
+  - [x] 9.5a Ferramenta `motion_stage` no canal do app, só em chats Motion (15/11): o agente avisa a etapa e recebe o dono, a próxima etapa e as skills de vídeo daquela etapa. É um guia, não uma trava. Chega a Claude Code, Codex e OpenCode; nos outros a pessoa define a etapa.
+  - [x] 9.5b Etapa guardada e avisada à tela; o boneco certo acende, também na visão dividida, e a mudança é anunciada ao leitor de tela.
+  - [x] 9.5c A pessoa troca a etapa clicando num boneco: abre o menu do app com as etapas dele. Travado enquanto a resposta é gerada. Num chat novo o menu só aparece depois da primeira mensagem; no painel secundário da visão dividida a etapa só é mostrada. Falta ver com um provedor real no app instalado.
 - [ ] 9.6 Fase 5, After Effects (depende do item 11): MCP ligado só em chats Motion e aviso claro quando o After Effects não está instalado.
 - [ ] 9.7 Fase 6, a cena reage: estado "esperando você" e subagente com nome de boneco acende o boneco.
 - [x] 9.10 Feixe do Motion em volta do campo de texto, como o Design tem, em cores mais fortes do elenco (pedido de 15/11). Corrigido em seguida um bloco cortado no canto de cima do campo em chat novo: o brilho interno ficava por cima da faixa do projeto e era cortado na emenda (valia também para o Design).
@@ -223,3 +223,4 @@ Cada frente roda num worktree próprio em `C:/Dev/tuift-wt/<frente>`, numa branc
 | 2    | `i18n-settings`, `i18n-sidebar`, `i18n-onboarding`, `i18n-workspace`, `i18n-dialogs`, `i18n-desktop` | 1.4 a 1.12                            | na `main` (15/11), testada |
 | 4    | `restos-i18n`                                                                                        | 1.16                                  | na `main` (15/11), testada |
 | 5    | `motion-read`, `motion-session`, `bulk-count`, `pdf-viewer`, `output-caps`                           | 9.3b, 9.3c, 9.4b, 9.4c, 4.5, 5.8, 8.7 | na `main` (15/11), testada |
+| 6    | `motion-stage-tool`, `motion-stage-ui`                                                               | 9.5a, 9.5b, 9.5c                      | na `main` (15/11), testada |
