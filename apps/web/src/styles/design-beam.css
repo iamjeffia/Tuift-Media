@@ -330,6 +330,9 @@
 }
 
 .composer__design-beam:is([data-active], [data-fading])::before {
+  /* Under the shelf as well as the prompt. At 1 the glow painted over a new chat's shelf
+     and was cut off by the prompt's top edge, a hard block in the top corners. */
+  z-index: 0;
   mask-image:
     conic-gradient(
       from var(--composer-design-beam-angle),

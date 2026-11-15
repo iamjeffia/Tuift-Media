@@ -54,6 +54,14 @@ describe('composer Motion toggle styles', () => {
     expect(number(box, 'saturation')).toBeGreaterThan(number(design, 'saturation'))
   })
 
+  it('keeps the box inner glow under the shelf, so a new chat shows no cut block', () => {
+    const inner =
+      /\n\.composer__design-beam:is\(\[data-active\], \[data-fading\]\)::before \{([\s\S]*?)\n\}/.exec(
+        beamCss,
+      )?.[1] ?? ''
+    expect(inner).toContain('z-index: 0;')
+  })
+
   it('tints the active chip orange, also while hovered', () => {
     expect(beamCss).toMatch(
       /\.tools \.composer__motion\.is-active \{[^}]*border-color: var\(--composer-motion-border-active\);/s,
