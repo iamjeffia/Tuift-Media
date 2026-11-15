@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  countDiff,
+  diffCutNote,
   endsWithStreamCut,
   isCutDiff,
+  readDiffCut,
   itemTextLimit,
   MAX_DIFF_CHARS,
   MAX_ITEM_OUTPUT_CHARS,
@@ -48,5 +51,36 @@ describe('the cut markers', () => {
     expect(isCutDiff('diff --git a/x b/x\n+a\n… 5 characters omitted … and more')).toBe(false)
     expect(isCutDiff('+… 5 characters omitted …')).toBe(false)
     expect(isCutDiff('')).toBe(false)
+  })
+
+  it('says in the note what the whole diff changes', () => {
+    const note = diffCutNote(99, { files: 1, added: 3, removed: 0 })
+    const cut = ['+a', note].join(String.fromCharCode(10))
+
+    expect(note).toBe('… 99 characters omitted (1 file, +3 -0 in all) …')
+    expect(isCutDiff(cut)).toBe(true)
+    expect(readDiffCut(cut)).toEqual({
+      omitted: 99,
+      totals: { files: 1, added: 3, removed: 0 },
+    })
+  })
+
+  it('counts files and lines of a whole diff', () => {
+    const diff = [
+      'diff --git a/a b/a',
+      '--- a/a',
+      '+++ b/a',
+      '@@ -1 +1,2 @@',
+      '-x',
+      '+y',
+      '+z',
+      'diff --git a/b b/b',
+      '@@ -1 +1 @@',
+      '-q',
+      '+r',
+    ].join(String.fromCharCode(10))
+
+    expect(countDiff(diff)).toEqual({ files: 2, added: 3, removed: 2 })
+    expect(countDiff('')).toEqual({ files: 1, added: 0, removed: 0 })
   })
 })

@@ -1,5 +1,7 @@
 import {
+  countDiff,
   DIFF_LIMIT,
+  diffCutNote,
   itemTextLimit,
   MAX_DIFF_CHARS,
   MAX_ITEM_OUTPUT_CHARS,
@@ -40,7 +42,8 @@ export function elideOutput(text: string, max = MAX_ITEM_OUTPUT_CHARS): string {
 
 /**
  * Keeps the start of a long diff, cut at the end of a line, with a last line saying how much was
- * dropped. Whole lines keep every file and hunk header that stays well formed, so the diff still
+ * dropped and what the whole diff changes (files, lines added and removed), so the edit card can
+ * show the real totals. Whole lines keep every file and hunk header that stays well formed, so the diff still
  * parses; the hunk the cut falls in just ends early. No tail: it would begin inside a file and
  * count its lines for the file before it.
  */
@@ -52,7 +55,7 @@ export function elideDiff(diff: string, max = MAX_DIFF_CHARS): string {
     end = max
     if (isHighSurrogate(diff.charCodeAt(end - 1))) end -= 1
   }
-  return `${diff.slice(0, end)}\n… ${diff.length - end} characters omitted …`
+  return `${diff.slice(0, end)}\n${diffCutNote(diff.length - end, countDiff(diff))}`
 }
 
 function elideText(text: string, limit: ItemTextLimit): string {

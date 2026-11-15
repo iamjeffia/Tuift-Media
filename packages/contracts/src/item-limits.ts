@@ -63,13 +63,79 @@ export function endsWithStreamCut(text: string): boolean {
   )
 }
 
-const CUT_DIFF_LAST_LINE = /^… \d+ characters omitted …$/
+/** What a whole diff changes, counted the way the edit card counts the lines it shows. */
+export type DiffTotals = { files: number; added: number; removed: number }
 
 /**
- * A diff that was cut to its limit: its last line says how much was dropped. Every line of a
- * real unified diff starts with a space, +, -, \ or a header, so that line is never a diff's own.
- * What a cut diff leaves is a part of the change, never to be applied or reversed.
+ * Counts a diff the way the edit card reads one: a file for each `diff --git` line (one when
+ * there is none), a line added or removed for each `+` or `-` that is not a file header. The
+ * card reads the diff it is shown, so this must follow its rules line for line.
  */
+export function countDiff(diff: string): DiffTotals {
+  let files = 0
+  let added = 0
+  let removed = 0
+  let hasFile = false
+  // Headers only appear before a file's first hunk; inside a hunk a leading +/- is a change.
+  let inHunk = false
+  let start = 0
+  while (start <= diff.length) {
+    let end = diff.indexOf('\n', start)
+    if (end < 0) end = diff.length
+    if (diff.startsWith('diff --git', start)) {
+      files += 1
+      hasFile = true
+      inHunk = false
+    } else if (
+      !inHunk &&
+      (diff.startsWith('new file mode', start) ||
+        diff.startsWith('+++ ', start) ||
+        diff.startsWith('--- ', start) ||
+        diff.startsWith('index ', start))
+    ) {
+      // A header line.
+    } else if (diff.startsWith('@@', start)) {
+      inHunk = true
+    } else if (diff.startsWith('+', start) || diff.startsWith('-', start)) {
+      if (diff.startsWith('+', start)) added += 1
+      else removed += 1
+      if (!hasFile) {
+        files += 1
+        hasFile = true
+      }
+    }
+    start = end + 1
+  }
+  return { files: files === 0 ? 1 : files, added, removed }
+}
+
+/** The last line of a cut diff: how much was dropped, and what the whole diff changes. */
+export function diffCutNote(omitted: number, totals: DiffTotals): string {
+  const files = `${totals.files} ${totals.files === 1 ? 'file' : 'files'}`
+  return `… ${omitted} characters omitted (${files}, +${totals.added} -${totals.removed} in all) …`
+}
+
+const CUT_DIFF_LAST_LINE =
+  /^… (\d+) characters omitted(?: \((\d+) files?, \+(\d+) -(\d+) in all\))? …$/
+
+/**
+ * Reads the note a cut diff ends with: how many characters were dropped and, when the note
+ * carries them, the totals of the whole diff. Every line of a real unified diff starts with a
+ * space, +, -, \ or a header, so that last line is never a diff's own. Undefined for a diff that
+ * was not cut.
+ */
+export function readDiffCut(diff: string): { omitted: number; totals?: DiffTotals } | undefined {
+  const match = CUT_DIFF_LAST_LINE.exec(diff.slice(diff.lastIndexOf('\n') + 1))
+  if (!match) return undefined
+  const omitted = Number(match[1])
+  if (match[2] === undefined) return { omitted }
+  return {
+    omitted,
+    totals: { files: Number(match[2]), added: Number(match[3]), removed: Number(match[4]) },
+  }
+}
+
+/** A diff cut to its limit: a part of the change, to be shown and never applied. */
 export function isCutDiff(diff: string): boolean {
-  return CUT_DIFF_LAST_LINE.test(diff.slice(diff.lastIndexOf('\n') + 1))
+  return readDiffCut(diff) !== undefined
 }
