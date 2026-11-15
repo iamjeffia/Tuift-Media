@@ -66,7 +66,7 @@ import { useChatNotifications } from './use-chat-notifications.js'
 import { useAppUpdateInstallGate } from './app-update-install.js'
 import { ProviderUpdateNotice } from './ui/ProviderUpdates.js'
 import { LazyMotionCast } from './motion/LazyMotionCast.js'
-import { useThreadMotion, type LegacyMotionFlag } from './motion/thread-motion.js'
+import { useChatMotion, useThreadMotion, type LegacyMotionFlag } from './motion/thread-motion.js'
 import { AppUpdateToast } from './ui/AppUpdateToast.js'
 import { NoticeBody } from './ui/Notice.js'
 import { IndeterminateRequestError, Transport, type MissingServer } from './transport.js'
@@ -1312,14 +1312,27 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     setDesignModes((current) => ({ ...current, [threadId ?? NEW_CHAT_DRAFT_KEY]: enabled }))
   }, [])
   // Motion lives on the server for a chat that exists; only a new chat's draft is local.
-  const { motionMode, motionStage, motionLocked, setThreadMotionMode, adoptMotion, seedMotion } =
-    useThreadMotion({
-      transport,
-      activeId,
-      running: thread.running,
-      legacy: legacyMotionFlag,
-      onError: reportError,
-    })
+  const {
+    motionMode,
+    motionStage,
+    motionLocked,
+    setThreadMotionMode,
+    setMotionStage,
+    adoptMotion,
+    seedMotion,
+    motionStore,
+  } = useThreadMotion({
+    transport,
+    activeId,
+    running: thread.running,
+    legacy: legacyMotionFlag,
+    onError: reportError,
+  })
+  const besideMotion = useChatMotion(
+    motionStore,
+    besideId,
+    split?.frozen.composer.motionMode ?? false,
+  )
   // Design and Motion exclude each other: turning one on turns the other off.
   const changeDesignMode = useCallback(
     (enabled: boolean) => {
@@ -8083,6 +8096,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                                 mode={motionMode}
                                 stage={motionStage}
                                 running={visibleRunning}
+                                locked={motionLocked}
+                                onStageChange={setMotionStage}
                               />
                               {activeId ? (
                                 <AccountLabelContext.Provider value={accountLabel}>
@@ -8158,7 +8173,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                             <div
                               className={`stage__conversation${besideId ? '' : ' is-new-session'}`}
                             >
-                              <LazyMotionCast mode={split.frozen.composer.motionMode} />
+                              <LazyMotionCast mode={besideMotion.mode} stage={besideMotion.stage} />
                               {besideId ? (
                                 <AccountLabelContext.Provider value={accountLabel}>
                                   <ModelNameContext.Provider value={modelName}>

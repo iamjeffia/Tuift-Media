@@ -61,6 +61,10 @@ export const STAGE_OWNER = {
   delivery: 'pip',
 } satisfies Record<MotionStageId, CastId>
 
+/** The stages a character owns, in the order of the work: one or two. */
+export const stagesOf = (id: CastId): MotionStageId[] =>
+  MOTION_STAGES.filter((stage) => STAGE_OWNER[stage] === id)
+
 export const STAGE_LABEL = {
   idea: 'chat.motion.stage.idea',
   script: 'chat.motion.stage.script',
