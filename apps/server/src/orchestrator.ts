@@ -98,6 +98,15 @@ import {
   type DefaultSkillPack,
   type DefaultSkills,
 } from './default-skills.js'
+import {
+  AFTER_EFFECTS_SERVER_ID,
+  currentAfterEffectsState,
+  decideAfterEffects,
+  isAfterEffectsName,
+  type AfterEffectsDecision,
+  type AfterEffectsSource,
+  type PersonalServer,
+} from './motion-after-effects.js'
 import { modeChangeRestart, modeSessionStart } from './motion-session.js'
 import { motionStageBroker } from './motion-stage.js'
 import type { ProviderAccountSnapshotKind, Store, StoredCheckpoint } from './store.js'
@@ -129,6 +138,7 @@ import type {
   PanicStopResult,
   ParamsOf,
   AccountContextSettings,
+  AfterEffectsState,
   ProviderContextSettings,
   ProviderContextSettingsMap,
   ProviderAccount,
@@ -243,6 +253,11 @@ const MAX_CONTINUED_CHATS = 8
  * rather than holding the turn.
  */
 const MODEL_WINDOW_WAIT_MS = 2_000
+/**
+ * How long a Motion chat's start waits for the provider to say whether the person
+ * has an After Effects server of their own. A slower answer is cached for the next chat.
+ */
+const AFTER_EFFECTS_INVENTORY_WAIT_MS = 3_000
 /**
  * A turn diff built from a checkpoint is kept in the chat's log like an
  * agent's own. One that grew past this (generated files, a vendored folder)
@@ -924,6 +939,11 @@ export class Orchestrator {
   readonly #defaultSkillsRoot: string | undefined
   #defaultSkills: DefaultSkills | undefined
   #skillPacks = new Map<string, DefaultSkillPack | undefined>()
+  /** Where After Effects and its server are; absent, Motion chats say nothing about it. */
+  readonly #afterEffectsSource: AfterEffectsSource | undefined
+  /** What each Motion chat's current session was started with, for the screen and the tool answers. */
+  #afterEffects = new Map<string, AfterEffectsDecision>()
+  #onThreadSettings: (threadId: string) => void
   #onEvent: RecordedEventHandler
   #onSideEvent: RecordedEventHandler
   #onQueue: (threadId: string, state: QueueState) => void
@@ -1087,6 +1107,8 @@ export class Orchestrator {
       worktreeRoot?: string
       /** The folder of the skills that ship with TUIFT Code; absent, sessions get none. */
       defaultSkillsRoot?: string
+      /** Attaches the After Effects server to Motion chats; absent, Motion chats never mention it. */
+      afterEffects?: AfterEffectsSource
     },
   ) {
     this.#store = store
@@ -1098,6 +1120,8 @@ export class Orchestrator {
       handlers.worktreeRoot ??
       (process.env['HARNESS_WORKTREE_DIR'] || path.join(path.dirname(storeLocation()), 'trees'))
     this.#defaultSkillsRoot = handlers.defaultSkillsRoot
+    this.#afterEffectsSource = handlers.afterEffects
+    this.#onThreadSettings = (threadId) => handlers.onThreadSettings?.(threadId)
     this.#onEvent = handlers.onEvent
     this.#onSideEvent = handlers.onSideEvent ?? handlers.onEvent
     this.#onSubagentEvent = handlers.onSubagentEvent ?? (() => {})
@@ -1138,6 +1162,7 @@ export class Orchestrator {
             store,
             (threadId) => handlers.onThreadSettings?.(threadId),
             () => this.#bundledPack('motion'),
+            (threadId) => this.afterEffectsState(threadId),
           ),
         )
       : undefined
@@ -1701,7 +1726,11 @@ export class Orchestrator {
             ? () =>
                 this.#withThreadRuntimeOperation(active[0], async () => {
                   const { session, thread } = active[1]
-                  const servers = await session.listMcpServers!(thread.id)
+                  const ours = this.#afterEffects.get(thread.id)?.server !== undefined
+                  // The After Effects server TUIFT Code attached is not one of the user's servers.
+                  const servers = (await session.listMcpServers!(thread.id)).filter(
+                    (server) => !(ours && server.id === AFTER_EFFECTS_SERVER_ID),
+                  )
                   return session.isMcpLoading?.(thread.id)
                     ? { servers, loading: true }
                     : { servers }
@@ -1854,7 +1883,16 @@ export class Orchestrator {
   #sessionStart(
     provider: ProviderId,
     instructions?: string,
-    { skills = true, mode }: { skills?: boolean; mode?: ThreadMode | undefined } = {},
+    {
+      skills = true,
+      mode,
+      afterEffects,
+    }: {
+      skills?: boolean
+      mode?: ThreadMode | undefined
+      /** What this session has of After Effects, for the Motion role. */
+      afterEffects?: AfterEffectsDecision | undefined
+    } = {},
   ): Pick<StartOptions, 'instructions' | 'skillPlugin' | 'packPlugins'> {
     const bundled = skills ? this.#bundledSkills() : undefined
     const native = this.#controls.forProvider(provider).capabilities.defaultSkillsPlugin
@@ -1865,6 +1903,7 @@ export class Orchestrator {
           native,
           (name) => this.#bundledPack(name),
           this.#offersAgentTools(provider),
+          afterEffects?.state,
         )
       : undefined
     return {
@@ -1968,9 +2007,12 @@ export class Orchestrator {
       [...active].map(async ([threadId, entry]) => {
         if (entry.session.reloadMcpServers) {
           // A chat with agent tools keeps them through a reload.
-          const own = this.#agentToolGrants.has(threadId)
-            ? (await this.#agentToolsOptions(provider, threadId, options)).options
-            : options
+          const own = this.#keepAfterEffects(
+            threadId,
+            this.#agentToolGrants.has(threadId)
+              ? (await this.#agentToolsOptions(provider, threadId, options)).options
+              : options,
+          )
           return this.#withThreadRuntimeOperation(threadId, () =>
             entry.session.reloadMcpServers!(
               entry.thread.id,
@@ -2107,6 +2149,125 @@ export class Orchestrator {
     return { mcpServers, mcpCredentials }
   }
 
+  /** Whether a session in `mode` decides about After Effects. Synchronous, so other starts keep their timing. */
+  #wantsAfterEffects(mode: ThreadMode | undefined): boolean {
+    return mode === 'motion' && this.#afterEffectsSource !== undefined
+  }
+
+  /**
+   * A Motion chat's session start with After Effects: the decision for its role
+   * and, when the person has no server of their own, the server attached to this
+   * chat alone.
+   */
+  async #afterEffectsStart(
+    provider: ProviderId,
+    projectPath: string,
+    mcp: StartOptions,
+  ): Promise<{ options: StartOptions; decision?: AfterEffectsDecision }> {
+    const source = this.#afterEffectsSource
+    if (!source) return { options: mcp }
+    const decision = decideAfterEffects({
+      executable: source.executable(),
+      entry: source.entry(),
+      attachable: PROVIDER_CAPABILITIES[provider].managedMcp,
+      person: await this.#personalAfterEffects(provider, projectPath),
+      runner: source.runner,
+    })
+    if (!decision.server) return { options: mcp, decision }
+    return {
+      options: {
+        ...mcp,
+        mcpServers: [...(mcp.mcpServers ?? []), decision.server],
+        mcpCredentials: mcp.mcpCredentials ?? {},
+      },
+      decision,
+    }
+  }
+
+  /**
+   * The person's own After Effects server, by id or name: the project's saved
+   * servers first, then what the provider reports for the project. The provider's
+   * answer may need a process; it is waited for briefly, and a late one is cached
+   * for the next chat.
+   */
+  async #personalAfterEffects(provider: ProviderId, projectPath: string): Promise<PersonalServer> {
+    const saved = this.#savedAfterEffects(provider, projectPath)
+    if (saved !== 'none' || !PROVIDER_CAPABILITIES[provider].mcpInventory) return saved
+    let timer: NodeJS.Timeout | undefined
+    const expired = new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => resolve(undefined), AFTER_EFFECTS_INVENTORY_WAIT_MS)
+    })
+    try {
+      // A cold inventory answers "still loading" at once; ask again until it is done or the wait ends.
+      for (;;) {
+        const inventory = await Promise.race([this.listMcpServers(provider, projectPath), expired])
+        if (!inventory) return 'none'
+        const found = inventory.servers.some(
+          (server) => isAfterEffectsName(server.id) || isAfterEffectsName(server.displayName),
+        )
+        if (found) return 'own'
+        if (!inventory.loading) return 'none'
+        await Promise.race([new Promise((resolve) => setTimeout(resolve, 250)), expired])
+      }
+    } catch {
+      return 'none'
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  /** The project's saved servers: an enabled one is the person's own, a disabled one is theirs hiding it. */
+  #savedAfterEffects(provider: ProviderId, projectPath: string): PersonalServer {
+    const saved = this.#mcpConfig
+      .list(provider, projectPath)
+      .filter(
+        (server) =>
+          isAfterEffectsName(server.id) ||
+          (server.enabled && isAfterEffectsName(server.displayName)),
+      )
+    return saved.some((server) => server.enabled) ? 'own' : saved.length > 0 ? 'hidden' : 'none'
+  }
+
+  /** Keeps what the session started with for the chat, and tells the clients when the screen's answer changed. */
+  #recordAfterEffects(threadId: string, decision: AfterEffectsDecision | undefined): void {
+    if (!decision && !this.#afterEffects.has(threadId)) return
+    const before = this.afterEffectsState(threadId)
+    if (decision) this.#afterEffects.set(threadId, decision)
+    else this.#afterEffects.delete(threadId)
+    if (this.afterEffectsState(threadId) !== before) this.#onThreadSettings(threadId)
+  }
+
+  /**
+   * Whether this Motion chat can use After Effects, for the screen and the stage
+   * tool: from the session it has, or from what the next session would get. Absent
+   * outside Motion, and when the server was built without After Effects.
+   */
+  afterEffectsState(threadId: string): AfterEffectsState | undefined {
+    const source = this.#afterEffectsSource
+    const stored = this.#store.thread(threadId)
+    if (!source || !stored || this.#store.threadSettings(threadId).mode !== 'motion') {
+      return undefined
+    }
+    const executable = source.executable()
+    const kept = this.#afterEffects.get(threadId)
+    if (kept) return currentAfterEffectsState(kept, executable)
+    // No session yet: what the next one will decide, without waiting for the provider.
+    return decideAfterEffects({
+      executable,
+      entry: source.entry(),
+      attachable: PROVIDER_CAPABILITIES[stored.provider].managedMcp,
+      person: this.#savedAfterEffects(stored.provider, stored.projectPath),
+      runner: source.runner,
+    }).state
+  }
+
+  /** A reload of the project's servers keeps the one this chat's session attached. */
+  #keepAfterEffects(threadId: string, options: StartOptions): StartOptions {
+    const server = this.#afterEffects.get(threadId)?.server
+    if (!server || options.mcpServers?.some((entry) => isAfterEffectsName(entry.id))) return options
+    return { ...options, mcpServers: [...(options.mcpServers ?? []), server] }
+  }
+
   /** Whether a chat on `provider` gets the agent tools. Synchronous, so other starts keep their timing. */
   #offersAgentTools(provider: ProviderId): boolean {
     return this.#agentTools !== undefined && PROVIDER_CAPABILITIES[provider].agentTools
@@ -2162,6 +2323,7 @@ export class Orchestrator {
   }
 
   #revokeAgentTools(threadId: string): void {
+    this.#afterEffects.delete(threadId)
     this.#agentToolGrants.get(threadId)?.revoke()
     this.#agentToolGrants.delete(threadId)
   }
@@ -2525,6 +2687,11 @@ export class Orchestrator {
         target.approval ??
         this.#threadApprovals.get(threadId) ??
         this.#store.threadApproval(threadId)
+      const mode = this.#store.threadSettings(threadId).mode
+      const projectMcp = this.#mcpRuntimeOptions(target.provider, stored.projectPath)
+      const afterEffects = this.#wantsAfterEffects(mode)
+        ? await this.#afterEffectsStart(target.provider, stored.projectPath, projectMcp)
+        : { options: projectMcp }
       const startOptions: StartOptions = {
         ...(target.agent ? { agent: target.agent } : {}),
         ...(target.model ? { model: target.model } : {}),
@@ -2532,17 +2699,12 @@ export class Orchestrator {
         ...(target.serviceTier ? { serviceTier: target.serviceTier } : {}),
         ...(approval ? { approval } : {}),
         ...this.#sessionStart(target.provider, undefined, {
-          mode: this.#store.threadSettings(threadId).mode,
+          mode,
+          afterEffects: afterEffects.decision,
         }),
         ...(this.#offersAgentTools(target.provider)
-          ? (
-              await this.#agentToolsOptions(
-                target.provider,
-                threadId,
-                this.#mcpRuntimeOptions(target.provider, stored.projectPath),
-              )
-            ).options
-          : this.#mcpRuntimeOptions(target.provider, stored.projectPath)),
+          ? (await this.#agentToolsOptions(target.provider, threadId, afterEffects.options)).options
+          : afterEffects.options),
         ...this.#contextRuntimeOptions(target.provider, target.agent, accountId),
       }
       // Another account of the same provider can take the session itself.
@@ -2620,6 +2782,7 @@ export class Orchestrator {
         return await stopStarted(errorMessage(error))
       }
       if (carried) this.#carriedThreads.add(threadId)
+      this.#recordAfterEffects(threadId, afterEffects.decision)
       const thread = onAccount(moved.thread, accountId)
       this.#attachThread(thread, moved.session, stored.projectPath, runtime.resume !== undefined)
       if (approval) {
@@ -2720,10 +2883,19 @@ export class Orchestrator {
     generation: { dispose: number; panic: number; project: number },
   ): Promise<Thread> {
     const mcp = this.#mcpRuntimeOptions(provider, workspacePath)
+    // Awaited only for Motion chats, so other starts keep their timing.
+    const afterEffects = this.#wantsAfterEffects(options.ephemeral ? undefined : options.mode)
+      ? await this.#afterEffectsStart(provider, workspacePath, mcp)
+      : { options: mcp }
     // Awaited only when offered, so other starts keep their timing.
     const agentTools = this.#offersAgentTools(provider)
-      ? await this.#agentToolsOptions(provider, undefined, mcp, options.mode === 'motion')
-      : { options: mcp, grant: undefined }
+      ? await this.#agentToolsOptions(
+          provider,
+          undefined,
+          afterEffects.options,
+          options.mode === 'motion',
+        )
+      : { options: afterEffects.options, grant: undefined }
     try {
       const thread = await this.#launchThread(
         provider,
@@ -2731,7 +2903,9 @@ export class Orchestrator {
         options,
         generation,
         agentTools.options,
+        afterEffects.decision,
       )
+      if (afterEffects.decision) this.#afterEffects.set(thread.id, afterEffects.decision)
       if (agentTools.grant) {
         agentTools.grant.bind(thread.id)
         this.#agentToolGrants.set(thread.id, agentTools.grant)
@@ -2758,6 +2932,7 @@ export class Orchestrator {
     },
     generation: { dispose: number; panic: number; project: number },
     mcpOptions: StartOptions,
+    afterEffects?: AfterEffectsDecision,
   ): Promise<Thread> {
     const cancelled = () =>
       generation.dispose !== this.#disposeGeneration ||
@@ -2783,6 +2958,7 @@ export class Orchestrator {
       ...this.#sessionStart(provider, options.instructions, {
         skills: !options.ephemeral,
         mode,
+        afterEffects,
       }),
       ...mcpOptions,
       ...this.#contextRuntimeOptions(provider, options.agent, accountId),
@@ -5291,6 +5467,8 @@ export class Orchestrator {
       await this.#resumingThreads.get(threadId)?.catch(() => undefined)
       const attached = this.#threads.get(threadId)
       if (attached && !attached.resumable) return
+      // The next session decides again.
+      this.#afterEffects.delete(threadId)
       if (restart === 'fresh') this.#store.rearmThreadHandover(threadId)
       if (attached) await this.#disposeThreadRuntime(threadId, 'disconnect')
     } catch (error) {
@@ -6171,6 +6349,11 @@ export class Orchestrator {
     const workspacePath = stored.worktreePath ?? resolveWorkspacePath(stored.projectPath)
     const approval = this.#threadApprovals.get(threadId) ?? this.#store.threadApproval(threadId)
     const resumeState = this.#store.threadRuntimeState(threadId)
+    const mode = stored.ephemeral ? undefined : this.#store.threadSettings(threadId).mode
+    const projectMcp = this.#mcpRuntimeOptions(stored.provider, stored.projectPath)
+    const afterEffects = this.#wantsAfterEffects(mode)
+      ? await this.#afterEffectsStart(stored.provider, stored.projectPath, projectMcp)
+      : { options: projectMcp }
     const options: StartOptions = {
       // Opening without the turn's model options would make an engine that
       // applies them at launch (Claude effort) restart right after resuming.
@@ -6181,20 +6364,16 @@ export class Orchestrator {
       ...(approval ? { approval } : {}),
       // Side chats and sub-agents never get the agent tools: one level deep.
       ...(stored.ephemeral || !this.#offersAgentTools(stored.provider)
-        ? this.#mcpRuntimeOptions(stored.provider, stored.projectPath)
-        : (
-            await this.#agentToolsOptions(
-              stored.provider,
-              threadId,
-              this.#mcpRuntimeOptions(stored.provider, stored.projectPath),
-            )
-          ).options),
+        ? afterEffects.options
+        : (await this.#agentToolsOptions(stored.provider, threadId, afterEffects.options)).options),
       ...this.#contextRuntimeOptions(stored.provider, stored.agent, stored.accountId),
     }
     const sessionStart = this.#sessionStart(stored.provider, undefined, {
       skills: !stored.ephemeral,
       mode: this.#store.threadSettings(threadId).mode,
+      afterEffects: afterEffects.decision,
     })
+    this.#recordAfterEffects(threadId, afterEffects.decision)
     let freshSessionId: string | undefined
     // The provider has no saved conversation for this chat's session. With no turn ever
     // completed there is nothing to carry; otherwise (another account's folder, a moved file)

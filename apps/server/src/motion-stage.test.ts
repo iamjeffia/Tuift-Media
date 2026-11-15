@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
-import { MOTION_STAGE_OWNERS, MOTION_STAGES, type MotionStage } from '@harness/contracts'
+import {
+  MOTION_STAGE_OWNERS,
+  MOTION_STAGES,
+  type AfterEffectsState,
+  type MotionStage,
+} from '@harness/contracts'
 import type { DefaultSkillPack } from './default-skills.js'
 import {
   MOTION_STAGE_SKILLS,
@@ -156,5 +161,44 @@ describe('motionStageBroker', () => {
     expect(announce).toHaveBeenCalledExactlyOnceWith('t1')
     broker.setStage('t1', 'script')
     expect(broker.stage('t1')).toBe('script')
+  })
+})
+
+describe('the skills of the motion stage by what can run', () => {
+  const motionPack: DefaultSkillPack = {
+    ...pack,
+    skills: [...MOTION_STAGE_SKILLS.motion, 'composicao-trilha'],
+  }
+  const names = (afterEffects: AfterEffectsState | undefined, stage: MotionStage = 'motion') => {
+    const broker: MotionStageBroker = {
+      ...fakeBroker(stage, motionPack).broker,
+      afterEffects: () => afterEffects,
+    }
+    const answer = runMotionStage(broker, 'chat-1', {}) as { skills: Array<{ name: string }> }
+    return answer.skills.map((skill) => skill.name)
+  }
+
+  it('keeps the order when After Effects is ready, or when nobody says', () => {
+    expect(names('ready')).toEqual([...MOTION_STAGE_SKILLS.motion])
+    expect(names(undefined)).toEqual([...MOTION_STAGE_SKILLS.motion])
+  })
+
+  it('puts HyperFrames first and the After Effects skills last when it is not there', () => {
+    for (const state of ['not-installed', 'unavailable'] as const) {
+      expect(names(state)).toEqual([
+        'hyperframes',
+        'motion-graphics',
+        'animacao-saas',
+        'motion-narrado',
+        'motion-app-ae',
+        'captura-de-movimento',
+      ])
+    }
+  })
+
+  it('leaves the other stages as they are', () => {
+    expect(names('not-installed', 'references')).toEqual(
+      [...MOTION_STAGE_SKILLS.references].filter((name) => motionPack.skills.includes(name)),
+    )
   })
 })

@@ -1,6 +1,7 @@
 import type { DataOf, DomainEvent } from '@harness/contracts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DemoTransport } from './demo-transport.js'
+import { afterEffectsFromSearch } from './demo-server.js'
 
 const TIMING = { stepMs: 10, wordMs: 5, thinkingWordMs: 2, toolMs: 20 }
 
@@ -191,6 +192,48 @@ describe('DemoTransport', () => {
     await expect(
       call(transport.request('thread.close', { threadId: projects[0]!.sessions[0]!.id })),
     ).resolves.toEqual({})
+  })
+
+  it('reports After Effects on a Motion chat only when the sandbox is told to, and never stores it', async () => {
+    transport.close()
+    transport.server.dispose()
+    transport = new DemoTransport({
+      latencyMs: 1,
+      timing: TIMING,
+      platform: 'linux',
+      afterEffects: 'not-installed',
+    })
+    const pushed: Array<DataOf<'thread.settings'>> = []
+    transport.on('thread.settings', (data) => pushed.push(data))
+    transport.connect()
+    await vi.advanceTimersByTimeAsync(1)
+    const threadId = await newChat()
+
+    // A plain chat has no field.
+    expect(await call(transport.request('thread.settings', { threadId }))).not.toHaveProperty(
+      'afterEffects',
+    )
+    expect(
+      await call(transport.request('thread.setMode', { threadId, mode: 'motion' })),
+    ).toMatchObject({ mode: 'motion', afterEffects: 'not-installed' })
+    expect(await call(transport.request('thread.settings', { threadId }))).toMatchObject({
+      afterEffects: 'not-installed',
+    })
+    expect(pushed.at(-1)?.settings.afterEffects).toBe('not-installed')
+    // A setup change keeps it, and turning Motion off takes it away.
+    expect(
+      await call(transport.request('thread.setSettings', { threadId, model: 'sonnet' })),
+    ).toMatchObject({ afterEffects: 'not-installed' })
+    expect(
+      await call(transport.request('thread.setMode', { threadId, mode: null })),
+    ).not.toHaveProperty('afterEffects')
+  })
+
+  it('reads the state from the sandbox URL, and ignores a value that is not one', () => {
+    expect(afterEffectsFromSearch('?afterEffects=ready')).toBe('ready')
+    expect(afterEffectsFromSearch('?chat=x&afterEffects=unavailable')).toBe('unavailable')
+    expect(afterEffectsFromSearch('?afterEffects=maybe')).toBeUndefined()
+    expect(afterEffectsFromSearch('')).toBeUndefined()
   })
 
   it('keeps a chat mode and Motion stage, refuses a change mid-turn, and pushes each change', async () => {

@@ -1,5 +1,7 @@
 import {
+  AfterEffectsStateSchema,
   PROTOCOL_VERSION,
+  type AfterEffectsState,
   type ApprovalMode,
   type BackgroundModelPreference,
   type ChannelName,
@@ -66,6 +68,17 @@ export type DemoServerOptions = {
   usageResetMs?: number
   /** Chats that start as Motion chats at the given stage, as a server would have kept them. */
   motionChats?: Record<string, MotionStage>
+  /**
+   * What every Motion chat reports for After Effects, as a server computes it. Absent,
+   * the URL's `?afterEffects=ready|not-installed|unavailable` says; without either,
+   * Motion chats report nothing, as a server built without After Effects does.
+   */
+  afterEffects?: AfterEffectsState
+}
+
+/** The sandbox URL's `afterEffects` value, when it is one of the three states. */
+export function afterEffectsFromSearch(search: string): AfterEffectsState | undefined {
+  return AfterEffectsStateSchema.safeParse(new URLSearchParams(search).get('afterEffects')).data
 }
 
 type Handler<M extends MethodName> = (params: ParamsOf<M>) => ResultOf<M> | Promise<ResultOf<M>>
@@ -144,9 +157,13 @@ export class DemoServer {
   #backgroundModel: BackgroundModelPreference = { mode: 'automatic' }
   #skillOverrides = new Map<string, boolean>()
   readonly #handlers: Handlers
+  readonly #afterEffects: AfterEffectsState | undefined
 
   constructor(options: DemoServerOptions) {
     this.#push = options.push
+    this.#afterEffects =
+      options.afterEffects ??
+      (typeof location === 'undefined' ? undefined : afterEffectsFromSearch(location.search))
     this.#now = options.now ?? Date.now
     this.#usageResetAt =
       options.usageResetMs === undefined ? undefined : this.#now() + options.usageResetMs
@@ -346,8 +363,15 @@ export class DemoServer {
     return demoProvider(thread.provider)?.status.capabilities?.steer === true
   }
 
+  /** The stored setup, plus After Effects for a Motion chat: computed on every read, never stored. */
+  #settingsOf(thread: DemoThread): ThreadSettings {
+    return thread.settings.mode === 'motion' && this.#afterEffects
+      ? { ...thread.settings, afterEffects: this.#afterEffects }
+      : thread.settings
+  }
+
   #pushSettings(thread: DemoThread): void {
-    this.#push('thread.settings', { threadId: thread.id, settings: thread.settings })
+    this.#push('thread.settings', { threadId: thread.id, settings: this.#settingsOf(thread) })
   }
 
   // -------------------------------------------------------------------------
@@ -1160,7 +1184,7 @@ export class DemoServer {
         this.#pushQueue(thread)
         return {}
       },
-      'thread.settings': ({ threadId }) => this.#thread(threadId).settings,
+      'thread.settings': ({ threadId }) => this.#settingsOf(this.#thread(threadId)),
       'thread.setSettings': ({ threadId, model, effort, serviceTier }) => {
         const thread = this.#thread(threadId)
         const { mode, motionStage } = thread.settings
@@ -1173,7 +1197,7 @@ export class DemoServer {
           ...(motionStage ? { motionStage } : {}),
         }
         this.#pushSettings(thread)
-        return thread.settings
+        return this.#settingsOf(thread)
       },
       'thread.setMode': ({ threadId, mode, motionStage }) => {
         const thread = this.#thread(threadId)
@@ -1189,7 +1213,7 @@ export class DemoServer {
         if (stage) next.motionStage = stage
         thread.settings = next
         this.#pushSettings(thread)
-        return thread.settings
+        return this.#settingsOf(thread)
       },
       'thread.setApproval': ({ threadId, approval }) => {
         const thread = this.#thread(threadId)

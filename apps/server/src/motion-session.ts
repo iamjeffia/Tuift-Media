@@ -1,4 +1,4 @@
-import type { ProviderId, ThreadMode } from '@harness/contracts'
+import type { AfterEffectsState, ProviderId, ThreadMode } from '@harness/contracts'
 import type { DefaultSkillPack } from './default-skills.js'
 
 /**
@@ -29,15 +29,32 @@ const STAGE_TOOL_SENTENCE =
 
 const ROLE_TAIL = `The final wording of anything the person will say or publish, and every approval, is theirs: propose, then wait. Read a skill only when the stage needs it, never all of them. Outside video work, ignore this role.`
 
-const motionRole = (stageTool: boolean) =>
-  [ROLE_HEAD, stageTool ? STAGE_TOOL_SENTENCE : '', ROLE_TAIL].filter(Boolean).join('\n\n')
+/** Chosen by what the chat's session actually has: the agent must not plan around a tool it lacks. */
+export const AFTER_EFFECTS_SENTENCES = {
+  ready:
+    'After Effects is available through its tools (the after-effects server): build the motion stage there.',
+  unavailable:
+    'After Effects is not available here: build the video in HyperFrames (the pack has those skills).',
+} as const
+
+const afterEffectsSentence = (state: AfterEffectsState | undefined) =>
+  state === undefined ? '' : AFTER_EFFECTS_SENTENCES[state === 'ready' ? 'ready' : 'unavailable']
+
+const motionRole = (stageTool: boolean, afterEffects?: AfterEffectsState) =>
+  [ROLE_HEAD, afterEffectsSentence(afterEffects), stageTool ? STAGE_TOOL_SENTENCE : '', ROLE_TAIL]
+    .filter(Boolean)
+    .join('\n\n')
 
 export const MOTION_ROLE_INSTRUCTION = motionRole(false)
 export const MOTION_ROLE_WITH_STAGE_TOOL = motionRole(true)
 
 const PACK_LOADED = 'The skills of the Motion pack are loaded in this session.'
 
-type ModeSession = { pack: string; role: (stageTool: boolean) => string; loaded: string }
+type ModeSession = {
+  pack: string
+  role: (stageTool: boolean, afterEffects?: AfterEffectsState) => string
+  loaded: string
+}
 
 const MOTION_SESSION: ModeSession = {
   pack: 'motion',
@@ -66,20 +83,22 @@ export type ModeSessionStart = {
  * The session start of a chat in `mode`, or undefined when the mode adds nothing.
  * `native`: the provider loads plugin folders itself. A pack missing on disk
  * leaves the role instruction alone. `stageTool`: the chat's provider reaches the
- * `motion_stage` tool, so the role tells the agent to call it.
+ * `motion_stage` tool, so the role tells the agent to call it. `afterEffects`: what the
+ * session has of After Effects; absent, the role says nothing about it.
  */
 export function modeSessionStart(
   mode: ThreadMode | undefined,
   native: boolean,
   loadPack: (name: string) => DefaultSkillPack | undefined,
   stageTool = false,
+  afterEffects?: AfterEffectsState,
 ): ModeSessionStart | undefined {
   const session = modeSession(mode)
   if (!session) return undefined
   const pack = loadPack(session.pack)
   const skills = !pack ? '' : native ? session.loaded : pack.catalog
   return {
-    instructions: [session.role(stageTool), skills].filter(Boolean).join('\n\n'),
+    instructions: [session.role(stageTool, afterEffects), skills].filter(Boolean).join('\n\n'),
     plugins: pack && native ? [pack.pluginDir] : [],
   }
 }

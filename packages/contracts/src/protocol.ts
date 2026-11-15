@@ -29,7 +29,7 @@ import {
   SubagentSettingsSchema,
   UsageSchema,
 } from './domain.js'
-import { MotionStageSchema, ThreadModeSchema } from './motion.js'
+import { AfterEffectsStateSchema, MotionStageSchema, ThreadModeSchema } from './motion.js'
 import { PhoneAccessStatusSchema, PhonePairingSchema, ProjectBrowseResultSchema } from './phone.js'
 import {
   CheckoutPullRequestResultSchema,
@@ -112,6 +112,8 @@ export const ThreadSettingsSchema = z.object({
   mode: ThreadModeSchema.optional(),
   /** Where a Motion chat is in its video. Kept while the mode is off. */
   motionStage: MotionStageSchema.optional(),
+  /** Only on Motion chats, computed by the server and never stored. */
+  afterEffects: AfterEffectsStateSchema.optional(),
 })
 export type ThreadSettings = z.infer<typeof ThreadSettingsSchema>
 
