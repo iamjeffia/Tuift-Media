@@ -18,7 +18,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
 
 - [x] 0.1 Trocar "TUIFT Media" por "TUIFT Code" no app, no instalador e nos IDs (`media.tuift.code`, `%APPDATA%/TUIFT Code`, `~/.tuift-code`, cofre `TUIFTCode`).
 - [x] 0.2 Reinstalado no PC como TUIFT Code (15/11). O "TUIFT Media 0.5.1" de teste saiu e o atalho "TUIFT Media" voltou para o app v1.
-- [ ] 0.3 Decidir se o repositório `iamjeffia/Tuift-Media` muda de nome (o atualizador aponta para ele).
+- [x] 0.3 Repositório recriado com histórico limpo (15/11): um commit em cima do TasteCode. O repositório antigo ficou privado, à espera de ser apagado pelo dono.
 
 ## 1. Tradução para português (padrão) com inglês como segunda opção
 
@@ -36,7 +36,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
 - [x] 1.12 Conferir no app que texto mais longo não quebra layout.
 - [ ] 1.13 O dono do projeto confirma os termos usados: "chats", "Atalhos" (Keybinds), "Caixa de entrada" (Inbox), "Trilho" (seletor de modelo em duas etapas), e se os controles vizinhos do chat (busca no chat, desfazer, copiar) são traduzidos.
 - [ ] 1.14 Traduzir os textos de tela que vêm do servidor (erros de pull request, provedores, MCP, nomes de limite), conforme a proposta do 1.10.
-- [ ] 1.15 Decidir a fronteira fina do chat: faixa de avisos acima do campo de texto, "Choose project" e "Add provider" dentro do campo, menu "/", conversa de exemplo do onboarding, erros no campo de mensagem e títulos padrão de chat ("New session").
+- [~] 1.15 Fronteira fina do chat, decidida em 15/11 (traduzir o que é do app, manter em inglês o que é da conversa): faixa de avisos acima do campo de texto, "Choose project" e "Add provider" dentro do campo, menu "/", conversa de exemplo do onboarding, erros no campo de mensagem e títulos padrão de chat ("New session").
 - [ ] 1.16 Restos pequenos ainda em inglês: página de laboratório de avatar (Depuração), erros da imagem de fundo, busca da paleta pelo nome do grupo em português, separador de milhar em contagens grandes.
 - [ ] 1.17 Conferir no app instalado: menus nativos, bandeja, notificações, troca de idioma em tempo real e as telas que só existem lá (Importar chats com dados, celular, navegador interno, terminal).
 
