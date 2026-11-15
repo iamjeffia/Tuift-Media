@@ -1,9 +1,19 @@
+import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { defaultSkillsRoot, isDefaultSkillId, loadDefaultSkills } from './default-skills.js'
-import { writeDefaultSkillsFixture } from './default-skills.test-support.js'
+import {
+  PACK_CATALOG_MAX_CHARS,
+  defaultSkillsRoot,
+  isDefaultSkillId,
+  loadDefaultSkillPack,
+  loadDefaultSkills,
+} from './default-skills.js'
+import {
+  writeDefaultSkillPackFixture,
+  writeDefaultSkillsFixture,
+} from './default-skills.test-support.js'
 
 const temporary: string[] = []
 
@@ -184,4 +194,133 @@ describe('default skills', () => {
       path.resolve(import.meta.dirname, '..', '..', '..', 'packages', 'default-skills', 'bundle'),
     )
   })
+})
+
+describe('default skill packs', () => {
+  const motion = [
+    ['hyperframes', 'HTML video entry point'],
+    ['stageshow', 'fake screens as video material'],
+  ] as const
+
+  it('keeps a pack out of the base bundle and returns its plugin directory and catalog', async () => {
+    const root = await writeDefaultSkillsFixture(await tempDir())
+    await writeDefaultSkillPackFixture(root, 'motion', motion)
+
+    const base = loadDefaultSkills(root)
+    expect(base.skills.map((skill) => skill.name)).toEqual([
+      'cinetic',
+      'design-taste-frontend',
+      'cook',
+    ])
+    expect(base.commands.map((command) => command.name)).toEqual([
+      'cinetic',
+      'design-taste-frontend',
+      'cook',
+    ])
+    expect(base.catalog).not.toContain('hyperframes')
+
+    const pack = loadDefaultSkillPack('motion', root)
+    expect(pack).toMatchObject({
+      name: 'motion',
+      pluginDir: path.join(root, 'packs', 'motion'),
+      skills: ['hyperframes', 'stageshow'],
+    })
+    expect(pack?.catalog).toContain(
+      `one folder each in ${path.join(root, 'packs', 'motion', 'skills')}.`,
+    )
+    expect(pack?.catalog).toContain(
+      '- hyperframes: HTML video entry point\n- stageshow: fake screens',
+    )
+    expect(pack?.catalog).not.toContain('cinetic')
+  })
+
+  it('lists only the skills of the pack that are on disk', async () => {
+    const root = await writeDefaultSkillsFixture(await tempDir())
+    await writeDefaultSkillPackFixture(root, 'motion', motion, ['stageshow'])
+    const pack = loadDefaultSkillPack('motion', root)
+    expect(pack?.skills).toEqual(['stageshow'])
+    expect(pack?.catalog).not.toContain('hyperframes')
+
+    await writeDefaultSkillPackFixture(root, 'design', [['ui-profissional', 'screens']], [])
+    expect(loadDefaultSkillPack('design', root)).toBeUndefined()
+  })
+
+  it.each([
+    ['an undeclared pack', 'nope'],
+    ['a name with a path in it', '../skills'],
+    ['a name that only inherits from Object', 'constructor'],
+    ['an empty name', ''],
+  ])('returns nothing for %s', async (_label, name) => {
+    const root = await writeDefaultSkillsFixture(await tempDir())
+    await writeDefaultSkillPackFixture(root, 'motion', motion)
+    expect(loadDefaultSkillPack(name, root)).toBeUndefined()
+  })
+
+  it('returns nothing without a bundle', async () => {
+    expect(loadDefaultSkillPack('motion', path.join(await tempDir(), 'no-bundle'))).toBeUndefined()
+  })
+
+  it('caps a large pack: descriptions for the first skills, names for the rest, then a pointer', async () => {
+    const deep = path.join(await tempDir(), 'Users', 'someone-with-a-long-name', 'AppData', 'Local')
+    const root = await writeDefaultSkillsFixture(path.join(deep, 'Programs', 'TUIFT Code'))
+    const many = Array.from(
+      { length: 60 },
+      (_, index) =>
+        [
+          `skill-${String(index).padStart(2, '0')}`,
+          'a description of about sixty characters, as long as the longest one',
+        ] as const,
+    )
+    await writeDefaultSkillPackFixture(root, 'motion', many)
+    const { catalog, skills } = loadDefaultSkillPack('motion', root) ?? { catalog: '', skills: [] }
+
+    expect(skills).toHaveLength(60)
+    expect(catalog.length).toBeLessThanOrEqual(PACK_CATALOG_MAX_CHARS)
+    expect(catalog).toContain('- skill-00: a description')
+    expect(catalog).not.toContain('- skill-59:')
+    expect(catalog).toMatch(/\nMore, by name: skill-\d\d, /)
+    expect(catalog.endsWith(', and others (list the folder above)')).toBe(true)
+    // Names are whole: the cut falls between names, not inside one.
+    expect(
+      catalog
+        .split('\nMore, by name: ')[1]!
+        .replace(', and others (list the folder above)', '')
+        .split(', ')
+        .every((name) => /^skill-\d\d$/.test(name)),
+    ).toBe(true)
+  })
+
+  it('names the rest in full when that fits the cap', async () => {
+    const root = await writeDefaultSkillsFixture(await tempDir())
+    const many = Array.from(
+      { length: 30 },
+      (_, index) =>
+        [
+          `skill-${String(index).padStart(2, '0')}`,
+          'a description of about sixty characters, as long as the longest one',
+        ] as const,
+    )
+    await writeDefaultSkillPackFixture(root, 'motion', many)
+    const { catalog } = loadDefaultSkillPack('motion', root) ?? { catalog: '' }
+    expect(catalog.length).toBeLessThanOrEqual(PACK_CATALOG_MAX_CHARS)
+    expect(catalog).toContain('\nMore, by name: ')
+    expect(catalog).toContain('skill-29')
+    expect(catalog).not.toContain('others')
+  })
+
+  it.skipIf(!existsSync(path.join(defaultSkillsRoot(), 'packs', 'motion')))(
+    'fits the real Motion pack within the cap and lists the HyperFrames entry point',
+    () => {
+      const pack = loadDefaultSkillPack('motion')
+      expect(pack?.skills).toHaveLength(20)
+      expect(pack?.skills.slice(0, 3)).toEqual([
+        'motion-app-ae',
+        'composicao-trilha',
+        'video-referencias',
+      ])
+      expect(pack?.catalog.length).toBeLessThanOrEqual(PACK_CATALOG_MAX_CHARS)
+      expect(pack?.catalog).toContain('- hyperframes: ')
+      expect(loadDefaultSkills().skills).toHaveLength(3)
+    },
+  )
 })

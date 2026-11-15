@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const BUNDLED = [
@@ -32,4 +32,33 @@ export async function writeDefaultSkillsFixture(
     )
   }
   return root
+}
+
+/**
+ * Adds a pack to a fixture bundle the way packages/default-skills/scripts/sync.js
+ * lays one out: entries with `pack` in skills.json, and the skills under
+ * `packs/<name>/skills`. Only the `present` folders are written to disk.
+ */
+export async function writeDefaultSkillPackFixture(
+  root: string,
+  name: string,
+  skills: readonly (readonly [folder: string, summary: string])[],
+  present: readonly string[] = skills.map(([folder]) => folder),
+): Promise<void> {
+  const manifestPath = path.join(root, 'skills.json')
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as {
+    packs?: Record<string, unknown>
+    skills: unknown[]
+  }
+  manifest.packs = { ...manifest.packs, [name]: { plugin: `tastecode-${name}` } }
+  manifest.skills.push(...skills.map(([folder, summary]) => ({ folder, summary, pack: name })))
+  await writeFile(manifestPath, JSON.stringify(manifest))
+  for (const folder of present) {
+    const dir = path.join(root, 'packs', name, 'skills', folder)
+    await mkdir(dir, { recursive: true })
+    await writeFile(
+      path.join(dir, 'SKILL.md'),
+      `---\nname: ${folder}\ndescription: The long ${folder} description.\n---\n# ${folder}\n`,
+    )
+  }
 }

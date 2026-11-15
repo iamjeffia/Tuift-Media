@@ -3,11 +3,29 @@
 // is both a plain skills tree (`skills/<name>/SKILL.md`) and a Claude Code
 // plugin (`.claude-plugin/plugin.json`), with a copy of skills.json for the app.
 //
-// A skill can also live in this repository, in tuift/<folder>/ with its own
-// SKILL.md and LICENSE. Its skills.json entry has `"source": "local"`, a
-// `license` and the measured hashes, and no repository or commit. It is
-// checked, bundled and installed exactly like a pinned one: edit the folder,
-// then run `sync.js --update` to record the new hashes.
+// A skill can also live in this repository, in .agents/skills/<folder>/ (the one
+// copy agents working here read) with its own SKILL.md and LICENSE. Its
+// skills.json entry has `"source": "local"`, a `license` and the measured
+// hashes, and no repository or commit. It is checked, bundled and installed
+// exactly like a pinned one: edit the folder, then run `sync.js --update` to
+// record the new hashes.
+//
+// Layout of the bundle. A skill with no `pack` belongs to the base bundle: the
+// bundle root itself, as above. A skill with `"pack": "<name>"` (declared under
+// `packs` in skills.json) is laid out as a second plugin of its own:
+//
+//   bundle/                          base plugin: skills with no pack
+//     .claude-plugin/plugin.json
+//     skills/<folder>/SKILL.md
+//     skills.json                    the whole manifest, packs included
+//     packs/<name>/                  one more plugin per pack
+//       .claude-plugin/plugin.json
+//       skills/<folder>/SKILL.md
+//
+// The base plugin never lists a pack's skills: Claude Code reads only
+// `skills/` of the plugin directory it is given, so the nested `packs/` is
+// invisible to it (checked on 2.1.325). A pack is turned on by passing
+// `bundle/packs/<name>` as one more plugin directory.
 //
 //   node scripts/sync.js            fetch when the bundle is missing or differs
 //   node scripts/sync.js --verify   check the bundle only; exit 1 when it is off
@@ -34,8 +52,10 @@ export const manifestPath = path.join(packageRoot, 'skills.json')
 export const bundleRoot = path.join(packageRoot, 'bundle')
 /** TUIFT Code's own copies of upstream skill files, one folder per skill (see its README). */
 export const patchesRoot = path.join(packageRoot, 'patches')
-/** Skills that live in this repository, one folder per skill. */
-export const localRoot = path.join(packageRoot, 'tuift')
+/** Skills that live in this repository, one folder per skill: the folder agents working here read. */
+export const localRoot = path.resolve(packageRoot, '..', '..', '.agents', 'skills')
+const LOCAL_LABEL = '.agents/skills'
+const SAFE_NAME = /^[\w.-]+$/
 
 export function isLocalSkill(skill) {
   return skill.source === 'local'
@@ -76,7 +96,7 @@ async function patchFiles(files, skill, update, root = patchesRoot) {
  */
 export async function localSkillFiles(skill, root = localRoot) {
   const { folder } = skill
-  if (!/^[\w.-]+$/.test(folder) || folder === '.' || folder === '..')
+  if (!SAFE_NAME.test(folder) || folder === '.' || folder === '..')
     throw new Error(`${folder}: not a usable skill folder name`)
   if (skill.patch || skill.omit || skill.repository)
     throw new Error(`${folder}: a local skill is bundled as it is, with no pin, patch or omit`)
@@ -85,18 +105,76 @@ export async function localSkillFiles(skill, root = localRoot) {
   try {
     await readTree(path.join(root, folder), '', files)
   } catch (error) {
-    if (error?.code === 'ENOENT') throw new Error(`${folder}: tuift/${folder} is missing`)
+    if (error?.code === 'ENOENT') throw new Error(`${folder}: ${LOCAL_LABEL}/${folder} is missing`)
     throw error
   }
   for (const name of files.keys()) if (isStray(name)) files.delete(name)
-  if (!files.has('SKILL.md')) throw new Error(`${folder}: no SKILL.md in tuift/${folder}`)
-  if (!files.get('LICENSE')?.length) throw new Error(`${folder}: no LICENSE in tuift/${folder}`)
+  if (!files.has('SKILL.md')) throw new Error(`${folder}: no SKILL.md in ${LOCAL_LABEL}/${folder}`)
+  if (!files.get('LICENSE')?.length)
+    throw new Error(`${folder}: no LICENSE in ${LOCAL_LABEL}/${folder}`)
   return files
+}
+
+function pluginJson(plugin) {
+  return `${JSON.stringify(plugin, null, 2)}\n`
 }
 
 /** The plugin manifest Claude Code reads; its name is the prefix skills show under. */
 export function pluginManifest(manifest) {
-  return `${JSON.stringify(manifest.plugin, null, 2)}\n`
+  return pluginJson(manifest.plugin)
+}
+
+/**
+ * The plugins the bundle holds: the base one at `root`, then one per declared
+ * pack under `root/packs/<name>`, each with the skills that belong to it.
+ */
+export function bundleLayout(manifest, root = bundleRoot) {
+  const base = {
+    dir: root,
+    plugin: manifest.plugin,
+    skills: manifest.skills.filter((skill) => !skill.pack),
+  }
+  const packs = Object.entries(manifest.packs ?? {}).map(([name, pack]) => ({
+    name,
+    dir: path.join(root, 'packs', name),
+    plugin: {
+      name: pack.plugin,
+      description: pack.description,
+      ...(manifest.plugin.author ? { author: manifest.plugin.author } : {}),
+    },
+    skills: manifest.skills.filter((skill) => skill.pack === name),
+  }))
+  return [base, ...packs]
+}
+
+/** Where a skill's files go in a bundle (or staging) folder. */
+function skillDir(root, skill) {
+  return skill.pack
+    ? path.join(root, 'packs', skill.pack, 'skills', skill.folder)
+    : path.join(root, 'skills', skill.folder)
+}
+
+/** Mistakes in how skills.json declares packs: unsafe names, repeated folders, empty packs. */
+export function manifestProblems(manifest) {
+  const problems = []
+  const packs = manifest.packs ?? {}
+  const plugins = new Set([manifest.plugin?.name])
+  for (const [name, pack] of Object.entries(packs)) {
+    if (!SAFE_NAME.test(name)) problems.push(`pack ${name}: not a usable pack name`)
+    if (!SAFE_NAME.test(pack?.plugin ?? '') || plugins.has(pack.plugin))
+      problems.push(`pack ${name}: needs a plugin name of its own`)
+    plugins.add(pack?.plugin)
+    if (!manifest.skills.some((skill) => skill.pack === name))
+      problems.push(`pack ${name}: has no skills`)
+  }
+  const folders = new Set()
+  for (const skill of manifest.skills) {
+    if (folders.has(skill.folder)) problems.push(`${skill.folder}: listed more than once`)
+    folders.add(skill.folder)
+    if (skill.pack !== undefined && !(skill.pack in packs))
+      problems.push(`${skill.folder}: pack ${skill.pack} is not declared under packs`)
+  }
+  return problems
 }
 
 async function readTree(root, relative = '', into = new Map()) {
@@ -120,17 +198,13 @@ export async function verifyBundle(
   patches = patchesRoot,
   locals = localRoot,
 ) {
+  const declared = manifestProblems(manifest)
+  if (declared.length) return declared
   const problems = []
   try {
     if (!(await stat(root)).isDirectory()) return [`${root} is not a folder`]
   } catch {
     return [`${root} is missing; run pnpm --filter @harness/default-skills sync`]
-  }
-  try {
-    const plugin = await readFile(path.join(root, '.claude-plugin', 'plugin.json'), 'utf8')
-    if (plugin !== pluginManifest(manifest)) problems.push('plugin.json differs from skills.json')
-  } catch {
-    problems.push('plugin.json is missing')
   }
   try {
     const copy = JSON.parse(await readFile(path.join(root, 'skills.json'), 'utf8'))
@@ -139,37 +213,68 @@ export async function verifyBundle(
   } catch {
     problems.push('skills.json is missing from the bundle')
   }
-  const expected = new Set(['.claude-plugin', 'skills', 'skills.json'])
+  const layout = bundleLayout(manifest, root)
+  const packs = layout.slice(1)
+  const expected = new Set([
+    '.claude-plugin',
+    'skills',
+    'skills.json',
+    ...(packs.length ? ['packs'] : []),
+  ])
   for (const name of await readdir(root))
     if (!expected.has(name)) problems.push(`unexpected entry in bundle: ${name}`)
+  for (const plugin of layout) problems.push(...(await pluginProblems(plugin, patches, locals)))
+  if (packs.length) {
+    const wanted = new Set(packs.map((pack) => pack.name))
+    for (const name of await readdir(path.join(root, 'packs')).catch(() => []))
+      if (!wanted.has(name)) problems.push(`unexpected pack folder: ${name}`)
+  }
+  return problems
+}
+
+/** Problems with one plugin of the bundle: the base one (no `name`) or a pack. */
+async function pluginProblems({ name, dir, plugin, skills }, patches, locals) {
+  const label = name ? `pack ${name}: ` : ''
+  const problems = []
+  try {
+    const shipped = await readFile(path.join(dir, '.claude-plugin', 'plugin.json'), 'utf8')
+    if (shipped !== pluginJson(plugin))
+      problems.push(`${label}plugin.json differs from skills.json`)
+  } catch {
+    problems.push(`${label}plugin.json is missing`)
+  }
+  if (name)
+    for (const entry of await readdir(dir).catch(() => [])) {
+      if (entry !== '.claude-plugin' && entry !== 'skills')
+        problems.push(`${label}unexpected entry in pack: ${entry}`)
+    }
   let folders = []
   try {
-    folders = await readdir(path.join(root, 'skills'))
+    folders = await readdir(path.join(dir, 'skills'))
   } catch {
-    problems.push('skills folder is missing')
+    problems.push(`${label}skills folder is missing`)
   }
-  const wanted = new Set(manifest.skills.map((skill) => skill.folder))
+  const wanted = new Set(skills.map((skill) => skill.folder))
   for (const folder of folders)
-    if (!wanted.has(folder)) problems.push(`unexpected skill folder: ${folder}`)
-  for (const skill of manifest.skills) {
-    const dir = path.join(root, 'skills', skill.folder)
+    if (!wanted.has(folder)) problems.push(`${label}unexpected skill folder: ${folder}`)
+  for (const skill of skills) {
     let files
     try {
-      files = await readTree(dir)
+      files = await readTree(path.join(dir, 'skills', skill.folder))
     } catch {
-      problems.push(`${skill.folder} is missing`)
+      problems.push(`${label}${skill.folder} is missing`)
       continue
     }
     for (const relative of Object.keys(skill.patch?.files ?? {})) {
       const shipped = files.get(relative)
       if (!shipped?.equals(await readFile(patchPath(skill, relative, patches))))
-        problems.push(`${skill.folder}: ${relative} is not TUIFT Code's patched copy`)
+        problems.push(`${label}${skill.folder}: ${relative} is not TUIFT Code's patched copy`)
       files.delete(relative)
     }
     const digest = digestFiles(files)
     if (digest.treeSha256 !== skill.treeSha256)
       problems.push(
-        `${skill.folder} differs from its pin (${digest.files} files, ${digest.bytes} bytes; expected ${skill.files} files, ${skill.bytes} bytes)`,
+        `${label}${skill.folder} differs from its pin (${digest.files} files, ${digest.bytes} bytes; expected ${skill.files} files, ${skill.bytes} bytes)`,
       )
     if (isLocalSkill(skill)) problems.push(...(await localSourceProblems(skill, locals)))
   }
@@ -182,7 +287,7 @@ async function localSourceProblems(skill, locals) {
     const digest = digestFiles(await localSkillFiles(skill, locals))
     return digest.treeSha256 === skill.treeSha256
       ? []
-      : [`tuift/${skill.folder} changed since it was pinned; run sync.js --update`]
+      : [`${LOCAL_LABEL}/${skill.folder} changed since it was pinned; run sync.js --update`]
   } catch (error) {
     return [error instanceof Error ? error.message : String(error)]
   }
@@ -204,6 +309,8 @@ export async function syncBundle(
     log = console.log,
   } = {},
 ) {
+  const declared = manifestProblems(manifest)
+  if (declared.length) throw new Error(declared.join('; '))
   if (!update && (await verifyBundle(manifest, root, patches, locals)).length === 0) {
     log('Default skills are up to date.')
     return manifest
@@ -231,11 +338,11 @@ export async function syncBundle(
       if (!update && digest.treeSha256 !== skill.treeSha256)
         throw new Error(
           isLocalSkill(skill)
-            ? `${skill.folder}: tuift/${skill.folder} changed since it was pinned; run sync.js --update`
+            ? `${skill.folder}: ${LOCAL_LABEL}/${skill.folder} changed since it was pinned; run sync.js --update`
             : `${skill.folder}: extracted files do not match the pinned tree hash`,
         )
       for (const [relative, body] of [...files, ...patch.replacements]) {
-        const target = path.join(staging, 'skills', skill.folder, ...relative.split('/'))
+        const target = path.join(skillDir(staging, skill), ...relative.split('/'))
         await mkdir(path.dirname(target), { recursive: true })
         await writeFile(target, body)
       }
@@ -246,13 +353,15 @@ export async function syncBundle(
         ...(patch.entry ? { patch: patch.entry } : {}),
       })
       log(
-        `${skill.folder}: ${digest.files + patch.replacements.size} files @ ${skill.commit ?? `tuift/${skill.folder}`}` +
+        `${skill.pack ? `[${skill.pack}] ` : ''}${skill.folder}: ${digest.files + patch.replacements.size} files @ ${skill.commit ?? `${LOCAL_LABEL}/${skill.folder}`}` +
           (skill.omit ? `, ${all.size - files.size - patch.replacements.size} left out` : '') +
           (patch.entry ? `, ${patch.replacements.size} patched` : ''),
       )
     }
-    await mkdir(path.join(staging, '.claude-plugin'), { recursive: true })
-    await writeFile(path.join(staging, '.claude-plugin', 'plugin.json'), pluginManifest(manifest))
+    for (const { dir, plugin } of bundleLayout(manifest, staging)) {
+      await mkdir(path.join(dir, '.claude-plugin'), { recursive: true })
+      await writeFile(path.join(dir, '.claude-plugin', 'plugin.json'), pluginJson(plugin))
+    }
     // The app reads names and summaries from here; the source tree is not shipped.
     await writeFile(path.join(staging, 'skills.json'), `${JSON.stringify(next, null, 2)}\n`)
     await rm(root, { recursive: true, force: true })
