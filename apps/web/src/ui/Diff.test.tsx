@@ -169,3 +169,43 @@ ${DIFF}`).fileEntries,
     expect(container.querySelector('.diff__body')).toBeNull()
   })
 })
+
+describe('a diff cut to its size limit', () => {
+  // What the server keeps of a diff over 1 MiB: the start, cut at a line, and a last line saying
+  // how much it dropped. The second hunk ends early.
+  const CUT = `${DIFF}
+diff --git a/src/big.ts b/src/big.ts
+new file mode 100644
+--- /dev/null
++++ b/src/big.ts
+@@ -0,0 +1,3000 @@
++first
++second
+… 2437185 characters omitted …`
+
+  it('still parses, and counts what it kept', () => {
+    const parsed = parseDiff(CUT)
+
+    expect(parsed.files).toBe(2)
+    expect(parsed.added).toBe(3)
+    expect(parsed.removed).toBe(1)
+    expect(parsed.lines.at(-1)).toEqual({ text: '… 2437185 characters omitted …', kind: 'ctx' })
+  })
+
+  it('shows the cut note in the patch and offers no Undo for a part of the change', () => {
+    const onUndo = vi.fn()
+    render(<Diff diff={CUT} onUndo={onUndo} />)
+
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+
+    expect(screen.getByText('… 2437185 characters omitted …')).toBeTruthy()
+    expect(screen.getByText('+second')).toBeTruthy()
+  })
+
+  it('keeps Undo for a diff that was not cut', () => {
+    render(<Diff diff={DIFF} onUndo={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy()
+  })
+})
