@@ -1,0 +1,270 @@
+/* The Motion team above the chat. Loaded with the scene the first time Motion
+   is turned on (LazyMotionCast), so none of it is startup CSS. Everything here
+   is built from the app's own tokens: nothing is a new value except the sizes
+   of the heads.
+
+   Layout: a 48px band above the conversation that appears in one layout step
+   (no height animation, so nothing but transform and opacity ever moves). A new
+   chat has no band: the heads are larger and stand above the heading, in a
+   zero-height row, so turning Motion on moves neither the heading nor the
+   prompt bar. */
+
+.motion-cast {
+  --cast-size: 32px;
+  --cast-gap: 10px;
+  --cast-ring: 2px;
+  --cast-ring-offset: 3px;
+
+  position: relative;
+  z-index: 1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--cast-gap);
+  box-sizing: border-box;
+  width: min(var(--chat-w), calc(100cqi - 2 * var(--chat-gutter)));
+  min-width: 0;
+  height: 48px;
+  margin-inline: auto;
+  padding-inline: var(--chat-text-inset);
+  opacity: 1;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+/* The transcript scrolls under the band: it fades out the way it does under
+   the prompt bar instead of being cut mid-line. */
+.motion-cast::after {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: 12px;
+  background: linear-gradient(to bottom, var(--bg), transparent);
+  content: '';
+  pointer-events: none;
+}
+
+.is-new-session > .motion-cast::after {
+  content: none;
+}
+
+.motion-cast[data-state='closed'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Rows of a chat that has the band: the band, then the transcript. */
+.stage__conversation:has(> .motion-cast) {
+  grid-template-rows: 48px minmax(0, 1fr);
+}
+
+/* A new chat: the larger heads stand in a zero-height row above the heading. */
+.stage__conversation.is-new-session:has(> .motion-cast) {
+  grid-template-rows: 0 auto auto;
+}
+
+.is-new-session > .motion-cast {
+  --cast-size: 56px;
+  --cast-gap: 16px;
+  --cast-ring-offset: 4px;
+
+  align-self: end;
+  justify-content: center;
+  height: auto;
+  margin-bottom: 36px;
+  padding-inline: 0;
+}
+
+.motion-cast__member {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  color: var(--text-2);
+  font: inherit;
+  background: none;
+  border: 0;
+  border-radius: var(--r-pill);
+  cursor: default;
+  /* Zig first, then one head every 40ms. Backwards fill: a head waiting for
+     its turn is already hidden, and once it lands the animation lets go of
+     transform, so the highlight below can scale the head on its own. */
+  animation: motion-cast-in var(--dur-slow) var(--ease-overshoot) backwards;
+  animation-delay: calc(var(--cast-index) * 40ms);
+}
+
+.motion-cast__member:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@keyframes motion-cast-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0) scale(0.86);
+  }
+}
+
+.motion-cast__head {
+  position: relative;
+  display: block;
+  flex: none;
+  width: var(--cast-size);
+  height: var(--cast-size);
+  background: color-mix(in srgb, var(--cast-color) 16%, var(--surface-2));
+  border-radius: var(--r-circle);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.motion-cast__head img {
+  position: absolute;
+  inset: 6%;
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  user-select: none;
+}
+
+/* The ring in the character's colour and the breath share one outline. */
+.motion-cast__head::before,
+.motion-cast__head::after {
+  position: absolute;
+  inset: calc(-1 * var(--cast-ring-offset) - var(--cast-ring));
+  border: var(--cast-ring) solid var(--cast-color);
+  border-radius: var(--r-circle);
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+}
+
+.motion-cast__head::after {
+  transform: scale(0.9);
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.motion-cast__member[aria-current='step'] .motion-cast__head {
+  transform: scale(1.08);
+}
+
+.motion-cast__member[aria-current='step'] .motion-cast__head::after {
+  opacity: 1;
+  transform: none;
+}
+
+/* While a turn runs, only the highlighted character breathes: one slow ring
+   that swells and fades, the shape of the working dot, on the compositor only
+   (transform and opacity). Idle is still. */
+.motion-cast[data-running] .motion-cast__member[aria-current='step'] .motion-cast__head::before {
+  animation: motion-cast-breathe 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  will-change: transform, opacity;
+}
+
+/* Behind Settings nothing is looking at it, so the breath stops. */
+.shell__body[data-covered]
+  .motion-cast[data-running]
+  .motion-cast__member[aria-current='step']
+  .motion-cast__head::before {
+  animation-play-state: paused;
+}
+
+@keyframes motion-cast-breathe {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.18);
+  }
+}
+
+.motion-cast__label {
+  min-width: 0;
+  max-width: 16ch;
+  margin-inline: 4px 6px;
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: var(--t-sm);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* In a new chat the label hangs under the highlighted head, so the row stays
+   centred on the heads. */
+.is-new-session > .motion-cast .motion-cast__label {
+  position: absolute;
+  top: calc(100% + var(--cast-ring-offset) + var(--cast-ring) + 6px);
+  left: 50%;
+  max-width: none;
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+/* Under 620px of chat only the heads; under 480px only the highlighted head
+   and its stage. The ring and the accessible name still say who is current. */
+@container chat-stage (max-width: 620px) {
+  .motion-cast__label {
+    display: none;
+  }
+}
+
+@container chat-stage (max-width: 480px) {
+  .motion-cast__member:not([aria-current='step']) {
+    display: none;
+  }
+
+  .motion-cast__label {
+    display: block;
+  }
+}
+
+/* A window too short for the heads to stand above the heading: the same band
+   as in a chat, in flow. */
+@media (max-height: 560px) {
+  .stage__conversation.is-new-session:has(> .motion-cast) {
+    grid-template-rows: 48px auto auto;
+  }
+
+  .is-new-session > .motion-cast {
+    --cast-size: 32px;
+    --cast-gap: 10px;
+    --cast-ring-offset: 3px;
+
+    align-self: auto;
+    justify-content: flex-start;
+    height: 48px;
+    margin-bottom: 0;
+    padding-inline: var(--chat-text-inset);
+  }
+
+  .is-new-session > .motion-cast::after {
+    content: '';
+  }
+
+  .is-new-session > .motion-cast .motion-cast__label {
+    position: static;
+    margin-inline: 4px 6px;
+    max-width: 16ch;
+    transform: none;
+  }
+}
+
+/* Reduced motion: no animation at all. The highlight stays as ring and label. */
+@media (prefers-reduced-motion: reduce) {
+  .motion-cast,
+  .motion-cast__member,
+  .motion-cast__head,
+  .motion-cast__head::before,
+  .motion-cast__head::after {
+    animation: none;
+    transition: none;
+  }
+}
