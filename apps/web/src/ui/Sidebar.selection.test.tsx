@@ -304,3 +304,55 @@ describe('Sidebar chat multi-selection', () => {
     expect(selectedTitles()).toEqual(['A2'])
   })
 })
+
+describe('Sidebar selection bar', () => {
+  const bar = () => document.querySelector<HTMLElement>('.selection-bar')
+
+  it('shows only with two or more chats selected, with the count', () => {
+    renderRail()
+    expect(bar()).toBeNull()
+    fireEvent.click(row('A1'), ctrl)
+    expect(bar()).toBeNull()
+    fireEvent.click(row('A2'), ctrl)
+    expect(bar()?.textContent).toContain('2 selected')
+    fireEvent.click(row('A3'), ctrl)
+    expect(bar()?.textContent).toContain('3 selected')
+    fireEvent.click(row('A3'), ctrl)
+    fireEvent.click(row('A2'), ctrl)
+    expect(bar()).toBeNull()
+  })
+
+  it('sits at the end of the scrolling list, so it never pushes a chat down', () => {
+    renderRail()
+    fireEvent.click(row('A1'), ctrl)
+    fireEvent.click(row('A2'), ctrl)
+    const node = bar()!
+    expect(node.parentElement?.classList.contains('rail__body')).toBe(true)
+    expect(node.nextElementSibling).toBeNull()
+  })
+
+  it('asks before deleting and names the count', async () => {
+    const { onDeleteSession } = renderRail()
+    fireEvent.click(row('A1'), ctrl)
+    fireEvent.click(row('A3'), ctrl)
+    fireEvent.click(row('B1'), ctrl)
+    fireEvent.click(within(bar()!).getByRole('button', { name: 'Delete 3 chats' }))
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete 3 chats?' })
+    expect(onDeleteSession).not.toHaveBeenCalled()
+    expect(selectedTitles()).toEqual(['A1', 'A3', 'B1'])
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete 3 chats' }))
+    expect(onDeleteSession.mock.calls.map(([id]) => id)).toEqual(['a1', 'a3', 'b1'])
+    expect(bar()).toBeNull()
+  })
+
+  it('clears the selection from its button and puts focus back on a chat', async () => {
+    renderRail()
+    fireEvent.click(row('A2'), ctrl)
+    fireEvent.click(row('B1'), ctrl)
+    fireEvent.click(within(bar()!).getByRole('button', { name: 'Clear selection' }))
+    expect(selectedTitles()).toEqual([])
+    expect(bar()).toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(row('A2')))
+  })
+})

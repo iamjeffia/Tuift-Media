@@ -264,13 +264,6 @@
   text-align: center;
 }
 
-.inbox__selection-count {
-  margin: 0 0 2px;
-  padding: 4px 8px;
-  color: var(--text-2);
-  font-size: var(--t-xs);
-}
-
 .inbox-card {
   --inbox-card-bg: transparent;
   position: relative;

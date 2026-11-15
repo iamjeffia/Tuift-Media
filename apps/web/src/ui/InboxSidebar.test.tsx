@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import { findSession, updateSession } from '../project-store.js'
@@ -85,7 +85,7 @@ describe('InboxSidebar', () => {
     }
   })
 
-  it('range-selects only mounted rows across collapsed and paginated sections', () => {
+  it('range-selects only mounted rows across collapsed and paginated sections', async () => {
     vi.stubGlobal(
       'requestIdleCallback',
       vi.fn(() => 1),
@@ -117,9 +117,11 @@ describe('InboxSidebar', () => {
     expect(screen.queryByText('Active 12')).toBeNull()
     fireEvent.click(first)
     fireEvent.click(last, { shiftKey: true })
-    expect(screen.getByText('13 threads selected')).toBeTruthy()
+    expect(screen.getByText('13 selected')).toBeTruthy()
     fireEvent.contextMenu(last)
     fireEvent.click(screen.getByRole('menuitem', { name: 'Delete 13 threads' }))
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete 13 chats?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete 13 chats' }))
     expect(onArchiveSessions).toHaveBeenCalledWith([
       ...Array.from({ length: 12 }, (_, index) => `a-${index}`),
       'settled',
