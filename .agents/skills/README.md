@@ -1,4 +1,30 @@
-# Workspace Agent Skills
+<p align="center">
+  <a href="../../README.md">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="../../branding/readme/wordmark-dark.png" />
+      <img src="../../branding/readme/wordmark-light.png" alt="TUIFT Code" width="300" />
+    </picture>
+  </a>
+</p>
+
+<h1 align="center">Workspace Agent Skills</h1>
+
+<h3 align="center">What the agents know how to do in this repository.</h3>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/skills-24-F9670E?style=flat-square&labelColor=141414" alt="24 skills" />
+  <img src="https://img.shields.io/badge/licences-Apache--2.0%20%C2%B7%20MIT-F9670E?style=flat-square&labelColor=141414" alt="Apache-2.0 and MIT licences" />
+  <img src="https://img.shields.io/badge/sources-pinned%20by%20commit-F9670E?style=flat-square&labelColor=141414" alt="Sources pinned by commit" />
+</p>
+
+<p align="center">
+  <a href="#motion--video">Motion & video</a> ·
+  <a href="#hyperframes">HyperFrames</a> ·
+  <a href="#design--ui">Design & UI</a> ·
+  <a href="#writing">Writing</a> ·
+  <a href="#capture--tools">Capture & tools</a> ·
+  <a href="#using-them">Using them</a>
+</p>
 
 This folder holds the Agent Skills that agents use when they work in this repository: design and
 interface work, motion, video, After Effects, HyperFrames and writing. Each skill is a folder with a
