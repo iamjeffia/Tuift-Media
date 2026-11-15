@@ -81,10 +81,17 @@ fallback and its upstream source are recorded in `licenses/direct-runtime-depend
 
 ## Workspace Agent Skills (`.agents/skills/`)
 
-The workspace skills are plain files read by coding agents. They are not part of the app bundle and
-are not shipped in the installer. Each third-party skill keeps the licence of its authors as a
-`LICENSE` file inside its folder, unmodified, and `.agents/skills/SOURCES.json` records the exact
-commit and every change. Skills written by TUIFT Media carry their own Apache-2.0 `LICENSE`.
+The workspace skills are plain files read by coding agents working in this repository. Two groups
+of them also ship in the installer, as separate packs next to the default Agent Skills above, in the
+app's `resources/default-skills/packs/` folder: the `motion` pack (`motion-app-ae`,
+`composicao-trilha`, `video-referencias`, `captura-de-movimento`, `animacao-saas`, `motion-narrado`,
+`stageshow`, `watch` and the twelve HyperFrames skills in the table below) and the `design` pack
+(`ui-profissional`). They are pinned by content hash in `packages/default-skills/skills.json`, and the
+release check fails when one differs from its pin. The other workspace skills (`humanizer`,
+`escrita-pt-br`, `gravar-janela`) are not shipped. Each third-party skill keeps the licence of its
+authors as a `LICENSE` file inside its folder, unmodified, and every shipped skill carries its own
+`LICENSE`. `.agents/skills/SOURCES.json` records the exact commit and every change. Skills written by
+TUIFT Media carry their own Apache-2.0 `LICENSE`.
 
 <!-- prettier-ignore -->
 | Source repository | Skills in `.agents/skills/` | License | Notes |

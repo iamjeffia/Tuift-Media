@@ -6,6 +6,16 @@
       "name": "TUIFT Code"
     }
   },
+  "packs": {
+    "motion": {
+      "plugin": "tastecode-motion",
+      "description": "Video and motion Agent Skills for Motion mode chats."
+    },
+    "design": {
+      "plugin": "tastecode-design",
+      "description": "Design and UI Agent Skills for Design mode chats."
+    }
+  },
   "skills": [
     {
       "folder": "cinetic",
@@ -73,6 +83,237 @@
       "treeSha256": "51681e41a3e59d2e4646e84d54d71499773f939025f63afead18277a33c7f0f4",
       "files": 10,
       "bytes": 44021
+    },
+    {
+      "folder": "motion-app-ae",
+      "summary": "app and product motion in After Effects or HTML",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "cfb43ddffc448635e8db773aad53ad4b72162e8d0d2dcc7fca70c80d6c950597",
+      "files": 15,
+      "bytes": 78282
+    },
+    {
+      "folder": "composicao-trilha",
+      "summary": "soundtrack and sound design for a video",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "debe4978760f1c94ad5420212f8645462009f34a0c5ff2da2c3c498321731c23",
+      "files": 18,
+      "bytes": 106779
+    },
+    {
+      "folder": "video-referencias",
+      "summary": "watch the reference and collect real assets first",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "5413307609ca9cc144c711a200e8fb68c741bacbb60126dbbd7e09aa769c9ecd",
+      "files": 4,
+      "bytes": 26092
+    },
+    {
+      "folder": "captura-de-movimento",
+      "summary": "measure a reference video, rebuild it as keyframes",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "c570d431bf106b81e9d88c32881f2a53109ab4c72ac717a236c856fd7020339c",
+      "files": 3,
+      "bytes": 30409
+    },
+    {
+      "folder": "animacao-saas",
+      "summary": "product and SaaS videos built around one shape",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "d79df99d3d994f90232dd7ca3cc9188e24f31ee302b55ef70978ba1dd6754895",
+      "files": 4,
+      "bytes": 29541
+    },
+    {
+      "folder": "motion-narrado",
+      "summary": "motion rules for explainers and ads over a narration",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "fd79d34cf04ce3f2a41d9ca30707a0ae4dbb13d660613541610f4e64bf478910",
+      "files": 3,
+      "bytes": 23668
+    },
+    {
+      "folder": "stageshow",
+      "summary": "fake app and web screens as video material",
+      "source": "local",
+      "pack": "motion",
+      "license": "MIT",
+      "licenseFile": "LICENSE",
+      "treeSha256": "6d6e7587a60a5c6060df9bc24abdbafee397ef7fcd70e4849cef862407d1ae95",
+      "files": 368,
+      "bytes": 2271184
+    },
+    {
+      "folder": "watch",
+      "summary": "watch a video from a URL or file: frames and transcript",
+      "source": "local",
+      "pack": "motion",
+      "license": "MIT",
+      "licenseFile": "LICENSE",
+      "treeSha256": "e7d5915ead6e699c5397f5c6b8c4091b9a7fa01145380cae2569ccbe0c59f97b",
+      "files": 12,
+      "bytes": 139375
+    },
+    {
+      "folder": "hyperframes",
+      "summary": "HTML video entry point; routes to the HyperFrames skills",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "1f7fbe8bd7bafe326e2e355d6deb12284af16046689fa2d955a193445afb33dd",
+      "files": 30,
+      "bytes": 161839
+    },
+    {
+      "folder": "hyperframes-core",
+      "summary": "composition contract: structure, timing, tracks",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "cc4b49488d163992f476c9c2920aebddc0dba77859e1da1feb96e7facbbd6638",
+      "files": 12,
+      "bytes": 111238
+    },
+    {
+      "folder": "hyperframes-animation",
+      "summary": "motion rules, scene blueprints, transitions, runtimes",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "ca05b1058acde16098d11e095fc2e3d63b9b7cde31ce4c14c4f70acbb6ee205a",
+      "files": 123,
+      "bytes": 1253361
+    },
+    {
+      "folder": "hyperframes-audio",
+      "summary": "voiceover, audio effect chains and submix buses",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "b82b53705233d946dc3e5237e56ee1e489c5c729ef25f546d406a78cac352d9d",
+      "files": 8,
+      "bytes": 110835
+    },
+    {
+      "folder": "hyperframes-cli",
+      "summary": "init, lint, preview, render and publish a project",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "50b43e408528696dadd6dfe0e007a0ce2a4ed94038904e1dfc68d399660536ca",
+      "files": 12,
+      "bytes": 137947
+    },
+    {
+      "folder": "hyperframes-creative",
+      "summary": "design specs, palette, typography and beat planning",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "14855f5f0a119c2b8b65815e467a479d5f766b71f4ffb83d0ac9666c860b55a6",
+      "files": 80,
+      "bytes": 1218104
+    },
+    {
+      "folder": "hyperframes-keyframes",
+      "summary": "seek-safe keyframes and keyframe diagnostics",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "d5ebb311edc9615405bb83eb573f857fd4b930dc2cf4e029c81253cc26986439",
+      "files": 4,
+      "bytes": 33938
+    },
+    {
+      "folder": "hyperframes-registry",
+      "summary": "registry blocks, components, looks and transitions",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "e5e39e9e863dbe28826c03d8776a88c170610b58864483dadd3d99e4bfc1334c",
+      "files": 13,
+      "bytes": 91916
+    },
+    {
+      "folder": "hyperframes-studio",
+      "summary": "lay out a project so it reads well in Studio",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "56211169ddc16e2ed1af99fc309301724298753e3787a409ccb9a0ad7e982adb",
+      "files": 2,
+      "bytes": 22837
+    },
+    {
+      "folder": "motion-graphics",
+      "summary": "short motion-first units: titles, stat and chart hits",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "4c0a09f591f510b551218f75391e4f38badd8a3c0f99a50f80d9a64b405a4a90",
+      "files": 24,
+      "bytes": 126831
+    },
+    {
+      "folder": "media-use",
+      "summary": "source or generate images, icons, audio and captions",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "a7f506530687215e88cc67391f48cf2cc4567398cfd54a7577528e40ce4a2f90",
+      "files": 92,
+      "bytes": 527978
+    },
+    {
+      "folder": "figma",
+      "summary": "bring Figma assets, tokens and frames into a video",
+      "source": "local",
+      "pack": "motion",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "de8f43014385ca466aa1c77a55bcf43fb5fe364a50f96ad389357753efc7a286",
+      "files": 3,
+      "bytes": 34125
+    },
+    {
+      "folder": "ui-profissional",
+      "summary": "build and review screens without a generic look",
+      "source": "local",
+      "pack": "design",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "18f872fcb03691458e3112604d802f974c80c05986e344a2d3eb01a0c7ef2a74",
+      "files": 7,
+      "bytes": 53550
     }
   ]
 }

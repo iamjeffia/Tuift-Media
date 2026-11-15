@@ -23,7 +23,7 @@ export type DefaultSkills = {
   catalog: string
 }
 
-type BundledEntry = { folder?: unknown; summary?: unknown }
+type BundledEntry = { folder?: unknown; summary?: unknown; pack?: unknown }
 
 const BUNDLE_NAME = /^[\w.-]+$/
 /** The longest command name or alias the contracts accept. */
@@ -66,6 +66,8 @@ export function loadDefaultSkills(root = defaultSkillsRoot()): DefaultSkills {
   const lines: string[] = []
   for (const entry of entries) {
     if (typeof entry.folder !== 'string' || !BUNDLE_NAME.test(entry.folder)) continue
+    // A pack's skills are not in the base plugin; they load through loadDefaultSkillPack.
+    if (entry.pack !== undefined) continue
     const dir = path.join(root, 'skills', entry.folder)
     let markdown: string
     try {
@@ -135,4 +137,90 @@ function catalogText(directory: string, lines: string[]): string {
 
 export function isDefaultSkillId(id: string): boolean {
   return id.startsWith(DEFAULT_SKILL_ID_PREFIX)
+}
+
+/** A catalog of a pack stays within about 450 tokens, whatever its install path. */
+export const PACK_CATALOG_MAX_CHARS = 1800
+
+export type DefaultSkillPack = {
+  name: string
+  /** The pack as a Claude Code plugin directory: pass it as one more `--plugin-dir`. */
+  pluginDir: string
+  /** The folder names of the skills of the pack that are on disk, in catalog order. */
+  skills: string[]
+  /** A short list for providers that read skills on demand. */
+  catalog: string
+}
+
+/**
+ * One pack of the bundle (`packs/<name>/`, laid out by packages/default-skills):
+ * its plugin directory for Claude Code and a capped catalog for the other
+ * providers. Nothing calls this yet, so no chat receives a pack. Undefined when
+ * the pack is not declared, or none of its skills is on disk.
+ */
+export function loadDefaultSkillPack(
+  name: string,
+  root = defaultSkillsRoot(),
+): DefaultSkillPack | undefined {
+  if (!BUNDLE_NAME.test(name)) return undefined
+  let entries: BundledEntry[]
+  let declared: boolean
+  try {
+    const manifest = JSON.parse(readFileSync(path.join(root, 'skills.json'), 'utf8')) as {
+      skills?: unknown
+      packs?: Record<string, unknown>
+    }
+    entries = Array.isArray(manifest.skills) ? (manifest.skills as BundledEntry[]) : []
+    declared = Object.hasOwn(manifest.packs ?? {}, name)
+  } catch {
+    return undefined
+  }
+  if (!declared) return undefined
+  const pluginDir = path.join(root, 'packs', name)
+  const skillsDir = path.join(pluginDir, 'skills')
+  const skills: string[] = []
+  const lines: string[] = []
+  for (const entry of entries) {
+    if (entry.pack !== name || typeof entry.folder !== 'string') continue
+    if (!BUNDLE_NAME.test(entry.folder)) continue
+    let markdown: string
+    try {
+      markdown = readFileSync(path.join(skillsDir, entry.folder, 'SKILL.md'), 'utf8')
+    } catch {
+      continue
+    }
+    const frontmatter = parseSkillFrontmatter(markdown)
+    const skill = skillName(frontmatter.name, entry.folder)
+    const summary = typeof entry.summary === 'string' ? entry.summary.trim() : ''
+    const where = entry.folder === skill ? '' : ` (folder ${entry.folder})`
+    skills.push(entry.folder)
+    lines.push(`- ${skill}${where}${summary ? `: ${summary}` : ''}`)
+  }
+  if (!skills.length) return undefined
+  return { name, pluginDir, skills, catalog: packCatalogText(skillsDir, skills, lines) }
+}
+
+/**
+ * Entry points first: lines are kept, in bundle order, while they fit the cap.
+ * The rest is named without a description, and when even that is too long, the
+ * agent is told to list the folder. A pack is large, and every session of its
+ * mode pays for these tokens.
+ */
+function packCatalogText(directory: string, folders: string[], lines: string[]): string {
+  let text = `Skills for this kind of work, one folder each in ${directory}. Read a skill's SKILL.md only when the step calls for it:`
+  // Room kept for the line that names the rest.
+  const budget = PACK_CATALOG_MAX_CHARS - 220
+  let shown = 0
+  while (shown < lines.length && text.length + 1 + lines[shown]!.length <= budget)
+    text += `\n${lines[shown++]}`
+  const rest = folders.slice(shown)
+  if (!rest.length) return text
+  const prefix = '\nMore, by name: '
+  const names = rest.join(', ')
+  if (text.length + prefix.length + names.length <= PACK_CATALOG_MAX_CHARS)
+    return text + prefix + names
+  const pointer = ', and others (list the folder above)'
+  const room = PACK_CATALOG_MAX_CHARS - text.length - prefix.length - pointer.length
+  const fit = names.slice(0, Math.max(room, 0))
+  return text + prefix + fit.slice(0, Math.max(fit.lastIndexOf(', '), 0)) + pointer
 }

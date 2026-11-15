@@ -6,8 +6,10 @@ import test from 'node:test'
 import { gzipSync } from 'node:zlib'
 import { omitFiles } from './skill-media.mjs'
 import {
+  bundleLayout,
   digestFiles,
   localSkillFiles,
+  manifestProblems,
   readManifest,
   skillFiles,
   syncBundle,
@@ -244,6 +246,7 @@ test('refuses to build when an upstream file changed under its patch', async () 
 test('the committed manifest pins full commits and measured hashes', async () => {
   const manifest = await readManifest()
   assert.equal(manifest.plugin.name, 'tastecode')
+  assert.deepEqual(manifestProblems(manifest), [])
   for (const entry of manifest.skills) {
     if (entry.source === 'local') {
       assert.ok(entry.license, `${entry.folder} names no license`)
@@ -269,11 +272,11 @@ const localSkill = {
   licenseFile: 'LICENSE',
 }
 
-/** A temp folder with a tiny skill of our own in tuift/, next to the pinned fixture skill. */
+/** A temp folder with a tiny skill of our own, standing in for .agents/skills, next to the pinned fixture skill. */
 async function localFixture() {
   const temp = await mkdtemp(path.join(os.tmpdir(), 'default-skills-local-'))
   const root = path.join(temp, 'bundle')
-  const locals = path.join(temp, 'tuift')
+  const locals = path.join(temp, 'agents-skills')
   await mkdir(path.join(locals, 'mine', 'refs'), { recursive: true })
   await writeFile(path.join(locals, 'mine', 'SKILL.md'), '---\nname: mine\n---\nOur own.\n')
   await writeFile(path.join(locals, 'mine', 'LICENSE'), 'Our licence text')
@@ -292,7 +295,7 @@ async function localFixture() {
   return { temp, root, locals, pinned, options }
 }
 
-test('bundles a skill from tuift/ next to the pinned ones, with its own licence', async () => {
+test('bundles a skill kept in the repository next to the pinned ones, with its own licence', async () => {
   const { temp, root, locals, pinned } = await localFixture()
   try {
     const mine = pinned.skills[1]
@@ -330,10 +333,10 @@ test('needs no network once pinned, and notices an edit on either side', async (
     await sync()
     await writeFile(path.join(locals, 'mine', 'refs', 'a.md'), 'edited in the repository')
     assert.deepEqual(await verifyBundle(own, root, undefined, locals), [
-      'tuift/mine changed since it was pinned; run sync.js --update',
+      '.agents/skills/mine changed since it was pinned; run sync.js --update',
     ])
     await rm(root, { recursive: true, force: true })
-    await assert.rejects(sync(), /tuift\/mine changed since it was pinned/)
+    await assert.rejects(sync(), /\.agents\/skills\/mine changed since it was pinned/)
     await assert.rejects(stat(root))
     const repinned = await sync({ update: true })
     assert.notEqual(repinned.skills[0].treeSha256, own.skills[0].treeSha256)
@@ -347,7 +350,7 @@ test('refuses a local skill without SKILL.md, licence file, licence name or usab
   const files = (entry) => localSkillFiles({ ...localSkill, ...entry }, locals)
   try {
     await assert.rejects(files({ license: undefined }), /name its license/)
-    await assert.rejects(files({ folder: 'gone' }), /tuift\/gone is missing/)
+    await assert.rejects(files({ folder: 'gone' }), /\.agents\/skills\/gone is missing/)
     await assert.rejects(files({ folder: '..' }), /not a usable skill folder/)
     await assert.rejects(files({ folder: 'a/b' }), /not a usable skill folder/)
     await assert.rejects(files({ omit: { paths: ['x'] } }), /bundled as it is/)
@@ -361,4 +364,174 @@ test('refuses a local skill without SKILL.md, licence file, licence name or usab
   } finally {
     await rm(temp, { recursive: true, force: true })
   }
+})
+
+const packSkill = { ...localSkill, folder: 'clip', summary: 'a pack skill', pack: 'motion' }
+const packs = { motion: { plugin: 'tastecode-motion', description: 'Fixture motion pack.' } }
+
+/** The fixture above plus one skill of our own that belongs to the `motion` pack. */
+async function packFixture() {
+  const fixture = await localFixture()
+  const { locals, pinned, options } = fixture
+  await mkdir(path.join(locals, 'clip'), { recursive: true })
+  await writeFile(path.join(locals, 'clip', 'SKILL.md'), '---\nname: clip\n---\nIn the pack.\n')
+  await writeFile(path.join(locals, 'clip', 'LICENSE'), 'Pack licence text')
+  const manifest = { ...pinned, packs, skills: [...pinned.skills, { ...packSkill }] }
+  await rm(fixture.root, { recursive: true, force: true })
+  const withPack = await syncBundle(manifest, { ...options, update: true })
+  return { ...fixture, pinned: withPack }
+}
+
+test('lays a pack out as a plugin of its own and leaves the base bundle as it was', async () => {
+  const { temp, root, locals, pinned } = await packFixture()
+  try {
+    assert.deepEqual(await verifyBundle(pinned, root, undefined, locals), [])
+    const packDir = path.join(root, 'packs', 'motion')
+    assert.equal(
+      await readFile(path.join(packDir, 'skills', 'clip', 'LICENSE'), 'utf8'),
+      'Pack licence text',
+    )
+    assert.deepEqual(
+      JSON.parse(await readFile(path.join(packDir, '.claude-plugin', 'plugin.json'), 'utf8')),
+      { name: 'tastecode-motion', description: 'Fixture motion pack.' },
+    )
+    // The base plugin keeps its own name and skills, and never lists the pack's skill.
+    assert.equal(
+      await readFile(path.join(root, '.claude-plugin', 'plugin.json'), 'utf8'),
+      '{\n  "name": "tastecode"\n}\n',
+    )
+    await assert.rejects(stat(path.join(root, 'skills', 'clip')))
+    assert.deepEqual(
+      bundleLayout(pinned, root).map((plugin) => [plugin.name, plugin.skills.map((s) => s.folder)]),
+      [
+        [undefined, ['demo', 'mine']],
+        ['motion', ['clip']],
+      ],
+    )
+    // The app reads one copy of skills.json, at the base root, that names every skill.
+    const copy = JSON.parse(await readFile(path.join(root, 'skills.json'), 'utf8'))
+    assert.deepEqual(
+      copy.skills.map((entry) => entry.pack),
+      [undefined, undefined, 'motion'],
+    )
+  } finally {
+    await rm(temp, { recursive: true, force: true })
+  }
+})
+
+test('a bundle without packs has no packs folder, as before', async () => {
+  const { temp, root, locals, pinned } = await localFixture()
+  try {
+    await assert.rejects(stat(path.join(root, 'packs')))
+    assert.deepEqual(await verifyBundle(pinned, root, undefined, locals), [])
+    await mkdir(path.join(root, 'packs'))
+    assert.deepEqual(await verifyBundle(pinned, root, undefined, locals), [
+      'unexpected entry in bundle: packs',
+    ])
+  } finally {
+    await rm(temp, { recursive: true, force: true })
+  }
+})
+
+test('verify catches a pack skill changed in the repository or the bundle, and stray pack files', async () => {
+  const { temp, root, locals, pinned, options } = await packFixture()
+  const problems = async () => (await verifyBundle(pinned, root, undefined, locals)).join('\n')
+  try {
+    await writeFile(path.join(locals, 'clip', 'SKILL.md'), 'edited after it was pinned')
+    assert.equal(
+      await problems(),
+      '.agents/skills/clip changed since it was pinned; run sync.js --update',
+    )
+    await rm(root, { recursive: true, force: true })
+    await assert.rejects(
+      syncBundle(pinned, options),
+      /clip: \.agents\/skills\/clip changed since it was pinned/,
+    )
+    await writeFile(path.join(locals, 'clip', 'SKILL.md'), '---\nname: clip\n---\nIn the pack.\n')
+    await syncBundle(pinned, options)
+    assert.equal(await problems(), '')
+
+    const packDir = path.join(root, 'packs', 'motion')
+    await writeFile(path.join(packDir, 'skills', 'clip', 'SKILL.md'), 'changed in the bundle')
+    assert.match(await problems(), /pack motion: clip differs/)
+    await rm(packDir, { recursive: true, force: true })
+    assert.match(await problems(), /pack motion: plugin\.json is missing/)
+    assert.match(await problems(), /pack motion: clip is missing/)
+
+    await rm(root, { recursive: true, force: true })
+    await syncBundle(pinned, options)
+    await mkdir(path.join(root, 'packs', 'other'))
+    await writeFile(path.join(root, 'packs', 'motion', 'extra.txt'), 'x')
+    await mkdir(path.join(root, 'packs', 'motion', 'skills', 'stray'))
+    const found = await problems()
+    assert.match(found, /unexpected pack folder: other/)
+    assert.match(found, /pack motion: unexpected entry in pack: extra\.txt/)
+    assert.match(found, /pack motion: unexpected skill folder: stray/)
+  } finally {
+    await rm(temp, { recursive: true, force: true })
+  }
+})
+
+test('refuses packs that are undeclared, repeated, empty or unsafe', () => {
+  const base = { plugin: { name: 'tastecode' }, packs, skills: [{ ...packSkill }] }
+  assert.deepEqual(manifestProblems(base), [])
+  assert.deepEqual(manifestProblems({ ...base, skills: [{ ...packSkill, pack: 'nope' }] }), [
+    'pack motion: has no skills',
+    'clip: pack nope is not declared under packs',
+  ])
+  assert.deepEqual(
+    manifestProblems({ ...base, skills: [packSkill, { ...packSkill, pack: undefined }] }),
+    ['clip: listed more than once'],
+  )
+  assert.deepEqual(manifestProblems({ ...base, packs: { motion: { plugin: 'tastecode' } } }), [
+    'pack motion: needs a plugin name of its own',
+  ])
+  assert.deepEqual(manifestProblems({ ...base, packs: { '../x': packs.motion }, skills: [] }), [
+    'pack ../x: not a usable pack name',
+    'pack ../x: has no skills',
+  ])
+})
+
+test('the committed packs hold the Motion skills and a Design entry point, all local with a licence', async () => {
+  const manifest = await readManifest()
+  const inPack = (pack) => manifest.skills.filter((entry) => entry.pack === pack)
+  assert.deepEqual(Object.keys(manifest.packs), ['motion', 'design'])
+  assert.deepEqual(
+    inPack('motion').map((entry) => entry.folder),
+    [
+      'motion-app-ae',
+      'composicao-trilha',
+      'video-referencias',
+      'captura-de-movimento',
+      'animacao-saas',
+      'motion-narrado',
+      'stageshow',
+      'watch',
+      'hyperframes',
+      'hyperframes-core',
+      'hyperframes-animation',
+      'hyperframes-audio',
+      'hyperframes-cli',
+      'hyperframes-creative',
+      'hyperframes-keyframes',
+      'hyperframes-registry',
+      'hyperframes-studio',
+      'motion-graphics',
+      'media-use',
+      'figma',
+    ],
+  )
+  assert.deepEqual(
+    inPack('design').map((entry) => entry.folder),
+    ['ui-profissional'],
+  )
+  for (const entry of [...inPack('motion'), ...inPack('design')]) {
+    assert.equal(entry.source, 'local', entry.folder)
+    assert.equal(entry.licenseFile, 'LICENSE', entry.folder)
+  }
+  // The base bundle is still the three pinned skills, with no pack.
+  assert.deepEqual(
+    manifest.skills.filter((entry) => !entry.pack).map((entry) => entry.folder),
+    ['cinetic', 'design-taste-frontend', 'cook'],
+  )
 })
