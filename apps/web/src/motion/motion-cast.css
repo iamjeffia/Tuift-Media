@@ -14,6 +14,7 @@
   --cast-gap: 10px;
   --cast-ring: 2px;
   --cast-ring-offset: 3px;
+  --cast-mark: 18px;
 
   position: relative;
   z-index: 1;
@@ -67,6 +68,7 @@
   --cast-size: 56px;
   --cast-gap: 16px;
   --cast-ring-offset: 4px;
+  --cast-mark: 24px;
 
   align-self: end;
   justify-content: center;
@@ -119,6 +121,11 @@
   width: min(200px, calc(100vw - 16px));
 }
 
+/* Room for the line that says After Effects cannot be used (Cloud only). */
+.menu.menu--cast.menu--cast-note {
+  width: min(264px, calc(100vw - 16px));
+}
+
 @keyframes motion-cast-in {
   from {
     opacity: 0;
@@ -144,6 +151,28 @@
   height: 88%;
   object-fit: contain;
   user-select: none;
+}
+
+/* After Effects cannot be used: a warning triangle cut into the head's lower
+   edge, in the app's warning colour. The shape says it, not the colour, and
+   it sits on the head, so the row never moves. */
+.motion-cast__mark {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: var(--cast-mark);
+  height: var(--cast-mark);
+  color: var(--warning);
+  background: var(--bg);
+  border-radius: var(--r-circle);
+  pointer-events: none;
+}
+
+.motion-cast__mark svg {
+  width: 70%;
+  height: 70%;
 }
 
 /* The ring in the character's colour and the breath share one outline. */
@@ -259,6 +288,7 @@
     --cast-size: 32px;
     --cast-gap: 10px;
     --cast-ring-offset: 3px;
+    --cast-mark: 18px;
 
     align-self: auto;
     justify-content: flex-start;

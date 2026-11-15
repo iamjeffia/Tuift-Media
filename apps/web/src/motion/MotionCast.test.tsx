@@ -197,6 +197,167 @@ describe('MotionCast stage menu', () => {
   })
 })
 
+describe('MotionCast After Effects notice', () => {
+  const NOT_INSTALLED =
+    'After Effects was not found on this computer. The video will be built in HyperFrames.'
+  const UNAVAILABLE =
+    'The After Effects connection is not available in this app. The video will be built in HyperFrames.'
+  const cloud = () => screen.getByRole('button', { name: /^Cloud,/ })
+  const marks = () => Array.from(document.querySelectorAll('.motion-cast__mark'))
+  const status = () => screen.getByRole('status').textContent
+
+  it.each([
+    ['not-installed', NOT_INSTALLED, 'After Effects not found'],
+    ['unavailable', UNAVAILABLE, 'After Effects connection unavailable'],
+  ] as const)(
+    'says %s on Cloud only: a mark, the name and the first line of its menu',
+    (state, note, short) => {
+      render(<MotionCast mode stage="motion" afterEffects={state} onStageChange={vi.fn()} />)
+      expect(marks()).toHaveLength(1)
+      // The mark is a shape inside Cloud's head, hidden from the accessible tree.
+      expect(cloud().querySelector('.motion-cast__head > .motion-cast__mark svg')).not.toBeNull()
+      expect(marks()[0]?.getAttribute('aria-hidden')).toBe('true')
+      expect(cloud().getAttribute('aria-label')).toBe(
+        `Cloud, Builds the video in After Effects. Current stage: Motion. ${short}`,
+      )
+      expect(cloud().getAttribute('title')).toBe(
+        `Cloud · Builds the video in After Effects · ${short}`,
+      )
+      for (const name of ['Zig', 'Moss', 'Bun', 'Pip', 'Penny']) {
+        const label = screen
+          .getByRole('button', { name: new RegExp(`^${name},`) })
+          .getAttribute('aria-label')
+        expect(label).not.toMatch(/After Effects (not|connection)/)
+      }
+      fireEvent.click(cloud())
+      const menu = screen.getByRole('menu')
+      expect(menu.firstElementChild?.textContent).toBe(note)
+      expect(menu.firstElementChild?.classList.contains('menu__group')).toBe(true)
+      // Not something to press: only the stages are items.
+      expect(
+        within(menu)
+          .getAllByRole('menuitemradio')
+          .map((item) => item.textContent),
+      ).toEqual(['Soundtrack', 'Motion'])
+    },
+  )
+
+  it('says nothing extra when After Effects is ready or the server does not say', () => {
+    const { rerender } = render(
+      <MotionCast mode stage="motion" afterEffects="ready" onStageChange={vi.fn()} />,
+    )
+    const quiet = () => {
+      expect(marks()).toHaveLength(0)
+      expect(cloud().getAttribute('aria-label')).toBe(
+        'Cloud, Builds the video in After Effects. Current stage: Motion',
+      )
+      expect(cloud().getAttribute('title')).toBe('Cloud · Builds the video in After Effects')
+      expect(status()).toBe('Motion mode on. Current stage: Motion, with Cloud.')
+    }
+    quiet()
+    rerender(<MotionCast mode stage="motion" onStageChange={vi.fn()} />)
+    quiet()
+    fireEvent.click(cloud())
+    const menu = screen.getByRole('menu')
+    expect(menu.querySelector('.menu__group')).toBeNull()
+    expect(menu.getAttribute('class')).not.toContain('menu--cast-note')
+  })
+
+  it('puts the notice above the locked line, when both apply', () => {
+    render(
+      <MotionCast
+        mode
+        stage="motion"
+        running
+        locked
+        afterEffects="not-installed"
+        onStageChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(cloud())
+    const lines = Array.from(screen.getByRole('menu').querySelectorAll('.menu__group')).map(
+      (line) => line.textContent,
+    )
+    expect(lines).toEqual([NOT_INSTALLED, LOCKED])
+  })
+
+  it('announces it once with the scene, and once more for each change', () => {
+    const { rerender } = render(<MotionCast mode stage="motion" afterEffects="not-installed" />)
+    expect(status()).toBe(`Motion mode on. Current stage: Motion, with Cloud. ${NOT_INSTALLED}`)
+    // Any other prop says nothing new.
+    rerender(<MotionCast mode stage="motion" afterEffects="not-installed" running />)
+    expect(status()).toBe(`Motion mode on. Current stage: Motion, with Cloud. ${NOT_INSTALLED}`)
+    rerender(<MotionCast mode stage="motion" afterEffects="unavailable" running />)
+    expect(status()).toBe(UNAVAILABLE)
+    // Ready: nothing to say; back to a problem: said again.
+    rerender(<MotionCast mode stage="motion" afterEffects="ready" running />)
+    expect(status()).toBe('')
+    rerender(<MotionCast mode stage="motion" afterEffects="unavailable" running />)
+    expect(status()).toBe(UNAVAILABLE)
+  })
+
+  it('does not repeat the notice when only the stage changes', () => {
+    const { rerender } = render(<MotionCast mode stage="motion" afterEffects="not-installed" />)
+    rerender(<MotionCast mode stage="soundtrack" afterEffects="not-installed" />)
+    expect(status()).toBe('Current stage: Soundtrack, with Cloud.')
+    rerender(<MotionCast mode stage="review" afterEffects="not-installed" />)
+    expect(status()).toBe('Current stage: Review, with Penny.')
+  })
+
+  it('announces a state that arrives after the scene, without saying the mode is on again', () => {
+    const { rerender } = render(<MotionCast mode stage="motion" />)
+    expect(status()).toBe('Motion mode on. Current stage: Motion, with Cloud.')
+    rerender(<MotionCast mode stage="motion" afterEffects="not-installed" />)
+    expect(status()).toBe(NOT_INSTALLED)
+  })
+
+  it('shows the state on a pane that has no menu: the name and the tooltip carry it', () => {
+    render(<MotionCast mode stage="motion" afterEffects="not-installed" />)
+    const cloudImage = screen.getAllByRole('img')[4]
+    expect(cloudImage?.getAttribute('aria-label')).toBe(
+      'Cloud, Builds the video in After Effects. Current stage: Motion. After Effects not found',
+    )
+    expect(cloudImage?.getAttribute('title')).toContain('After Effects not found')
+    expect(marks()).toHaveLength(1)
+  })
+
+  it('keeps each pane to its own chat: one with the notice, one without', () => {
+    render(
+      <>
+        <MotionCast mode stage="motion" afterEffects="not-installed" />
+        <MotionCast mode stage="motion" afterEffects="ready" />
+      </>,
+    )
+    const panes = screen.getAllByRole('group', { name: 'Motion team' })
+    expect(panes).toHaveLength(2)
+    expect(panes[0]?.querySelectorAll('.motion-cast__mark')).toHaveLength(1)
+    expect(panes[1]?.querySelectorAll('.motion-cast__mark')).toHaveLength(0)
+  })
+
+  it('speaks Portuguese', () => {
+    setLanguage('pt-BR', { persist: false })
+    const { rerender } = render(
+      <MotionCast mode stage="motion" afterEffects="not-installed" onStageChange={vi.fn()} />,
+    )
+    expect(cloud().getAttribute('aria-label')).toBe(
+      'Cloud, Monta o vídeo no After Effects. Etapa atual: Motion. After Effects não encontrado',
+    )
+    expect(status()).toBe(
+      'Modo Motion ativado. Etapa atual: Motion, com Cloud. After Effects não encontrado neste computador. O vídeo será montado em HyperFrames.',
+    )
+    fireEvent.click(cloud())
+    expect(screen.getByRole('menu').firstElementChild?.textContent).toBe(
+      'After Effects não encontrado neste computador. O vídeo será montado em HyperFrames.',
+    )
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    rerender(<MotionCast mode stage="motion" afterEffects="unavailable" onStageChange={vi.fn()} />)
+    expect(status()).toBe(
+      'A conexão com o After Effects não está disponível neste app. O vídeo será montado em HyperFrames.',
+    )
+    expect(cloud().getAttribute('aria-label')).toContain('Conexão com o After Effects indisponível')
+  })
+})
+
 describe('cast data', () => {
   it('lists the six characters in the order of the scene, each with a distinct image', () => {
     expect(CAST.map((member) => member.name)).toEqual(ORDER)

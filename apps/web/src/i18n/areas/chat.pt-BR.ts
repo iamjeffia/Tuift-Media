@@ -224,9 +224,16 @@ export const chatPt = {
   'chat.motion.group': 'Time do Motion',
   'chat.motion.announce': 'Modo Motion ativado. Etapa atual: {stage}, com {name}.',
   'chat.motion.announceStage': 'Etapa atual: {stage}, com {name}.',
+  'chat.motion.afterEffects.notInstalled':
+    'After Effects não encontrado neste computador. O vídeo será montado em HyperFrames.',
+  'chat.motion.afterEffects.notInstalledName': 'After Effects não encontrado',
+  'chat.motion.afterEffects.unavailable':
+    'A conexão com o After Effects não está disponível neste app. O vídeo será montado em HyperFrames.',
+  'chat.motion.afterEffects.unavailableName': 'Conexão com o After Effects indisponível',
   'chat.motion.locked': 'O Motion muda quando a resposta terminar',
   'chat.motion.member': '{name}, {role}',
   'chat.motion.memberCurrent': '{name}, {role}. Etapa atual: {stage}',
+  'chat.motion.memberAfterEffects': '{label}. {state}',
   'chat.motion.role.zig': 'Lidera',
   'chat.motion.role.moss': 'Pesquisa as referências',
   'chat.motion.role.bun': 'Escreve o roteiro',

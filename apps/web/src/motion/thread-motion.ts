@@ -1,9 +1,14 @@
 import type { MotionStage, ThreadMode, ThreadSettings } from '@harness/contracts'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { Transport } from '../transport.js'
+import { readAfterEffects, type AfterEffectsState } from './after-effects.js'
 
 /** What the server says about a chat's mode: the only truth for a chat that exists. */
-type Entry = { mode?: ThreadMode | undefined; stage?: MotionStage | undefined }
+type Entry = {
+  mode?: ThreadMode | undefined
+  stage?: MotionStage | undefined
+  afterEffects?: AfterEffectsState | undefined
+}
 
 /**
  * The Motion flag this window kept per chat before the server did. It is read
@@ -25,7 +30,7 @@ export type ThreadMotionDeps = {
 }
 
 const sameEntry = (a: Entry | undefined, b: Entry) =>
-  a !== undefined && a.mode === b.mode && a.stage === b.stage
+  a !== undefined && a.mode === b.mode && a.stage === b.stage && a.afterEffects === b.afterEffects
 
 /**
  * The Motion mode and stage of every chat this window has heard about, as the
@@ -51,9 +56,9 @@ export class ThreadMotionStore {
 
   /**
    * What the chat shows, as a string, so a listener re-renders only when the
-   * toggle or the stage would look different: settings that say nothing new
-   * about Motion (most of them) cost no render. A chat this window knew as
-   * Motion shows as such until the server answers.
+   * toggle, the stage or the After Effects state would look different:
+   * settings that say nothing new about Motion (most of them) cost no render.
+   * A chat this window knew as Motion shows as such until the server answers.
    */
   view = (threadId: string | undefined): string => {
     const entry = threadId ? this.#entries.get(threadId) : undefined
@@ -62,7 +67,7 @@ export class ThreadMotionStore {
       : threadId && this.deps.legacy.has(threadId)
         ? 'motion'
         : undefined
-    return `${mode ?? ''}|${entry?.stage ?? ''}`
+    return `${mode ?? ''}|${entry?.stage ?? ''}|${entry?.afterEffects ?? ''}`
   }
 
   /** Whether the server's settings for the chat have arrived (or a chat was seeded). */
@@ -83,7 +88,11 @@ export class ThreadMotionStore {
 
   /** The chat's settings arrived from the server. */
   adopt(threadId: string, settings: ThreadSettings): void {
-    const entry = { mode: settings.mode, stage: settings.motionStage }
+    const entry = {
+      mode: settings.mode,
+      stage: settings.motionStage,
+      afterEffects: readAfterEffects(settings),
+    }
     if (!sameEntry(this.#entries.get(threadId), entry)) this.#write(threadId, entry)
     this.#settle(threadId)
   }
@@ -112,8 +121,8 @@ export class ThreadMotionStore {
     const before = this.#entries.get(threadId)
     if ((before?.mode === 'motion') === enabled) return
     const optimistic: Entry = enabled
-      ? { mode: 'motion', stage: before?.stage ?? 'idea' }
-      : { mode: undefined, stage: before?.stage }
+      ? { ...before, mode: 'motion', stage: before?.stage ?? 'idea' }
+      : { ...before, mode: undefined, stage: before?.stage }
     this.#write(threadId, optimistic)
     try {
       this.adopt(threadId, await this.deps.setMode({ threadId, mode: enabled ? 'motion' : null }))
@@ -133,7 +142,7 @@ export class ThreadMotionStore {
     if (threadId === this.#active && this.#running) return
     const before = this.#entries.get(threadId)
     if (before?.mode === 'motion' && before.stage === stage) return
-    const optimistic: Entry = { mode: 'motion', stage }
+    const optimistic: Entry = { ...before, mode: 'motion', stage }
     this.#write(threadId, optimistic)
     try {
       this.adopt(
@@ -171,6 +180,8 @@ export type ThreadMotion = {
   /** Motion is on for the chat on screen (or for the draft of a new chat). */
   motionMode: boolean
   motionStage: MotionStage | undefined
+  /** Whether After Effects can be used from the chat on screen; absent when the server does not say. */
+  motionAfterEffects: AfterEffectsState | undefined
   /** A turn of the chat on screen runs: the server would refuse the change. */
   motionLocked: boolean
   /** Turns Motion on or off; `undefined` is the draft of a new chat. */
@@ -207,7 +218,7 @@ export function useThreadMotion(options: {
   const [draft, setDraft] = useState(false)
   useEffect(() => store.watch(activeId, running), [store, activeId, running])
 
-  const [shownMode, shownStage] = view.split('|')
+  const [shownMode, shownStage, shownAfterEffects] = view.split('|')
   const motionMode = activeId ? shownMode === 'motion' : draft
   const setThreadMotionMode = useCallback(
     (threadId: string | undefined, enabled: boolean) => {
@@ -223,6 +234,7 @@ export function useThreadMotion(options: {
   return {
     motionMode,
     motionStage: (shownStage || undefined) as MotionStage | undefined,
+    motionAfterEffects: (shownAfterEffects || undefined) as AfterEffectsState | undefined,
     motionLocked: running && activeId !== undefined,
     setThreadMotionMode,
     setMotionStage,
@@ -232,7 +244,11 @@ export function useThreadMotion(options: {
   }
 }
 
-export type ChatMotionView = { mode: boolean; stage: MotionStage | undefined }
+export type ChatMotionView = {
+  mode: boolean
+  stage: MotionStage | undefined
+  afterEffects: AfterEffectsState | undefined
+}
 
 /**
  * The Motion mode and stage of a chat that is on screen without being the one
@@ -248,9 +264,10 @@ export function useChatMotion(
   const view = useSyncExternalStore(store.subscribe, () =>
     store.known(threadId) ? `k|${store.view(threadId)}` : '',
   )
-  const [, mode, stage] = view.split('|')
+  const [, mode, stage, afterEffects] = view.split('|')
   return {
     mode: view ? mode === 'motion' : fallbackMode,
     stage: (stage || undefined) as MotionStage | undefined,
+    afterEffects: (afterEffects || undefined) as AfterEffectsState | undefined,
   }
 }

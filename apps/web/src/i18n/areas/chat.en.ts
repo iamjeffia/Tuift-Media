@@ -210,9 +210,16 @@ export const chatEn = {
   'chat.motion.group': 'Motion team',
   'chat.motion.announce': 'Motion mode on. Current stage: {stage}, with {name}.',
   'chat.motion.announceStage': 'Current stage: {stage}, with {name}.',
+  'chat.motion.afterEffects.notInstalled':
+    'After Effects was not found on this computer. The video will be built in HyperFrames.',
+  'chat.motion.afterEffects.notInstalledName': 'After Effects not found',
+  'chat.motion.afterEffects.unavailable':
+    'The After Effects connection is not available in this app. The video will be built in HyperFrames.',
+  'chat.motion.afterEffects.unavailableName': 'After Effects connection unavailable',
   'chat.motion.locked': 'Motion can change when the reply ends',
   'chat.motion.member': '{name}, {role}',
   'chat.motion.memberCurrent': '{name}, {role}. Current stage: {stage}',
+  'chat.motion.memberAfterEffects': '{label}. {state}',
   'chat.motion.role.zig': 'Leads',
   'chat.motion.role.moss': 'Finds the references',
   'chat.motion.role.bun': 'Writes the script',

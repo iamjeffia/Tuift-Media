@@ -1315,6 +1315,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   const {
     motionMode,
     motionStage,
+    motionAfterEffects,
     motionLocked,
     setThreadMotionMode,
     setMotionStage,
@@ -8095,6 +8096,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                               <LazyMotionCast
                                 mode={motionMode}
                                 stage={motionStage}
+                                afterEffects={motionAfterEffects}
                                 running={visibleRunning}
                                 locked={motionLocked}
                                 onStageChange={setMotionStage}
@@ -8173,7 +8175,11 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                             <div
                               className={`stage__conversation${besideId ? '' : ' is-new-session'}`}
                             >
-                              <LazyMotionCast mode={besideMotion.mode} stage={besideMotion.stage} />
+                              <LazyMotionCast
+                                mode={besideMotion.mode}
+                                stage={besideMotion.stage}
+                                afterEffects={besideMotion.afterEffects}
+                              />
                               {besideId ? (
                                 <AccountLabelContext.Provider value={accountLabel}>
                                   <ModelNameContext.Provider value={modelName}>

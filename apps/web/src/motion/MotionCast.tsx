@@ -1,7 +1,15 @@
+import { IconAlertTriangle } from '@tabler/icons-react'
 import { memo, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useI18n } from '../i18n/index.js'
 import { Menu, MenuItem } from '../ui/Menu.js'
 import { usePopupPresence } from '../ui/use-popup-presence.js'
+import {
+  AFTER_EFFECTS_NAME,
+  AFTER_EFFECTS_NOTE,
+  afterEffectsProblem,
+  type AfterEffectsProblem,
+  type AfterEffectsState,
+} from './after-effects.js'
 import {
   CAST,
   STAGE_LABEL,
@@ -27,6 +35,11 @@ export type MotionCastProps = {
   onStageChange?: ((stage: MotionStageId) => void) | undefined
   /** The server would refuse a change of stage now (a turn of the chat runs). */
   locked?: boolean | undefined
+  /**
+   * Whether After Effects can be used from this chat, as its settings say.
+   * Cloud shows a notice when it cannot; `ready` and absent say nothing.
+   */
+  afterEffects?: AfterEffectsState | undefined
 }
 
 type MemberStyle = CSSProperties & { '--cast-color': string; '--cast-index': number }
@@ -40,25 +53,36 @@ export const MotionCast = memo(function MotionCast(props: MotionCastProps) {
   const root = useRef<HTMLDivElement>(null)
   const present = usePopupPresence(props.mode, root)
   const [announcement, setAnnouncement] = useState('')
-  const introduced = useRef(false)
   const stage = props.stage ?? 'idea'
   const leader = CAST.find((member) => member.id === STAGE_OWNER[stage])
   const stageLabel = t(STAGE_LABEL[stage])
 
+  const problem = afterEffectsProblem(props.afterEffects)
+  const note = problem ? t(AFTER_EFFECTS_NOTE[problem]) : ''
+  const said = useRef<{ stage: string; note: string } | undefined>(undefined)
+
   // A live region only speaks about changes made after it exists, so the text
   // goes in one render after the scene appears. The first text says the mode
   // is on; after that every new stage, chosen here or pushed by the server, is
-  // said once with its character.
+  // said once with its character. The After Effects notice is said once when
+  // the scene appears with it and again each time it changes.
   useEffect(() => {
     if (!props.mode || !leader) {
-      introduced.current = false
+      said.current = undefined
       return
     }
-    const key = introduced.current ? 'chat.motion.announceStage' : 'chat.motion.announce'
-    introduced.current = true
-    setAnnouncement(t(key, { stage: stageLabel, name: leader.name }))
+    const before = said.current
+    const stageText = `${leader.name}|${stageLabel}`
+    const lines: string[] = []
+    if (before?.stage !== stageText) {
+      const key = before ? 'chat.motion.announceStage' : 'chat.motion.announce'
+      lines.push(t(key, { stage: stageLabel, name: leader.name }))
+    }
+    if (note && before?.note !== note) lines.push(note)
+    said.current = { stage: stageText, note }
+    setAnnouncement(lines.join(' '))
     return () => setAnnouncement('')
-  }, [props.mode, leader, stageLabel, t])
+  }, [props.mode, leader, stageLabel, note, t])
 
   if (!present) return null
   return (
@@ -79,6 +103,7 @@ export const MotionCast = memo(function MotionCast(props: MotionCastProps) {
           stage={stage}
           onStageChange={props.onStageChange}
           locked={props.locked}
+          problem={member.id === 'cloud' ? problem : undefined}
         />
       ))}
       <span className="visually-hidden" role="status">
@@ -95,15 +120,19 @@ function Member(props: {
   stage: MotionStageId
   onStageChange: MotionCastProps['onStageChange']
   locked: boolean | undefined
+  /** After Effects cannot be used: only Cloud, who builds in it, carries it. */
+  problem: AfterEffectsProblem | undefined
 }) {
   const { t } = useI18n()
-  const { member, current, onStageChange } = props
+  const { member, current, problem, onStageChange } = props
   const role = t(member.role)
   const stageLabel = t(STAGE_LABEL[props.stage])
-  const label = current
+  const state = problem ? t(AFTER_EFFECTS_NAME[problem]) : ''
+  const named = current
     ? t('chat.motion.memberCurrent', { name: member.name, role, stage: stageLabel })
     : t('chat.motion.member', { name: member.name, role })
-  const title = `${member.name} · ${role}`
+  const label = problem ? t('chat.motion.memberAfterEffects', { label: named, state }) : named
+  const title = problem ? `${member.name} · ${role} · ${state}` : `${member.name} · ${role}`
   const style: MemberStyle = {
     '--cast-color': `var(--composer-motion-${member.color})`,
     '--cast-index': props.index,
@@ -112,6 +141,11 @@ function Member(props: {
     <span className="motion-cast__body">
       <span className="motion-cast__head">
         <img src={member.image} alt="" draggable={false} />
+        {problem ? (
+          <span className="motion-cast__mark" aria-hidden>
+            <IconAlertTriangle size={11} stroke={2.25} />
+          </span>
+        ) : null}
       </span>
       {current ? <span className="motion-cast__label">{stageLabel}</span> : null}
     </span>
@@ -124,12 +158,13 @@ function Member(props: {
           triggerTitle={title}
           drop="down"
           triggerClassName="motion-cast__trigger"
-          panelClassName="menu--compact menu--cast"
+          panelClassName={`menu--compact menu--cast${problem ? ' menu--cast-note' : ''}`}
           panelLabel={t('chat.motion.stageMenu', { name: member.name })}
           trigger={() => body}
         >
           {(close) => (
             <>
+              {problem ? <p className="menu__group">{t(AFTER_EFFECTS_NOTE[problem])}</p> : null}
               {props.locked ? <p className="menu__group">{t('chat.motion.stageLocked')}</p> : null}
               {stagesOf(member.id).map((stage) => (
                 <MenuItem
