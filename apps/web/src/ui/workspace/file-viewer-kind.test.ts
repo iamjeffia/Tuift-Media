@@ -12,6 +12,7 @@ describe('fileViewerKind', () => {
     ['voice.mp3', 'audio'],
     ['mix.wav', 'audio'],
     ['brief.pdf', 'pdf'],
+    ['Annual REPORT.PDF', 'pdf'],
     ['src/app.ts', 'code'],
     ['Dockerfile', 'code'],
     ['archive.zip', 'code'],

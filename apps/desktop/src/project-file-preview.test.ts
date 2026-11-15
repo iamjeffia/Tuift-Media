@@ -1,7 +1,11 @@
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { pickedAttachment, attachmentPreviewFromUrl } from './attachment-preview.js'
-import { projectFilePreview, projectFilePreviewFromUrl } from './project-file-preview.js'
+import {
+  isProjectPdfUrl,
+  projectFilePreview,
+  projectFilePreviewFromUrl,
+} from './project-file-preview.js'
 
 const secret = Buffer.from('project-file-preview-test-secret')
 
@@ -10,6 +14,7 @@ describe('project file previews', () => {
     ['logo.PNG', 'image', 'image/png'],
     ['reel.mp4', 'video', 'video/mp4'],
     ['voice.mp3', 'audio', 'audio/mpeg'],
+    ['brief.PDF', 'pdf', 'application/pdf'],
   ] as const)('signs a URL for %s', (name, mediaType, mimeType) => {
     const filePath = path.resolve('fixtures', name)
     const preview = projectFilePreview(filePath, secret)
@@ -25,7 +30,7 @@ describe('project file previews', () => {
 
   it('leaves any other type to the text reader', () => {
     expect(projectFilePreview(path.resolve('fixtures', 'app.ts'), secret)).toBeUndefined()
-    expect(projectFilePreview(path.resolve('fixtures', 'brief.pdf'), secret)).toBeUndefined()
+    expect(projectFilePreview(path.resolve('fixtures', 'brief.pdf.txt'), secret)).toBeUndefined()
   })
 
   it('rejects a URL whose signed path was swapped or signed with another secret', () => {
@@ -36,6 +41,20 @@ describe('project file previews', () => {
     expect(projectFilePreviewFromUrl(swapped, secret)).toBeUndefined()
     expect(projectFilePreviewFromUrl(first, Buffer.from('another secret'))).toBeUndefined()
     expect(projectFilePreviewFromUrl(`${first}?x=1`, secret)).toBeUndefined()
+  })
+
+  it('tells a signed PDF URL from every other URL the guest could be sent to', () => {
+    const pdf = projectFilePreview(path.resolve('fixtures', 'brief.pdf'), secret)!.url
+    const image = projectFilePreview(path.resolve('fixtures', 'one.png'), secret)!.url
+
+    expect(isProjectPdfUrl(pdf, secret)).toBe(true)
+    expect(isProjectPdfUrl(`${pdf}?v=3`, secret)).toBe(true)
+    expect(isProjectPdfUrl(image, secret)).toBe(false)
+    expect(isProjectPdfUrl(pdf, Buffer.from('another secret'))).toBe(false)
+    expect(isProjectPdfUrl(`${pdf}?download=1`, secret)).toBe(false)
+    for (const url of ['https://example.com/a.pdf', 'file:///C:/a.pdf', 'about:blank', '']) {
+      expect(isProjectPdfUrl(url, secret)).toBe(false)
+    }
   })
 
   it('keeps picker URLs and project file URLs apart', () => {

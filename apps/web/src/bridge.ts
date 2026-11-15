@@ -25,7 +25,7 @@ export type PickedAttachment = {
   thumbnailUrl?: string | undefined
 }
 
-export type ProjectFileMediaType = 'image' | 'video' | 'audio'
+export type ProjectFileMediaType = 'image' | 'video' | 'audio' | 'pdf'
 
 type Bridge = {
   pickFolder: () => Promise<string | undefined>

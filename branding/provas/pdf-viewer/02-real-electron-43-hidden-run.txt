@@ -1,0 +1,29 @@
+Hidden Electron 43.4 run of the compiled desktop modules (embedded-browser, pdf-guest, project-file-preview) with the renderer CSP, no window shown, temp user data.
+A viewer line shows the PDF viewer extension state inside the guest; loadURL lines are attempts to navigate the guest elsewhere.
+
+--- case proof.pdf signed: true
+guest session is pdf session: true | partition string persisted: true
+viewer: {"pages":1,"size":[410,276],"loadState":"success","error":null}
+loadURL https://example.com/ => ERR_FAILED (-2) loading 'https://example.com/' | now at <signed-url>
+loadURL file:///C:/Windows/win.ini => ERR_FAILED (-2) loading 'file:///C:/Windows/win.ini' | now at <signed-url>
+loadURL <signed-url> => ERR_FAILED (-2) loading '<signed-url>' | now at <signed-url>
+reload signed => ok
+events: 
+guest has window.harness: undefined
+--- case broken.pdf signed: true
+guest session is pdf session: true | partition string persisted: true
+viewer: {"pages":null,"size":null,"loadState":"failed","error":"Error Failed to load PDF document. Reload"}
+loadURL https://example.com/ => ERR_FAILED (-2) loading 'https://example.com/' | now at <signed-url>
+loadURL file:///C:/Windows/win.ini => ERR_FAILED (-2) loading 'file:///C:/Windows/win.ini' | now at <signed-url>
+loadURL <signed-url> => ERR_FAILED (-2) loading '<signed-url>' | now at <signed-url>
+reload signed => ok
+events: 
+guest has window.harness: undefined
+--- case gone.pdf signed: true
+guest session is pdf session: true | partition string persisted: true
+loadURL https://example.com/ => ERR_FAILED (-2) loading 'https://example.com/' | now at <signed-url>
+loadURL file:///C:/Windows/win.ini => ERR_FAILED (-2) loading 'file:///C:/Windows/win.ini' | now at <signed-url>
+loadURL <signed-url> => ERR_FAILED (-2) loading '<signed-url>' | now at <signed-url>
+reload signed => ERR_FAILED (-2) loading 'tastecode-attachment://file/zGjonZSFCltNewSswzySXcogLFj
+events: fail -2 ERR_FAILED main=true ; fail -2 ERR_FAILED main=true
+guest has window.harness: undefined

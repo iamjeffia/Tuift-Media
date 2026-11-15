@@ -1,13 +1,15 @@
 // @vitest-environment happy-dom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setLanguage } from '../../i18n/index.js'
 
 const bridge = vi.hoisted(() => ({
   previewProjectFile: vi.fn(
     async (
       _path: string,
       _root: string,
-    ): Promise<{ url: string; mediaType: 'image' | 'video' | 'audio' } | undefined> => undefined,
+    ): Promise<{ url: string; mediaType: 'image' | 'video' | 'audio' | 'pdf' } | undefined> =>
+      undefined,
   ),
 }))
 
@@ -125,12 +127,104 @@ describe('FileViewer by type', () => {
     expect(screen.getByRole('button', { name: 'Open in Explorer' })).toBeTruthy()
   })
 
-  it('does not embed a PDF: it offers Explorer instead', async () => {
-    const { container } = view('docs/brief.pdf')
-    expect(await screen.findByText('PDF preview is not available yet')).toBeTruthy()
-    expect(container.querySelector('iframe, embed, object')).toBeNull()
-    expect(bridge.previewProjectFile).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Open in Explorer' })).toBeTruthy()
+  describe('PDF', () => {
+    const signed = 'tastecode-attachment://file/sig/path'
+    const openPdf = async (name = 'docs/brief.pdf') => {
+      bridge.previewProjectFile.mockResolvedValue({ url: signed, mediaType: 'pdf' })
+      const result = view(name)
+      const guest = await waitFor(() => {
+        const element = result.container.querySelector('webview')
+        if (!element) throw new Error('no guest yet')
+        return element
+      })
+      return { ...result, guest }
+    }
+
+    it.each(['docs/brief.pdf', 'docs/BRIEF.PDF'])(
+      'shows %s in a guest that loads only the signed URL',
+      async (name) => {
+        const { guest } = await openPdf(name)
+
+        expect(guest.getAttribute('src')).toBe(signed)
+        expect(guest.getAttribute('partition')).toBe('persist:harness-pdf')
+        expect(guest.getAttribute('aria-label')).toBe(name.split('/').at(-1))
+        expect(guest.getAttribute('webpreferences')).toBe(
+          'contextIsolation=yes, nodeIntegration=no, sandbox=yes, spellcheck=no',
+        )
+        // Nothing that would let the guest open windows, run Node or load a preload.
+        for (const attribute of ['allowpopups', 'nodeintegration', 'preload', 'plugins']) {
+          expect(guest.hasAttribute(attribute)).toBe(false)
+        }
+        expect(bridge.previewProjectFile).toHaveBeenCalledWith(
+          `${ROOT}\\${name.replace('/', '\\')}`,
+          ROOT,
+        )
+        // The desktop streams the file: no text was read into the renderer.
+        expect(screen.queryByText('Binary file')).toBeNull()
+      },
+    )
+
+    it('keeps the loading state until the viewer has loaded', async () => {
+      const { guest } = await openPdf()
+      expect(screen.getByText('Opening file…')).toBeTruthy()
+
+      fireEvent(guest, new Event('did-stop-loading'))
+      await waitFor(() => expect(screen.queryByRole('status')).toBeNull())
+      expect(guest.isConnected).toBe(true)
+    })
+
+    it('says a PDF could not be shown, with a way out', async () => {
+      const { guest, container } = await openPdf()
+      fireEvent(guest, Object.assign(new Event('did-fail-load'), { errorCode: -6 }))
+
+      expect((await screen.findByRole('alert')).textContent).toContain(
+        'This PDF could not be shown.',
+      )
+      expect(screen.getByRole('button', { name: 'Open in Explorer' })).toBeTruthy()
+      expect(container.querySelector('webview')).toBeNull()
+    })
+
+    it('ignores a load another one replaced and a failure in a sub-frame', async () => {
+      const { guest } = await openPdf()
+      fireEvent(guest, Object.assign(new Event('did-fail-load'), { errorCode: -3 }))
+      fireEvent(
+        guest,
+        Object.assign(new Event('did-fail-load'), { errorCode: -6, isMainFrame: false }),
+      )
+      fireEvent(guest, new Event('did-stop-loading'))
+      await waitFor(() => expect(screen.queryByRole('status')).toBeNull())
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    it('reloads when the file was replaced on disk', async () => {
+      bridge.previewProjectFile.mockResolvedValue({ url: signed, mediaType: 'pdf' })
+      const props = { file: file('docs/brief.pdf'), projectPath: ROOT, root: ROOT }
+      const { container, rerender } = render(<FileViewer {...props} revision={0} />)
+      await waitFor(() => expect(container.querySelector('webview')).not.toBeNull())
+      rerender(<FileViewer {...props} revision={1} />)
+      await waitFor(() =>
+        expect(container.querySelector('webview')?.getAttribute('src')).toBe(`${signed}?v=1`),
+      )
+    })
+
+    it('falls back to Explorer where the desktop cannot show it', async () => {
+      // The sandbox, a browser and the phone view have no bridge: no guest, no blank frame.
+      const { container } = view('docs/brief.pdf')
+      expect(await screen.findByText('Preview not available')).toBeTruthy()
+      expect(container.querySelector('webview, iframe, embed, object')).toBeNull()
+      expect(screen.getByRole('button', { name: 'Open in Explorer' })).toBeTruthy()
+    })
+
+    it('is translated', async () => {
+      setLanguage('pt-BR', { persist: false })
+      const { guest } = await openPdf()
+      expect(screen.getByText('Abrindo arquivo…')).toBeTruthy()
+      fireEvent(guest, Object.assign(new Event('did-fail-load'), { errorCode: -6 }))
+      expect((await screen.findByRole('alert')).textContent).toContain(
+        'Não foi possível mostrar este PDF.',
+      )
+      expect(screen.getByRole('button', { name: 'Abrir no Explorer' })).toBeTruthy()
+    })
   })
 
   it('needs the desktop app for media, and says so, when it cannot stream it', async () => {

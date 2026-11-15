@@ -1,4 +1,5 @@
 import type { Event, Session, WebContents, WebPreferences } from 'electron'
+import { PDF_PARTITION, configurePdfGuest, type PdfGuestPolicy } from './pdf-guest.js'
 
 const BROWSER_PARTITION = 'persist:harness-browser'
 const configuredSessions = new WeakSet<Session>()
@@ -35,8 +36,11 @@ export interface EmbeddedBrowserOwner {
  * attached. The page lives in Chromium's guest process, while the UI remains a
  * normal DOM element that follows the sidebar's layout without native overlays.
  */
-export function configureEmbeddedBrowser(owner: EmbeddedBrowserOwner): void {
+export function configureEmbeddedBrowser(owner: EmbeddedBrowserOwner, pdf?: PdfGuestPolicy): void {
   owner.on('will-attach-webview', (event, webPreferences, params) => {
+    // A signed project PDF is the one non-web source a guest may start on; it gets its own
+    // partition (see pdf-guest.ts) and every other source keeps the browser's rules.
+    const pdfGuest = pdf?.isPdfUrl(params['src'] ?? '') === true
     delete webPreferences.preload
     webPreferences.allowRunningInsecureContent = false
     // Guest pages are arbitrary sites and dev servers. Like a background tab,
@@ -49,7 +53,8 @@ export function configureEmbeddedBrowser(owner: EmbeddedBrowserOwner): void {
     webPreferences.nodeIntegration = false
     webPreferences.nodeIntegrationInSubFrames = false
     webPreferences.nodeIntegrationInWorker = false
-    webPreferences.partition = BROWSER_PARTITION
+    webPreferences.partition = pdfGuest ? PDF_PARTITION : BROWSER_PARTITION
+    params['partition'] = webPreferences.partition
     webPreferences.plugins = false
     webPreferences.sandbox = true
     webPreferences.spellcheck = false
@@ -58,10 +63,14 @@ export function configureEmbeddedBrowser(owner: EmbeddedBrowserOwner): void {
     // fires on the guest's own webContents — outside this hardening listener.
     webPreferences.webviewTag = false
 
-    if (!isBrowserGuestUrl(params['src'], true)) event.preventDefault()
+    if (!pdfGuest && !isBrowserGuestUrl(params['src'], true)) event.preventDefault()
   })
 
   owner.on('did-attach-webview', (_event, guest) => {
+    if (pdf && guest.session === pdf.session) {
+      configurePdfGuest(guest, pdf)
+      return
+    }
     configureBrowserSession(guest.session)
     guest.setUserAgent(browserUserAgent(guest.getUserAgent()))
 

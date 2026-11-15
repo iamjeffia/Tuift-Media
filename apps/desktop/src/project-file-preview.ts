@@ -3,15 +3,15 @@ import path from 'node:path'
 import { ATTACHMENT_PREVIEW_SCHEME } from './attachment-preview.js'
 
 /**
- * Signed, read-only URLs for the images, videos and audio the Files tab plays: a project file
- * the renderer may not read itself. PDFs are not served: showing one needs a frame, which the
- * renderer's CSP does not allow. Same scheme and CSP allowance as attachment previews, a
+ * Signed, read-only URLs for the images, videos, audio and PDFs the Files tab shows: a project
+ * file the renderer may not read itself. A PDF is shown by a guest of its own (see
+ * pdf-guest.ts), not by the renderer. Same scheme and CSP allowance as attachment previews, a
  * different host and a different signing domain, so a picker URL never opens a project file
  * or the other way round.
  */
 export const PROJECT_FILE_PREVIEW_HOST = 'file'
 
-export type ProjectFileMedia = 'image' | 'video' | 'audio'
+export type ProjectFileMedia = 'image' | 'video' | 'audio' | 'pdf'
 
 type ProjectFilePreview = { path: string; mediaType: ProjectFileMedia; mimeType: string }
 
@@ -40,6 +40,7 @@ const MEDIA_BY_EXTENSION = new Map<string, Omit<ProjectFilePreview, 'path'>>([
   ['.ogg', { mediaType: 'audio', mimeType: 'audio/ogg' }],
   ['.opus', { mediaType: 'audio', mimeType: 'audio/ogg' }],
   ['.wav', { mediaType: 'audio', mimeType: 'audio/wav' }],
+  ['.pdf', { mediaType: 'pdf', mimeType: 'application/pdf' }],
 ])
 
 function projectFileMedia(filePath: string): ProjectFilePreview | undefined {
@@ -60,6 +61,11 @@ export function projectFilePreview(
     url: `${ATTACHMENT_PREVIEW_SCHEME}://${PROJECT_FILE_PREVIEW_HOST}/${signature}/${encodedPath}`,
     mediaType: media.mediaType,
   }
+}
+
+/** True for a URL this module signed for a project PDF. */
+export function isProjectPdfUrl(value: string, secret: Buffer): boolean {
+  return projectFilePreviewFromUrl(value, secret)?.mediaType === 'pdf'
 }
 
 /** Shaped like an attachment preview's `variant`, so the protocol handler serves both alike. */
