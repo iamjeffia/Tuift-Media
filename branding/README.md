@@ -35,3 +35,13 @@ pnpm test
 ```
 
 O `aplicar-marca.py` só mexe no que ainda estiver com a marca antiga. Se o upstream criar um ícone ou um caminho novo, acrescente a troca na lista `TROCAS` do script.
+
+## Abrir uma cópia de teste sem tocar no perfil real
+
+O app guarda dados em três lugares, cada um com a sua variável. Uma cópia de teste precisa das três; com uma faltando, ela grava no perfil de quem usa o app.
+
+| Variável                   | O que isola                                  |
+| -------------------------- | -------------------------------------------- |
+| `HARNESS_DESKTOP_DATA_DIR` | dados da janela (Electron)                   |
+| `HARNESS_CONFIG_DIR`       | configuração (`~/.tuift-code`)               |
+| `HARNESS_DATA_DIR`         | banco das conversas (`%APPDATA%/TUIFT Code`) |
