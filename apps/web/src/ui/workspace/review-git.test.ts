@@ -6,7 +6,7 @@ function checkout(overrides: Partial<CheckoutPullRequestResult> = {}): CheckoutP
   return {
     available: true,
     branch: 'feature/review',
-    repository: 'iamjeffia/Tuift-Media',
+    repository: 'iamjeffia/TuiftCode',
     defaultBranch: 'main',
     upstream: 'origin/feature/review',
     ahead: 0,
@@ -16,10 +16,10 @@ function checkout(overrides: Partial<CheckoutPullRequestResult> = {}): CheckoutP
 }
 
 const pullRequest = (state: CheckoutPullRequest['state']): CheckoutPullRequest => ({
-  repository: 'iamjeffia/Tuift-Media',
+  repository: 'iamjeffia/TuiftCode',
   number: 7,
   title: 'feat: review',
-  url: 'https://github.com/iamjeffia/Tuift-Media/pull/7',
+  url: 'https://github.com/iamjeffia/TuiftCode/pull/7',
   state,
   isDraft: false,
   headRefName: 'feature/review',

@@ -363,7 +363,7 @@ function lookup(overrides: Partial<CheckoutPullRequestResult> = {}): CheckoutPul
   return {
     available: true,
     branch: 'feature/review',
-    repository: 'iamjeffia/Tuift-Media',
+    repository: 'iamjeffia/TuiftCode',
     defaultBranch: 'main',
     fetchedAt: 1,
     ...overrides,
@@ -539,19 +539,19 @@ describe('WorkspaceReview git actions', () => {
         upstream: 'origin/feature/review',
         ahead: 0,
         pullRequest: {
-          repository: 'iamjeffia/Tuift-Media',
+          repository: 'iamjeffia/TuiftCode',
           number: 1801,
           title: 'feat: review commits',
-          url: 'https://github.com/iamjeffia/Tuift-Media/pull/1801',
+          url: 'https://github.com/iamjeffia/TuiftCode/pull/1801',
           state: 'OPEN',
           isDraft: true,
           headRefName: 'feature/review',
         },
       })
       return {
-        repository: 'iamjeffia/Tuift-Media',
+        repository: 'iamjeffia/TuiftCode',
         number: 1801,
-        url: 'https://github.com/iamjeffia/Tuift-Media/pull/1801',
+        url: 'https://github.com/iamjeffia/TuiftCode/pull/1801',
       }
     }
     const onOpenPullRequest = vi.fn()
@@ -585,7 +585,7 @@ describe('WorkspaceReview git actions', () => {
     ])
     fireEvent.click(await screen.findByRole('button', { name: /^Pull request #1801: Draft/ }))
     expect(onOpenPullRequest).toHaveBeenCalledWith({
-      repository: 'iamjeffia/Tuift-Media',
+      repository: 'iamjeffia/TuiftCode',
       number: 1801,
     })
     expect(screen.queryByRole('button', { name: 'Create pull request' })).toBeNull()

@@ -3,7 +3,7 @@ import { Provider, type ProviderRuntimeOptions } from 'electron-updater/out/prov
 import { eq, gt, lte, rcompare, valid } from 'semver'
 import { z } from 'zod'
 
-export const releaseRepository = 'iamjeffia/Tuift-Media'
+export const releaseRepository = 'iamjeffia/TuiftCode'
 const releasePage = `https://github.com/${releaseRepository}/releases`
 const releaseApi = `https://api.github.com/repos/${releaseRepository}/releases`
 const FEED_ENTRIES = 10

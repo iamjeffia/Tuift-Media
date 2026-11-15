@@ -208,10 +208,10 @@ describe('StageHeader', () => {
 
 describe('StageHeader pull request chip', () => {
   const pullRequest = {
-    repository: 'iamjeffia/Tuift-Media',
+    repository: 'iamjeffia/TuiftCode',
     number: 1778,
     title: "feat(server): find the pull request for a chat's checkout",
-    url: 'https://github.com/iamjeffia/Tuift-Media/pull/1778',
+    url: 'https://github.com/iamjeffia/TuiftCode/pull/1778',
     state: 'OPEN' as const,
     isDraft: false,
     checks: 'passing' as const,
@@ -233,7 +233,7 @@ describe('StageHeader pull request chip', () => {
 
     fireEvent.click(chip)
     expect(onOpenPullRequest).toHaveBeenCalledWith({
-      repository: 'iamjeffia/Tuift-Media',
+      repository: 'iamjeffia/TuiftCode',
       number: 1778,
     })
   })

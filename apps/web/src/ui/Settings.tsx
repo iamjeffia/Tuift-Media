@@ -3226,7 +3226,7 @@ function AboutSettings(props: { transport: Transport }) {
           className="set-button"
           type="button"
           onClick={() =>
-            window.open('https://github.com/iamjeffia/Tuift-Media', '_blank', 'noopener,noreferrer')
+            window.open('https://github.com/iamjeffia/TuiftCode', '_blank', 'noopener,noreferrer')
           }
         >
           GitHub

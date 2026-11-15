@@ -15,7 +15,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 NOME = "TUIFT Code"
-REPO = "iamjeffia/Tuift-Media"
+REPO = "iamjeffia/TuiftCode"
 APP_ID = "media.tuift.code"
 PORTA_ANTIGA, PORTA = "4311", "4317"
 

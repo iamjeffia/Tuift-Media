@@ -6,16 +6,16 @@
 
 ## O que muda
 
-| O quê                             | TasteCode               | TUIFT Code              | Por quê                                 |
-| --------------------------------- | ----------------------- | ----------------------- | --------------------------------------- |
-| Nome na tela, instalador e janela | Taste Code / TasteCode  | TUIFT Code              | marca                                   |
-| Ícone e marca do onboarding       | T do TasteCode          | T (ou mascote v2)       | marca                                   |
-| ID do app                         | `dev.tastecode.desktop` | `media.tuift.code`      | instalar ao lado do TasteCode           |
-| Pasta do Electron                 | `%APPDATA%/TasteCode`   | `%APPDATA%/TUIFT Code`  | pasta própria, separada do TasteCode    |
-| Pasta de configuração             | `~/.tastecode`          | `~/.tuift-code`         | não ler nem mover os dados do TasteCode |
-| Cofre de senhas                   | `PersonalHarness`       | `TUIFTCode`             | não mexer nas contas do TasteCode       |
-| Porta do servidor local           | 4311                    | 4317                    | rodar os dois apps ao mesmo tempo       |
-| Atualizações e link "Source"      | `Leonxlnx/tastecode`    | `iamjeffia/Tuift-Media` | não baixar o instalador do TasteCode    |
+| O quê                             | TasteCode               | TUIFT Code             | Por quê                                 |
+| --------------------------------- | ----------------------- | ---------------------- | --------------------------------------- |
+| Nome na tela, instalador e janela | Taste Code / TasteCode  | TUIFT Code             | marca                                   |
+| Ícone e marca do onboarding       | T do TasteCode          | T (ou mascote v2)      | marca                                   |
+| ID do app                         | `dev.tastecode.desktop` | `media.tuift.code`     | instalar ao lado do TasteCode           |
+| Pasta do Electron                 | `%APPDATA%/TasteCode`   | `%APPDATA%/TUIFT Code` | pasta própria, separada do TasteCode    |
+| Pasta de configuração             | `~/.tastecode`          | `~/.tuift-code`        | não ler nem mover os dados do TasteCode |
+| Cofre de senhas                   | `PersonalHarness`       | `TUIFTCode`            | não mexer nas contas do TasteCode       |
+| Porta do servidor local           | 4311                    | 4317                   | rodar os dois apps ao mesmo tempo       |
+| Atualizações e link "Source"      | `Leonxlnx/tastecode`    | `iamjeffia/TuiftCode`  | não baixar o instalador do TasteCode    |
 
 Ficam como estão: nomes internos (`tastecode-attachment`, `TASTECODE_*`, `@harness/*`), `LICENSE`, créditos do TasteCode, `docs/` do upstream e as skills embutidas.
 

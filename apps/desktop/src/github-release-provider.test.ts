@@ -31,7 +31,7 @@ function release(version = '0.1.0-beta.8', date = '2026-09-20T00:00:00Z') {
         state: 'uploaded',
         size: 100,
         digest: `sha256:${'a'.repeat(64)}`,
-        browser_download_url: `https://github.com/iamjeffia/Tuift-Media/releases/download/v${version}/${name}`,
+        browser_download_url: `https://github.com/iamjeffia/TuiftCode/releases/download/v${version}/${name}`,
       }
     }),
   }
@@ -87,7 +87,7 @@ describe('GitHub asset releases', () => {
       ...base.assets[0]!,
       name: 'TUIFT-Code-0.5.1-mac-x64.dmg',
       browser_download_url:
-        'https://github.com/iamjeffia/Tuift-Media/releases/download/v0.5.1/TUIFT-Code-0.5.1-mac-x64.dmg',
+        'https://github.com/iamjeffia/TuiftCode/releases/download/v0.5.1/TUIFT-Code-0.5.1-mac-x64.dmg',
     }
     const latest = selectLatestRelease([{ ...base, assets: [...base.assets, intel] }])
     expect(releaseUpdateInfo(latest, 'darwin', 'x64').asset.name).toBe(
@@ -161,7 +161,7 @@ describe('GitHub asset releases', () => {
     const result = await providerWith(fetch, '0.1.1').getLatestVersion()
     expect(result).toMatchObject({ version: '0.1.1', files: [] })
     expect(fetch).toHaveBeenCalledOnce()
-    expect(fetch.mock.calls[0]![0]).toBe('https://github.com/iamjeffia/Tuift-Media/releases.atom')
+    expect(fetch.mock.calls[0]![0]).toBe('https://github.com/iamjeffia/TuiftCode/releases.atom')
   })
 
   it('confirms the newest tag through the API with one request', async () => {
@@ -170,8 +170,8 @@ describe('GitHub asset releases', () => {
     })
     expect((await providerWith(fetch, '0.1.1').getLatestVersion()).version).toBe('0.1.2')
     expect(fetch.mock.calls.map(([url]) => url)).toEqual([
-      'https://github.com/iamjeffia/Tuift-Media/releases.atom',
-      'https://api.github.com/repos/iamjeffia/Tuift-Media/releases/tags/v0.1.2',
+      'https://github.com/iamjeffia/TuiftCode/releases.atom',
+      'https://api.github.com/repos/iamjeffia/TuiftCode/releases/tags/v0.1.2',
     ])
     expect(JSON.stringify(fetch.mock.calls)).not.toMatch(/authorization|\.yml/i)
   })
@@ -237,7 +237,7 @@ describe('GitHub asset releases', () => {
     expect(result.version).toBe('0.1.0-beta.8')
     expect(fetch).toHaveBeenCalledTimes(3)
     expect(fetch.mock.calls[2]![0]).toBe(
-      'https://api.github.com/repos/iamjeffia/Tuift-Media/releases?per_page=100&page=2',
+      'https://api.github.com/repos/iamjeffia/TuiftCode/releases?per_page=100&page=2',
     )
     expect(() => provider.resolveFiles()).toThrow(/verified/)
   })
@@ -290,7 +290,7 @@ describe('GitHub asset releases', () => {
   it('reads the release list when a feed entry has no readable tag', async () => {
     const atom = feed('v0.1.2').replace(
       '</feed>',
-      '  <entry>\n    <link rel="alternate" href="https://github.com/iamjeffia/Tuift-Media/releases/tag/%E0%A4%A"/>\n  </entry>\n</feed>',
+      '  <entry>\n    <link rel="alternate" href="https://github.com/iamjeffia/TuiftCode/releases/tag/%E0%A4%A"/>\n  </entry>\n</feed>',
     )
     const fetch = feedFetch(atom, {}, [localRelease('0.1.3'), localRelease('0.1.2')])
     expect((await providerWith(fetch, '0.1.2').getLatestVersion()).version).toBe('0.1.3')
@@ -397,12 +397,12 @@ function feed(...tags: string[]) {
   const entries = tags.map(
     (tag) => `  <entry>
     <id>tag:github.com,2008:Repository/1314983809/${tag}</id>
-    <link rel="alternate" type="text/html" href="https://github.com/iamjeffia/Tuift-Media/releases/tag/${tag}"/>
+    <link rel="alternate" type="text/html" href="https://github.com/iamjeffia/TuiftCode/releases/tag/${tag}"/>
   </entry>`,
   )
   return `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-  <link type="text/html" rel="alternate" href="https://github.com/iamjeffia/Tuift-Media/releases"/>
+  <link type="text/html" rel="alternate" href="https://github.com/iamjeffia/TuiftCode/releases"/>
 ${entries.join('\n')}
 </feed>`
 }

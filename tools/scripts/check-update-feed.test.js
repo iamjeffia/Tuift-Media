@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { updateFeedVerdicts } from './check-update-feed.js'
 
-const repository = 'iamjeffia/Tuift-Media'
+const repository = 'iamjeffia/TuiftCode'
 
 function release(
   version,

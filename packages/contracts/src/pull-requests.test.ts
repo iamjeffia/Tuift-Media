@@ -107,10 +107,10 @@ describe('pull-request contracts', () => {
 describe('checkout pull-request contracts', () => {
   const forCheckout = methods['pullRequests.forCheckout']
   const pullRequest = {
-    repository: 'iamjeffia/Tuift-Media',
+    repository: 'iamjeffia/TuiftCode',
     number: 1660,
     title: 'Show the chat pull request',
-    url: 'https://github.com/iamjeffia/Tuift-Media/pull/1660',
+    url: 'https://github.com/iamjeffia/TuiftCode/pull/1660',
     state: 'OPEN',
     isDraft: true,
     reviewDecision: 'REVIEW_REQUIRED',
@@ -121,7 +121,7 @@ describe('checkout pull-request contracts', () => {
   const found = {
     available: true,
     branch: 'feature/pr-chip',
-    repository: 'iamjeffia/Tuift-Media',
+    repository: 'iamjeffia/TuiftCode',
     defaultBranch: 'main',
     upstream: 'origin/feature/pr-chip',
     ahead: 2,
@@ -254,9 +254,9 @@ describe('checkout pull-request contracts', () => {
     ])
       expect(create.params.safeParse({ ...params, ...change }).success).toBe(false)
     const result = {
-      repository: 'iamjeffia/Tuift-Media',
+      repository: 'iamjeffia/TuiftCode',
       number: 1660,
-      url: 'https://github.com/iamjeffia/Tuift-Media/pull/1660',
+      url: 'https://github.com/iamjeffia/TuiftCode/pull/1660',
     }
     expect(create.result.parse(result)).toEqual(result)
     expect(create.result.safeParse({ ...result, url: 'https://example.com/x' }).success).toBe(false)
