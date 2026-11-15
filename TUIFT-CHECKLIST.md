@@ -50,7 +50,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
   - [x] 2.5a Trazer de repositórios públicos com licença só o que a casa usa: a base do HyperFrames (12 skills) e `watch`.
   - [x] 2.5b Limpar e trazer as de motion da casa: `animacao-saas`, `captura-de-movimento`, `motion-narrado`, `video-referencias`.
   - [x] 2.5c Adaptar `motion-app-ae` e `composicao-trilha` para qualquer cliente (dependem dos itens 11 e 12).
-  - [x] 2.5d Limpar e trazer `ui-profissional`, `gravar-janela`, `humanizer` e `stageshow`. `better-portuguese` não entrou: é de um autor externo e o repositório dele não tem licença; espera decisão (pedir permissão, escrever uma própria ou instalar direto do autor).
+  - [x] 2.5d Limpar e trazer `ui-profissional`, `gravar-janela`, `humanizer` e `stageshow`. No lugar da `better-portuguese`, que é de um autor externo e não tem licença, entrou a `escrita-pt-br`, escrita do zero pela casa (15/11).
   - [x] 2.5e Revisão de privacidade do coordenador antes de publicar: nenhum nome, marca interna, cliente, caminho do PC ou chave.
 - [ ] 2.6 Teste: o instalador leva as skills e o agente enxerga cada uma.
 - [ ] 2.8 Ficam de fora por enquanto, pela licença de cada uma: `transitions-dev`, `transitions-polish` e `transitions-ui-generation` (a licença proíbe republicar), `remotion-best-practices` e as sete `21st-*` (sem licença declarada). Ideia: oferecer no app a instalação direto do repositório do autor, sem embutir.
