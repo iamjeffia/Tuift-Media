@@ -11568,6 +11568,50 @@ describe('new chats', () => {
     await waitFor(() => expect(motion().getAttribute('aria-pressed')).toBe('true'))
   })
 
+  it('moves a Motion chat to another stage from a character menu, and follows a push', async () => {
+    const request = transport.request.getMockImplementation()!
+    transport.request.mockImplementation((method, params) => {
+      if (method === 'thread.settings')
+        return Promise.resolve({ mode: 'motion', motionStage: 'idea' })
+      if (method === 'thread.setMode') {
+        const { mode, motionStage } = params as { mode: string | null; motionStage?: string }
+        return Promise.resolve({ mode: mode ?? undefined, motionStage: motionStage ?? 'idea' })
+      }
+      return request(method, params)
+    })
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: /^New session,/ }))
+    const scene = await screen.findByRole('group', { name: 'Motion team' })
+    const status = () => within(scene).getByRole('status').textContent
+    await waitFor(() => expect(within(scene).getAllByRole('button')).toHaveLength(6))
+
+    fireEvent.click(within(scene).getByRole('button', { name: /^Cloud,/ }))
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Soundtrack' }))
+    await waitFor(() =>
+      expect(transport.request).toHaveBeenCalledWith('thread.setMode', {
+        threadId: 'untouched-thread',
+        mode: 'motion',
+        motionStage: 'soundtrack',
+      }),
+    )
+    await waitFor(() =>
+      expect(within(scene).getByRole('button', { name: /^Cloud,.*Current stage: Soundtrack/ })),
+    )
+    expect(status()).toBe('Current stage: Soundtrack, with Cloud.')
+
+    // The phone moves it on: the highlight follows and the new stage is said once.
+    act(() =>
+      transport.listeners.get('thread.settings')?.({
+        threadId: 'untouched-thread',
+        settings: { mode: 'motion', motionStage: 'review' },
+      }),
+    )
+    await waitFor(() =>
+      expect(within(scene).getByRole('button', { name: /^Penny,.*Current stage: Review/ })),
+    )
+    expect(status()).toBe('Current stage: Review, with Penny.')
+  })
+
   it('hands a chat the old local Motion flag to the server once, the first time it opens', async () => {
     localStorage.setItem(
       'harness.modelByThread:untouched-thread',
@@ -16192,6 +16236,31 @@ describe('split view', () => {
     expect(within(pane('Left chat')).getByRole('button', { name: 'Close Left chat pane' }))
     expect(within(pane('Right chat')).getByRole('button', { name: 'Close Right chat pane' }))
     expect(document.querySelector('.stage__body')!.classList.contains('is-split')).toBe(true)
+  })
+
+  it('shows the Motion stage of each chat in its own pane', async () => {
+    const request = transport.request.getMockImplementation()!
+    transport.request.mockImplementation((method, params) => {
+      if (method === 'thread.settings') {
+        const { threadId } = params as { threadId: string }
+        return Promise.resolve({
+          mode: 'motion',
+          motionStage: threadId === 'left-thread' ? 'script' : 'review',
+        })
+      }
+      return request(method, params)
+    })
+    await openSplit()
+    // The pane in focus lets the person choose; the other one shows its chat's stage.
+    expect(
+      await within(pane('Right chat')).findByRole('button', {
+        name: /^Penny,.*Current stage: Review/,
+      }),
+    ).toBeTruthy()
+    expect(
+      await within(pane('Left chat')).findByRole('img', { name: /^Bun,.*Current stage: Script/ }),
+    ).toBeTruthy()
+    expect(within(pane('Left chat')).queryAllByRole('button', { name: /^Bun,/ })).toHaveLength(0)
   })
 
   it('opens a chat beside with Alt+click and keeps the open chat mounted', async () => {

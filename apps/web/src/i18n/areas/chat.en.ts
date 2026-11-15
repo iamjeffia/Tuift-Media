@@ -209,6 +209,7 @@ export const chatEn = {
   // The Motion team above the chat (names are proper names and stay as written)
   'chat.motion.group': 'Motion team',
   'chat.motion.announce': 'Motion mode on. Current stage: {stage}, with {name}.',
+  'chat.motion.announceStage': 'Current stage: {stage}, with {name}.',
   'chat.motion.locked': 'Motion can change when the reply ends',
   'chat.motion.member': '{name}, {role}',
   'chat.motion.memberCurrent': '{name}, {role}. Current stage: {stage}',
@@ -218,6 +219,8 @@ export const chatEn = {
   'chat.motion.role.pip': 'Organises the project',
   'chat.motion.role.cloud': 'Builds the video in After Effects',
   'chat.motion.role.penny': 'Reviews every frame',
+  'chat.motion.stageLocked': 'The stage can change when the reply ends',
+  'chat.motion.stageMenu': 'Stages of {name}',
   'chat.motion.stage.idea': 'Idea',
   'chat.motion.stage.script': 'Script',
   'chat.motion.stage.narration': 'Narration',

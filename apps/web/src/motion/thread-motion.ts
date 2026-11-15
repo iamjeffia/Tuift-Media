@@ -15,7 +15,11 @@ export type LegacyMotionFlag = {
 }
 
 export type ThreadMotionDeps = {
-  setMode(params: { threadId: string; mode: ThreadMode | null }): Promise<ThreadSettings>
+  setMode(params: {
+    threadId: string
+    mode: ThreadMode | null
+    motionStage?: MotionStage
+  }): Promise<ThreadSettings>
   legacy: LegacyMotionFlag
   onError(message: string): void
 }
@@ -60,6 +64,10 @@ export class ThreadMotionStore {
         : undefined
     return `${mode ?? ''}|${entry?.stage ?? ''}`
   }
+
+  /** Whether the server's settings for the chat have arrived (or a chat was seeded). */
+  known = (threadId: string | undefined): boolean =>
+    threadId !== undefined && this.#entries.has(threadId)
 
   #write(threadId: string, entry: Entry | undefined): void {
     const next = new Map(this.#entries)
@@ -116,6 +124,28 @@ export class ThreadMotionStore {
     }
   }
 
+  /**
+   * Moves a Motion chat to another stage. Refused while it runs, as the server
+   * does; the highlight follows the server's answer, and a refusal returns the
+   * chat to what the server last said and reports why.
+   */
+  async setStage(threadId: string, stage: MotionStage): Promise<void> {
+    if (threadId === this.#active && this.#running) return
+    const before = this.#entries.get(threadId)
+    if (before?.mode === 'motion' && before.stage === stage) return
+    const optimistic: Entry = { mode: 'motion', stage }
+    this.#write(threadId, optimistic)
+    try {
+      this.adopt(
+        threadId,
+        await this.deps.setMode({ threadId, mode: 'motion', motionStage: stage }),
+      )
+    } catch (error) {
+      if (this.#entries.get(threadId) === optimistic) this.#write(threadId, before)
+      this.deps.onError(error instanceof Error ? error.message : String(error))
+    }
+  }
+
   /** One hand-over per chat, the first time it is open, known and idle. */
   #settle(threadId: string): void {
     const entry = this.#entries.get(threadId)
@@ -145,8 +175,12 @@ export type ThreadMotion = {
   motionLocked: boolean
   /** Turns Motion on or off; `undefined` is the draft of a new chat. */
   setThreadMotionMode: (threadId: string | undefined, enabled: boolean) => void
+  /** Moves the chat on screen to a stage; absent for the draft of a new chat, which has no server stage to set. */
+  setMotionStage: ((stage: MotionStage) => void) | undefined
   adoptMotion: (threadId: string, settings: ThreadSettings) => void
   seedMotion: (threadId: string) => void
+  /** For the second pane of a split view: see `useChatMotion`. */
+  motionStore: ThreadMotionStore
 }
 
 export function useThreadMotion(options: {
@@ -182,12 +216,41 @@ export function useThreadMotion(options: {
     },
     [store],
   )
+  const setMotionStage = useMemo(
+    () => (activeId ? (stage: MotionStage) => void store.setStage(activeId, stage) : undefined),
+    [store, activeId],
+  )
   return {
     motionMode,
     motionStage: (shownStage || undefined) as MotionStage | undefined,
     motionLocked: running && activeId !== undefined,
     setThreadMotionMode,
+    setMotionStage,
     adoptMotion: store.adopt.bind(store),
     seedMotion: store.seed.bind(store),
+    motionStore: store,
+  }
+}
+
+export type ChatMotionView = { mode: boolean; stage: MotionStage | undefined }
+
+/**
+ * The Motion mode and stage of a chat that is on screen without being the one
+ * the window works on (the second pane of a split view), as the server keeps
+ * them. A chat the server has not been asked about yet keeps what the pane
+ * showed when it was frozen.
+ */
+export function useChatMotion(
+  store: ThreadMotionStore,
+  threadId: string | undefined,
+  fallbackMode: boolean,
+): ChatMotionView {
+  const view = useSyncExternalStore(store.subscribe, () =>
+    store.known(threadId) ? `k|${store.view(threadId)}` : '',
+  )
+  const [, mode, stage] = view.split('|')
+  return {
+    mode: view ? mode === 'motion' : fallbackMode,
+    stage: (stage || undefined) as MotionStage | undefined,
   }
 }

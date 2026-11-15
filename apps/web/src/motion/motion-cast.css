@@ -76,19 +76,8 @@
 }
 
 .motion-cast__member {
-  position: relative;
-  display: inline-flex;
+  display: flex;
   flex: none;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  color: var(--text-2);
-  font: inherit;
-  background: none;
-  border: 0;
-  border-radius: var(--r-pill);
-  cursor: default;
   /* Zig first, then one head every 40ms. Backwards fill: a head waiting for
      its turn is already hidden, and once it lands the animation lets go of
      transform, so the highlight below can scale the head on its own. */
@@ -96,9 +85,38 @@
   animation-delay: calc(var(--cast-index) * 40ms);
 }
 
-.motion-cast__member:focus-visible {
+/* The head is the trigger of the app's own menu (the stages of that character).
+   The shared trigger is a padded, hovering button: here it is just the head. */
+.motion-cast__member .menuwrap {
+  display: flex;
+}
+
+.motion-cast__trigger.menutrigger {
+  padding: 0;
+  border-radius: var(--r-pill);
+}
+
+.motion-cast__trigger.menutrigger:hover:not(:disabled) {
+  background: none;
+}
+
+.motion-cast__trigger:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
+}
+
+.motion-cast__body {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+}
+
+/* Narrower than the shared menu floor: one or two short stage names. */
+.menu.menu--cast {
+  min-width: 0;
+  width: min(200px, calc(100vw - 16px));
 }
 
 @keyframes motion-cast-in {
@@ -147,11 +165,15 @@
     transform var(--dur-fast) var(--ease-out);
 }
 
-.motion-cast__member[aria-current='step'] .motion-cast__head {
+.motion-cast__trigger:is(:hover, [aria-expanded='true']) .motion-cast__head {
+  transform: scale(1.06);
+}
+
+.motion-cast__member[data-current] .motion-cast__head {
   transform: scale(1.08);
 }
 
-.motion-cast__member[aria-current='step'] .motion-cast__head::after {
+.motion-cast__member[data-current] .motion-cast__head::after {
   opacity: 1;
   transform: none;
 }
@@ -159,7 +181,7 @@
 /* While a turn runs, only the highlighted character breathes: one slow ring
    that swells and fades, the shape of the working dot, on the compositor only
    (transform and opacity). Idle is still. */
-.motion-cast[data-running] .motion-cast__member[aria-current='step'] .motion-cast__head::before {
+.motion-cast[data-running] .motion-cast__member[data-current] .motion-cast__head::before {
   animation: motion-cast-breathe 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   will-change: transform, opacity;
 }
@@ -167,7 +189,7 @@
 /* Behind Settings nothing is looking at it, so the breath stops. */
 .shell__body[data-covered]
   .motion-cast[data-running]
-  .motion-cast__member[aria-current='step']
+  .motion-cast__member[data-current]
   .motion-cast__head::before {
   animation-play-state: paused;
 }
@@ -217,7 +239,7 @@
 }
 
 @container chat-stage (max-width: 480px) {
-  .motion-cast__member:not([aria-current='step']) {
+  .motion-cast__member:not([data-current]) {
     display: none;
   }
 

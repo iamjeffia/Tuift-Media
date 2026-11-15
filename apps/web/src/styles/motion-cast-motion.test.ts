@@ -62,7 +62,7 @@ describe('Motion cast styles', () => {
 
   it('breathes only while a turn is running, and only the highlighted head', () => {
     expect(css).toMatch(
-      /\.motion-cast\[data-running\] \.motion-cast__member\[aria-current='step'\] \.motion-cast__head::before \{[^}]*animation: motion-cast-breathe/s,
+      /\.motion-cast\[data-running\] \.motion-cast__member\[data-current\] \.motion-cast__head::before \{[^}]*animation: motion-cast-breathe/s,
     )
     expect(css.match(/animation: motion-cast-breathe/g)).toHaveLength(1)
   })
@@ -84,7 +84,7 @@ describe('Motion cast styles', () => {
       /@container chat-stage \(max-width: 620px\) \{[^@]*\.motion-cast__label \{\s*display: none;/s,
     )
     expect(css).toMatch(
-      /@container chat-stage \(max-width: 480px\) \{[^@]*\.motion-cast__member:not\(\[aria-current='step'\]\) \{\s*display: none;/s,
+      /@container chat-stage \(max-width: 480px\) \{[^@]*\.motion-cast__member:not\(\[data-current\]\) \{\s*display: none;/s,
     )
   })
 

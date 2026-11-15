@@ -1,9 +1,14 @@
 // @vitest-environment happy-dom
-import type { ThreadSettings } from '@harness/contracts'
+import type { MotionStage, ThreadSettings } from '@harness/contracts'
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DemoTransport } from '../sandbox/demo-transport.js'
-import { ThreadMotionStore, useThreadMotion, type LegacyMotionFlag } from './thread-motion.js'
+import {
+  ThreadMotionStore,
+  useChatMotion,
+  useThreadMotion,
+  type LegacyMotionFlag,
+} from './thread-motion.js'
 
 /** Local flags by chat, standing in for the saved selections of this window. */
 function legacyFlags(ids: string[] = []): LegacyMotionFlag & { ids: Set<string> } {
@@ -20,13 +25,23 @@ function makeStore(options: {
   setMode?: (params: {
     threadId: string
     mode: 'motion' | 'design' | null
+    motionStage?: MotionStage
   }) => Promise<ThreadSettings>
 }) {
   const legacy = options.legacy ?? legacyFlags()
   const setMode = vi.fn(
     options.setMode ??
-      (async ({ mode }: { threadId: string; mode: 'motion' | 'design' | null }) =>
-        mode ? { mode, motionStage: 'idea' as const } : { motionStage: 'idea' as const }),
+      (async ({
+        mode,
+        motionStage,
+      }: {
+        threadId: string
+        mode: 'motion' | 'design' | null
+        motionStage?: MotionStage
+      }) =>
+        mode
+          ? { mode, motionStage: motionStage ?? ('idea' as const) }
+          : { motionStage: motionStage ?? ('idea' as const) }),
   )
   const onError = vi.fn()
   const store = new ThreadMotionStore({ setMode, legacy, onError })
@@ -116,6 +131,87 @@ describe('ThreadMotionStore', () => {
     answer({ mode: 'motion', motionStage: 'review' })
     await change
     expect(entry(store, 'a')).toEqual({ mode: 'motion', stage: 'review' })
+  })
+
+  describe('moving a Motion chat to another stage', () => {
+    it('asks for the stage with the mode on, and shows what the server answers', async () => {
+      const { store, setMode } = makeStore({})
+      store.adopt('a', { mode: 'motion', motionStage: 'idea' })
+      await store.setStage('a', 'soundtrack')
+      expect(setMode).toHaveBeenCalledTimes(1)
+      expect(setMode).toHaveBeenLastCalledWith({
+        threadId: 'a',
+        mode: 'motion',
+        motionStage: 'soundtrack',
+      })
+      expect(entry(store, 'a')).toEqual({ mode: 'motion', stage: 'soundtrack' })
+    })
+
+    it('shows the server word, not its own, when the two differ', async () => {
+      const { store } = makeStore({
+        setMode: async () => ({ mode: 'motion', motionStage: 'review' }),
+      })
+      store.adopt('a', { mode: 'motion', motionStage: 'idea' })
+      await store.setStage('a', 'soundtrack')
+      expect(entry(store, 'a')).toEqual({ mode: 'motion', stage: 'review' })
+    })
+
+    it('asks nothing for the stage the chat is at', async () => {
+      const { store, setMode } = makeStore({})
+      store.adopt('a', { mode: 'motion', motionStage: 'script' })
+      await store.setStage('a', 'script')
+      expect(setMode).not.toHaveBeenCalled()
+    })
+
+    it('does not ask while a turn of the chat runs, and never lies about it', async () => {
+      const { store, setMode } = makeStore({})
+      store.adopt('a', { mode: 'motion', motionStage: 'script' })
+      store.watch('a', true)
+      await store.setStage('a', 'review')
+      expect(setMode).not.toHaveBeenCalled()
+      expect(entry(store, 'a')).toEqual({ mode: 'motion', stage: 'script' })
+    })
+
+    it('goes back to what the server said, and says why, when the server refuses', async () => {
+      let refuse: (error: Error) => void = () => undefined
+      const { store, onError } = makeStore({
+        setMode: () => new Promise((_resolve, reject) => (refuse = reject)),
+      })
+      store.adopt('a', { mode: 'motion', motionStage: 'script' })
+      const change = store.setStage('a', 'review')
+      expect(entry(store, 'a')).toEqual({ mode: 'motion', stage: 'review' })
+      refuse(new Error('Wait for the current turn to finish, or stop it, before the mode changes.'))
+      await change
+      expect(entry(store, 'a')).toEqual({ mode: 'motion', stage: 'script' })
+      expect(onError).toHaveBeenCalledWith(expect.stringContaining('Wait for the current turn'))
+    })
+
+    it('keeps a push that arrives while its own change is on the way', async () => {
+      let refuse: (error: Error) => void = () => undefined
+      const { store } = makeStore({
+        setMode: () => new Promise((_resolve, reject) => (refuse = reject)),
+      })
+      store.adopt('a', { mode: 'motion', motionStage: 'idea' })
+      const change = store.setStage('a', 'review')
+      store.adopt('a', { mode: 'motion', motionStage: 'delivery' })
+      refuse(new Error('late'))
+      await change
+      expect(entry(store, 'a')).toEqual({ mode: 'motion', stage: 'delivery' })
+    })
+
+    it('hands a local Motion flag over with the choice', async () => {
+      const legacy = legacyFlags(['a'])
+      const { store, setMode } = makeStore({ legacy })
+      store.watch('a', false)
+      store.adopt('a', { model: 'm' })
+      await store.setStage('a', 'narration')
+      expect(setMode).toHaveBeenCalledWith({
+        threadId: 'a',
+        mode: 'motion',
+        motionStage: 'narration',
+      })
+      expect(legacy.ids.has('a')).toBe(false)
+    })
   })
 
   describe('handing a local flag to the server', () => {
@@ -243,6 +339,24 @@ describe('Motion state against the demo server', () => {
     expect(restarted.snapshot().get(threadId)).toEqual({ mode: 'motion', stage: 'soundtrack' })
   })
 
+  it('keeps the stage the person chose on the server', async () => {
+    const { projects } = await call(transport.request('projects.list', {}))
+    const { threadId } = await call(
+      transport.request('thread.start', {
+        provider: 'claude-code',
+        workspacePath: projects[0]!.path,
+        mode: 'motion',
+      }),
+    )
+    const store = newStore()
+    transport.on('thread.settings', (push) => store.adopt(push.threadId, push.settings))
+    store.adopt(threadId, await call(transport.request('thread.settings', { threadId })))
+    await call(store.setStage(threadId, 'identity'))
+    expect(store.snapshot().get(threadId)).toEqual({ mode: 'motion', stage: 'identity' })
+    const kept = await call(transport.request('thread.settings', { threadId }))
+    expect(kept.motionStage).toBe('identity')
+  })
+
   it('follows a change made by another client through the settings push', async () => {
     const { projects } = await call(transport.request('projects.list', {}))
     const { threadId } = await call(
@@ -314,10 +428,88 @@ describe('useThreadMotion', () => {
     expect(view.result.current.motionMode).toBe(true)
   })
 
+  it('offers no stage change for the draft of a new chat, and one for a chat that exists', () => {
+    const draft = mount(undefined)
+    expect(draft.result.current.setMotionStage).toBeUndefined()
+    const chat = mount('a')
+    expect(chat.result.current.setMotionStage).toBeTypeOf('function')
+    chat.rerender({ activeId: undefined, running: false })
+    expect(chat.result.current.setMotionStage).toBeUndefined()
+  })
+
+  it('moves the chat on screen to a stage through thread.setMode, and shows the answer', async () => {
+    request.mockImplementation(
+      async (_method: string, params: { mode: string | null; motionStage?: MotionStage }) => ({
+        model: 'm',
+        mode: 'motion' as const,
+        motionStage: params.motionStage ?? ('idea' as const),
+      }),
+    )
+    const view = mount('a')
+    act(() => view.result.current.adoptMotion('a', { mode: 'motion', motionStage: 'idea' }))
+    const before = view.result.current.setMotionStage
+    await act(async () => view.result.current.setMotionStage?.('review'))
+    expect(request).toHaveBeenCalledWith('thread.setMode', {
+      threadId: 'a',
+      mode: 'motion',
+      motionStage: 'review',
+    })
+    expect(view.result.current.motionStage).toBe('review')
+    // A streaming reply re-renders the thread, not the scene: the callback stays the same.
+    view.rerender({ activeId: 'a', running: true })
+    expect(view.result.current.setMotionStage).toBe(before)
+  })
+
   it('shows a chat just started with Motion as Motion', () => {
     const view = mount('a')
     act(() => view.result.current.seedMotion('a'))
     expect(view.result.current.motionMode).toBe(true)
     expect(view.result.current.motionStage).toBe('idea')
+  })
+})
+
+describe('useChatMotion', () => {
+  afterEach(cleanup)
+  const store = () =>
+    new ThreadMotionStore({
+      setMode: async () => ({}),
+      legacy: legacyFlags(),
+      onError: vi.fn(),
+    })
+
+  it('shows the mode and stage the server keeps for another chat, and follows its pushes', () => {
+    const motion = store()
+    const view = renderHook(() => useChatMotion(motion, 'beside', false))
+    expect(view.result.current).toEqual({ mode: false, stage: undefined })
+    act(() => motion.adopt('beside', { mode: 'motion', motionStage: 'soundtrack' }))
+    expect(view.result.current).toEqual({ mode: true, stage: 'soundtrack' })
+    act(() => motion.adopt('beside', { mode: 'motion', motionStage: 'review' }))
+    expect(view.result.current).toEqual({ mode: true, stage: 'review' })
+    act(() => motion.adopt('beside', { motionStage: 'review' }))
+    expect(view.result.current).toEqual({ mode: false, stage: 'review' })
+  })
+
+  it('keeps what the pane showed until the server has been asked about the chat', () => {
+    const motion = store()
+    const view = renderHook(() => useChatMotion(motion, 'beside', true))
+    expect(view.result.current).toEqual({ mode: true, stage: undefined })
+    act(() => motion.adopt('beside', { model: 'm' }))
+    expect(view.result.current).toEqual({ mode: false, stage: undefined })
+    const draft = renderHook(() => useChatMotion(motion, undefined, true))
+    expect(draft.result.current.mode).toBe(true)
+  })
+
+  it('does not re-render for settings that say nothing new about Motion', () => {
+    const motion = store()
+    let renders = 0
+    renderHook(() => {
+      renders += 1
+      return useChatMotion(motion, 'beside', false)
+    })
+    act(() => motion.adopt('beside', { mode: 'motion', motionStage: 'idea' }))
+    const settled = renders
+    act(() => motion.adopt('beside', { model: 'other', mode: 'motion', motionStage: 'idea' }))
+    act(() => motion.adopt('elsewhere', { mode: 'motion', motionStage: 'review' }))
+    expect(renders).toBe(settled)
   })
 })
