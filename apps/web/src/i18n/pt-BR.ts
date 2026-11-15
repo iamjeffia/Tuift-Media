@@ -3,6 +3,7 @@ import { sidebarPt } from './areas/sidebar.pt-BR.js'
 import { onboardingPt } from './areas/onboarding.pt-BR.js'
 import { workspacePt } from './areas/workspace.pt-BR.js'
 import { dialogsPt } from './areas/dialogs.pt-BR.js'
+import { chatPt } from './areas/chat.pt-BR.js'
 import type { MessageKey } from './en.js'
 
 /**
@@ -76,4 +77,5 @@ export const ptBR = {
   ...onboardingPt,
   ...workspacePt,
   ...dialogsPt,
+  ...chatPt,
 } satisfies Record<MessageKey, string>
