@@ -1704,6 +1704,7 @@ export function startServer(
         })
         startedThisRun.add(thread.id)
         store.setThreadSettings(thread.id, p)
+        if (p.mode) store.setThreadMode(thread.id, p.mode)
         const earlierChanges = orchestrator.earlierChanges(thread.id)
         return { threadId: thread.id, ...(earlierChanges ? { earlierChanges } : {}) }
       }
@@ -1883,6 +1884,18 @@ export function startServer(
         const p = parseParams(method, params)
         if (!store.thread(p.threadId)) throw new Error(`Unknown chat: ${p.threadId}`)
         store.setThreadSettings(p.threadId, p)
+        return announceSettings(p.threadId)
+      }
+
+      case 'thread.setMode': {
+        const p = parseParams(method, params)
+        if (!store.thread(p.threadId)) throw new Error(`Unknown chat: ${p.threadId}`)
+        if (orchestrator.isTurnRunning(p.threadId)) {
+          throw new Error(
+            'Wait for the current turn to finish, or stop it, before the mode changes.',
+          )
+        }
+        store.setThreadMode(p.threadId, p.mode, p.motionStage)
         return announceSettings(p.threadId)
       }
 

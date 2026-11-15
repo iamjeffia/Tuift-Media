@@ -1100,6 +1100,8 @@ export class DemoServer {
             ...(params.effort ? { effort: params.effort } : {}),
             ...(params.serviceTier ? { serviceTier: params.serviceTier } : {}),
             approval,
+            ...(params.mode ? { mode: params.mode } : {}),
+            ...(params.mode === 'motion' ? { motionStage: 'idea' as const } : {}),
           },
           log: [],
           queue: [],
@@ -1154,12 +1156,31 @@ export class DemoServer {
       'thread.settings': ({ threadId }) => this.#thread(threadId).settings,
       'thread.setSettings': ({ threadId, model, effort, serviceTier }) => {
         const thread = this.#thread(threadId)
+        const { mode, motionStage } = thread.settings
         thread.settings = {
           ...(model ? { model } : {}),
           ...(effort ? { effort } : {}),
           ...(serviceTier ? { serviceTier } : {}),
           approval: thread.approval,
+          ...(mode ? { mode } : {}),
+          ...(motionStage ? { motionStage } : {}),
         }
+        this.#pushSettings(thread)
+        return thread.settings
+      },
+      'thread.setMode': ({ threadId, mode, motionStage }) => {
+        const thread = this.#thread(threadId)
+        if (this.#runs.has(thread.id)) {
+          throw new Error(
+            'Wait for the current turn to finish, or stop it, before the mode changes.',
+          )
+        }
+        const next = { ...thread.settings }
+        if (mode) next.mode = mode
+        else delete next.mode
+        const stage = motionStage ?? next.motionStage ?? (mode === 'motion' ? 'idea' : undefined)
+        if (stage) next.motionStage = stage
+        thread.settings = next
         this.#pushSettings(thread)
         return thread.settings
       },
@@ -1176,10 +1197,13 @@ export class DemoServer {
         }
         provider(params.provider)
         thread.provider = params.provider
+        const { mode, motionStage } = thread.settings
         thread.settings = {
           ...(params.model ? { model: params.model } : {}),
           ...(params.effort ? { effort: params.effort } : {}),
           approval: params.approval ?? thread.approval,
+          ...(mode ? { mode } : {}),
+          ...(motionStage ? { motionStage } : {}),
         }
         this.#record(thread, {
           type: 'item.completed',

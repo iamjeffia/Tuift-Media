@@ -29,6 +29,7 @@ import {
   SubagentSettingsSchema,
   UsageSchema,
 } from './domain.js'
+import { MotionStageSchema, ThreadModeSchema } from './motion.js'
 import { PhoneAccessStatusSchema, PhonePairingSchema, ProjectBrowseResultSchema } from './phone.js'
 import {
   CheckoutPullRequestResultSchema,
@@ -107,6 +108,10 @@ export const ThreadSettingsSchema = z.object({
   effort: z.string().min(1).optional(),
   serviceTier: z.string().min(1).optional(),
   approval: ApprovalModeSchema.optional(),
+  /** What the chat is for; absent for a plain chat. Set with `thread.setMode`. */
+  mode: ThreadModeSchema.optional(),
+  /** Where a Motion chat is in its video. Kept while the mode is off. */
+  motionStage: MotionStageSchema.optional(),
 })
 export type ThreadSettings = z.infer<typeof ThreadSettingsSchema>
 
@@ -2267,6 +2272,8 @@ export const methods = {
         isolate: z.boolean().optional(),
         /** Local branch used atomically for a shared or isolated checkout. */
         baseRef: z.string().min(1).max(1024).optional(),
+        /** What the chat is for, kept as `thread.setMode` would. */
+        mode: ThreadModeSchema.optional(),
       })
       .superRefine((request, context) => {
         if ((request.provider === 'api') !== Boolean(request.connectionId)) {
@@ -2453,6 +2460,21 @@ export const methods = {
       model: z.string().optional(),
       effort: z.string().min(1).optional(),
       serviceTier: z.string().min(1).optional(),
+    }),
+    result: ThreadSettingsSchema,
+  },
+  /**
+   * Turn a chat's mode on or off, or move a Motion chat to another stage.
+   * `null` turns the mode off and keeps the stored stage. A Motion chat that
+   * never had a stage starts at `idea`; a stage sent with any mode is kept.
+   * Refused while a turn of the chat is running. The chat's settings are
+   * pushed to every client.
+   */
+  'thread.setMode': {
+    params: z.object({
+      threadId: z.string(),
+      mode: ThreadModeSchema.nullable(),
+      motionStage: MotionStageSchema.optional(),
     }),
     result: ThreadSettingsSchema,
   },

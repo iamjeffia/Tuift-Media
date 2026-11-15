@@ -383,6 +383,115 @@ describe('chat settings', () => {
   })
 })
 
+describe('chat mode', () => {
+  const chat = () => {
+    store.addProject('/repo')
+    store.addThread({ id: 'main', projectPath: '/repo', provider: 'codex', title: 'Main' })
+  }
+
+  it('starts a Motion chat at the first stage and keeps the mode and stage through settings writes', () => {
+    chat()
+    store.setThreadSettings('main', { model: 'gpt-5.5' })
+    expect(store.threadSettings('main')).toEqual({ model: 'gpt-5.5' })
+
+    store.setThreadMode('main', 'motion')
+    expect(store.threadSettings('main')).toEqual({
+      model: 'gpt-5.5',
+      mode: 'motion',
+      motionStage: 'idea',
+    })
+
+    store.setThreadMode('main', 'motion', 'soundtrack')
+    // The existing upsert replaces the model, effort and tier only.
+    store.setThreadSettings('main', { model: 'gpt-5.4-mini', effort: 'low' })
+    store.setThreadApproval('main', 'auto')
+    expect(store.threadSettings('main')).toEqual({
+      model: 'gpt-5.4-mini',
+      effort: 'low',
+      approval: 'auto',
+      mode: 'motion',
+      motionStage: 'soundtrack',
+    })
+  })
+
+  it('turns the mode off but keeps the stage, and resumes there', () => {
+    chat()
+    store.setThreadMode('main', 'motion', 'references')
+    store.setThreadMode('main', null)
+    expect(store.threadSettings('main')).toEqual({ motionStage: 'references' })
+
+    store.setThreadMode('main', 'motion')
+    expect(store.threadSettings('main')).toEqual({ mode: 'motion', motionStage: 'references' })
+  })
+
+  it('moves the stage without touching the mode, and creates the row for a chat with none', () => {
+    chat()
+    store.setThreadMode('main', 'design')
+    expect(store.threadSettings('main')).toEqual({ mode: 'design' })
+    store.setThreadMode('main', 'motion', 'review')
+    store.setThreadMode('main', 'motion', 'delivery')
+    expect(store.threadSettings('main')).toEqual({ mode: 'motion', motionStage: 'delivery' })
+
+    store.deleteThread('main')
+    expect(store.threadSettings('main')).toEqual({})
+  })
+
+  it('adds the columns to a database written before them and keeps its settings', () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'harness-store-'))
+    const file = path.join(dir, 'old.db')
+    const old = new DatabaseSync(file)
+    old.exec(`
+      CREATE TABLE projects (path TEXT PRIMARY KEY, name TEXT NOT NULL, created_at INTEGER NOT NULL);
+      CREATE TABLE threads (
+        id TEXT PRIMARY KEY, project_path TEXT NOT NULL, provider TEXT NOT NULL,
+        agent TEXT, title TEXT NOT NULL, created_at INTEGER NOT NULL, closed_at INTEGER);
+      CREATE TABLE thread_settings (
+        thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+        model TEXT, effort TEXT, service_tier TEXT);
+    `)
+    old.prepare(`INSERT INTO projects VALUES (?, ?, ?)`).run('/repo', 'Old project', 1)
+    old
+      .prepare(`INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run('t1', '/repo', 'codex', null, 'Old session', 1, null)
+    old
+      .prepare(`INSERT INTO thread_settings (thread_id, model, effort) VALUES (?, ?, ?)`)
+      .run('t1', 'gpt-5.5', 'high')
+    old.close()
+
+    const migrated = new Store(file)
+    try {
+      expect(migrated.threadSettings('t1')).toEqual({ model: 'gpt-5.5', effort: 'high' })
+      migrated.setThreadMode('t1', 'motion')
+      expect(migrated.threadSettings('t1')).toEqual({
+        model: 'gpt-5.5',
+        effort: 'high',
+        mode: 'motion',
+        motionStage: 'idea',
+      })
+    } finally {
+      migrated.close()
+    }
+    // A restart reads back what was saved.
+    const reopened = new Store(file)
+    try {
+      expect(reopened.threadSettings('t1')).toMatchObject({ mode: 'motion', motionStage: 'idea' })
+    } finally {
+      reopened.close()
+    }
+    // A value a newer build wrote that this one does not know reads as unset.
+    const newer = new DatabaseSync(file)
+    newer.prepare(`UPDATE thread_settings SET mode = 'video', motion_stage = 'editing'`).run()
+    newer.close()
+    const unknown = new Store(file)
+    try {
+      expect(unknown.threadSettings('t1')).toEqual({ model: 'gpt-5.5', effort: 'high' })
+    } finally {
+      unknown.close()
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+    }
+  })
+})
+
 it("names each chat's model in the sidebar list and follows a change", () => {
   store.addProject('/repo')
   store.addThread({ id: 'main', projectPath: '/repo', provider: 'codex', title: 'Main' })

@@ -1,6 +1,7 @@
 export * from './chat-import.js'
 export * from './connections.js'
 export * from './domain.js'
+export * from './motion.js'
 export * from './phone.js'
 export * from './protocol.js'
 export * from './pull-requests.js'

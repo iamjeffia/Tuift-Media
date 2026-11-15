@@ -49,7 +49,12 @@ const state = vi.hoisted(() => ({
   accountsChanged: (_provider: string) => {},
   credentials: new Map<string, string>(),
   renamed: [] as string[],
-  settings: new Map<string, { model?: string; effort?: string; serviceTier?: string }>(),
+  settings: new Map<
+    string,
+    { model?: string; effort?: string; serviceTier?: string; mode?: string; motionStage?: string }
+  >(),
+  /** Threads whose turn is over; every other thread has one running. */
+  idle: new Set<string>(),
   approvals: new Map<string, string>(),
   hiddenModels: [] as string[],
   providerRoster: null as string[] | null,
@@ -121,14 +126,25 @@ vi.mock('./store.js', () => ({
       threadId: string,
       settings: { model?: string; effort?: string; serviceTier?: string },
     ) {
-      state.settings.set(
-        threadId,
-        Object.fromEntries(
+      // Like the real upsert, it leaves the mode and the stage alone.
+      const { mode, motionStage } = state.settings.get(threadId) ?? {}
+      state.settings.set(threadId, {
+        ...Object.fromEntries(
           (['model', 'effort', 'serviceTier'] as const).flatMap((key) =>
             settings[key] === undefined ? [] : [[key, settings[key]]],
           ),
         ),
-      )
+        ...(mode ? { mode } : {}),
+        ...(motionStage ? { motionStage } : {}),
+      })
+    }
+    setThreadMode(threadId: string, mode: string | null, motionStage?: string) {
+      state.handled.push(`thread.setMode(${threadId}, ${mode}, ${motionStage})`)
+      state.settings.set(threadId, {
+        ...state.settings.get(threadId),
+        ...(mode ? { mode } : {}),
+        ...(motionStage ? { motionStage } : {}),
+      })
     }
     providerHistoryChangedAfter() {
       return false
@@ -194,8 +210,8 @@ vi.mock('./orchestrator.js', () => ({
     forgetDeletedThread(threadId: string) {
       state.handled.push(`orchestrator.forgetDeletedThread(${threadId})`)
     }
-    isTurnRunning() {
-      return true
+    isTurnRunning(threadId?: string) {
+      return threadId === undefined || !state.idle.has(threadId)
     }
     markThreadRead(threadId: string) {
       state.read.push(threadId)
@@ -449,6 +465,7 @@ afterEach(async () => {
   state.credentials.clear()
   state.renamed.length = 0
   state.settings.clear()
+  state.idle.clear()
   state.approvals.clear()
   state.hiddenModels = []
   state.providerRoster = null
@@ -1914,6 +1931,88 @@ describe('chat deletes', () => {
       'store.deleteThread(t, {"keepSessionOut":true})',
       'orchestrator.forgetDeletedThread(t)',
     ])
+  })
+})
+
+describe('chat mode', () => {
+  async function connect(port: number) {
+    const client = new WebSocket(`ws://127.0.0.1:${port}`)
+    const messages: Array<Record<string, unknown>> = []
+    client.on('message', (message) => messages.push(JSON.parse(String(message))))
+    await once(client, 'message')
+    let next = 0
+    const ask = async (method: string, params: unknown) => {
+      const id = `ask-${(next += 1)}`
+      client.send(JSON.stringify({ id, method, params }))
+      await vi.waitFor(() => expect(messages.some((message) => message['id'] === id)).toBe(true))
+      return messages.find((message) => message['id'] === id)
+    }
+    const pushes = () => messages.filter((message) => message['channel'] === 'thread.settings')
+    return { client, ask, pushes }
+  }
+
+  it('turns the mode on and tells every client, and keeps it through a setup change', async () => {
+    state.threads.set('t', { projectPath: '/p', provider: 'codex' })
+    state.idle.add('t')
+    const { port } = await listen()
+    const first = await connect(port)
+    const second = await connect(port)
+    try {
+      expect(
+        await first.ask('thread.setMode', { threadId: 't', mode: 'motion', motionStage: 'script' }),
+      ).toMatchObject({ result: { mode: 'motion', motionStage: 'script' } })
+      await vi.waitFor(() =>
+        expect(second.pushes().at(-1)).toMatchObject({
+          data: { threadId: 't', settings: { mode: 'motion', motionStage: 'script' } },
+        }),
+      )
+      expect(state.handled).toContain('thread.setMode(t, motion, script)')
+
+      // A model change from any client leaves the mode where it was.
+      expect(
+        await second.ask('thread.setSettings', { threadId: 't', model: 'gpt-5.5' }),
+      ).toMatchObject({ result: { model: 'gpt-5.5', mode: 'motion', motionStage: 'script' } })
+      expect(await first.ask('thread.settings', { threadId: 't' })).toMatchObject({
+        result: { model: 'gpt-5.5', mode: 'motion', motionStage: 'script' },
+      })
+    } finally {
+      first.client.terminate()
+      second.client.terminate()
+    }
+  })
+
+  it('refuses a chat that is mid-turn or unknown, and changes nothing', async () => {
+    state.threads.set('busy', { projectPath: '/p', provider: 'codex' })
+    const { port } = await listen()
+    const { client, ask, pushes } = await connect(port)
+    try {
+      expect(await ask('thread.setMode', { threadId: 'busy', mode: 'motion' })).toMatchObject({
+        error: { message: expect.stringContaining('Wait for the current turn') },
+      })
+      expect(await ask('thread.setMode', { threadId: 'nope', mode: null })).toMatchObject({
+        error: { message: 'Unknown chat: nope' },
+      })
+      expect(await ask('thread.setMode', { threadId: 'busy', mode: 'video' })).toMatchObject({
+        error: { code: 'bad_request' },
+      })
+      expect(state.handled.filter((entry) => entry.startsWith('thread.setMode'))).toEqual([])
+      expect(pushes()).toEqual([])
+    } finally {
+      client.terminate()
+    }
+  })
+
+  it('stores the mode a chat starts with, and a start without one stores none', async () => {
+    const { port } = await listen()
+    const { client, ask } = await connect(port)
+    try {
+      await ask('thread.start', { provider: 'codex', workspacePath: 'C:\\x' })
+      expect(state.handled.filter((entry) => entry.startsWith('thread.setMode'))).toEqual([])
+      await ask('thread.start', { provider: 'codex', workspacePath: 'C:\\x', mode: 'motion' })
+      expect(state.handled).toContain('thread.setMode(codex-started, motion, undefined)')
+    } finally {
+      client.terminate()
+    }
   })
 })
 

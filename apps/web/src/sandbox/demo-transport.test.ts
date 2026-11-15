@@ -193,6 +193,39 @@ describe('DemoTransport', () => {
     ).resolves.toEqual({})
   })
 
+  it('keeps a chat mode and Motion stage, refuses a change mid-turn, and pushes each change', async () => {
+    const threadId = await newChat()
+    const pushed: Array<DataOf<'thread.settings'>> = []
+    transport.on('thread.settings', (data) => pushed.push(data))
+
+    expect(await call(transport.request('thread.setMode', { threadId, mode: 'motion' }))).toEqual({
+      approval: 'auto',
+      mode: 'motion',
+      motionStage: 'idea',
+    })
+    // The stage is kept when the mode goes off, and a setup change leaves both alone.
+    await call(
+      transport.request('thread.setMode', { threadId, mode: 'motion', motionStage: 'script' }),
+    )
+    expect(await call(transport.request('thread.setMode', { threadId, mode: null }))).toEqual({
+      approval: 'auto',
+      motionStage: 'script',
+    })
+    await call(transport.request('thread.setMode', { threadId, mode: 'motion' }))
+    expect(
+      await call(transport.request('thread.setSettings', { threadId, model: 'sonnet' })),
+    ).toMatchObject({ model: 'sonnet', mode: 'motion', motionStage: 'script' })
+    expect(pushed.length).toBe(5)
+    expect(pushed.at(-1)?.settings).toMatchObject({ mode: 'motion', motionStage: 'script' })
+
+    await call(transport.request('thread.sendTurn', { threadId, text: 'Go' }))
+    const refused = expect(
+      transport.request('thread.setMode', { threadId, mode: null }),
+    ).rejects.toThrow('Wait for the current turn')
+    await vi.advanceTimersByTimeAsync(2)
+    await refused
+  })
+
   it('fails requests still waiting when it closes, like the socket transport', async () => {
     const pending = transport.request('providers.list', {})
     transport.close()

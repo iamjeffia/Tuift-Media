@@ -17,10 +17,12 @@ import {
   DEFAULT_ACCOUNT_ID,
   DiffDecisionSchema,
   DomainEventSchema,
+  MotionStageSchema,
   ProviderContextSettingsMapSchema,
   ProviderIdSchema,
   ProviderRuntimeSettingsSchema,
   SidebarSettingsSchema,
+  ThreadModeSchema,
 } from '@harness/contracts'
 import type {
   AccountContextSettings,
@@ -37,7 +39,9 @@ import type {
   SidebarSettings,
   SessionSearchResult,
   SubagentSettings,
+  MotionStage,
   ThreadLifecycle,
+  ThreadMode,
   ThreadSettings,
   Usage,
 } from '@harness/contracts'
@@ -629,7 +633,9 @@ CREATE TABLE IF NOT EXISTS thread_settings (
   thread_id    TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
   model        TEXT,
   effort       TEXT,
-  service_tier TEXT
+  service_tier TEXT,
+  mode         TEXT,
+  motion_stage TEXT
 );
 
 CREATE TABLE IF NOT EXISTS app_settings (
@@ -724,6 +730,8 @@ const ADDED_COLUMNS: Array<{ table: string; column: string; definition: string }
   { table: 'threads', column: 'continued_changes', definition: 'TEXT' },
   { table: 'threads', column: 'handover_pending', definition: 'INTEGER NOT NULL DEFAULT 0' },
   { table: 'threads', column: 'provisional_title', definition: 'TEXT' },
+  { table: 'thread_settings', column: 'mode', definition: 'TEXT' },
+  { table: 'thread_settings', column: 'motion_stage', definition: 'TEXT' },
 ]
 
 type SqliteInteger = number | bigint
@@ -2438,19 +2446,46 @@ export class Store {
   /** The chat's setup with its access level; empty when no client has chosen one. */
   threadSettings(threadId: string): ThreadSettings {
     const row = this.#db
-      .prepare('SELECT model, effort, service_tier FROM thread_settings WHERE thread_id = ?')
+      .prepare(
+        'SELECT model, effort, service_tier, mode, motion_stage FROM thread_settings WHERE thread_id = ?',
+      )
       .get(threadId)
     const approval = this.threadApproval(threadId)
     const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
     const model = text(row?.['model'])
     const effort = text(row?.['effort'])
     const serviceTier = text(row?.['service_tier'])
+    // A value a newer build wrote that this one does not know reads as unset.
+    const mode = ThreadModeSchema.safeParse(row?.['mode']).data
+    const motionStage = MotionStageSchema.safeParse(row?.['motion_stage']).data
     return {
       ...(model !== undefined ? { model } : {}),
       ...(effort ? { effort } : {}),
       ...(serviceTier ? { serviceTier } : {}),
       ...(approval ? { approval } : {}),
+      ...(mode ? { mode } : {}),
+      ...(motionStage ? { motionStage } : {}),
     }
+  }
+
+  /**
+   * Turns the chat's mode on or off and records its Motion stage. The stage is
+   * kept when the mode goes off, and a Motion chat that never had one starts
+   * at the first stage. Apart from `setThreadSettings`, which never touches these.
+   */
+  setThreadMode(
+    threadId: string,
+    mode: ThreadMode | null,
+    motionStage?: MotionStage | undefined,
+  ): void {
+    this.#db
+      .prepare(
+        `INSERT INTO thread_settings (thread_id, mode, motion_stage) VALUES (?, ?, ?)
+      ON CONFLICT(thread_id) DO UPDATE SET
+        mode = excluded.mode,
+        motion_stage = COALESCE(?, thread_settings.motion_stage, excluded.motion_stage)`,
+      )
+      .run(threadId, mode, motionStage ?? (mode === 'motion' ? 'idea' : null), motionStage ?? null)
   }
 
   /** Replaces the model, effort and tier together; the access level is kept apart. */
