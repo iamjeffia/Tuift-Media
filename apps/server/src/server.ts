@@ -1701,6 +1701,7 @@ export function startServer(
           accountId: p.accountId,
           continueFrom: p.continueFrom,
           isolate: p.isolate,
+          mode: p.mode,
         })
         startedThisRun.add(thread.id)
         store.setThreadSettings(thread.id, p)
@@ -1895,7 +1896,10 @@ export function startServer(
             'Wait for the current turn to finish, or stop it, before the mode changes.',
           )
         }
+        const before = store.threadSettings(p.threadId).mode
         store.setThreadMode(p.threadId, p.mode, p.motionStage)
+        // A stage change alone leaves the session as it is.
+        if (before !== (p.mode ?? undefined)) await orchestrator.modeChanged(p.threadId)
         return announceSettings(p.threadId)
       }
 

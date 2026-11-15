@@ -213,6 +213,9 @@ vi.mock('./orchestrator.js', () => ({
     isTurnRunning(threadId?: string) {
       return threadId === undefined || !state.idle.has(threadId)
     }
+    async modeChanged(threadId: string) {
+      state.handled.push(`orchestrator.modeChanged(${threadId})`)
+    }
     markThreadRead(threadId: string) {
       state.read.push(threadId)
     }
@@ -268,9 +271,10 @@ vi.mock('./orchestrator.js', () => ({
     async startThread(
       provider: string,
       workspacePath: string,
-      options: { accountId?: string; continueFrom?: string },
+      options: { accountId?: string; continueFrom?: string; mode?: string },
     ) {
       const id = `${provider}-started`
+      if (options.mode) state.handled.push(`orchestrator.startThread.mode(${options.mode})`)
       state.threads.set(id, { projectPath: workspacePath, provider })
       const from = options.continueFrom === undefined ? '' : `, from ${options.continueFrom}`
       state.handled.push(`thread.start(${provider}, ${options.accountId ?? 'active'}${from})`)
@@ -1967,6 +1971,15 @@ describe('chat mode', () => {
         }),
       )
       expect(state.handled).toContain('thread.setMode(t, motion, script)')
+      expect(state.handled.filter((entry) => entry.startsWith('orchestrator.modeChanged'))).toEqual(
+        ['orchestrator.modeChanged(t)'],
+      )
+
+      // A stage change alone does not restart the session.
+      await first.ask('thread.setMode', { threadId: 't', mode: 'motion', motionStage: 'script' })
+      expect(state.handled.filter((entry) => entry.startsWith('orchestrator.modeChanged'))).toEqual(
+        ['orchestrator.modeChanged(t)'],
+      )
 
       // A model change from any client leaves the mode where it was.
       expect(
@@ -2010,6 +2023,8 @@ describe('chat mode', () => {
       expect(state.handled.filter((entry) => entry.startsWith('thread.setMode'))).toEqual([])
       await ask('thread.start', { provider: 'codex', workspacePath: 'C:\\x', mode: 'motion' })
       expect(state.handled).toContain('thread.setMode(codex-started, motion, undefined)')
+      // The session itself starts with the role and the pack, so the mode goes with the start.
+      expect(state.handled).toContain('orchestrator.startThread.mode(motion)')
     } finally {
       client.terminate()
     }

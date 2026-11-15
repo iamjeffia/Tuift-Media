@@ -73,7 +73,11 @@ import {
 } from '@harness/design-agent'
 import { encodeHistoryCursor, readHistoryPage } from './history-page.js'
 import { compactHistoryReplay } from './history-replay.js'
-import { writeDefaultSkillsFixture } from './default-skills.test-support.js'
+import {
+  writeDefaultSkillPackFixture,
+  writeDefaultSkillsFixture,
+} from './default-skills.test-support.js'
+import { loadDefaultSkills } from './default-skills.js'
 import { McpConfigStore } from './mcp-config.js'
 import { Orchestrator } from './orchestrator.js'
 import { PROVIDER_CAPABILITIES } from './provider-capabilities.js'
@@ -12739,5 +12743,189 @@ describe('panic versus an in-flight queue drain', () => {
     // The panicked drain must not leave turn B running or re-queued.
     expect(orchestrator.inboxStatus(thread.id)).not.toBe('working')
     expect(orchestrator.queue(thread.id).items).toEqual([])
+  })
+})
+
+describe('Motion mode session start', () => {
+  const MOTION_SKILLS = [
+    ['hyperframes', 'video made of HTML'],
+    ['motion-app-ae', 'app motion in After Effects'],
+  ] as const
+
+  const motionHarness = async ({ pack = true }: { pack?: boolean } = {}) => {
+    const parent = mkdtempSync(path.join(os.tmpdir(), 'tc-orchestrator-motion-'))
+    onTestFinished(() =>
+      rmSync(parent, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }),
+    )
+    const root = await writeDefaultSkillsFixture(parent)
+    if (pack) await writeDefaultSkillPackFixture(root, 'motion', MOTION_SKILLS)
+    return { root, ...harness(undefined, undefined, undefined, undefined, undefined, root) }
+  }
+
+  it.each(ProviderIdSchema.options)(
+    'gives a Motion chat on %s the role and the pack, as a plugin or as a catalog',
+    async (provider) => {
+      const { orchestrator, startedOptions, root } = await motionHarness()
+      await orchestrator.startThread(provider, process.cwd(), { mode: 'motion' })
+
+      const started = startedOptions[0]!
+      expect(started.instructions).toContain('This chat is in Motion mode.')
+      expect(started.instructions).toContain('Do not use em dashes')
+      if (PROVIDER_CAPABILITIES[provider].defaultSkillsPlugin) {
+        expect(started.skillPlugin).toBe(root)
+        expect(started.packPlugins).toEqual([path.join(root, 'packs', 'motion')])
+        expect(started.instructions).toContain('The skills of the Motion pack are loaded')
+        expect(started.instructions).not.toContain('- hyperframes')
+      } else {
+        expect(started.packPlugins).toBeUndefined()
+        expect(started.instructions).toContain(path.join(root, 'packs', 'motion', 'skills'))
+        expect(started.instructions).toContain('- hyperframes: video made of HTML')
+      }
+      await orchestrator.disposeAll()
+    },
+  )
+
+  it.each(ProviderIdSchema.options)(
+    'starts a chat with no mode exactly as before on %s',
+    async (provider) => {
+      const { orchestrator, startedOptions, root } = await motionHarness()
+      await orchestrator.startThread(provider, process.cwd())
+
+      const native = PROVIDER_CAPABILITIES[provider].defaultSkillsPlugin
+      // What the session start was before Motion existed: the reply style, then the base skills.
+      const catalog = native ? '' : loadDefaultSkills(root).catalog
+      expect(startedOptions[0]!.instructions).toBe(
+        [REPLY_STYLE_INSTRUCTIONS, catalog].filter(Boolean).join('\n\n'),
+      )
+      expect(startedOptions[0]!.skillPlugin).toBe(native ? root : undefined)
+      expect(Object.keys(startedOptions[0]!)).not.toContain('packPlugins')
+      await orchestrator.disposeAll()
+    },
+  )
+
+  it('adds nothing in Design mode yet', async () => {
+    const { orchestrator, startedOptions } = await motionHarness()
+    await orchestrator.startThread('claude-code', process.cwd())
+    await orchestrator.startThread('claude-code', process.cwd(), { mode: 'design' })
+
+    const [plain, design] = startedOptions.map(({ instructions, skillPlugin, packPlugins }) => ({
+      instructions,
+      skillPlugin,
+      packPlugins,
+    }))
+    expect(design).toEqual(plain)
+    await orchestrator.disposeAll()
+  })
+
+  it('keeps the role when the pack is not on disk, without an error', async () => {
+    const { orchestrator, startedOptions, logs } = await motionHarness({ pack: false })
+    await orchestrator.startThread('claude-code', process.cwd(), { mode: 'motion' })
+    await orchestrator.startThread('grok', process.cwd(), { mode: 'motion' })
+
+    for (const started of startedOptions) {
+      expect(started.instructions).toContain('This chat is in Motion mode.')
+      expect(started.instructions).not.toContain('Skills for this kind of work')
+      expect(started.instructions).not.toContain('Motion pack are loaded')
+      expect(started.packPlugins).toBeUndefined()
+    }
+    expect(logs).toEqual([])
+    await orchestrator.disposeAll()
+  })
+
+  it('does not give a Side chat of a Motion chat the role', async () => {
+    const { orchestrator, startedOptions, store } = await motionHarness()
+    const parent = await orchestrator.startThread('codex', process.cwd(), { mode: 'motion' })
+    store.setThreadMode(parent.id, 'motion')
+    store.append(parent.id, userMessage('user-side', 'Question', 'parent-turn'))
+    await orchestrator.startSideThread(parent.id)
+
+    expect(startedOptions[0]!.instructions).toContain('Motion mode')
+    expect(startedOptions[1]!.instructions).not.toContain('Motion mode')
+    await orchestrator.disposeAll()
+  })
+
+  it('resumes a Motion chat with the role, and a normal one without it', async () => {
+    const { orchestrator, sessions, store, resumedOptions } = await motionHarness()
+    const motion = await orchestrator.startThread('codex', process.cwd(), { mode: 'motion' })
+    store.setThreadMode(motion.id, 'motion')
+    const plain = await orchestrator.startThread('codex', process.cwd())
+    sessions[0]!.emitDisconnected()
+    sessions[1]!.emitDisconnected()
+    await orchestrator.submitTurn(motion.id, 'next')
+    await orchestrator.submitTurn(plain.id, 'next')
+
+    expect(resumedOptions[0]!.instructions).toContain('This chat is in Motion mode.')
+    expect(resumedOptions[1]!.instructions).not.toContain('Motion mode')
+    await orchestrator.disposeAll()
+  })
+
+  it('applies Motion turned on and then off on the next turn, resuming the provider session', async () => {
+    const { orchestrator, sessions, store, startedOptions, resumedOptions } = await motionHarness()
+    const chat = await orchestrator.startThread('codex', process.cwd())
+    expect(startedOptions[0]!.instructions).not.toContain('Motion mode')
+
+    store.setThreadMode(chat.id, 'motion')
+    await orchestrator.modeChanged(chat.id)
+    expect(sessions[0]!.disposed).toBe(true)
+    await orchestrator.submitTurn(chat.id, 'with Motion')
+    expect(resumedOptions).toHaveLength(1)
+    expect(resumedOptions[0]!.instructions).toContain('This chat is in Motion mode.')
+    expect(resumedOptions[0]!.instructions).toContain('- hyperframes: video made of HTML')
+    sessions[1]!.emit({ type: 'turn.completed', turnId: 's2-turn', status: 'completed' })
+
+    store.setThreadMode(chat.id, null)
+    await orchestrator.modeChanged(chat.id)
+    expect(sessions[1]!.disposed).toBe(true)
+    await orchestrator.submitTurn(chat.id, 'without Motion')
+    expect(resumedOptions).toHaveLength(2)
+    expect(resumedOptions[1]!.instructions).not.toContain('Motion mode')
+    // Every restart resumed the same chat: no new session was started.
+    expect(startedOptions).toHaveLength(1)
+    await orchestrator.disposeAll()
+  })
+
+  it('starts a fresh session that carries the conversation where resume would not apply the role', async () => {
+    const { orchestrator, sessions, store, startedOptions, resumedOptions } = await motionHarness()
+    const chat = await orchestrator.startThread('grok', process.cwd())
+    store.append(chat.id, userMessage('earlier', 'Earlier question', 'earlier-turn'))
+    store.append(chat.id, message('Earlier answer', 'earlier-turn'))
+    store.append(chat.id, { type: 'turn.completed', turnId: 'earlier-turn', status: 'completed' })
+    expect(store.threadNeedsHandover(chat.id)).toBe(false)
+
+    store.setThreadMode(chat.id, 'motion')
+    await orchestrator.modeChanged(chat.id)
+    expect(sessions[0]!.disposed).toBe(true)
+    expect(store.threadNeedsHandover(chat.id)).toBe(true)
+
+    await orchestrator.submitTurn(chat.id, 'Next question')
+    expect(resumedOptions).toEqual([])
+    expect(startedOptions).toHaveLength(2)
+    expect(startedOptions[1]!.instructions).toContain('This chat is in Motion mode.')
+    // The new session got the conversation so far with the prompt, and nothing is left to carry.
+    expect(sessions[1]!.sent[0]).toContain('Earlier question')
+    expect(sessions[1]!.sent[0]).toContain('Next question')
+    expect(store.threadNeedsHandover(chat.id)).toBe(false)
+    await orchestrator.disposeAll()
+  })
+
+  it('restarts a chat that is not attached, and leaves unresumable and unknown chats alone', async () => {
+    const { orchestrator, sessions, store, logs } = await motionHarness()
+    store.addProject('/repo')
+    store.addThread({ id: 'idle-grok', projectPath: '/repo', provider: 'grok', title: 'Idle' })
+    store.setThreadMode('idle-grok', 'motion')
+    await orchestrator.modeChanged('idle-grok')
+    expect(store.threadNeedsHandover('idle-grok')).toBe(true)
+
+    // Claude Code has no resume in this harness: its live session cannot be released.
+    const claude = await orchestrator.startThread('claude-code', process.cwd())
+    store.setThreadMode(claude.id, 'motion')
+    await orchestrator.modeChanged(claude.id)
+    expect(sessions[0]!.disposed).toBe(false)
+    expect(store.threadNeedsHandover(claude.id)).toBe(false)
+
+    // A chat the store does not know has nothing to restart.
+    await expect(orchestrator.modeChanged('missing')).resolves.toBeUndefined()
+    expect(logs).toEqual([])
+    await orchestrator.disposeAll()
   })
 })

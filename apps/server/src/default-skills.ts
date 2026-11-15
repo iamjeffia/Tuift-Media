@@ -155,8 +155,8 @@ export type DefaultSkillPack = {
 /**
  * One pack of the bundle (`packs/<name>/`, laid out by packages/default-skills):
  * its plugin directory for Claude Code and a capped catalog for the other
- * providers. Nothing calls this yet, so no chat receives a pack. Undefined when
- * the pack is not declared, or none of its skills is on disk.
+ * providers. A chat receives a pack only through its mode (motion-session.ts).
+ * Undefined when the pack is not declared, or none of its skills is on disk.
  */
 export function loadDefaultSkillPack(
   name: string,
