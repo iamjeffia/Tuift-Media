@@ -1,14 +1,12 @@
+import type { AfterEffectsState } from '@harness/contracts'
 import type { MessageKey } from '../i18n/index.js'
 
 /**
  * Whether After Effects can be used from a Motion chat, as the server says it in
- * the chat's settings (`afterEffects`).
- *
- * Local on purpose: until the contract carries the field, the renderer reads it
- * defensively from the settings object. When `ThreadSettings` has it, delete
- * this type and `readAfterEffects`, and import the contract's type instead.
+ * the chat's settings (`afterEffects`). The type is the contract's; the read stays
+ * defensive, so an older server or a value this build does not know says nothing.
  */
-export type AfterEffectsState = 'ready' | 'not-installed' | 'unavailable'
+export type { AfterEffectsState }
 
 /** The states that need a word to the person: After Effects cannot be used. */
 export type AfterEffectsProblem = Exclude<AfterEffectsState, 'ready'>
