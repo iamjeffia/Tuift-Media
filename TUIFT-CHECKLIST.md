@@ -36,8 +36,8 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
 - [x] 1.12 Conferir no app que texto mais longo não quebra layout.
 - [ ] 1.13 O dono do projeto confirma os termos usados: "chats", "Atalhos" (Keybinds), "Caixa de entrada" (Inbox), "Trilho" (seletor de modelo em duas etapas), e se os controles vizinhos do chat (busca no chat, desfazer, copiar) são traduzidos.
 - [ ] 1.14 Traduzir os textos de tela que vêm do servidor (erros de pull request, provedores, MCP, nomes de limite), conforme a proposta do 1.10.
-- [x] 1.15 Fronteira fina do chat (15/11): traduzido o que é do app em volta da conversa (rótulos da tela inicial, faixa de avisos, descrições do menu "/", busca no chat, restaurar, copiar, visualizador de mídia, títulos padrão só na hora de mostrar). Continuam em inglês as mensagens, as linhas de processo, o texto de exemplo do campo, os modos de acesso, Design, Motion e o seletor de modelo. Erros da fila e de anexos ainda em inglês.
-- [ ] 1.16 Restos pequenos ainda em inglês: página de laboratório de avatar (Depuração), erros da imagem de fundo, busca da paleta pelo nome do grupo em português, separador de milhar em contagens grandes.
+- [x] 1.15 Fronteira fina do chat (15/11): traduzido o que é do app em volta da conversa (rótulos da tela inicial, faixa de avisos, descrições do menu "/", busca no chat, restaurar, copiar, visualizador de mídia, títulos padrão só na hora de mostrar). Continuam em inglês as mensagens, as linhas de processo, o texto de exemplo do campo, os modos de acesso, Design, Motion e o seletor de modelo. Os erros da fila e de anexos foram traduzidos no 1.16.
+- [x] 1.16 Restos pequenos traduzidos (15/11): erros de anexo e da fila do campo de texto, página de laboratório de avatar, erros da imagem de fundo, busca da paleta pelo nome do grupo em português (o nome em inglês continua achando), separador de milhar e decimal conforme o idioma, e o nome acessível dos botões de copiar. Ficam em inglês, junto com a conversa: "Restore to before this turn", "Edit as new prompt" e os números das linhas de processo. A busca da paleta ainda diferencia acento ("acoes" não acha "Ações").
 - [ ] 1.17 Conferir no app instalado: menus nativos, bandeja, notificações, troca de idioma em tempo real e as telas que só existem lá (Importar chats com dados, celular, navegador interno, terminal).
 
 ## 2. Skills da Criação de Conteúdo dentro do app
@@ -134,14 +134,14 @@ Depende dos itens 2 (skills) e 3 (MCP). O botão do item 6.2 é a porta de entra
   - [x] 9.4a As skills de vídeo vão no instalador como pacote separado (fecha o item 2.6).
   - [ ] 9.4b Instrução curta de papel e etapas no início da sessão, em Codex, Claude Code e Grok.
   - [ ] 9.4c Pacote ligado só em chats Motion; ligar e desligar no meio do chat.
-  - [~] 9.4d Provar com os programas reais os dois pontos de risco: Claude Code provado (lista o pacote só quando ele é passado); no Codex falta um turno real lendo uma skill do pacote.
+  - [x] 9.4d Provados com os programas reais os dois pontos de risco (15/11): o Claude Code lista o pacote só quando ele é passado; o Codex, num turno real, leu uma skill do pacote e rodou o script dela a partir de uma pasta com espaço no caminho.
 - [ ] 9.5 Fase 4, etapas:
   - [ ] 9.5a Ferramenta `motion_stage` no canal do app, só em chats Motion.
   - [ ] 9.5b Etapa guardada e avisada à tela; o boneco certo acende.
   - [ ] 9.5c A pessoa troca a etapa clicando num boneco.
 - [ ] 9.6 Fase 5, After Effects (depende do item 11): MCP ligado só em chats Motion e aviso claro quando o After Effects não está instalado.
 - [ ] 9.7 Fase 6, a cena reage: estado "esperando você" e subagente com nome de boneco acende o boneco.
-- [x] 9.10 Feixe do Motion em volta do campo de texto, como o Design tem, em cores mais fortes do elenco (pedido de 15/11).
+- [x] 9.10 Feixe do Motion em volta do campo de texto, como o Design tem, em cores mais fortes do elenco (pedido de 15/11). Corrigido em seguida um bloco cortado no canto de cima do campo em chat novo: o brilho interno ficava por cima da faixa do projeto e era cortado na emenda (valia também para o Design).
 - [ ] 9.8 Elenco e papéis: Zig lidera (o laranja de óculos escuros, principal), Moss pesquisa as referências, Bun escreve o roteiro, Pip organiza o projeto, Cloud monta o vídeo no After Effects (o lilás) e Penny revisa cada quadro.
 - [ ] 9.9 Validação do dono do projeto no app instalado, com um vídeo de verdade.
 
@@ -190,7 +190,7 @@ Pedido de 15/11: o repositório é público e a página inicial precisa ser visu
 - [x] 14.3 Grade de recursos com imagens reais e legenda curta, pouco texto.
 - [x] 14.4 Créditos e licença compactos, mantendo a atribuição ao TasteCode.
 - [x] 14.5 Prova: README renderizado em tema claro e escuro, largura normal e celular.
-- [ ] 14.6 Mesmo cuidado no índice `.agents/skills/README.md`, depois que as skills entrarem.
+- [x] 14.6 Índice `.agents/skills/README.md` com o mesmo cabeçalho do README principal (marca, selos e atalhos para cada grupo), feito em 15/11.
 
 ## Ondas de trabalho
 
@@ -213,3 +213,4 @@ Cada frente roda num worktree próprio em `C:/Dev/tuift-wt/<frente>`, numa branc
 | 1b   | `readme`                                                                                             | 14.1 a 14.5     | na `main` (15/11)          |
 | 3    | `motion-cast`, `motion-state`, `motion-pack`                                                         | 9.2, 9.3a, 9.4a | na `main` (15/11), testada |
 | 2    | `i18n-settings`, `i18n-sidebar`, `i18n-onboarding`, `i18n-workspace`, `i18n-dialogs`, `i18n-desktop` | 1.4 a 1.12      | na `main` (15/11), testada |
+| 4    | `restos-i18n`                                                                                        | 1.16            | na `main` (15/11), testada |
