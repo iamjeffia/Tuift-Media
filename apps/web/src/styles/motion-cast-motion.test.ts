@@ -105,6 +105,6 @@ describe('Motion cast styles', () => {
     const app = read('../App.tsx')
     expect(app).toContain("from './motion/LazyMotionCast.js'")
     expect(app).not.toMatch(/from '\.\/motion\/MotionCast\.js'/)
-    expect(app.match(/<LazyMotionCastb/g)).toHaveLength(2)
+    expect(app.match(/<LazyMotionCast\b/g)).toHaveLength(2)
   })
 })
