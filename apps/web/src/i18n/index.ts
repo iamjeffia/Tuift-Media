@@ -4,6 +4,7 @@ export {
   LANGUAGE_KEY,
   LANGUAGE_OPTIONS,
   applyDocumentLanguage,
+  formatNumber,
   getLanguage,
   isLanguage,
   resolveLanguage,

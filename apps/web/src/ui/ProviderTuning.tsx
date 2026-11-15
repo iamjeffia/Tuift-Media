@@ -28,7 +28,7 @@ import type {
   ProviderStatus,
 } from '@harness/contracts'
 import type { ModelChoice } from '../model-catalog.js'
-import { useI18n, type I18n } from '../i18n/index.js'
+import { formatNumber, useI18n, type I18n } from '../i18n/index.js'
 import type { ProviderDefault } from '../provider-defaults.js'
 import type { Transport } from '../transport.js'
 import { APPROVAL_MODES } from './approval-modes.js'
@@ -400,7 +400,7 @@ export function useProviderRuntimeSettings(transport: Transport, enabled: boolea
 export function formatTokens(tokens: number): string {
   if (tokens >= 1_000_000) {
     const millions = tokens / 1_000_000
-    return `${Number.isInteger(millions) ? millions : millions.toFixed(1)}M`
+    return `${formatNumber(millions, { maximumFractionDigits: 1 })}M`
   }
   return `${Math.round(tokens / 1000)}K`
 }

@@ -12,6 +12,7 @@ import {
   DISPLAY_IMAGE_VERSION,
   type BackgroundImageStore,
 } from '../app-background-image.js'
+import { setLanguage } from '../i18n/index.js'
 import { AppBackgroundSettings } from './AppBackgroundSettings.js'
 
 afterEach(() => {
@@ -181,6 +182,28 @@ describe('Window background settings', () => {
 
     view.unmount()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:preview')
+  })
+
+  it('explains in Portuguese why a picked file cannot be the background', async () => {
+    setLanguage('pt-BR', { persist: false })
+    const images = fakeImages()
+    act(() => writeAppBackground({ mode: 'image', image: 'rev-old' }))
+    const { container } = render(<AppBackgroundSettings images={images} />)
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!
+    const pick = (file: File) => fireEvent.change(input, { target: { files: [file] } })
+
+    pick(new File(['<svg/>'], 'logo.svg', { type: 'image/svg+xml' }))
+    expect(
+      await screen.findByText('Escolha uma imagem PNG, JPEG, WebP, AVIF, GIF ou BMP.'),
+    ).toBeTruthy()
+    pick(new File([], 'empty.png', { type: 'image/png' }))
+    expect(await screen.findByText('Esse arquivo está vazio.')).toBeTruthy()
+    const large = new File(['x'], 'huge.png', { type: 'image/png' })
+    Object.defineProperty(large, 'size', { value: 41 * 1024 * 1024 })
+    pick(large)
+    expect(await screen.findByText('Escolha uma imagem com menos de 40 MB.')).toBeTruthy()
+    expect(images.save).not.toHaveBeenCalled()
+    expect(readAppBackground().image).toBe('rev-old')
   })
 
   it('explains an image it cannot use and keeps the old one', async () => {

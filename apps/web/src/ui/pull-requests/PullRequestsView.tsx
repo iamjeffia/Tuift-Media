@@ -24,7 +24,7 @@ import {
   IconX as X,
   type TablerIcon,
 } from '@tabler/icons-react'
-import { t as tNow, tp as tpNow, useI18n, type MessageKey } from '../../i18n/index.js'
+import { formatNumber, t as tNow, tp as tpNow, useI18n, type MessageKey } from '../../i18n/index.js'
 import type { Transport } from '../../transport.js'
 import { errorMessage as messageOf } from '../../boundary.js'
 import {
@@ -1035,7 +1035,7 @@ function formatCount(value: number): string {
   return value >= 10_000
     ? `${Math.round(value / 1_000)}k`
     : value >= 1_000
-      ? `${(value / 1_000).toFixed(1)}k`
+      ? `${formatNumber(value / 1_000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k`
       : String(value)
 }
 

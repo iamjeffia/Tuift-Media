@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Item } from '@harness/contracts'
 import { appCommands } from '../app-commands.js'
+import { savePastedFile } from '../bridge.js'
 import { displayChatTitle, localizeChatTitles } from '../chat-title.js'
 import { continuationNote } from '../continue-account.js'
 import { setLanguage } from '../i18n/index.js'
@@ -287,5 +288,107 @@ describe('the chrome around the chat, in Portuguese', () => {
     expect(localizeChatTitles(stored)).toBe(shown)
     setLanguage('en', { persist: false })
     expect(localizeChatTitles(stored)).toBe(stored)
+  })
+  it('translates the attachment and queue errors of the composer', async () => {
+    const view = renderComposer({
+      projectPath: '/work/harness',
+      projectName: 'TUIFT Code',
+      sendAvailability: 'ready',
+      attachmentsSupported: false,
+    })
+    const field = screen.getByPlaceholderText('Do anything')
+    fireEvent.paste(field, { clipboardData: { files: [new File(['n'], 'notes.txt')] } })
+    expect(await screen.findByText('Este provedor não aceita anexos.')).toBeTruthy()
+    view.unmount()
+
+    renderComposer({
+      projectPath: '/work/harness',
+      projectName: 'TUIFT Code',
+      sendAvailability: 'ready',
+    })
+    vi.mocked(savePastedFile).mockResolvedValueOnce(undefined)
+    const supported = screen.getByPlaceholderText('Do anything')
+    fireEvent.paste(supported, { clipboardData: { files: [new File(['n'], 'notes.txt')] } })
+    expect(await screen.findByText('Colar arquivos só funciona no app desktop.')).toBeTruthy()
+    const large = new File(['x'], 'big.zip')
+    Object.defineProperty(large, 'size', { value: 26 * 1024 * 1024 })
+    fireEvent.paste(supported, { clipboardData: { files: [large] } })
+    expect(
+      await screen.findByText('“big.zip” tem mais de 25 MB. Use o seletor de arquivos.'),
+    ).toBeTruthy()
+  })
+
+  it('translates the queue errors the app words itself and keeps the server reason', async () => {
+    const onDeleteQueuedTurn = vi
+      .fn<() => Promise<boolean>>()
+      .mockResolvedValueOnce(false)
+      .mockRejectedValueOnce('gone')
+      .mockRejectedValueOnce(new Error('That queued prompt already started or was removed.'))
+    renderComposer({
+      projectPath: '/work/harness',
+      projectName: 'TUIFT Code',
+      sendAvailability: 'ready',
+      queuedTurns: [{ id: 'q1', text: 'Queued prompt', attachments: [], createdAt: 1 }],
+      onDeleteQueuedTurn,
+    })
+    const edit = () => fireEvent.click(screen.getByRole('button', { name: 'Edit Queued prompt' }))
+    edit()
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Não foi possível remover o prompt da fila. Ele pode já ter começado; nenhuma cópia foi adicionada.',
+    )
+    edit()
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toBe(
+        'Não foi possível remover o prompt da fila.',
+      ),
+    )
+    edit()
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toBe(
+        'That queued prompt already started or was removed.',
+      ),
+    )
+  })
+
+  it('names the copy buttons from the catalog, so the name and the tooltip share a language', () => {
+    const prompt: Item = {
+      id: 'prompt',
+      turnId: 'turn-1',
+      type: 'message',
+      role: 'user',
+      status: 'completed',
+      text: 'Check this',
+      createdAt: 1_000,
+    }
+    const answer: Item = {
+      ...prompt,
+      id: 'answer',
+      role: 'assistant',
+      phase: 'final_answer',
+      text: 'The result',
+      createdAt: 4_000,
+    }
+    render(
+      <Thread
+        frameStore={
+          new ThreadFrameStore({
+            ...emptyThread,
+            items: [prompt, answer],
+            turnTiming: { 'turn-1': { startedAt: 1_000, completedAt: 4_000 } },
+          })
+        }
+        onDecide={() => undefined}
+        onAnswerUserInput={() => undefined}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Copiar resposta' }).getAttribute('title')).toBe(
+      'Copiar',
+    )
+    expect(screen.getByRole('button', { name: 'Copiar prompt' }).getAttribute('title')).toBe(
+      'Copiar',
+    )
+    act(() => setLanguage('en', { persist: false }))
+    expect(screen.getByRole('button', { name: 'Copy response' }).getAttribute('title')).toBe('Copy')
+    expect(screen.getByRole('button', { name: 'Copy prompt' })).toBeTruthy()
   })
 })

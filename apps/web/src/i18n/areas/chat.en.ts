@@ -147,6 +147,20 @@ export const chatEn = {
   'chat.copy.title': 'Copy',
   'chat.copy.failedRetry': 'Copy failed — click to retry',
   'chat.copy.failed': 'Copy failed',
+  'chat.copy.response': 'Copy response',
+  'chat.copy.prompt': 'Copy prompt',
+
+  // Notices of the composer: attachments and the queue of prompts
+  'chat.attach.unsupported': 'Attachments aren’t supported by this source.',
+  'chat.attach.blockSend': 'Remove attachments or switch to a source that supports them.',
+  'chat.attach.tooLarge': '“{name}” is larger than 25 MB. Use the file picker instead.',
+  'chat.attach.pasteDesktopOnly': 'Pasting files is available in the desktop app.',
+  'chat.attach.dropDesktopOnly': 'Dropping files is available in the desktop app.',
+  'chat.attach.failed': 'Couldn’t attach “{name}”. Use the file picker instead.',
+  'chat.attach.thatFile': 'that file',
+  'chat.queue.removeFailed': 'Could not remove the queued prompt.',
+  'chat.queue.removeFailedStarted':
+    'Could not remove the queued prompt. It may have already started; no copy was added.',
 
   // Image and video viewer
   'chat.media.preview': 'Preview {name}',

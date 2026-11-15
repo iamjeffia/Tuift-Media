@@ -403,7 +403,9 @@ function BackgroundImageRow(props: {
       if (mounted.current) {
         setProblem(
           error instanceof BackgroundImageError
-            ? error.message
+            ? error.key
+              ? t(error.key)
+              : error.message
             : t('settings.appBackground.imageFailed'),
         )
       }

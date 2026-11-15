@@ -33,13 +33,17 @@ const GROUP_LABELS = {
 class PaletteCommandSearchIndex {
   readonly #searchable = new Map<PaletteCommand, string>()
 
-  constructor(readonly commands: readonly PaletteCommand[]) {}
+  constructor(
+    readonly commands: readonly PaletteCommand[],
+    /** The group heading in the current language, so it finds its commands as the English name does. */
+    private readonly groupName: (group: PaletteCommand['group']) => string,
+  ) {}
 
   text(command: PaletteCommand): string {
     const cached = this.#searchable.get(command)
     if (cached !== undefined) return cached
     const searchable =
-      `${command.title} ${command.detail ?? ''} ${command.group} ${command.keywords ?? ''}`.toLowerCase()
+      `${command.title} ${command.detail ?? ''} ${command.group} ${this.groupName(command.group)} ${command.keywords ?? ''}`.toLowerCase()
     this.#searchable.set(command, searchable)
     return searchable
   }
@@ -95,7 +99,11 @@ function CommandPaletteComponent(props: {
     input.current?.focus()
   }, [])
 
-  const searchIndex = useMemo(() => new PaletteCommandSearchIndex(props.commands), [props.commands])
+  // `t` changes with the language, so the index is rebuilt with the new group names.
+  const searchIndex = useMemo(
+    () => new PaletteCommandSearchIndex(props.commands, (group) => t(GROUP_LABELS[group])),
+    [props.commands, t],
+  )
   const commands = useMemo(
     () =>
       visiblePaletteCommands(

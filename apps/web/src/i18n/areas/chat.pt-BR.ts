@@ -161,6 +161,20 @@ export const chatPt = {
   'chat.copy.title': 'Copiar',
   'chat.copy.failedRetry': 'Falha ao copiar — clique para tentar de novo',
   'chat.copy.failed': 'Falha ao copiar',
+  'chat.copy.response': 'Copiar resposta',
+  'chat.copy.prompt': 'Copiar prompt',
+
+  // Notices of the composer: attachments and the queue of prompts
+  'chat.attach.unsupported': 'Este provedor não aceita anexos.',
+  'chat.attach.blockSend': 'Remova os anexos ou troque para um provedor que aceite anexos.',
+  'chat.attach.tooLarge': '“{name}” tem mais de 25 MB. Use o seletor de arquivos.',
+  'chat.attach.pasteDesktopOnly': 'Colar arquivos só funciona no app desktop.',
+  'chat.attach.dropDesktopOnly': 'Soltar arquivos só funciona no app desktop.',
+  'chat.attach.failed': 'Não foi possível anexar “{name}”. Use o seletor de arquivos.',
+  'chat.attach.thatFile': 'esse arquivo',
+  'chat.queue.removeFailed': 'Não foi possível remover o prompt da fila.',
+  'chat.queue.removeFailedStarted':
+    'Não foi possível remover o prompt da fila. Ele pode já ter começado; nenhuma cópia foi adicionada.',
 
   // Image and video viewer
   'chat.media.preview': 'Visualizar {name}',

@@ -11,6 +11,7 @@
  * with no CSS filter to recompute while a reply streams over it. Moving the
  * Blur slider rebuilds the display copy from the original.
  */
+import type { MessageKey } from './i18n/index.js'
 
 export const BACKGROUND_IMAGE_TYPES = [
   'image/png',
@@ -49,16 +50,41 @@ export type StoredBackgroundImage = {
   displayVersion: string
 }
 
-export class BackgroundImageError extends Error {}
+/** `message` stays English for logs; `key` is what Settings shows, in the current language. */
+export class BackgroundImageError extends Error {
+  constructor(
+    message: string,
+    readonly key?: MessageKey,
+  ) {
+    super(message)
+  }
+}
+
+function backgroundImageIssue(file: {
+  type: string
+  size: number
+}): BackgroundImageError | undefined {
+  if (!(BACKGROUND_IMAGE_TYPES as readonly string[]).includes(file.type)) {
+    return new BackgroundImageError(
+      'Choose a PNG, JPEG, WebP, AVIF, GIF or BMP image.',
+      'settings.appBackground.error.type',
+    )
+  }
+  if (file.size > MAX_BACKGROUND_IMAGE_BYTES) {
+    return new BackgroundImageError(
+      'Choose an image under 40 MB.',
+      'settings.appBackground.error.size',
+    )
+  }
+  if (file.size === 0) {
+    return new BackgroundImageError('That file is empty.', 'settings.appBackground.error.empty')
+  }
+  return undefined
+}
 
 /** Why a picked file cannot become the background, or undefined when it can. */
 export function backgroundImageProblem(file: { type: string; size: number }): string | undefined {
-  if (!(BACKGROUND_IMAGE_TYPES as readonly string[]).includes(file.type)) {
-    return 'Choose a PNG, JPEG, WebP, AVIF, GIF or BMP image.'
-  }
-  if (file.size > MAX_BACKGROUND_IMAGE_BYTES) return 'Choose an image under 40 MB.'
-  if (file.size === 0) return 'That file is empty.'
-  return undefined
+  return backgroundImageIssue(file)?.message
 }
 
 /** The size that fits inside a square of `maxEdge`, never enlarged. */
@@ -80,7 +106,12 @@ function canvasOf(width: number, height: number): EncodingCanvas {
   if (typeof OffscreenCanvas !== 'undefined') {
     const canvas = new OffscreenCanvas(width, height)
     const context = canvas.getContext('2d')
-    if (!context) throw new BackgroundImageError('This window cannot draw images.')
+    if (!context) {
+      throw new BackgroundImageError(
+        'This window cannot draw images.',
+        'settings.appBackground.error.draw',
+      )
+    }
     return {
       context,
       toBlob: () => canvas.convertToBlob({ type: ENCODED_TYPE, quality: ENCODED_QUALITY }),
@@ -90,7 +121,12 @@ function canvasOf(width: number, height: number): EncodingCanvas {
   canvas.width = width
   canvas.height = height
   const context = canvas.getContext('2d')
-  if (!context) throw new BackgroundImageError('This window cannot draw images.')
+  if (!context) {
+    throw new BackgroundImageError(
+      'This window cannot draw images.',
+      'settings.appBackground.error.draw',
+    )
+  }
   return {
     context,
     toBlob: () =>
@@ -99,7 +135,12 @@ function canvasOf(width: number, height: number): EncodingCanvas {
           (blob) =>
             blob
               ? resolve(blob)
-              : reject(new BackgroundImageError('The image could not be saved.')),
+              : reject(
+                  new BackgroundImageError(
+                    'The image could not be saved.',
+                    'settings.appBackground.error.save',
+                  ),
+                ),
           ENCODED_TYPE,
           ENCODED_QUALITY,
         ),
@@ -126,7 +167,10 @@ async function decode(blob: Blob): Promise<ImageBitmap> {
   try {
     return await createImageBitmap(blob)
   } catch {
-    throw new BackgroundImageError('That image could not be opened.')
+    throw new BackgroundImageError(
+      'That image could not be opened.',
+      'settings.appBackground.error.decode',
+    )
   }
 }
 
@@ -135,8 +179,8 @@ export async function prepareBackgroundImage(
   file: File,
   blur: number = DISPLAY_IMAGE_BLUR,
 ): Promise<StoredBackgroundImage> {
-  const problem = backgroundImageProblem(file)
-  if (problem) throw new BackgroundImageError(problem)
+  const problem = backgroundImageIssue(file)
+  if (problem) throw problem
   const bitmap = await decode(file)
   try {
     return {
@@ -183,6 +227,8 @@ export type BackgroundImageStore = {
   clear: () => Promise<void>
 }
 
+const STORE_UNAVAILABLE = 'This window cannot store images.'
+const STORE_FAILED = 'The image could not be stored.'
 const DATABASE = 'tastecode-app-background'
 const OBJECT_STORE = 'images'
 const RECORD = 'current'
@@ -190,13 +236,24 @@ const RECORD = 'current'
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     if (typeof indexedDB === 'undefined') {
-      reject(new BackgroundImageError('This window cannot store images.'))
+      reject(
+        new BackgroundImageError(
+          STORE_UNAVAILABLE,
+          'settings.appBackground.error.storeUnavailable',
+        ),
+      )
       return
     }
     const request = indexedDB.open(DATABASE, 1)
     request.onupgradeneeded = () => request.result.createObjectStore(OBJECT_STORE)
     request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(new BackgroundImageError('This window cannot store images.'))
+    request.onerror = () =>
+      reject(
+        new BackgroundImageError(
+          STORE_UNAVAILABLE,
+          'settings.appBackground.error.storeUnavailable',
+        ),
+      )
   })
 }
 
@@ -210,8 +267,10 @@ async function transact<T>(
       const transaction = database.transaction(OBJECT_STORE, mode)
       const request = run(transaction.objectStore(OBJECT_STORE))
       transaction.oncomplete = () => resolve(request.result)
-      transaction.onerror = () => reject(new BackgroundImageError('The image could not be stored.'))
-      transaction.onabort = () => reject(new BackgroundImageError('The image could not be stored.'))
+      transaction.onerror = () =>
+        reject(new BackgroundImageError(STORE_FAILED, 'settings.appBackground.error.store'))
+      transaction.onabort = () =>
+        reject(new BackgroundImageError(STORE_FAILED, 'settings.appBackground.error.store'))
     })
   } finally {
     database.close()

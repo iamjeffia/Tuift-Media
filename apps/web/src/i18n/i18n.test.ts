@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_LANGUAGE,
   LANGUAGE_KEY,
+  formatNumber,
   getLanguage,
   resolveLanguage,
   setLanguage,
@@ -143,5 +144,15 @@ describe('current language', () => {
     setLanguage('pt-BR')
     expect(getLanguage()).toBe('pt-BR')
     setLanguage('en', { persist: false })
+  })
+})
+
+describe('formatNumber', () => {
+  it('groups thousands the way the current language does', () => {
+    expect(formatNumber(1234567)).toBe('1,234,567')
+    expect(formatNumber(1.5, { minimumFractionDigits: 1 })).toBe('1.5')
+    setLanguage('pt-BR', { persist: false })
+    expect(formatNumber(1234567)).toBe('1.234.567')
+    expect(formatNumber(1.5, { minimumFractionDigits: 1 })).toBe('1,5')
   })
 })
