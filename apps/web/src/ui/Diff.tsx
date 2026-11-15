@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { isCutDiff } from '@harness/contracts'
+import { readDiffCut } from '@harness/contracts'
 import { IconChevronDown as ChevronDown, IconFilePencil as FilePenLine } from '@tabler/icons-react'
 import type { Transport } from '../transport.js'
 import { DiffReview } from './DiffReview.js'
@@ -38,8 +38,8 @@ export function Diff({
   onUndo?: (() => Promise<void>) | undefined
 }) {
   const parsed = useMemo(() => (diff ? parseDiff(diff) : null), [diff])
-  // A diff cut to its size limit is a part of the change: undoing it would undo only a part.
-  const cut = useMemo(() => (diff ? isCutDiff(diff) : false), [diff])
+  // A diff cut to its size limit says what the whole diff changes; those totals are the real ones.
+  const totals = useMemo(() => (diff ? readDiffCut(diff)?.totals : undefined), [diff])
   const [reviewing, setReviewing] = useState(false)
   const [showAllFiles, setShowAllFiles] = useState(false)
   const [undoing, setUndoing] = useState(false)
@@ -106,12 +106,17 @@ export function Diff({
         </span>
         <span className="diff__copy">
           <span className="diff__title">
-            Edited {parsed.files} file{parsed.files === 1 ? '' : 's'}
+            Edited {totals?.files ?? parsed.files} file
+            {(totals?.files ?? parsed.files) === 1 ? '' : 's'}
           </span>
-          <ChangeStats added={parsed.added} removed={parsed.removed} className="diff__stat" />
+          <ChangeStats
+            added={totals?.added ?? parsed.added}
+            removed={totals?.removed ?? parsed.removed}
+            className="diff__stat"
+          />
         </span>
         <div className="diff__actions">
-          {onUndo && !cut ? (
+          {onUndo ? (
             <button
               ref={undoButton}
               type="button"
@@ -146,7 +151,7 @@ export function Diff({
           aria-label="Confirm undo"
           onKeyDown={keepOnEscape}
         >
-          <p className="diff__undo-question">{undoQuestion(parsed.fileEntries)}</p>
+          <p className="diff__undo-question">{undoQuestion(parsed.fileEntries, totals?.files)}</p>
           <button type="button" className="diff__review" onClick={() => void undo()}>
             Undo changes
           </button>
@@ -191,10 +196,14 @@ export function Diff({
 }
 
 /** What Undo does to the files, said before it does it. */
-export function undoQuestion(files: readonly FileEntry[]): string {
+export function undoQuestion(files: readonly FileEntry[], allFiles = files.length): string {
+  const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
+  // A cut diff shows only some of its files: which of the others are new is not known here.
+  if (allFiles > files.length) {
+    return `Undo these changes? ${plural(allFiles, 'file')} ${allFiles === 1 ? 'is' : 'are'} restored, and any new file is deleted.`
+  }
   const created = files.filter((file) => file.created).length
   const restored = files.length - created
-  const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
   const deleted = `${plural(created, 'new file')} ${created === 1 ? 'is' : 'are'} deleted`
   if (created === 0)
     return `Undo these changes? ${plural(restored, 'file')} ${restored === 1 ? 'is' : 'are'} restored.`

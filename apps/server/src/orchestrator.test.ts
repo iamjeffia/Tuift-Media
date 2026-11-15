@@ -1909,7 +1909,7 @@ describe('machine output in the log', () => {
     }
   })
 
-  it('records a turn diff over 1 MiB cut at a line, and refuses to undo what was cut', async () => {
+  it('sends a turn diff over 1 MiB cut, and keeps the whole patch beside it', async () => {
     const { orchestrator, sessions, received, store } = harness()
     try {
       const thread = await orchestrator.startThread('codex', process.cwd())
@@ -1927,18 +1927,43 @@ describe('machine output in the log', () => {
       expect(diff.length).toBeGreaterThan(1024 * 1024)
       session.emit({ type: 'diff.updated', turnId: 't1', diff })
       session.emit({ type: 'turn.completed', turnId: 't1', status: 'completed' })
+      const history = await orchestrator.history(thread.id)
+
+      const shown = store.turnDiff(thread.id, 't1')!
+      expect(shown.length).toBeLessThan(1024 * 1024 + 128)
+      expect(shown.startsWith('diff --git a/big.txt b/big.txt\nnew file mode 100644\n')).toBe(true)
+      expect(shown).toMatch(/\n… \d+ characters omitted \(1 file, \+20000 -0 in all\) …$/)
+      // The whole patch is kept for Undo, beside the event the log holds cut.
+      expect(store.wholeTurnDiff(thread.id, 't1')).toBe(diff)
+      // Whatever a client reads is the cut one: the push, the history, the stored events.
+      const diffsIn = (events: DomainEvent[]) =>
+        events.flatMap((event) => (event.type === 'diff.updated' ? [event.diff] : []))
+      expect(diffsIn(received.map(({ event }) => event))).toEqual([shown])
+      expect(diffsIn(history.map(({ event }) => event))).toEqual([shown])
+      expect(diffsIn(store.history(thread.id).map(({ event }) => event))).toEqual([shown])
+    } finally {
+      await orchestrator.disposeAll()
+      store.close()
+    }
+  })
+
+  it('does not undo a diff that was saved cut before the whole patch was kept', async () => {
+    const { orchestrator, sessions, store } = harness()
+    try {
+      const thread = await orchestrator.startThread('codex', process.cwd())
+      const session = sessions[0]!
+      session.emit(turnStarted(thread.id, 't1'))
+      // What the first version of the cap saved: the start of the patch and a note, no whole.
+      const saved = 'diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-a\n+b'
+      const cut = `${saved}\n… 2437185 characters omitted …`
+      session.emit({ type: 'diff.updated', turnId: 't1', diff: cut })
+      session.emit({ type: 'turn.completed', turnId: 't1', status: 'completed' })
       await orchestrator.history(thread.id)
 
-      const stored = store.turnDiff(thread.id, 't1')!
-      expect(stored.length).toBeLessThan(1024 * 1024 + 64)
-      expect(stored.startsWith('diff --git a/big.txt b/big.txt\nnew file mode 100644\n')).toBe(true)
-      expect(stored).toMatch(/\n… \d+ characters omitted …$/)
-      const sent = received.flatMap(({ event }) =>
-        event.type === 'diff.updated' ? [event.diff] : [],
-      )
-      expect(sent).toEqual([stored])
-      await expect(orchestrator.undoTurnChanges(thread.id, 't1', stored)).rejects.toThrow(
-        'too large to keep whole',
+      expect(store.turnDiff(thread.id, 't1')).toBe(cut)
+      expect(store.wholeTurnDiff(thread.id, 't1')).toBeUndefined()
+      await expect(orchestrator.undoTurnChanges(thread.id, 't1', cut)).rejects.toThrow(
+        'saved cut, so it cannot be undone',
       )
     } finally {
       await orchestrator.disposeAll()
@@ -12196,6 +12221,48 @@ describe('rolling a session back', () => {
     await orchestrator.undoTurnChanges(thread.id, 'turn-1', diff)
     expect(readFileSync(path.join(repo, 'file.txt'), 'utf8')).toBe('original\n')
     expect(existsSync(path.join(repo, 'added.txt'))).toBe(false)
+    await orchestrator.disposeAll()
+  })
+
+  it('undoes a turn diff over 1 MiB, though it is shown cut, and restores every file', async () => {
+    const { orchestrator, sessions, received, store } = harness()
+    const thread = await orchestrator.startThread('claude-code', repo)
+    sessions[0]!.turnIds.push('turn-1')
+    await orchestrator.sendTurn(thread.id, 'change the file and add three big ones')
+    sessions[0]!.emit(turnStarted(thread.id, 'turn-1'))
+    writeFileSync(path.join(repo, 'file.txt'), 'agent change\n')
+    sessions[0]!.emit(fileEdit('file.txt', 'turn-1'))
+    // Three files of about 450 KB each: the patch is 1.4 MB, over what a client is sent.
+    const names = ['big-0.txt', 'big-1.txt', 'big-2.txt']
+    for (const name of names) {
+      const body = Array.from(
+        { length: 5_000 },
+        (_, line) => `${name} line ${line} ${'x'.repeat(70)}`,
+      )
+      writeFileSync(path.join(repo, name), `${body.join('\n')}\n`)
+      sessions[0]!.emit(fileEdit(name, 'turn-1'))
+    }
+    sessions[0]!.emit(message('Done.', 'turn-1'))
+    sessions[0]!.emit({ type: 'turn.completed', turnId: 'turn-1', status: 'completed' })
+
+    await vi.waitFor(() => expect(store.turnDiff(thread.id, 'turn-1')).toBeTruthy(), {
+      timeout: 15_000,
+    })
+    const shown = store.turnDiff(thread.id, 'turn-1')!
+    const whole = store.wholeTurnDiff(thread.id, 'turn-1')!
+    expect(whole.length).toBeGreaterThan(1024 * 1024)
+    expect(shown.length).toBeLessThan(1024 * 1024 + 128)
+    // The counters in the note are those of the whole patch: file.txt and the three new files.
+    expect(shown).toMatch(/\n… \d+ characters omitted \(4 files, \+15001 -1 in all\) …$/)
+    for (const name of names) expect(whole).toContain(`diff --git a/${name} b/${name}`)
+    for (const { event } of received) {
+      if (event.type === 'diff.updated') expect(event.diff.length).toBeLessThan(1024 * 1024 + 128)
+    }
+
+    // The client holds the cut diff; Undo reverses the whole patch.
+    await orchestrator.undoTurnChanges(thread.id, 'turn-1', shown)
+    expect(readFileSync(path.join(repo, 'file.txt'), 'utf8')).toBe('original\n')
+    for (const name of names) expect(existsSync(path.join(repo, name))).toBe(false)
     await orchestrator.disposeAll()
   })
 

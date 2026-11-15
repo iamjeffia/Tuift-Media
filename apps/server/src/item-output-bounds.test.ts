@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { DomainEvent, Item } from '@harness/contracts'
-import { isCutDiff } from '@harness/contracts'
+import { isCutDiff, readDiffCut } from '@harness/contracts'
 import {
   boundItemEvent,
   elideDiff,
@@ -473,7 +473,10 @@ describe('a diff', () => {
     expect(kept.length).toBeLessThanOrEqual(MAX_DIFF_CHARS + 64)
     const lines = kept.split('\n')
     const note = lines.pop()!
-    const omitted = Number(/^… (\d+) characters omitted …$/.exec(note)![1])
+    // 30 files of 1,000 added lines each, said in the note as the totals of the whole diff.
+    expect(note).toMatch(/^… \d+ characters omitted \(30 files, \+30000 -0 in all\) …$/)
+    const { omitted, totals } = readDiffCut(kept)!
+    expect(totals).toEqual({ files: 30, added: 30_000, removed: 0 })
     // Every line before the note is a whole line of the diff, and the cut is where it ends.
     expect(diff.startsWith(`${lines.join('\n')}\n`)).toBe(true)
     expect(lines.join('\n').length + omitted).toBe(diff.length)
@@ -519,5 +522,54 @@ describe('a diff', () => {
     expect(isCutDiff('+… 5 characters omitted …')).toBe(false)
     expect(isCutDiff('diff --git a/x b/x\n@@ -1 +1 @@\n-a\n+b')).toBe(false)
     expect(isCutDiff('')).toBe(false)
+  })
+})
+
+describe('the whole patch of a turn diff the log holds cut', () => {
+  const turnDiff = (diff: string): DomainEvent => ({ type: 'diff.updated', turnId: 't1', diff })
+
+  it('is kept beside a saved diff over the limit, and only then', () => {
+    const store = new Store(':memory:')
+    store.addProject('/repo')
+    store.addThread({ id: THREAD, projectPath: '/repo', provider: 'codex', title: 'Saved' })
+    const whole = bigDiff()
+    store.mergeProviderHistory(THREAD, 'one', [{ key: 'a', event: turnDiff(whole) }])
+
+    const shown = store.turnDiff(THREAD, 't1')!
+    expect(shown).toBe(elideDiff(whole))
+    expect(store.wholeTurnDiff(THREAD, 't1')).toBe(whole)
+
+    // A diff under the limit is saved as it is, with nothing beside it.
+    store.mergeProviderHistory(THREAD, 'two', [{ key: 'a', event: turnDiff(bigDiff(10)) }])
+    expect(store.turnDiff(THREAD, 't1')).toBe(bigDiff(10))
+    expect(store.wholeTurnDiff(THREAD, 't1')).toBeUndefined()
+    store.close()
+  })
+
+  it('is the patch of the latest diff of the turn, never an earlier one', () => {
+    const store = new Store(':memory:')
+    store.addProject('/repo')
+    store.addThread({ id: THREAD, projectPath: '/repo', provider: 'codex', title: 'Live' })
+    const first = store.appendWithSerializedEvent(THREAD, turnDiff('cut')).seq
+    store.saveWholeTurnDiff(first, 'the whole patch')
+    expect(store.wholeTurnDiff(THREAD, 't1')).toBe('the whole patch')
+
+    // Undo records an empty diff afterwards: the old whole patch no longer belongs to the turn.
+    store.appendWithSerializedEvent(THREAD, turnDiff(''))
+    expect(store.wholeTurnDiff(THREAD, 't1')).toBeUndefined()
+    store.close()
+  })
+
+  it('goes with the chat that was deleted', () => {
+    const store = new Store(':memory:')
+    store.addProject('/repo')
+    store.addThread({ id: THREAD, projectPath: '/repo', provider: 'codex', title: 'Gone' })
+    const { seq } = store.appendWithSerializedEvent(THREAD, turnDiff('cut'))
+    store.saveWholeTurnDiff(seq, 'the whole patch')
+
+    store.deleteThread(THREAD)
+    store.addThread({ id: THREAD, projectPath: '/repo', provider: 'codex', title: 'Again' })
+    expect(store.wholeTurnDiff(THREAD, 't1')).toBeUndefined()
+    store.close()
   })
 })

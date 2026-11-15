@@ -506,6 +506,13 @@ CREATE TABLE IF NOT EXISTS turn_diff_events (
 CREATE INDEX IF NOT EXISTS turn_diff_events_thread_turn_seq
   ON turn_diff_events (thread_id, turn_id, event_seq DESC);
 
+-- The log keeps a turn diff over its size limit cut, so that no client is sent more than the
+-- limit. The whole patch waits here, beside that event, for Undo to reverse.
+CREATE TABLE IF NOT EXISTS turn_diff_whole (
+  event_seq INTEGER PRIMARY KEY REFERENCES events(seq) ON DELETE CASCADE,
+  diff      TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS recovery_lifecycles (
   thread_id     TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
   lifecycle_key TEXT NOT NULL,
@@ -958,6 +965,8 @@ export class Store {
   #itemSnapshot: StatementSync
   #insertTurnDiffEvent: StatementSync
   #readTurnDiff: StatementSync
+  #insertWholeTurnDiff: StatementSync
+  #readWholeTurnDiff: StatementSync
   #upsertRecoveryStart: StatementSync
   #settleRecoveryLifecycle: StatementSync
   #upsertRecoveryError: StatementSync
@@ -1145,6 +1154,15 @@ export class Store {
     this.#insertTurnDiffEvent = this.#db.prepare(
       `INSERT OR REPLACE INTO turn_diff_events (event_seq, thread_id, turn_id)
        VALUES (?, ?, ?)`,
+    )
+    this.#insertWholeTurnDiff = this.#db.prepare(
+      'INSERT OR REPLACE INTO turn_diff_whole (event_seq, diff) VALUES (?, ?)',
+    )
+    this.#readWholeTurnDiff = this.#db.prepare(
+      `SELECT whole.diff AS diff
+       FROM (SELECT event_seq FROM turn_diff_events
+             WHERE thread_id = ? AND turn_id = ? ORDER BY event_seq DESC LIMIT 1) AS latest
+       INNER JOIN turn_diff_whole AS whole ON whole.event_seq = latest.event_seq`,
     )
     this.#readTurnDiff = this.#db.prepare(
       `SELECT events.payload
@@ -2201,6 +2219,12 @@ export class Store {
               ? event.turn.createdAt
               : turnAt
         const seq = this.#appendEventPayload(threadId, event, at, payload)
+        if (
+          imported.type === 'diff.updated' &&
+          event.type === 'diff.updated' &&
+          imported.diff !== event.diff
+        )
+          this.saveWholeTurnDiff(seq, imported.diff)
         link.run(threadId, key, seq)
         previous.set(key, { event_key: key, event_seq: seq, payload, active: 1 })
         changed = true
@@ -4051,6 +4075,20 @@ export class Store {
     if (!row) return undefined
     const event = parseDomainEvent(row.payload, `turn diff for thread ${threadId}`)
     return event?.type === 'diff.updated' ? event.diff : undefined
+  }
+
+  /** Keeps the whole patch of the turn diff event `eventSeq`, which the log holds cut. */
+  saveWholeTurnDiff(eventSeq: number, diff: string): void {
+    this.#insertWholeTurnDiff.run(eventSeq, diff)
+  }
+
+  /**
+   * The whole patch of a turn's latest diff, when the log holds that diff cut to its size limit
+   * and this is the patch it was cut from. Undefined when the latest diff is not cut, or was
+   * saved cut before the whole patch was kept.
+   */
+  wholeTurnDiff(threadId: string, turnId: string): string | undefined {
+    return sqliteRow<{ diff: string }>(this.#readWholeTurnDiff, threadId, turnId)?.diff
   }
 
   searchSessions(options: SessionSearchOptions): SessionSearchPage {

@@ -78,7 +78,7 @@ import { currentBranch, switchWorkspaceBranch, workspaceChanges } from './worksp
 import { compactHistoryReplay } from './history-replay.js'
 import { decodeHistoryCursor, readHistoryPage, type HistoryPage } from './history-page.js'
 import { readIndexedNewestHistoryPage } from './history-tail.js'
-import { ItemOutputBounds } from './item-output-bounds.js'
+import { elideDiff, ItemOutputBounds } from './item-output-bounds.js'
 import {
   designPhaseLanguageReminder,
   designPhaseNotice,
@@ -3774,6 +3774,14 @@ export class Orchestrator {
     // Output stays in the item that printed it, and bounded, before it is stored or sent.
     const bounded = this.#itemOutputBounds.apply(threadId, event)
     if (!bounded) return
+    // A turn diff over its limit goes out cut, so no client is sent more than that; the whole
+    // patch is kept beside it for Undo.
+    const wholeDiff =
+      event.type === 'diff.updated' &&
+      bounded.type === 'diff.updated' &&
+      bounded.diff !== event.diff
+        ? event.diff
+        : undefined
     event = bounded
     if (event.type === 'item.delta') {
       this.#recordedDeltas.push(threadId, event)
@@ -3786,7 +3794,7 @@ export class Orchestrator {
       if (recorded?.turnId === event.turnId && recorded.diff === event.diff) return
     }
     this.#recordedDeltas.flush(threadId)
-    this.#commitRecord(threadId, event)
+    this.#commitRecord(threadId, event, wholeDiff)
   }
 
   /** Persist and publish one coalesced stream after the write commits. */
@@ -3840,7 +3848,7 @@ export class Orchestrator {
     }
   }
 
-  #commitRecord(threadId: string, event: DomainEvent): void {
+  #commitRecord(threadId: string, event: DomainEvent, wholeDiff?: string): void {
     if (this.#discardedSideThreads.has(threadId)) return
     if (
       event.type === 'turn.completed' &&
@@ -3913,6 +3921,7 @@ export class Orchestrator {
       this.#releaseCheckoutIfIdle(threadId)
     }
     const { seq, serializedEvent } = this.#store.appendWithSerializedEvent(threadId, event)
+    if (wholeDiff !== undefined) this.#store.saveWholeTurnDiff(seq, wholeDiff)
     if (event.type === 'diff.updated' && this.#activeTurnIds.get(threadId) === event.turnId) {
       this.#recordedTurnDiffs.set(threadId, { turnId: event.turnId, diff: event.diff })
     }
@@ -4126,13 +4135,18 @@ export class Orchestrator {
     return this.#withRestoreLock(threadId, async () => {
       this.#reviewingDiffs.add(threadId)
       try {
-        const diff = this.#store.turnDiff(threadId, turnId)
-        if (!diff || diff !== expectedDiff) {
+        // The client holds the diff the log holds, which is cut when it is over its size limit;
+        // what is reversed is the whole patch kept beside it.
+        const shown = this.#store.turnDiff(threadId, turnId)
+        if (!shown || shown !== expectedDiff) {
           throw new Error('This edit block changed. Reload the session and try again.')
         }
-        // A diff cut to its size limit is only a part of the change; reversing it would undo part.
-        if (isCutDiff(diff)) {
-          throw new Error('This edit block is too large to keep whole, so it cannot be undone.')
+        const cut = isCutDiff(shown)
+        const diff = cut ? this.#store.wholeTurnDiff(threadId, turnId) : shown
+        // Only a patch this very diff was cut from is reversed, never a part of it: a diff saved
+        // cut before the whole was kept has no patch to go back to.
+        if (diff === undefined || (cut && elideDiff(diff) !== shown)) {
+          throw new Error('This edit block was saved cut, so it cannot be undone.')
         }
         try {
           await reverseUnifiedDiff(this.#repoPath(threadId), diff)

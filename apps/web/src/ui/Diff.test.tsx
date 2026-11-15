@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { countDiff, diffCutNote, readDiffCut } from '@harness/contracts'
 import type { Transport } from '../transport.js'
 import { Diff, parseDiff, undoQuestion } from './Diff.js'
 
@@ -171,8 +172,9 @@ ${DIFF}`).fileEntries,
 })
 
 describe('a diff cut to its size limit', () => {
-  // What the server keeps of a diff over 1 MiB: the start, cut at a line, and a last line saying
-  // how much it dropped. The second hunk ends early.
+  // What a client is sent of a diff over 1 MiB: the start, cut at a line, and a last line saying
+  // how much was dropped and what the whole diff changes. The second hunk ends early.
+  const NOTE = '… 2437185 characters omitted (90 files, +63000 -2 in all) …'
   const CUT = `${DIFF}
 diff --git a/src/big.ts b/src/big.ts
 new file mode 100644
@@ -181,7 +183,7 @@ new file mode 100644
 @@ -0,0 +1,3000 @@
 +first
 +second
-… 2437185 characters omitted …`
+${NOTE}`
 
   it('still parses, and counts what it kept', () => {
     const parsed = parseDiff(CUT)
@@ -189,23 +191,85 @@ new file mode 100644
     expect(parsed.files).toBe(2)
     expect(parsed.added).toBe(3)
     expect(parsed.removed).toBe(1)
-    expect(parsed.lines.at(-1)).toEqual({ text: '… 2437185 characters omitted …', kind: 'ctx' })
+    expect(parsed.lines.at(-1)).toEqual({ text: NOTE, kind: 'ctx' })
   })
 
-  it('shows the cut note in the patch and offers no Undo for a part of the change', () => {
-    const onUndo = vi.fn()
-    render(<Diff diff={CUT} onUndo={onUndo} />)
+  it('shows the totals of the whole diff, and the note in the patch', () => {
+    render(<Diff diff={CUT} />)
 
-    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+    expect(screen.getByText('Edited 90 files')).toBeTruthy()
+    expect(screen.getByText('+63000')).toBeTruthy()
+    expect(screen.getByText('−2')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Review' }))
 
-    expect(screen.getByText('… 2437185 characters omitted …')).toBeTruthy()
+    expect(screen.getByText(NOTE)).toBeTruthy()
     expect(screen.getByText('+second')).toBeTruthy()
   })
 
-  it('keeps Undo for a diff that was not cut', () => {
+  it('still offers Undo, which reverses the whole patch the server keeps', async () => {
+    const onUndo = vi.fn().mockResolvedValue(undefined)
+    render(<Diff diff={CUT} onUndo={onUndo} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(screen.getByRole('group', { name: 'Confirm undo' }).textContent).toContain(
+      'Undo these changes? 90 files are restored, and any new file is deleted.',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Undo changes' }))
+    await waitFor(() => expect(onUndo).toHaveBeenCalledTimes(1))
+  })
+
+  it('shows what the server refuses when it cannot undo a diff saved cut before', async () => {
+    const onUndo = vi
+      .fn()
+      .mockRejectedValue(new Error('This edit block was saved cut, so it cannot be undone.'))
+    render(<Diff diff={`${DIFF}\n… 2437185 characters omitted …`} onUndo={onUndo} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo changes' }))
+
+    expect((await screen.findByRole('alert')).textContent).toContain('saved cut')
+    // The diff has no totals in its note, so the card shows what it holds.
+    expect(screen.getByText('Edited 1 file')).toBeTruthy()
+  })
+
+  it('shows a diff under the limit exactly as it was', () => {
     render(<Diff diff={DIFF} onUndo={vi.fn()} />)
 
-    expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy()
+    expect(screen.getByText('Edited 1 file')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(screen.getByRole('group', { name: 'Confirm undo' }).textContent).toContain(
+      'Undo these changes? 1 file is restored.',
+    )
+  })
+})
+
+describe('the totals a cut diff carries', () => {
+  // The server counts the whole diff; the card counts what it is shown. They must agree.
+  const cases = {
+    'a git diff': DIFF,
+    'a diff with no file headers': '@@ -1,2 +1,2 @@\n-a\n+b\n c',
+    'a removed line that looks like a header': `${DIFF}\n--- reset the sequence\n+++ plus`,
+    'two files, one created': `${DIFF}\ndiff --git a/n.ts b/n.ts\nnew file mode 100644\n--- /dev/null\n+++ b/n.ts\n@@ -0,0 +1 @@\n+x`,
+    'no change line at all': 'diff --git a/a b/a\nindex 1..2 100644',
+    'plain lines': 'a\nb',
+  }
+
+  it.each(Object.entries(cases))('count %s as the card does', (_name, diff) => {
+    const parsed = parseDiff(diff)
+
+    expect(countDiff(diff)).toEqual({
+      files: parsed.files,
+      added: parsed.added,
+      removed: parsed.removed,
+    })
+  })
+
+  it('are read back from the note, with no totals from the older one', () => {
+    expect(readDiffCut(`+a\n${diffCutNote(7, { files: 2, added: 5, removed: 1 })}`)).toEqual({
+      omitted: 7,
+      totals: { files: 2, added: 5, removed: 1 },
+    })
+    expect(readDiffCut('+a\n… 7 characters omitted …')).toEqual({ omitted: 7 })
+    expect(readDiffCut(DIFF)).toBeUndefined()
   })
 })
