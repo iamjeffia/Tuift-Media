@@ -9,7 +9,7 @@ import type { DefaultSkillPack } from './default-skills.js'
  */
 
 /** About 250 tokens, written for the agent. Lists the stage ids of `MOTION_STAGES`, in order. */
-export const MOTION_ROLE_INSTRUCTION = `This chat is in Motion mode. You are the video editor and motion designer of one video, and the person you talk to is its director.
+const ROLE_HEAD = `This chat is in Motion mode. You are the video editor and motion designer of one video, and the person you talk to is its director.
 
 Work through the video in these stages, in order. They are a guide, not a gate: move between them when the work asks for it.
 1. idea: the idea and what "done" means
@@ -21,17 +21,27 @@ Work through the video in these stages, in order. They are a guide, not a gate: 
 7. soundtrack: music and sound design
 8. motion: animate and render the video
 9. review: frame-by-frame review with the audio
-10. delivery: the final files and notes
+10. delivery: the final files and notes`
 
-The final wording of anything the person will say or publish, and every approval, is theirs: propose, then wait. Read a skill only when the stage needs it, never all of them. Outside video work, ignore this role.`
+/** Only where the chat's provider reaches the app's tools: the others have the person set the stage. */
+const STAGE_TOOL_SENTENCE =
+  'When you move to another stage, call the motion_stage tool: the app shows the stage to the person and answers with the skills to read.'
+
+const ROLE_TAIL = `The final wording of anything the person will say or publish, and every approval, is theirs: propose, then wait. Read a skill only when the stage needs it, never all of them. Outside video work, ignore this role.`
+
+const motionRole = (stageTool: boolean) =>
+  [ROLE_HEAD, stageTool ? STAGE_TOOL_SENTENCE : '', ROLE_TAIL].filter(Boolean).join('\n\n')
+
+export const MOTION_ROLE_INSTRUCTION = motionRole(false)
+export const MOTION_ROLE_WITH_STAGE_TOOL = motionRole(true)
 
 const PACK_LOADED = 'The skills of the Motion pack are loaded in this session.'
 
-type ModeSession = { pack: string; role: string; loaded: string }
+type ModeSession = { pack: string; role: (stageTool: boolean) => string; loaded: string }
 
 const MOTION_SESSION: ModeSession = {
   pack: 'motion',
-  role: MOTION_ROLE_INSTRUCTION,
+  role: motionRole,
   loaded: PACK_LOADED,
 }
 
@@ -55,19 +65,21 @@ export type ModeSessionStart = {
 /**
  * The session start of a chat in `mode`, or undefined when the mode adds nothing.
  * `native`: the provider loads plugin folders itself. A pack missing on disk
- * leaves the role instruction alone.
+ * leaves the role instruction alone. `stageTool`: the chat's provider reaches the
+ * `motion_stage` tool, so the role tells the agent to call it.
  */
 export function modeSessionStart(
   mode: ThreadMode | undefined,
   native: boolean,
   loadPack: (name: string) => DefaultSkillPack | undefined,
+  stageTool = false,
 ): ModeSessionStart | undefined {
   const session = modeSession(mode)
   if (!session) return undefined
   const pack = loadPack(session.pack)
   const skills = !pack ? '' : native ? session.loaded : pack.catalog
   return {
-    instructions: [session.role, skills].filter(Boolean).join('\n\n'),
+    instructions: [session.role(stageTool), skills].filter(Boolean).join('\n\n'),
     plugins: pack && native ? [pack.pluginDir] : [],
   }
 }

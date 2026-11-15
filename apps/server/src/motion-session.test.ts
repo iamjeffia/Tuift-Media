@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { MOTION_STAGES, ProviderIdSchema } from '@harness/contracts'
 import type { DefaultSkillPack } from './default-skills.js'
-import { MOTION_ROLE_INSTRUCTION, modeChangeRestart, modeSessionStart } from './motion-session.js'
+import {
+  MOTION_ROLE_INSTRUCTION,
+  MOTION_ROLE_WITH_STAGE_TOOL,
+  modeChangeRestart,
+  modeSessionStart,
+} from './motion-session.js'
 import { PROVIDER_CAPABILITIES } from './provider-capabilities.js'
 
 const pack: DefaultSkillPack = {
@@ -26,6 +31,32 @@ describe('the Motion role instruction', () => {
     // About 250 tokens at four characters each.
     expect(MOTION_ROLE_INSTRUCTION.length).toBeLessThan(1400)
     expect(MOTION_ROLE_INSTRUCTION).not.toContain('—')
+  })
+})
+
+describe('the Motion role instruction with the stage tool', () => {
+  it('adds one sentence, before the closing lines, and stays within the same size class', () => {
+    const [list, sentence, tail] = MOTION_ROLE_WITH_STAGE_TOOL.split(
+      String.fromCharCode(10, 10),
+    ).slice(-3)
+    expect(list).toMatch(/10\. delivery: the final files and notes$/)
+    expect(sentence).toMatch(/^When you move to another stage, call the motion_stage tool/)
+    expect(tail).toMatch(/^The final wording/)
+    expect(MOTION_ROLE_WITH_STAGE_TOOL.length - MOTION_ROLE_INSTRUCTION.length).toBeLessThan(200)
+    expect(MOTION_ROLE_WITH_STAGE_TOOL.length).toBeLessThan(1600)
+    expect(MOTION_ROLE_WITH_STAGE_TOOL).not.toContain('—')
+  })
+
+  it('is in the session start only when the provider reaches the tool', () => {
+    expect(modeSessionStart('motion', true, () => undefined, true)?.instructions).toBe(
+      MOTION_ROLE_WITH_STAGE_TOOL,
+    )
+    expect(modeSessionStart('motion', true, () => undefined, false)?.instructions).toBe(
+      MOTION_ROLE_INSTRUCTION,
+    )
+    expect(modeSessionStart('motion', true, () => undefined)?.instructions).toBe(
+      MOTION_ROLE_INSTRUCTION,
+    )
   })
 })
 

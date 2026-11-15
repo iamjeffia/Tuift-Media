@@ -3,6 +3,12 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { z } from 'zod'
 import type { BrowserAnswer, BrowserRequest } from './browser-commands.js'
 import { BrowserCommandError } from './browser-commands.js'
+import {
+  MOTION_STAGE_TOOL,
+  MotionStageError,
+  runMotionStage,
+  type MotionStageBroker,
+} from './motion-stage.js'
 import { SUBAGENT_LIMITS } from './subagent-limits.js'
 
 /**
@@ -262,7 +268,10 @@ type JsonRpcResponse =
   | { jsonrpc: '2.0'; id: string | number | null; error: { code: number; message: string } }
 
 /** The chat a token names; undefined until that chat exists. */
-type GrantEntry = { threadId: string | undefined }
+type GrantEntry = { threadId: string | undefined; startsInMotion: boolean }
+
+/** A caller whose chat does not exist yet. It is told the mode its chat will start in. */
+type StartingCaller = { threadId: undefined; startsInMotion: boolean }
 
 /** A `tools/call` result: text (and a screenshot), flagged when it is an error to read. */
 type ToolResult = {
@@ -289,11 +298,16 @@ export class AgentToolsEndpoint {
   #waits = new Set<AbortController>()
 
   #browser: BrowserToolsBroker | undefined
+  #motion: MotionStageBroker | undefined
 
-  /** Without a browser broker the browser tools are not offered at all. */
-  constructor(broker: AgentToolsBroker, browser?: BrowserToolsBroker) {
+  /**
+   * Without a browser broker the browser tools are not offered at all, and without
+   * a motion broker neither is `motion_stage`, which only Motion chats see.
+   */
+  constructor(broker: AgentToolsBroker, browser?: BrowserToolsBroker, motion?: MotionStageBroker) {
     this.#broker = broker
     this.#browser = browser
+    this.#motion = motion
   }
 
   /** The endpoint's URL, listening on first use. */
@@ -306,9 +320,10 @@ export class AgentToolsEndpoint {
     return this.#listening
   }
 
-  grant(): AgentToolsGrant {
+  /** `startsInMotion`: the chat this token is for starts in Motion mode, before it exists to ask. */
+  grant({ startsInMotion = false }: { startsInMotion?: boolean } = {}): AgentToolsGrant {
     const token = randomBytes(32).toString('base64url')
-    const entry: GrantEntry = { threadId: undefined }
+    const entry: GrantEntry = { threadId: undefined, startsInMotion }
     this.#grants.set(token, entry)
     return {
       authorization: `Bearer ${token}`,
@@ -420,21 +435,23 @@ export class AgentToolsEndpoint {
     }
   }
 
-  #caller(header: string | undefined): AgentToolsCaller | 'unbound' | undefined {
+  #caller(header: string | undefined): AgentToolsCaller | StartingCaller | undefined {
     const token = /^Bearer ([A-Za-z0-9_-]{16,128})$/.exec(header ?? '')?.[1]
     if (!token) return undefined
     for (const [known, entry] of this.#grants) {
       const a = Buffer.from(known)
       const b = Buffer.from(token)
       if (a.length === b.length && timingSafeEqual(a, b)) {
-        return entry.threadId === undefined ? 'unbound' : { threadId: entry.threadId }
+        return entry.threadId === undefined
+          ? { threadId: undefined, startsInMotion: entry.startsInMotion }
+          : { threadId: entry.threadId }
       }
     }
     return undefined
   }
 
   async #handle(
-    caller: AgentToolsCaller | 'unbound',
+    caller: AgentToolsCaller | StartingCaller,
     message: unknown,
     signal: AbortSignal,
   ): Promise<JsonRpcResponse | undefined> {
@@ -462,7 +479,7 @@ export class AgentToolsEndpoint {
       case 'ping':
         return ok({})
       case 'tools/list':
-        return ok({ tools: this.#browser ? [...TOOLS, ...BROWSER_TOOLS] : TOOLS })
+        return ok({ tools: this.#tools(caller) })
       case 'tools/call':
         return ok(await this.#call(caller, request, signal))
       default:
@@ -470,21 +487,37 @@ export class AgentToolsEndpoint {
     }
   }
 
+  /** What this caller is offered; `motion_stage` only when its chat is in Motion mode. */
+  #tools(caller: AgentToolsCaller | StartingCaller) {
+    const tools: readonly object[] = this.#browser ? [...TOOLS, ...BROWSER_TOOLS] : TOOLS
+    const motion = this.#motion
+    if (!motion) return tools
+    const inMotion =
+      caller.threadId === undefined
+        ? caller.startsInMotion
+        : motion.mode(caller.threadId) === 'motion'
+    return inMotion ? [...tools, MOTION_STAGE_TOOL] : tools
+  }
+
   async #call(
-    caller: AgentToolsCaller | 'unbound',
+    caller: AgentToolsCaller | StartingCaller,
     request: Request,
     signal: AbortSignal,
   ): Promise<ToolResult> {
     const name = request.params?.['name']
     const input = request.params?.['arguments'] ?? {}
+    if (name === MOTION_STAGE_TOOL.name && this.#motion)
+      return this.#setStage(this.#motion, caller, input)
     const browserTool = this.#browser && BROWSER_TOOLS.find((entry) => entry.name === name)
     if (browserTool && this.#browser) {
-      if (caller === 'unbound') return toolError('This chat is still starting. Try again shortly.')
+      if (caller.threadId === undefined)
+        return toolError('This chat is still starting. Try again shortly.')
       return this.#browse(this.#browser, browserTool.name, caller, input, signal)
     }
     const tool = TOOLS.find((entry) => entry.name === name)
     if (!tool) return toolError(`Unknown tool: ${String(name)}`)
-    if (caller === 'unbound') return toolError('This chat is still starting. Try again shortly.')
+    if (caller.threadId === undefined)
+      return toolError('This chat is still starting. Try again shortly.')
     try {
       const result = await this.#run(tool.name, caller, input, signal)
       return { content: [{ type: 'text', text: JSON.stringify(result) }] }
@@ -509,6 +542,24 @@ export class AgentToolsEndpoint {
         return this.#broker.wait(caller, WaitForAgentsArgsSchema.parse(input), signal)
       case 'stop_agent':
         return this.#broker.stop(caller, StopAgentArgsSchema.parse(input))
+    }
+  }
+
+  #setStage(motion: MotionStageBroker, caller: AgentToolsCaller | StartingCaller, input: unknown) {
+    // The token names the chat; no argument can name another.
+    if (caller.threadId === undefined)
+      return toolError('This chat is still starting. Try again shortly.')
+    if (motion.mode(caller.threadId) !== 'motion') {
+      return toolError(
+        'motion_stage is only available in Motion chats, and this chat is not in Motion mode.',
+      )
+    }
+    try {
+      const answer = runMotionStage(motion, caller.threadId, input)
+      return { content: [{ type: 'text', text: JSON.stringify(answer) }] } satisfies ToolResult
+    } catch (error) {
+      if (error instanceof MotionStageError) return toolError(error.message)
+      return toolError('The tool failed. Try again, or continue without it.')
     }
   }
 

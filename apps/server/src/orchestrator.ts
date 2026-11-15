@@ -99,6 +99,7 @@ import {
   type DefaultSkills,
 } from './default-skills.js'
 import { modeChangeRestart, modeSessionStart } from './motion-session.js'
+import { motionStageBroker } from './motion-stage.js'
 import type { ProviderAccountSnapshotKind, Store, StoredCheckpoint } from './store.js'
 import {
   carryUncommittedChanges,
@@ -1013,6 +1014,8 @@ export class Orchestrator {
       agentTools?: boolean
       /** Runs agent browser commands; without it the browser tools are not offered. */
       browserTools?: BrowserToolsBroker
+      /** A chat's settings changed from inside the server (an agent set its Motion stage): tell the clients. */
+      onThreadSettings?: (threadId: string) => void
       onQueue?: (threadId: string, state: QueueState) => void
       onLog: (line: string) => void
       /** `accountId` is absent for the default account. */
@@ -1128,7 +1131,15 @@ export class Orchestrator {
       interruptParent: (parentThreadId) => this.interrupt(parentThreadId),
     })
     this.#agentTools = handlers.agentTools
-      ? new AgentToolsEndpoint(this.#subagents, handlers.browserTools)
+      ? new AgentToolsEndpoint(
+          this.#subagents,
+          handlers.browserTools,
+          motionStageBroker(
+            store,
+            (threadId) => handlers.onThreadSettings?.(threadId),
+            () => this.#bundledPack('motion'),
+          ),
+        )
       : undefined
     this.#onQueue = handlers.onQueue ?? (() => {})
     this.#onLog = handlers.onLog
@@ -1849,7 +1860,12 @@ export class Orchestrator {
     const native = this.#controls.forProvider(provider).capabilities.defaultSkillsPlugin
     const catalog = bundled && !native ? bundled.catalog : ''
     const modeStart = skills
-      ? modeSessionStart(mode, native, (name) => this.#bundledPack(name))
+      ? modeSessionStart(
+          mode,
+          native,
+          (name) => this.#bundledPack(name),
+          this.#offersAgentTools(provider),
+        )
       : undefined
     return {
       instructions: composeInstructions(
@@ -2099,12 +2115,14 @@ export class Orchestrator {
   /**
    * Adds TUIFT Code's agent tools as the reserved `tastecode` server for a chat
    * whose provider takes them. Its token names the chat once `threadId` is
-   * known; a new chat's caller binds it after the chat exists.
+   * known; a new chat's caller binds it after the chat exists. `startsInMotion`
+   * lets that chat see `motion_stage` before it exists to be asked.
    */
   async #agentToolsOptions(
     provider: ProviderId,
     threadId: string | undefined,
     mcp: StartOptions,
+    startsInMotion = false,
   ): Promise<{ options: StartOptions; grant?: AgentToolsGrant }> {
     const endpoint = this.#agentTools
     if (!endpoint || !PROVIDER_CAPABILITIES[provider].agentTools) return { options: mcp }
@@ -2115,7 +2133,8 @@ export class Orchestrator {
       this.#onLog(`[agent-tools] not offered: ${errorMessage(error)}`)
       return { options: mcp }
     }
-    const grant = (threadId && this.#agentToolGrants.get(threadId)) || endpoint.grant()
+    const grant =
+      (threadId && this.#agentToolGrants.get(threadId)) || endpoint.grant({ startsInMotion })
     if (threadId) {
       grant.bind(threadId)
       this.#agentToolGrants.set(threadId, grant)
@@ -2703,7 +2722,7 @@ export class Orchestrator {
     const mcp = this.#mcpRuntimeOptions(provider, workspacePath)
     // Awaited only when offered, so other starts keep their timing.
     const agentTools = this.#offersAgentTools(provider)
-      ? await this.#agentToolsOptions(provider, undefined, mcp)
+      ? await this.#agentToolsOptions(provider, undefined, mcp, options.mode === 'motion')
       : { options: mcp, grant: undefined }
     try {
       const thread = await this.#launchThread(

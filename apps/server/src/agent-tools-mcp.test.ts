@@ -8,6 +8,7 @@ import {
   type BrowserToolsBroker,
 } from './agent-tools-mcp.js'
 import { BrowserCommandCoordinator, BrowserCommandError } from './browser-commands.js'
+import type { MotionStageBroker } from './motion-stage.js'
 
 function fakeBroker(overrides: Partial<AgentToolsBroker> = {}): AgentToolsBroker {
   return {
@@ -378,5 +379,101 @@ describe('agent browser tools', () => {
       content: [{ type: 'text', text: 'That is a password field.' }],
       isError: true,
     })
+  })
+})
+
+describe('motion_stage on the endpoint', () => {
+  const modes = new Map<string, 'motion' | 'design' | undefined>()
+  const stages = new Map<string, string>()
+  const motion: MotionStageBroker = {
+    mode: (threadId) => modes.get(threadId),
+    stage: (threadId) => stages.get(threadId) as never,
+    setStage: vi.fn((threadId: string, stage: string) => void stages.set(threadId, stage)),
+    pack: () => undefined,
+  }
+  const listed = async (inMode: 'motion' | 'design' | undefined, browser?: BrowserToolsBroker) => {
+    modes.set('claude-code-parent', inMode)
+    const endpoint = new AgentToolsEndpoint(fakeBroker(), browser, motion)
+    endpoints.push(endpoint)
+    const url = await endpoint.url()
+    const grant = endpoint.grant()
+    grant.bind('claude-code-parent')
+    const rpc = async (method: string, params?: unknown) =>
+      JSON.parse(
+        (
+          await post(url, JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), {
+            authorization: grant.authorization,
+          })
+        ).body,
+      )
+    return { rpc }
+  }
+  const names = (json: { result: { tools: Array<{ name: string }> } }) =>
+    json.result.tools.map((tool) => tool.name)
+
+  it('lists the tool only to a chat in Motion mode, and leaves every other list as it was', async () => {
+    const today = names(await (await open()).rpc('tools/list').then((r) => r.json))
+    expect(names(await (await listed(undefined)).rpc('tools/list'))).toEqual(today)
+    expect(names(await (await listed('design')).rpc('tools/list'))).toEqual(today)
+    expect(names(await (await listed('motion')).rpc('tools/list'))).toEqual([
+      ...today,
+      'motion_stage',
+    ])
+    // With the browser tools too: still one more, and only for Motion.
+    const withBrowser = names(
+      await (await open(fakeBroker(), { run: vi.fn() })).rpc('tools/list').then((r) => r.json),
+    )
+    expect(names(await (await listed(undefined, { run: vi.fn() })).rpc('tools/list'))).toEqual(
+      withBrowser,
+    )
+  })
+
+  it('does not offer or answer the tool without a motion broker behind it', async () => {
+    const { rpc } = await open()
+    const called = await rpc('tools/call', { name: 'motion_stage', arguments: {} })
+    expect(called.json.result).toMatchObject({ isError: true })
+    expect(called.json.result.content[0].text).toMatch(/Unknown tool/)
+  })
+
+  it('answers a chat that is not in Motion mode with a readable error, and stores nothing', async () => {
+    const { rpc } = await listed(undefined)
+    const called = await rpc('tools/call', { name: 'motion_stage', arguments: { stage: 'review' } })
+    expect(called.result.isError).toBe(true)
+    expect(called.result.content[0].text).toMatch(/only available in Motion chats/)
+    expect(motion.setStage).not.toHaveBeenCalledWith('claude-code-parent', 'review')
+  })
+
+  it('sets the stage of the calling chat from the token alone', async () => {
+    const { rpc } = await listed('motion')
+    const called = await rpc('tools/call', {
+      name: 'motion_stage',
+      arguments: { stage: 'review' },
+    })
+    expect(JSON.parse(called.result.content[0].text)).toMatchObject({
+      stage: 'review',
+      owner: 'penny',
+      next: 'delivery',
+    })
+    expect(motion.setStage).toHaveBeenCalledWith('claude-code-parent', 'review')
+  })
+
+  it('offers the tool to a chat that starts in Motion before it exists, and refuses calls until then', async () => {
+    const endpoint = new AgentToolsEndpoint(fakeBroker(), undefined, motion)
+    endpoints.push(endpoint)
+    const url = await endpoint.url()
+    const call = async (grant: { authorization: string }, method: string, params?: unknown) =>
+      JSON.parse(
+        (
+          await post(url, JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), {
+            authorization: grant.authorization,
+          })
+        ).body,
+      )
+    const motionGrant = endpoint.grant({ startsInMotion: true })
+    const plainGrant = endpoint.grant()
+    expect(names(await call(motionGrant, 'tools/list'))).toContain('motion_stage')
+    expect(names(await call(plainGrant, 'tools/list'))).not.toContain('motion_stage')
+    const early = await call(motionGrant, 'tools/call', { name: 'motion_stage', arguments: {} })
+    expect(early.result.content[0].text).toMatch(/still starting/)
   })
 })
