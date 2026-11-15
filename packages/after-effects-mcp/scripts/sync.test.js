@@ -96,19 +96,34 @@ async function workspace(t) {
 
 const noNetwork = () => assert.fail('the stand-in file must replace the download')
 
-test('the committed manifest is sound and not pinned yet', async () => {
+/** The manifest as it is before a release is pinned; the committed one may be either. */
+const UNPINNED = {
+  name: 'after-effects-mcp',
+  repository: 'iamjeffia/ae-mcp-tuift',
+  license: 'MIT',
+  pinned: false,
+  version: null,
+  tag: null,
+  commit: null,
+  asset: 'after-effects-mcp-<version>.tgz',
+  url: null,
+  sha256: null,
+  bytes: null,
+}
+
+test('the committed manifest is sound, pinned to a whole release or not pinned at all', async () => {
   const manifest = await readManifest()
   assert.deepEqual(manifestProblems(manifest), [])
-  assert.equal(manifest.pinned, false)
   assert.equal(manifest.repository, 'iamjeffia/ae-mcp-tuift')
   assert.equal(manifest.license, 'MIT')
   for (const field of ['version', 'tag', 'commit', 'url', 'sha256', 'bytes'])
-    assert.equal(manifest[field], null)
+    assert.equal(manifest[field] === null, !manifest.pinned, field)
+  assert.deepEqual(manifestProblems(UNPINNED), [])
 })
 
 test('unpinned: sync does nothing and says so, --verify passes', async (t) => {
   const w = await workspace(t)
-  const manifest = await readManifest()
+  const manifest = UNPINNED
   await syncBundle(manifest, w.options({ fetchImpl: noNetwork }))
   assert.match(w.log.join('\n'), /not pinned yet; nothing to fetch/)
   await assert.rejects(stat(w.root))
@@ -119,7 +134,7 @@ test('unpinned: a bundle left from an earlier pin is removed, and --verify flags
   const w = await workspace(t)
   const { gz, env } = await w.tarball(GOOD)
   await syncBundle(pinFor(gz), w.options({ env }))
-  const unpinned = await readManifest()
+  const unpinned = UNPINNED
   assert.match((await verifyBundle(unpinned, w.root)).join(), /not pinned/)
   await syncBundle(unpinned, w.options())
   await assert.rejects(stat(w.root))
@@ -127,7 +142,7 @@ test('unpinned: a bundle left from an earlier pin is removed, and --verify flags
 
 test('a half-filled manifest is refused', async (t) => {
   const w = await workspace(t)
-  const manifest = { ...(await readManifest()), sha256: 'a'.repeat(64) }
+  const manifest = { ...UNPINNED, sha256: 'a'.repeat(64) }
   assert.match(manifestProblems(manifest).join(), /sha256 is set while pinned is false/)
   await assert.rejects(syncBundle(manifest, w.options()), /sha256 is set/)
   const pinned = pinFor(gzipSync(tar(GOOD)))
