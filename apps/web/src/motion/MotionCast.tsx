@@ -7,8 +7,8 @@ import './motion-cast.css'
 export type MotionCastProps = {
   /** The Motion toggle of this chat. */
   mode: boolean
-  /** The current stage of the video project. Phase 1 is always the first one. */
-  stage?: MotionStageId
+  /** The stage the chat's server settings name; absent means the first one. */
+  stage?: MotionStageId | undefined
   /** A turn is running: only the highlighted character breathes. */
   running?: boolean
 }

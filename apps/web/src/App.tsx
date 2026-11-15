@@ -66,6 +66,7 @@ import { useChatNotifications } from './use-chat-notifications.js'
 import { useAppUpdateInstallGate } from './app-update-install.js'
 import { ProviderUpdateNotice } from './ui/ProviderUpdates.js'
 import { LazyMotionCast } from './motion/LazyMotionCast.js'
+import { useThreadMotion, type LegacyMotionFlag } from './motion/thread-motion.js'
 import { AppUpdateToast } from './ui/AppUpdateToast.js'
 import { NoticeBody } from './ui/Notice.js'
 import { IndeterminateRequestError, Transport, type MissingServer } from './transport.js'
@@ -1310,33 +1311,24 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     if (threadId && saved) writeThreadModelSelection(threadId, { ...saved, designMode: enabled })
     setDesignModes((current) => ({ ...current, [threadId ?? NEW_CHAT_DRAFT_KEY]: enabled }))
   }, [])
-  // Motion is a visual toggle that follows the chat like Design does, but its
-  // behaviour is not defined yet: nothing here reaches the prompt, the provider
-  // or the server. The owner will decide what turning it on triggers.
-  const [motionModes, setMotionModes] = useState<Record<string, boolean>>({})
-  const motionMode = useMemo(
-    () =>
-      motionModes[activeId ?? NEW_CHAT_DRAFT_KEY] ??
-      readThreadModelSelection(activeId)?.motionMode ??
-      false,
-    [activeId, motionModes],
-  )
-  const setThreadMotionMode = useCallback((threadId: string | undefined, enabled: boolean) => {
-    const saved = readThreadModelSelection(threadId)
-    // Off is the absence of the key, so a chat that never used Motion stores nothing for it.
-    if (threadId && saved) {
-      const { motionMode: _previous, ...rest } = saved
-      writeThreadModelSelection(threadId, enabled ? { ...rest, motionMode: true } : rest)
-    }
-    setMotionModes((current) => ({ ...current, [threadId ?? NEW_CHAT_DRAFT_KEY]: enabled }))
-  }, [])
+  // Motion lives on the server for a chat that exists; only a new chat's draft is local.
+  const { motionMode, motionStage, motionLocked, setThreadMotionMode, adoptMotion, seedMotion } =
+    useThreadMotion({
+      transport,
+      activeId,
+      running: thread.running,
+      legacy: legacyMotionFlag,
+      onError: reportError,
+    })
   // Design and Motion exclude each other: turning one on turns the other off.
   const changeDesignMode = useCallback(
     (enabled: boolean) => {
+      // Motion cannot turn off while its chat runs, so Design cannot turn on over it.
+      if (enabled && motionMode && motionLocked) return
       setThreadDesignMode(activeIdRef.current, enabled)
       if (enabled) setThreadMotionMode(activeIdRef.current, false)
     },
-    [setThreadDesignMode, setThreadMotionMode],
+    [setThreadDesignMode, setThreadMotionMode, motionMode, motionLocked],
   )
   const changeMotionMode = useCallback(
     (enabled: boolean) => {
@@ -4071,7 +4063,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     const selection = {
       modelKey: selectedModelChoice.key,
       designMode,
-      ...(motionMode ? { motionMode } : {}),
+      ...(legacyMotionFlag.has(activeId) ? { motionMode: true } : {}),
       ...(selectedEffort ? { effort: selectedEffort } : {}),
       ...(selectedServiceTier ? { serviceTier: selectedServiceTier } : {}),
     }
@@ -4092,7 +4084,6 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     selectedEffort,
     selectedServiceTier,
     designMode,
-    motionMode,
     transport,
   ])
 
@@ -4234,6 +4225,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   // on opening the chat. Mirrored here, and applied at once to the open chat.
   const adoptThreadSettingsRef = useRef((_threadId: string, _settings: ThreadSettings) => {})
   adoptThreadSettingsRef.current = (threadId, settings) => {
+    adoptMotion(threadId, settings)
     const open = threadId === activeIdRef.current
     if (settings.approval) {
       threadApprovals.current.set(threadId, settings.approval)
@@ -4570,7 +4562,9 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
             : {}),
           ...(selectedEffort ? { effort: selectedEffort } : {}),
           ...(isolate ? { isolate: true } : {}),
+          ...(motionMode ? { mode: 'motion' as const } : {}),
         })
+        if (motionMode) seedMotion(threadId)
         let pendingApproval = pendingThreadApprovals.current.get(provisionalId)
         while (pendingApproval && pendingApproval !== sessionApproval && !projectRemoved()) {
           try {
@@ -4722,6 +4716,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       generateSessionTitle,
       releaseWorkspaceStart,
       refreshWorkspaceAfterCompletion,
+      motionMode,
+      seedMotion,
     ],
   )
 
@@ -4924,12 +4920,12 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         writeThreadModelSelection(provisionalId, {
           modelKey: choice.key,
           designMode,
-          ...(motionMode ? { motionMode } : {}),
           ...(selectedEffort ? { effort: selectedEffort } : {}),
           ...(selectedServiceTier ? { serviceTier: selectedServiceTier } : {}),
         })
-        // The chat keeps Design; the next new chat starts without it.
+        // The chat keeps Design and Motion; the next new chat starts without them.
         setThreadDesignMode(undefined, false)
+        if (motionMode) seedMotion(provisionalId)
         setThreadMotionMode(undefined, false)
         workspaceStartId = provisionalId
         workspaceStartToken = holdWorkspaceStart(provisionalId, activePath)
@@ -5312,6 +5308,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       setThreadDesignMode,
       motionMode,
       setThreadMotionMode,
+      seedMotion,
       holdWorkspaceStart,
       releaseWorkspaceStart,
       refreshWorkspaceAfterCompletion,
@@ -7880,6 +7877,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     ...(newChatUnbranched ? { isolateUnavailable: t('chat.composer.isolatedNeedsGit') } : {}),
     designMode: designMode,
     motionMode: motionMode,
+    motionLocked: motionLocked,
     ...(askFirstUnsupported
       ? {
           askFirstUnavailable: `${providerName(provider, sourceAgentName)} can't ask before running commands`,
@@ -8081,7 +8079,11 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                             <div
                               className={`stage__conversation${activeId ? '' : ' is-new-session'}`}
                             >
-                              <LazyMotionCast mode={motionMode} running={visibleRunning} />
+                              <LazyMotionCast
+                                mode={motionMode}
+                                stage={motionStage}
+                                running={visibleRunning}
+                              />
                               {activeId ? (
                                 <AccountLabelContext.Provider value={accountLabel}>
                                   <ModelNameContext.Provider value={modelName}>
@@ -8899,6 +8901,20 @@ type SourceSelection = {
   modelKey: string
   effort?: string
   serviceTier?: string
+}
+
+/**
+ * The Motion flag older versions kept in each chat's local selection. A chat
+ * the server has no mode for hands it over once (see motion/thread-motion.ts).
+ */
+const legacyMotionFlag: LegacyMotionFlag = {
+  has: (threadId) => readThreadModelSelection(threadId)?.motionMode === true,
+  clear: (threadId) => {
+    const saved = readThreadModelSelection(threadId)
+    if (!saved || saved.motionMode === undefined) return
+    const { motionMode: _handedOver, ...rest } = saved
+    writeThreadModelSelection(threadId, rest)
+  },
 }
 
 type ThreadSelection = SourceSelection & { designMode?: boolean; motionMode?: boolean }

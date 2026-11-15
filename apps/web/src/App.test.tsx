@@ -7990,7 +7990,7 @@ describe('new chats', () => {
     )
   })
 
-  it('keeps Design and Motion exclusive and sends nothing extra for Motion', async () => {
+  it('keeps Design and Motion exclusive and starts a Motion draft as a Motion chat', async () => {
     serverProjects = [
       { path: '/work/project', name: 'project', pinned: false, createdAt: 0, sessions: [] },
     ]
@@ -8010,10 +8010,8 @@ describe('new chats', () => {
     await waitFor(() =>
       expect(transport.request).toHaveBeenCalledWith('thread.start', expect.anything()),
     )
-    const sent = JSON.stringify(
-      transport.request.mock.calls.filter(([method]) => method !== 'providers.list'),
-    )
-    expect(sent).not.toMatch(/motion/i)
+    const start = transport.request.mock.calls.find(([method]) => method === 'thread.start')
+    expect(start?.[1]).toMatchObject({ mode: 'motion' })
     expect(pressed('Motion')).toBe('true')
 
     fireEvent.click(screen.getByRole('button', { name: 'New chat' }))
@@ -11535,6 +11533,69 @@ describe('new chats', () => {
         effort: 'high',
       }),
     )
+  })
+
+  it('shows the Motion mode a chat has on the server, follows a push and changes it there', async () => {
+    const request = transport.request.getMockImplementation()!
+    transport.request.mockImplementation((method, params) => {
+      if (method === 'thread.settings') return Promise.resolve({ mode: 'motion' })
+      if (method === 'thread.setMode')
+        return Promise.resolve({ mode: (params as { mode: string | null }).mode ?? undefined })
+      return request(method, params)
+    })
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: /^New session,/ }))
+    const motion = () => screen.getByRole('button', { name: 'Motion' })
+    await waitFor(() => expect(motion().getAttribute('aria-pressed')).toBe('true'))
+    // Nothing is kept in this window: the server is the only place the mode lives.
+    expect(localStorage.getItem('harness.modelByThread:untouched-thread') ?? '').not.toMatch(
+      /motion/i,
+    )
+
+    // The phone turns it off.
+    act(() =>
+      transport.listeners.get('thread.settings')?.({ threadId: 'untouched-thread', settings: {} }),
+    )
+    await waitFor(() => expect(motion().getAttribute('aria-pressed')).toBe('false'))
+
+    fireEvent.click(motion())
+    await waitFor(() =>
+      expect(transport.request).toHaveBeenCalledWith('thread.setMode', {
+        threadId: 'untouched-thread',
+        mode: 'motion',
+      }),
+    )
+    await waitFor(() => expect(motion().getAttribute('aria-pressed')).toBe('true'))
+  })
+
+  it('hands a chat the old local Motion flag to the server once, the first time it opens', async () => {
+    localStorage.setItem(
+      'harness.modelByThread:untouched-thread',
+      JSON.stringify({ modelKey: 'codex:gpt-6.1-sol', motionMode: true }),
+    )
+    const request = transport.request.getMockImplementation()!
+    transport.request.mockImplementation((method, params) => {
+      if (method === 'thread.settings') return Promise.resolve({ model: 'gpt-6.1-sol' })
+      if (method === 'thread.setMode') return Promise.resolve({ mode: 'motion' })
+      return request(method, params)
+    })
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: /^New session,/ }))
+    await waitFor(() =>
+      expect(transport.request).toHaveBeenCalledWith('thread.setMode', {
+        threadId: 'untouched-thread',
+        mode: 'motion',
+      }),
+    )
+    await waitFor(() =>
+      expect(localStorage.getItem('harness.modelByThread:untouched-thread')).not.toMatch(
+        /motionMode/,
+      ),
+    )
+    expect(screen.getByRole('button', { name: 'Motion' }).getAttribute('aria-pressed')).toBe('true')
+    expect(
+      transport.request.mock.calls.filter(([method]) => method === 'thread.setMode'),
+    ).toHaveLength(1)
   })
 
   it('opens a chat saved on a model Codex no longer ships and continues on the default', async () => {

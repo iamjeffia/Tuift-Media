@@ -223,6 +223,7 @@ export const chatPt = {
   // The Motion team above the chat (names are proper names and stay as written)
   'chat.motion.group': 'Time do Motion',
   'chat.motion.announce': 'Modo Motion ativado. Etapa atual: {stage}, com {name}.',
+  'chat.motion.locked': 'O Motion muda quando a resposta terminar',
   'chat.motion.member': '{name}, {role}',
   'chat.motion.memberCurrent': '{name}, {role}. Etapa atual: {stage}',
   'chat.motion.role.zig': 'Lidera',

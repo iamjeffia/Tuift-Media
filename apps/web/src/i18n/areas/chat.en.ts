@@ -209,6 +209,7 @@ export const chatEn = {
   // The Motion team above the chat (names are proper names and stay as written)
   'chat.motion.group': 'Motion team',
   'chat.motion.announce': 'Motion mode on. Current stage: {stage}, with {name}.',
+  'chat.motion.locked': 'Motion can change when the reply ends',
   'chat.motion.member': '{name}, {role}',
   'chat.motion.memberCurrent': '{name}, {role}. Current stage: {stage}',
   'chat.motion.role.zig': 'Leads',
