@@ -1,6 +1,11 @@
 import { mkdir, readFile, readdir, realpath, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import {
+  manifestProblems as afterEffectsManifestProblems,
+  readManifest as readAfterEffectsManifest,
+  verifyBundle as verifyAfterEffectsBundle,
+} from '../../packages/after-effects-mcp/scripts/sync.js'
 
 const DIRECT_TABLE_START = '<!-- BEGIN DIRECT RUNTIME DEPENDENCIES -->'
 const DIRECT_TABLE_END = '<!-- END DIRECT RUNTIME DEPENDENCIES -->'
@@ -237,6 +242,29 @@ export async function verifyProjectLicense(repositoryRoot) {
   }
 }
 
+/**
+ * The After Effects MCP server is not an installed package: it ships as the files of a
+ * pinned release (packages/after-effects-mcp), with its own LICENSE, NOTICE.md and
+ * THIRD_PARTY_LICENSES.txt for its bundled dependencies. A bundle on disk must be the
+ * pinned release with all three; a missing bundle is not judged here, because the build
+ * syncs it before packaging and the packaged installer is checked in verify-release-assets.
+ */
+export async function verifyAfterEffectsServer(repositoryRoot) {
+  const folder = path.join(repositoryRoot, 'packages', 'after-effects-mcp')
+  let manifest
+  try {
+    manifest = await readAfterEffectsManifest(path.join(folder, 'server.json'))
+  } catch (error) {
+    if (error?.code === 'ENOENT') return
+    throw error
+  }
+  const problems = afterEffectsManifestProblems(manifest)
+  const bundle = path.join(folder, 'bundle')
+  if (!problems.length && (await readdir(bundle).catch(() => undefined)))
+    problems.push(...(await verifyAfterEffectsBundle(manifest, bundle)))
+  if (problems.length) throw new Error(`After Effects MCP server: ${problems.join('; ')}`)
+}
+
 async function installedPackage(repositoryRoot, fromDirectory, packageName) {
   let cursor = await realpath(fromDirectory)
   const root = await realpath(repositoryRoot)
@@ -458,6 +486,7 @@ export async function verifyReleaseLicenses(repositoryRoot, options = {}) {
   validateInventory(inventory, derived)
   await verifyDirectRuntimeTable(repositoryRoot, inventory)
   if (options.verifyProjectLicense !== false) await verifyProjectLicense(repositoryRoot)
+  await verifyAfterEffectsServer(repositoryRoot)
   const { report, licenseBundle } = await auditInstalledProductionGraph(
     repositoryRoot,
     inventory,

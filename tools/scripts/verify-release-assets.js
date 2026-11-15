@@ -1,9 +1,16 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
-import { lstat, mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import {
+  RECEIPT_FILE as AE_RECEIPT_FILE,
+  isPinned as isAfterEffectsPinned,
+  readManifest as readAfterEffectsMcp,
+  treeProblems as afterEffectsTreeProblems,
+  verifyBundle as verifyAfterEffectsBundle,
+} from '../../packages/after-effects-mcp/scripts/sync.js'
 import {
   readManifest as readDefaultSkills,
   syncBundle as syncDefaultSkills,
@@ -180,6 +187,42 @@ export async function verifyPackagedResources(
   const problems = await verifyDefaultSkills(skills, path.join(resources, 'default-skills'))
   if (problems.length)
     throw new Error(`Packaged default skills do not match their pins: ${problems.join('; ')}`)
+  await verifyPackagedAfterEffectsServer(sourceRoot, resources)
+}
+
+/**
+ * The After Effects MCP server ships outside the ASAR and only while its manifest is
+ * pinned: then the installer's folder must be the pinned release, licence files included;
+ * otherwise the installer must hold no such folder.
+ */
+export async function verifyPackagedAfterEffectsServer(sourceRoot, resources) {
+  const folder = path.join(sourceRoot, 'packages', 'after-effects-mcp')
+  const manifest = await readAfterEffectsMcp(path.join(folder, 'server.json')).catch((error) => {
+    if (error?.code === 'ENOENT') return undefined
+    throw error
+  })
+  const shipped = path.join(resources, 'after-effects-mcp')
+  const present = await lstat(shipped).then(
+    () => true,
+    () => false,
+  )
+  if (!manifest || !isAfterEffectsPinned(manifest)) {
+    if (present)
+      throw new Error(
+        'Packaged app holds an After Effects MCP server that server.json does not pin',
+      )
+    return
+  }
+  const bundle = path.join(folder, 'bundle')
+  const problems = await verifyAfterEffectsBundle(manifest, bundle)
+  if (!problems.length) {
+    const receipt = JSON.parse(await readFile(path.join(bundle, AE_RECEIPT_FILE), 'utf8'))
+    problems.push(...(await afterEffectsTreeProblems(shipped, receipt)))
+  }
+  if (problems.length)
+    throw new Error(
+      `Packaged After Effects MCP server does not match its pin: ${problems.join('; ')}`,
+    )
 }
 
 export function assertInstallerProofHost(env = process.env) {

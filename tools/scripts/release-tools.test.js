@@ -33,6 +33,7 @@ import {
   verifyReleaseDirectory,
   verifyReleasePayload,
 } from './release-manifest.js'
+import { digestFiles } from '../../packages/default-skills/scripts/skill-media.mjs'
 import { stageReleaseAssets } from './stage-release-assets.js'
 import { draftDescription, uploadDraftRelease } from './upload-draft-release.js'
 import { verifyReleaseInput } from './verify-release-input.js'
@@ -40,6 +41,7 @@ import {
   assertInstallerProofHost,
   packagingAsar,
   verifyBundledDesignReferences,
+  verifyPackagedAfterEffectsServer,
   verifyPackagedResources,
   verifyReleaseEdition,
 } from './verify-release-assets.js'
@@ -1053,4 +1055,95 @@ test('workflow is manual, pinned, read-only by default, and has one optional wri
     assert.ok(desktop.build.extraResources.some((entry) => entry.to === name))
   assert.match(desktop.scripts['test:release-tools'], /release-tools\.test\.js/)
   assert.ok(checksumPayloadAssets('macos').includes(releaseConfig.platforms.macos.provenance))
+})
+
+test('the installer carries the After Effects MCP server only while it is pinned, exactly as pinned', async (t) => {
+  const root = await temporary(t)
+  const source = path.join(root, 'source')
+  const resources = path.join(root, 'resources')
+  const folder = path.join(source, 'packages', 'after-effects-mcp')
+  const bundle = path.join(folder, 'bundle')
+  const files = {
+    'dist/index.js': 'server',
+    'jsx/run.jsx': 'jsx',
+    'package.json': '{}',
+    LICENSE: 'MIT',
+    'NOTICE.md': 'notice',
+    'THIRD_PARTY_LICENSES.txt': 'licences',
+  }
+  const write = async (base, name, body) => {
+    await mkdir(path.dirname(path.join(base, name)), { recursive: true })
+    await writeFile(path.join(base, name), body)
+  }
+  await mkdir(resources, { recursive: true })
+
+  // No manifest at all, or one that is not pinned: nothing ships.
+  await verifyPackagedAfterEffectsServer(source, resources)
+  await mkdir(folder, { recursive: true })
+  const repository = 'iamjeffia/ae-mcp-tuift'
+  const unpinned = { repository, license: 'MIT', pinned: false }
+  await writeFile(path.join(folder, 'server.json'), JSON.stringify(unpinned))
+  await verifyPackagedAfterEffectsServer(source, resources)
+  await write(resources, 'after-effects-mcp/dist/index.js', 'server')
+  await assert.rejects(verifyPackagedAfterEffectsServer(source, resources), /does not pin/)
+  await rm(path.join(resources, 'after-effects-mcp'), { recursive: true })
+
+  // Pinned: the bundle was synced, so the installer must hold the same files.
+  const asset = 'after-effects-mcp-1.0.0.tgz'
+  const pinned = {
+    repository,
+    license: 'MIT',
+    pinned: true,
+    version: '1.0.0',
+    tag: 'v1.0.0',
+    commit: 'a'.repeat(40),
+    asset,
+    url: `https://github.com/${repository}/releases/download/v1.0.0/${asset}`,
+    sha256: 'b'.repeat(64),
+    bytes: 1234,
+  }
+  await writeFile(path.join(folder, 'server.json'), JSON.stringify(pinned))
+  for (const [name, body] of Object.entries(files))
+    await write(bundle, `after-effects-mcp/${name}`, body)
+  const digest = digestFiles(
+    new Map(Object.entries(files).map(([name, body]) => [name, Buffer.from(body)])),
+  )
+  await writeFile(
+    path.join(bundle, 'receipt.json'),
+    JSON.stringify({
+      version: pinned.version,
+      sha256: pinned.sha256,
+      bytes: pinned.bytes,
+      treeSha256: digest.treeSha256,
+      files: digest.files,
+      unpackedBytes: digest.bytes,
+    }),
+  )
+  await assert.rejects(
+    verifyPackagedAfterEffectsServer(source, resources),
+    /does not match its pin/,
+  )
+  await cp(path.join(bundle, 'after-effects-mcp'), path.join(resources, 'after-effects-mcp'), {
+    recursive: true,
+  })
+  await verifyPackagedAfterEffectsServer(source, resources)
+
+  // A licence the packager dropped, a changed file, a stray file: each fails.
+  const shipped = path.join(resources, 'after-effects-mcp')
+  await rm(path.join(shipped, 'LICENSE'))
+  await assert.rejects(verifyPackagedAfterEffectsServer(source, resources), /LICENSE is missing/)
+  await write(shipped, 'LICENSE', 'MIT')
+  await write(shipped, 'dist/index.js', 'changed')
+  await assert.rejects(
+    verifyPackagedAfterEffectsServer(source, resources),
+    /does not match its pin/,
+  )
+  await write(shipped, 'dist/index.js', 'server')
+  await write(shipped, 'extra.js', 'stray')
+  await assert.rejects(
+    verifyPackagedAfterEffectsServer(source, resources),
+    /does not match its pin/,
+  )
+  await rm(path.join(shipped, 'extra.js'))
+  await verifyPackagedAfterEffectsServer(source, resources)
 })

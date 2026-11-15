@@ -40,26 +40,45 @@ const aeExe = (year: number) =>
 describe('where the After Effects server comes from', () => {
   const variableEntry = path.join('D:\\tools\\ae', 'dist', 'index.js')
   const packagedEntry = path.join('R:\\app\\resources', 'after-effects-mcp', 'dist', 'index.js')
+  const developmentFolder = path.join(
+    'D:\\repo',
+    'packages',
+    'after-effects-mcp',
+    'bundle',
+    'after-effects-mcp',
+  )
+  const developmentEntry = path.join(developmentFolder, 'dist', 'index.js')
   const env = {
     TUIFT_AE_MCP_DIR: 'D:\\tools\\ae',
     HARNESS_DEFAULT_SKILLS_DIR: 'R:\\app\\resources\\default-skills',
   }
 
+  const entry = (fs: FileSystemView, environment: NodeJS.ProcessEnv = env) =>
+    afterEffectsServerEntry(environment, fs, developmentFolder)
+
   it('takes the variable first, when the folder has dist/index.js', () => {
-    const fs = fakeFileSystem([variableEntry, packagedEntry])
-    expect(afterEffectsServerEntry(env, fs)).toBe(variableEntry)
+    const fs = fakeFileSystem([variableEntry, packagedEntry, developmentEntry])
+    expect(entry(fs)).toBe(variableEntry)
   })
 
   it('falls back to the packaged folder next to the default skills', () => {
-    const fs = fakeFileSystem([packagedEntry])
-    expect(afterEffectsServerEntry(env, fs)).toBe(packagedEntry)
+    const fs = fakeFileSystem([packagedEntry, developmentEntry])
+    expect(entry(fs)).toBe(packagedEntry)
     // A variable that points at nothing is not a location.
-    expect(afterEffectsServerEntry({ ...env, TUIFT_AE_MCP_DIR: 'D:\\missing' }, fs)).toBe(
-      packagedEntry,
-    )
+    expect(entry(fs, { ...env, TUIFT_AE_MCP_DIR: 'D:\\missing' })).toBe(packagedEntry)
   })
 
-  it('is none when neither place has it, and looks nowhere else', () => {
+  it('finds the workspace bundle in an unpackaged run, after the other two', () => {
+    const fs = fakeFileSystem([developmentEntry])
+    expect(entry(fs, {})).toBe(developmentEntry)
+    expect(entry(fs)).toBe(developmentEntry)
+    // A folder without dist/index.js is not a server.
+    expect(
+      entry(fakeFileSystem([path.join(developmentFolder, 'jsx', 'run.jsx')]), {}),
+    ).toBeUndefined()
+  })
+
+  it('looks for the real workspace bundle by default, and nowhere else', () => {
     const seen: string[] = []
     const fs: FileSystemView = {
       exists: (file) => {
@@ -68,12 +87,18 @@ describe('where the After Effects server comes from', () => {
       },
       list: () => [],
     }
-    expect(afterEffectsServerEntry(env, fs)).toBeUndefined()
-    expect(seen).toEqual([variableEntry, packagedEntry])
-    // No variable and an unpackaged run: nothing to check at all.
+    expect(entry(fs)).toBeUndefined()
+    expect(seen).toEqual([variableEntry, packagedEntry, developmentEntry])
+    // No variable and an unpackaged run: only the workspace bundle is checked.
+    seen.length = 0
+    expect(entry(fs, {})).toBeUndefined()
+    expect(seen).toEqual([developmentEntry])
     seen.length = 0
     expect(afterEffectsServerEntry({}, fs)).toBeUndefined()
-    expect(seen).toEqual([])
+    expect(seen).toHaveLength(1)
+    expect(seen[0]!.replaceAll('\\', '/')).toMatch(
+      /\/packages\/after-effects-mcp\/bundle\/after-effects-mcp\/dist\/index\.js$/,
+    )
   })
 })
 

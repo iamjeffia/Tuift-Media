@@ -54,6 +54,10 @@ test-results/
 /packages/default-skills/bundle/
 /packages/default-skills/bundle.staging-*/
 
+# After Effects MCP server, fetched from its pinned release by packages/after-effects-mcp/scripts/sync.js
+/packages/after-effects-mcp/bundle/
+/packages/after-effects-mcp/bundle.staging-*/
+
 # Local scratch — anything here is yours alone
 scratch/
 

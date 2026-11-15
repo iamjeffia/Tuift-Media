@@ -1,5 +1,6 @@
 import { existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { AfterEffectsState, McpServerConfig } from '@harness/contracts'
 
 /**
@@ -14,6 +15,13 @@ export const AFTER_EFFECTS_SERVER_ID = 'after-effects'
 /** A folder that contains `dist/index.js`, for development and for a machine that keeps the server elsewhere. */
 export const AFTER_EFFECTS_DIR_ENV = 'TUIFT_AE_MCP_DIR'
 const PACKAGED_FOLDER = 'after-effects-mcp'
+/**
+ * The folder `pnpm --filter @harness/after-effects-mcp sync` fills, for a run from source.
+ * Both `src` and `dist` sit one level under `apps/server`, as for the default skills.
+ */
+const DEVELOPMENT_FOLDER = fileURLToPath(
+  new URL('../../../packages/after-effects-mcp/bundle/after-effects-mcp', import.meta.url),
+)
 
 /** The variables the server reads for the After Effects executable, in its own order. */
 const SERVER_EXECUTABLE_ENV = ['AE_MCP_EXE', 'AE_EXE'] as const
@@ -38,18 +46,21 @@ export const realFileSystem: FileSystemView = {
 
 /**
  * The server's folder: the variable, else the packaged folder next to the other
- * resources, else none. A packaged build tells the server where its resources are
- * only through the default skills folder (`resources/default-skills`), so the
- * packaged folder is that one's sibling. Nothing else is searched.
+ * resources, else the workspace's synced bundle, else none. A packaged build tells
+ * the server where its resources are only through the default skills folder
+ * (`resources/default-skills`), so the packaged folder is that one's sibling.
+ * Nothing else is searched.
  */
 export function afterEffectsServerEntry(
   env: NodeJS.ProcessEnv,
   fs: FileSystemView = realFileSystem,
+  developmentFolder: string = DEVELOPMENT_FOLDER,
 ): string | undefined {
   const skills = env['HARNESS_DEFAULT_SKILLS_DIR']?.trim()
   const folders = [
     env[AFTER_EFFECTS_DIR_ENV]?.trim(),
     skills ? path.join(path.dirname(path.resolve(skills)), PACKAGED_FOLDER) : undefined,
+    developmentFolder,
   ]
   for (const folder of folders) {
     if (!folder) continue

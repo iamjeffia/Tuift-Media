@@ -10,6 +10,7 @@ import {
   deriveDirectRuntimeDependencies,
   loadLicenseInventory,
   renderDirectRuntimeTable,
+  verifyAfterEffectsServer,
   verifyDirectRuntimeTable,
   verifyProjectLicense,
 } from './release-licenses.js'
@@ -194,4 +195,55 @@ test('a short link-only project license is rejected', async () => {
   await assert.rejects(verifyProjectLicense(fixtureRoot), /top-level LICENSE is missing/)
   await writeFile(path.join(fixtureRoot, 'LICENSE'), 'Apache-2.0: see upstream\n', 'utf8')
   await assert.rejects(verifyProjectLicense(fixtureRoot), /not the complete Apache-2.0/)
+})
+
+test('a pinned After Effects server bundle must carry its licence files', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'tuift-ae-license-test-'))
+  try {
+    // No package, or a package not pinned yet with no bundle: nothing to check.
+    await verifyAfterEffectsServer(root)
+    const folder = path.join(root, 'packages/after-effects-mcp')
+    const repository = 'iamjeffia/ae-mcp-tuift'
+    const unpinned = { repository, license: 'MIT', pinned: false }
+    await json(path.join(folder, 'server.json'), unpinned)
+    await verifyAfterEffectsServer(root)
+    // A half-filled manifest is refused.
+    await json(path.join(folder, 'server.json'), { ...unpinned, sha256: 'a'.repeat(64) })
+    await assert.rejects(verifyAfterEffectsServer(root), /sha256 is set while pinned is false/)
+    // A bundle with nothing pinned to vouch for it is refused.
+    await json(path.join(folder, 'server.json'), unpinned)
+    await mkdir(path.join(folder, 'bundle'), { recursive: true })
+    await assert.rejects(verifyAfterEffectsServer(root), /not pinned/)
+    // Pinned, but the bundle has no LICENSE: refused.
+    const asset = 'after-effects-mcp-1.0.0.tgz'
+    const pinned = {
+      ...unpinned,
+      pinned: true,
+      version: '1.0.0',
+      tag: 'v1.0.0',
+      commit: 'a'.repeat(40),
+      asset,
+      url: `https://github.com/${repository}/releases/download/v1.0.0/${asset}`,
+      sha256: 'b'.repeat(64),
+      bytes: 1234,
+    }
+    await json(path.join(folder, 'server.json'), pinned)
+    await json(path.join(folder, 'bundle/receipt.json'), {
+      version: pinned.version,
+      sha256: pinned.sha256,
+      bytes: pinned.bytes,
+    })
+    const server = path.join(folder, 'bundle/after-effects-mcp')
+    for (const name of [
+      'dist/index.js',
+      'jsx/run.jsx',
+      'package.json',
+      'NOTICE.md',
+      'THIRD_PARTY_LICENSES.txt',
+    ])
+      await json(path.join(server, name), { name })
+    await assert.rejects(verifyAfterEffectsServer(root), /LICENSE is missing or empty/)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
 })

@@ -79,6 +79,22 @@ metadata; it never copies license bodies. The reviewed license files themselves 
 with each Windows and macOS distribution. When an npm package omits that file, the exact reviewed
 fallback and its upstream source are recorded in `licenses/direct-runtime-dependencies.json`.
 
+## After Effects MCP server
+
+Motion chats can attach an After Effects MCP server. It is TUIFT Media's fork of Kumo's
+`mcp-aftereffects` (MIT) with the house tools added (MIT), published in its own repository,
+[iamjeffia/ae-mcp-tuift](https://github.com/iamjeffia/ae-mcp-tuift). TUIFT Code does not build it:
+`packages/after-effects-mcp/server.json` pins one release asset by SHA-256, `sync.js` refuses the
+download unless its size and hash match, and the installer carries the unpacked folder as real
+files in the app's `resources/after-effects-mcp` folder, outside the ASAR (After Effects reads its
+`jsx/` scripts, and Node reads its `node_modules/`). Until a release is pinned there, the installer
+carries no server.
+
+The folder holds the `LICENSE` of the server (MIT), a `NOTICE.md` with its own attributions, and a `THIRD_PARTY_LICENSES.txt` with the licence texts of the production
+dependencies bundled in its `node_modules/`; those texts are not repeated here. The release gate
+fails a pinned bundle that lacks any of the three, and the installer proof compares the shipped
+folder with the pinned release.
+
 ## TUIFT Media artwork
 
 The six character images in `apps/web/src/motion/cast/` (Zig, Moss, Bun, Pip, Cloud and Penny, shown

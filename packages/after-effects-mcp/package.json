@@ -1,0 +1,15 @@
+{
+  "name": "@harness/after-effects-mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./server.json": "./server.json",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "sync": "node scripts/sync.js",
+    "verify": "node scripts/sync.js --verify",
+    "test": "node --test scripts/sync.test.js"
+  }
+}
