@@ -8,6 +8,7 @@ import {
   useLayoutEffect,
   useRef,
 } from 'react'
+import { useI18n, type I18n } from '../i18n/index.js'
 import { useDialogFocus } from './dialog-focus.js'
 import '../styles/sheet.css'
 import '../styles/rollback.css'
@@ -37,20 +38,21 @@ function placeCut(
   return { state: 'unpicked', firstGone: checkpoints.length }
 }
 
-function filesBack(files: string[]): ReactNode {
-  if (files.length === 0) return 'Files stay as they are'
+function filesBack(files: string[], t: I18n['t']): ReactNode {
+  if (files.length === 0) return t('chat.rollback.filesStay')
   const shown = files.length > 3 ? files.slice(0, 2) : files
   const names: ReactNode[] = shown.map((file) => <b key={file}>{file}</b>)
-  if (shown.length < files.length) names.push(`${files.length - shown.length} more files`)
+  if (shown.length < files.length)
+    names.push(t('chat.rollback.moreFiles', { count: files.length - shown.length }))
   return (
     <>
       {names.map((name, index) => (
         <Fragment key={index}>
-          {index === 0 ? null : index === names.length - 1 ? ' and ' : ', '}
+          {index === 0 ? null : index === names.length - 1 ? ` ${t('chat.rollback.and')} ` : ', '}
           {name}
         </Fragment>
       ))}{' '}
-      go back too
+      {t(files.length === 1 ? 'chat.rollback.goBackOne' : 'chat.rollback.goBackMany')}
     </>
   )
 }
@@ -64,6 +66,7 @@ export function RollbackDialog(props: {
   onRestore: () => void
   onClose: () => void
 }) {
+  const { t, language } = useI18n()
   const cut = placeCut(props.checkpoints, props.inspection, props.loadingId)
   const dialog = useDialogFocus<HTMLDivElement>(props.onClose)
   const titleId = useId()
@@ -110,7 +113,11 @@ export function RollbackDialog(props: {
       aria-labelledby={titleId}
       onKeyDown={onKeyDown}
     >
-      <button className="sheet__scrim" onClick={props.onClose} aria-label="Close checkpoints" />
+      <button
+        className="sheet__scrim"
+        onClick={props.onClose}
+        aria-label={t('chat.rollback.close')}
+      />
       <div className="sheet__panel rollback" ref={dialog.panel} tabIndex={-1}>
         <div
           className="rollback__sheet"
@@ -119,9 +126,13 @@ export function RollbackDialog(props: {
         >
           <header className="sheet__head">
             <h2 className="sheet__title" id={titleId}>
-              Restore
+              {t('chat.rollback.title')}
             </h2>
-            <button className="icon-btn icon-btn--always" onClick={props.onClose} title="Close">
+            <button
+              className="icon-btn icon-btn--always"
+              onClick={props.onClose}
+              title={t('dialogs.common.close')}
+            >
               <X size={13} aria-hidden />
             </button>
           </header>
@@ -138,9 +149,9 @@ export function RollbackDialog(props: {
                       prompts.current[index] = element
                     }}
                     className="rollback__prompt"
-                    aria-label={`Before “${checkpoint.label}”`}
+                    aria-label={t('chat.rollback.before', { label: checkpoint.label })}
                     aria-pressed={index === cut.firstGone}
-                    title={new Date(checkpoint.createdAt).toLocaleString()}
+                    title={new Date(checkpoint.createdAt).toLocaleString(language)}
                     tabIndex={
                       index === Math.min(cut.firstGone, props.checkpoints.length - 1) ? 0 : -1
                     }
@@ -158,13 +169,13 @@ export function RollbackDialog(props: {
               aria-busy={cut.state === 'loading'}
             >
               {cut.state === 'loading' ? (
-                <span className="visually-hidden">Loading files</span>
+                <span className="visually-hidden">{t('chat.rollback.loadingFiles')}</span>
               ) : (
                 <span
                   className="rollback__files"
                   title={cut.state === 'picked' ? cut.files.join('\n') || undefined : undefined}
                 >
-                  {cut.state === 'picked' ? filesBack(cut.files) : 'Pick a prompt to go back to'}
+                  {cut.state === 'picked' ? filesBack(cut.files, t) : t('chat.rollback.pick')}
                 </span>
               )}
               <span className="rollback__dots" aria-hidden />
@@ -173,14 +184,14 @@ export function RollbackDialog(props: {
 
           <footer className="rollback__foot">
             <button className="ghost" onClick={props.onClose} disabled={props.restoring}>
-              Cancel
+              {t('dialogs.common.cancel')}
             </button>
             <button
               className="btn"
               onClick={props.onRestore}
               disabled={cut.state !== 'picked' || props.restoring}
             >
-              {props.restoring ? 'Restoring…' : 'Restore'}
+              {props.restoring ? t('chat.rollback.restoring') : t('chat.rollback.title')}
             </button>
           </footer>
         </div>

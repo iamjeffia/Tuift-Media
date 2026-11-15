@@ -5,6 +5,7 @@ import {
   IconCopy as Copy,
 } from '@tabler/icons-react'
 import { writeClipboardText } from '../bridge.js'
+import { useI18n } from '../i18n/index.js'
 import { IconMorph } from './IconMorph.js'
 
 /** How long the check mark stays before the copy glyph comes back. */
@@ -18,7 +19,7 @@ const COPIED_MS = 1600
 export function CopyButton({
   text,
   label,
-  title = 'Copy',
+  title,
   copiedLabel,
 }: {
   text: string
@@ -29,6 +30,7 @@ export function CopyButton({
   /** Name and tooltip while the check shows; without it both stay as they are. */
   copiedLabel?: string | undefined
 }) {
+  const { t } = useI18n()
   const [copied, setCopied] = useState(false)
   const [failed, setFailed] = useState(false)
   // Rows are virtualized, so this unmounts the moment it scrolls out of the
@@ -57,7 +59,13 @@ export function CopyButton({
         type="button"
         onClick={() => void copy()}
         aria-label={confirmed ? copiedLabel : label}
-        title={failed ? 'Copy failed — click to retry' : confirmed ? copiedLabel : title}
+        title={
+          failed
+            ? t('chat.copy.failedRetry')
+            : confirmed
+              ? copiedLabel
+              : (title ?? t('chat.copy.title'))
+        }
       >
         <IconMorph active={failed ? 2 : copied ? 1 : 0}>
           <Copy aria-hidden />
@@ -67,7 +75,7 @@ export function CopyButton({
       </button>
       {failed ? (
         <span className="copy-action__error" role="alert">
-          Copy failed
+          {t('chat.copy.failed')}
         </span>
       ) : null}
     </span>

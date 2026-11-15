@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { IconClick } from '@tabler/icons-react'
+import { useI18n } from '../i18n/index.js'
 import { knownViewedImagePreview, previewViewedImage } from '../bridge.js'
 import { browserCommentElementLabel, type BrowserComment } from './browser-comments.js'
 import '../styles/browser-comment.css'
@@ -14,6 +15,7 @@ export function BrowserCommentCard(props: {
   image?: string | undefined
   anchor: DOMRect
 }) {
+  const { t } = useI18n()
   const { image, anchor } = props
   const panel = useRef<HTMLDivElement>(null)
   const [loaded, setLoaded] = useState<{ image: string; url: string }>()
@@ -53,13 +55,13 @@ export function BrowserCommentCard(props: {
           <span className="browser-comment-card__element">
             {browserCommentElementLabel(props.comment.selector)}
           </span>
-          <img src={source} alt="Annotated element" onLoad={place} />
+          <img src={source} alt={t('chat.browserComment.annotated')} onLoad={place} />
         </div>
       ) : null}
       <div className="browser-comment-card__body">
         <p className="browser-comment-card__title">{props.comment.title || props.comment.url}</p>
         <p className="browser-comment-card__comment">{props.comment.comment}</p>
-        <p className="browser-comment-card__count">1 element</p>
+        <p className="browser-comment-card__count">{t('chat.browserComment.oneElement')}</p>
       </div>
     </div>,
     document.body,

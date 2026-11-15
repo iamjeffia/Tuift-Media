@@ -6,6 +6,7 @@ import {
   IconInfoCircle,
   IconX,
 } from '@tabler/icons-react'
+import { useI18n } from '../i18n/index.js'
 import { Menu, MenuItem } from './Menu.js'
 import { UsageResetNotice, type UsageResetNoticeProps } from './UsageResetNotice.js'
 import '../styles/composer-provider-shelf.css'
@@ -52,6 +53,7 @@ export function ComposerErrors({
   visible?: boolean
   onDismiss?: () => void
 }) {
+  const { t } = useI18n()
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set())
   const visibleErrors = errors.filter(
     (error, index) =>
@@ -64,7 +66,7 @@ export function ComposerErrors({
   return (
     <div
       className={`composer__shelf composer__provider-shelf${visibleErrors.every((error) => error.tone === 'info' || error.usageReset?.scheduled) ? ' composer__provider-shelf--info' : ''}`}
-      aria-label="Errors"
+      aria-label={t('chat.notice.errors')}
     >
       {visibleErrors.map((error) => (
         <Fragment key={error.id}>
@@ -123,17 +125,17 @@ export function ComposerErrors({
                 <button
                   className="notice-action notice-action--quiet"
                   type="button"
-                  title="Send this error to the TUIFT Code team"
+                  title={t('chat.notice.reportTitle')}
                   onClick={error.report}
                 >
-                  Report
+                  {t('chat.notice.report')}
                 </button>
               ) : null}
               <button
                 className="notice-close"
                 type="button"
-                aria-label={`Dismiss error: ${error.message}`}
-                title="Dismiss error"
+                aria-label={t('chat.notice.dismissNamed', { message: error.message })}
+                title={t('chat.notice.dismiss')}
                 onClick={() => {
                   const matching = errors.filter((entry) => entry.message === error.message)
                   setDismissed(

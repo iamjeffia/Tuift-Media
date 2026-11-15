@@ -1,4 +1,5 @@
 import type { TablerIcon } from '@tabler/icons-react'
+import { t, type MessageKey } from '../i18n/index.js'
 
 /**
  * `skill` and `mcp` become chips whose token is sent ahead of the prompt.
@@ -54,13 +55,14 @@ export type ComposerResourceListLabel = { label: string; loading: string }
 
 /** What each marker lists: `/` commands and skills, `$` skills, `@` MCP servers. */
 const LIST_LABELS = {
-  '/': { label: 'Commands and skills', loading: 'Loading commands and skills…' },
-  $: { label: 'Skills', loading: 'Loading skills…' },
-  '@': { label: 'MCP servers', loading: 'Loading MCP servers…' },
-} satisfies Record<ComposerResourceMarker, ComposerResourceListLabel>
+  '/': { label: 'chat.menu.list.slash', loading: 'chat.menu.list.slashLoading' },
+  $: { label: 'chat.menu.list.skill', loading: 'chat.menu.list.skillLoading' },
+  '@': { label: 'chat.menu.list.mcp', loading: 'chat.menu.list.mcpLoading' },
+} satisfies Record<ComposerResourceMarker, Record<keyof ComposerResourceListLabel, MessageKey>>
 
 export function composerResourceListLabel(
   marker: ComposerResourceMarker,
 ): ComposerResourceListLabel {
-  return LIST_LABELS[marker]
+  const keys = LIST_LABELS[marker]
+  return { label: t(keys.label), loading: t(keys.loading) }
 }

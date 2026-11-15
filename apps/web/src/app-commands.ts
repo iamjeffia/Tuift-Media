@@ -12,6 +12,7 @@ import {
   IconUser,
   type TablerIcon,
 } from '@tabler/icons-react'
+import { t, type MessageKey } from './i18n/index.js'
 
 /**
  * A slash command TUIFT Code runs itself instead of sending it to the provider.
@@ -122,6 +123,36 @@ const ALL_APP_COMMANDS: readonly AppCommand[] = [
   FEEDBACK_COMMAND,
 ]
 
+/** The catalog keys of each command's menu text; the English above is what the keys read in English. */
+type CommandText = { description: MessageKey; hint?: MessageKey }
+const COMMAND_TEXT = new Map<string, CommandText>([
+  ['side', { description: 'chat.command.side.description', hint: 'chat.command.side.hint' }],
+  [
+    'feedback',
+    { description: 'chat.command.feedback.description', hint: 'chat.command.feedback.hint' },
+  ],
+  ['new', { description: 'chat.command.new.description' }],
+  ['model', { description: 'chat.command.model.description' }],
+  ['permissions', { description: 'chat.command.permissions.description' }],
+  ['resume', { description: 'chat.command.resume.description' }],
+  ['settings', { description: 'chat.command.settings.description' }],
+  ['mcp', { description: 'chat.command.mcp.description' }],
+  ['skills', { description: 'chat.command.skills.description' }],
+  ['usage', { description: 'chat.command.usage.description' }],
+  ['login', { description: 'chat.command.login.description' }],
+])
+
+/** The command with its description and argument hint in the current language. */
+function localized(command: AppCommand): AppCommand {
+  const text = COMMAND_TEXT.get(command.name)
+  if (!text) return command
+  return {
+    ...command,
+    description: t(text.description),
+    ...(text.hint ? { argumentHint: t(text.hint) } : {}),
+  }
+}
+
 function named(command: AppCommand, name: string): boolean {
   return command.name === name || (command.aliases?.includes(name) ?? false)
 }
@@ -168,5 +199,5 @@ export function appCommands(available: {
     ...(available.screens ? SCREEN_COMMANDS.map(({ screen: _screen, ...command }) => command) : []),
     ...(available.sideChat ? [SIDE_CHAT_COMMAND] : []),
     ...(available.feedback ? [FEEDBACK_COMMAND] : []),
-  ]
+  ].map(localized)
 }

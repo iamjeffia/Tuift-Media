@@ -212,6 +212,7 @@ import {
 } from './model-catalog-cache.js'
 import { parseSideChatCommand } from './side-chat-command.js'
 import { useFeedbackStatus, type FeedbackRequest } from './feedback-state.js'
+import { displayChatTitle, localizeChatTitles } from './chat-title.js'
 import { t, useI18n } from './i18n/index.js'
 import {
   composerDraftKey,
@@ -1181,7 +1182,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   const threadRevealRequestRef = useRef(threadRevealRequest)
   threadRevealRequestRef.current = threadRevealRequest
   // Subscribes App to the language; handlers read it at call time through `t`.
-  useI18n()
+  const { language } = useI18n()
   const [notice, setNotice] = useState<string | undefined>()
   /** The unsent draft an "Edit as new prompt" replaced, offered back in the notice. */
   const [replacedDraft, setReplacedDraft] = useState<{ owner: string; text: string } | undefined>()
@@ -1269,8 +1270,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     }))
   }, [projects, archivingIds])
   const sidebarProjects = useMemo(
-    () => withStoppingSessions(archiveProjects, stoppingRows),
-    [archiveProjects, stoppingRows],
+    () => localizeChatTitles(withStoppingSessions(archiveProjects, stoppingRows)),
+    [archiveProjects, stoppingRows, language],
   )
 
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
@@ -6108,7 +6109,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         if (work.isolated && work.uncommitted) {
           const confirmation = {
             id,
-            title: found.session.title,
+            title: displayChatTitle(found.session.title),
             branch: found.session.worktreeBranch ?? 'isolated checkout',
           }
           setCheckoutDeletes((current) =>
@@ -6684,6 +6685,9 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   )
   const renameSidebarSession = useCallback(
     (id: string, title: string) => {
+      // A default title shown in the user's language is not a rename: the stored one stays.
+      const stored = findSession(projectsRef.current, id)?.session.title
+      if (stored !== undefined && title !== stored && title === displayChatTitle(stored)) return
       setProjects((current) => renameSession(current, id, title))
       const pending = pendingSession.current
       if (pending?.id === id) {
@@ -7265,7 +7269,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   const paletteChatSearch = useMemo(
     () =>
       createPaletteChatSearch(
-        () => visibleProjectsRef.current,
+        () => localizeChatTitles(visibleProjectsRef.current),
         displayName,
         (threadId) => void selectSession(threadId),
         PALETTE_CHAT_SEARCH_CACHE,
@@ -7623,23 +7627,28 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   const offlineError = useMemo<ComposerError | undefined>(
     () =>
       offline
-        ? { id: crypto.randomUUID(), message: 'Reconnecting to the server…', role: 'status' }
+        ? { id: crypto.randomUUID(), message: t('dialogs.app.offline'), role: 'status' }
         : undefined,
-    [offline],
+    [offline, language],
   )
 
   const currentModelError =
     modelErrors[selectedModelChoice ? modelSource(selectedModelChoice) : sourceKey({ provider })]
   const providerProblem = providerStatuses.find((status) => status.id === provider)?.problem
   const composerProviderError = catalogError
-    ? { ...catalogError, action: { label: 'Retry', run: refreshCatalog } }
+    ? { ...catalogError, action: { label: t('dialogs.common.retry'), run: refreshCatalog } }
     : accountCheck.provider === provider && accountCheck.error
-      ? { ...accountCheck.error, action: { label: 'Retry', run: retryAccountCheck } }
+      ? {
+          ...accountCheck.error,
+          action: { label: t('dialogs.common.retry'), run: retryAccountCheck },
+        }
       : providerSignInState?.phase === 'failed'
         ? {
             id: `sign-in:${providerSignInState.terminalId}`,
-            message: `${providerName(provider, sourceAgentName)} sign-in failed. Try signing in again.`,
-            action: { label: 'Sign in', run: openProviderSetup },
+            message: t('chat.setup.signInFailed', {
+              provider: providerName(provider, sourceAgentName),
+            }),
+            action: { label: t('chat.setup.signIn'), run: openProviderSetup },
           }
         : providerProblem
           ? {
@@ -7649,9 +7658,9 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                 label:
                   sendAvailability === 'setup-required'
                     ? providerStatuses.find((status) => status.id === provider)?.installed
-                      ? 'Sign in'
-                      : 'Set up provider'
-                    : 'Check setup',
+                      ? t('chat.setup.signIn')
+                      : t('chat.setup.setUpProvider')
+                    : t('chat.setup.checkSetup'),
                 run: openProviderSetup,
               },
             }
@@ -7694,7 +7703,13 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   const continueOffer: Pick<ComposerError, 'action' | 'choices'> = continuedChat
     ? {
         action: {
-          label: `Continued on ${accountLabelOf(providerAccounts, continuedChat.provider, continuedChat.accountId)}`,
+          label: t('chat.notice.continuedOn', {
+            account: accountLabelOf(
+              providerAccounts,
+              continuedChat.provider,
+              continuedChat.accountId,
+            ),
+          }),
           run: () => void selectSession(continuedChat.id),
         },
       }
@@ -7704,11 +7719,11 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         ? {
             action: continueOptions[0]
               ? {
-                  label: `Continue on ${continueOptions[0].label}`,
+                  label: t('chat.notice.continueOn', { account: continueOptions[0].label }),
                   run: () => void continueOnAccount(continueOptions[0]!.id),
                 }
               : {
-                  label: `Switch to ${switchOptions[0]!.sourceName}`,
+                  label: t('chat.notice.switchTo', { provider: switchOptions[0]!.sourceName }),
                   run: () => switchAtLimit(switchOptions[0]!),
                 },
           }
@@ -7716,10 +7731,10 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
             choices: {
               label:
                 switchOptions.length === 0
-                  ? 'Continue on another account'
+                  ? t('chat.notice.continueOnAnother')
                   : continueOptions.length === 0
-                    ? 'Switch to another provider'
-                    : 'Continue elsewhere',
+                    ? t('chat.notice.switchToAnother')
+                    : t('chat.notice.continueElsewhere'),
               options: [
                 ...continueOptions.map((account) => ({
                   id: account.id,
@@ -7769,11 +7784,11 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
             role: 'status' as const,
             tone: 'info' as const,
             message: continuationNote(
-              earlierChat.title,
+              displayChatTitle(earlierChat.title),
               accountLabelOf(providerAccounts, activeSession.provider, activeSession.accountId),
               earlierChanges[activeSession.id],
             ),
-            action: { label: 'Open', run: () => void selectSession(earlierChat.id) },
+            action: { label: t('chat.notice.open'), run: () => void selectSession(earlierChat.id) },
           },
         ]
       : []),
@@ -7783,11 +7798,11 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
             id: `moves:${activeSession.id}:${moveChoice.key}`,
             role: 'status' as const,
             tone: 'info' as const,
-            message: `Your next message switches this chat to ${moveChoice.sourceName}. The conversation so far goes with it.`,
+            message: t('chat.notice.switchNext', { provider: moveChoice.sourceName }),
             ...(chatOwnChoice
               ? {
                   action: {
-                    label: `Stay on ${chatOwnChoice.sourceName}`,
+                    label: t('chat.notice.stayOn', { provider: chatOwnChoice.sourceName }),
                     run: () => commitModelChoice(chatOwnChoice),
                   },
                 }
@@ -7798,7 +7813,10 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     ...(currentModelError
       ? [
           reportable(
-            { ...currentModelError, action: { label: 'Retry models', run: refreshCatalog } },
+            {
+              ...currentModelError,
+              action: { label: t('chat.notice.retryModels'), run: refreshCatalog },
+            },
             'models',
           ),
         ]
@@ -7858,7 +7876,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     running: visibleRunning,
     newSession: !activeId,
     isolate: active?.session.worktreeBranch ? true : isolateSession && !newChatUnbranched,
-    ...(newChatUnbranched ? { isolateUnavailable: 'Isolated needs a Git repository' } : {}),
+    ...(newChatUnbranched ? { isolateUnavailable: t('chat.composer.isolatedNeedsGit') } : {}),
     designMode: designMode,
     motionMode: motionMode,
     ...(askFirstUnsupported
@@ -7913,7 +7931,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   const renderStageHeader = (onClosePane: (() => void) | undefined) => (
     <StageHeader
       sessionId={active?.session.id}
-      title={active?.session.title}
+      title={displayChatTitle(active?.session.title)}
       pinned={active?.session.pinned ?? false}
       projectPath={activePath}
       checkpointCount={thread.running ? 0 : checkpoints.length}
@@ -8050,10 +8068,10 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                         split={split !== undefined}
                         focused={focused}
                         start={split?.start === slot}
-                        label={
+                        label={displayChatTitle(
                           (focused ? active?.session.title : besideSession?.session.title) ??
-                          'New chat'
-                        }
+                            'New chat',
+                        )}
                         onFocusPane={focusPaneFromEvent}
                       >
                         {focused ? (
@@ -8120,7 +8138,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                           <>
                             <StageHeader
                               sessionId={besideSession?.session.id}
-                              title={besideSession?.session.title}
+                              title={displayChatTitle(besideSession?.session.title)}
                               pinned={besideSession?.session.pinned ?? false}
                               projectPath={besideSession?.project.path ?? besideNewPath}
                               checkpointCount={0}
@@ -8430,7 +8448,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       <SessionSearchHost
         ref={sessionSearch}
         transport={transport}
-        projects={archiveProjects}
+        projects={localizeChatTitles(archiveProjects)}
         hiddenThreadIds={archivingIds}
         onSelect={selectSessionSearchResult}
       />

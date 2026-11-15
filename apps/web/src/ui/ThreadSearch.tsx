@@ -6,6 +6,7 @@ import {
   IconRotate as RotateCcw,
   IconX as X,
 } from '@tabler/icons-react'
+import { useI18n } from '../i18n/index.js'
 import type { LiveItemUpdate } from '../thread-store.js'
 import type { ThreadFrameStore } from '../thread-frame-store.js'
 import {
@@ -40,6 +41,7 @@ export function ThreadSearch(props: {
   onJump: (index: number) => void
   onClose: () => void
 }) {
+  const { t } = useI18n()
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
   const input = useRef<HTMLInputElement>(null)
@@ -126,8 +128,8 @@ export function ThreadSearch(props: {
         ref={input}
         value={query}
         spellCheck={false}
-        aria-label="Find in thread"
-        placeholder="Find in thread"
+        aria-label={t('chat.find.label')}
+        placeholder={t('chat.find.label')}
         onChange={(e) => {
           setQuery(e.target.value)
           setCursor(0)
@@ -145,10 +147,10 @@ export function ThreadSearch(props: {
           ? ''
           : hits.length === 0
             ? loadingOlder
-              ? 'Searching…'
+              ? t('chat.find.searching')
               : olderFailed
-                ? 'Failed'
-                : 'None'
+                ? t('chat.find.failed')
+                : t('chat.find.none')
             : `${currentCursor + 1}/${hits.length}${loadingOlder ? '…' : ''}`}
       </span>
       {/* Always mounted, so the reader hears when the read changes state. */}
@@ -156,17 +158,17 @@ export function ThreadSearch(props: {
         {!searching
           ? ''
           : loadingOlder
-            ? 'Searching earlier messages'
+            ? t('chat.find.searchingEarlier')
             : olderFailed
-              ? 'Couldn’t search earlier messages'
+              ? t('chat.find.earlierFailed')
               : ''}
       </span>
       {searching && olderFailed ? (
         <button
           className="icon-btn icon-btn--always"
           onClick={onLoadOlder}
-          title="Couldn’t search earlier messages. Retry"
-          aria-label="Retry searching earlier messages"
+          title={t('chat.find.earlierFailedRetry')}
+          aria-label={t('chat.find.retryEarlier')}
         >
           <RotateCcw size={12} aria-hidden />
         </button>
@@ -174,24 +176,24 @@ export function ThreadSearch(props: {
       <button
         className="icon-btn icon-btn--always"
         onClick={() => advance(true)}
-        title="Previous"
-        aria-label="Previous match"
+        title={t('chat.find.previous')}
+        aria-label={t('chat.find.previousMatch')}
       >
         <ChevronUp size={12} aria-hidden />
       </button>
       <button
         className="icon-btn icon-btn--always"
         onClick={() => advance(false)}
-        title="Next"
-        aria-label="Next match"
+        title={t('chat.find.next')}
+        aria-label={t('chat.find.nextMatch')}
       >
         <ChevronDown size={12} aria-hidden />
       </button>
       <button
         className="icon-btn icon-btn--always"
         onClick={props.onClose}
-        title="Close"
-        aria-label="Close thread search"
+        title={t('dialogs.common.close')}
+        aria-label={t('chat.find.close')}
       >
         <X size={12} aria-hidden />
       </button>

@@ -7,6 +7,7 @@ import {
   type ProviderLimit,
   type ResultOf,
 } from '@harness/contracts'
+import { t } from './i18n/index.js'
 import { accountsOf, type ProviderAccountsSnapshot } from './provider-accounts-state.js'
 import { sameAccount, type UsageSummaryState } from './usage-summary-state.js'
 
@@ -87,12 +88,9 @@ export function continuationNote(
   account: string,
   changes: EarlierChanges | undefined,
 ): string {
-  const note = `Continues “${title}” on ${account}. Its conversation goes with your first message`
-  if (changes === undefined) return `${note}.`
-  if (changes.carried) {
-    return `${note}, and its uncommitted changes are already in this chat's checkout.`
-  }
-  return `${note}. Its uncommitted changes could not be carried over; they are still in ${changes.keptIn}.`
+  if (changes === undefined) return t('chat.continuation.plain', { title, account })
+  if (changes.carried) return t('chat.continuation.carried', { title, account })
+  return t('chat.continuation.kept', { title, account, keptIn: changes.keptIn })
 }
 
 /**
