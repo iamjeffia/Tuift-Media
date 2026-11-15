@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CapabilitiesSchema, DomainEventSchema, ItemSchema, ModelSchema } from './domain.js'
+import { MOTION_CHARACTERS, MOTION_STAGE_OWNERS, MOTION_STAGES } from './motion.js'
 import {
   BROWSER_CONSOLE_MAX,
   BROWSER_PNG_MAX,
@@ -383,6 +384,77 @@ describe('thread settings', () => {
       channels['thread.settings'].parse({ threadId: 't', settings: { approval: 'auto' } }),
     ).toEqual({ threadId: 't', settings: { approval: 'auto' } })
     expect(() => ThreadSettingsSchema.parse({ approval: 'sometimes' })).toThrow()
+  })
+
+  it('names the ten Motion stages in order, each with one of the six characters', () => {
+    expect(MOTION_STAGES).toEqual([
+      'idea',
+      'script',
+      'narration',
+      'audioApproval',
+      'references',
+      'identity',
+      'soundtrack',
+      'motion',
+      'review',
+      'delivery',
+    ])
+    expect(MOTION_STAGES.map((stage) => MOTION_STAGE_OWNERS[stage])).toEqual([
+      'zig',
+      'bun',
+      'bun',
+      'zig',
+      'moss',
+      'moss',
+      'cloud',
+      'cloud',
+      'penny',
+      'pip',
+    ])
+    expect(MOTION_CHARACTERS).toEqual(['zig', 'moss', 'bun', 'pip', 'cloud', 'penny'])
+  })
+
+  it('carries the chat mode and Motion stage, and still reads settings without them', () => {
+    expect(ThreadSettingsSchema.parse({ model: 'gpt-5.5' })).toEqual({ model: 'gpt-5.5' })
+    expect(ThreadSettingsSchema.parse({ mode: 'motion', motionStage: 'audioApproval' })).toEqual({
+      mode: 'motion',
+      motionStage: 'audioApproval',
+    })
+    expect(ThreadSettingsSchema.safeParse({ mode: 'design' }).success).toBe(true)
+    expect(ThreadSettingsSchema.safeParse({ mode: 'video' }).success).toBe(false)
+    expect(ThreadSettingsSchema.safeParse({ motionStage: 'editing' }).success).toBe(false)
+  })
+
+  it('starts a chat with a mode, and a start without one still parses', () => {
+    const start = { provider: 'codex', workspacePath: '/repo' }
+    expect(methods['thread.start'].params.parse(start)).toEqual(start)
+    expect(methods['thread.start'].params.parse({ ...start, mode: 'motion' })).toMatchObject({
+      mode: 'motion',
+    })
+    expect(methods['thread.start'].params.safeParse({ ...start, mode: null }).success).toBe(false)
+  })
+
+  it('changes the mode or stage of a chat, and turns the mode off with null', () => {
+    const setMode = methods['thread.setMode'].params
+    expect(setMode.parse({ threadId: 't', mode: 'motion' })).toEqual({
+      threadId: 't',
+      mode: 'motion',
+    })
+    expect(setMode.parse({ threadId: 't', mode: 'motion', motionStage: 'review' })).toEqual({
+      threadId: 't',
+      mode: 'motion',
+      motionStage: 'review',
+    })
+    expect(setMode.parse({ threadId: 't', mode: null })).toEqual({ threadId: 't', mode: null })
+    // The mode is required: null is how it goes off, not an absent field.
+    expect(setMode.safeParse({ threadId: 't' }).success).toBe(false)
+    expect(setMode.safeParse({ threadId: 't', mode: 'video' }).success).toBe(false)
+    expect(setMode.safeParse({ threadId: 't', mode: 'motion', motionStage: 'x' }).success).toBe(
+      false,
+    )
+    expect(methods['thread.setMode'].result.parse({ mode: 'motion', motionStage: 'idea' })).toEqual(
+      { mode: 'motion', motionStage: 'idea' },
+    )
   })
 
   it('shares the models the desktop hides by their choice keys', () => {
