@@ -139,7 +139,7 @@ Depende dos itens 2 (skills) e 3 (MCP). O botão do item 6.2 é a porta de entra
   - [x] 9.5a Ferramenta `motion_stage` no canal do app, só em chats Motion (15/11): o agente avisa a etapa e recebe o dono, a próxima etapa e as skills de vídeo daquela etapa. É um guia, não uma trava. Chega a Claude Code, Codex e OpenCode; nos outros a pessoa define a etapa.
   - [x] 9.5b Etapa guardada e avisada à tela; o boneco certo acende, também na visão dividida, e a mudança é anunciada ao leitor de tela.
   - [x] 9.5c A pessoa troca a etapa clicando num boneco: abre o menu do app com as etapas dele. Travado enquanto a resposta é gerada. Num chat novo o menu só aparece depois da primeira mensagem; no painel secundário da visão dividida a etapa só é mostrada. Falta ver com um provedor real no app instalado.
-- [ ] 9.6 Fase 5, After Effects (depende do item 11): MCP ligado só em chats Motion e aviso claro quando o After Effects não está instalado.
+- [x] 9.6 Fase 5, After Effects (15/11): o MCP do After Effects liga só em chats Motion, quando o After Effects está instalado; se a pessoa já tem um `after-effects` configurado, o dela vale. Sem After Effects, o agente é orientado a montar em HyperFrames e o Cloud mostra o aviso. Usa a lista enxuta de ferramentas. Falta ver com o After Effects de verdade no app instalado.
 - [ ] 9.7 Fase 6, a cena reage: estado "esperando você" e subagente com nome de boneco acende o boneco.
 - [x] 9.10 Feixe do Motion em volta do campo de texto, como o Design tem, em cores mais fortes do elenco (pedido de 15/11). Corrigido em seguida um bloco cortado no canto de cima do campo em chat novo: o brilho interno ficava por cima da faixa do projeto e era cortado na emenda (valia também para o Design).
 - [ ] 9.8 Elenco e papéis: Zig lidera (o laranja de óculos escuros, principal), Moss pesquisa as referências, Bun escreve o roteiro, Pip organiza o projeto, Cloud monta o vídeo no After Effects (o lilás) e Penny revisa cada quadro.
@@ -158,11 +158,11 @@ Visão do dono do projeto (15/11): o TUIFT Code é a alternativa ao Claude Code,
 
 Decisão de 15/11: o MCP de After Effects da casa vem dentro do app, para o cliente usar sem instalar mais nada.
 
-- [ ] 11.1 Levantar o que o MCP precisa para rodar na máquina do cliente (After Effects instalado, ponte, scripts) e a origem e a licença de cada parte que veio de MCPs públicos.
-- [ ] 11.2 Empacotar o MCP com o app.
-- [ ] 11.3 Ligar por padrão, ou junto com o modo Motion (decidir no plano do item 9).
-- [ ] 11.4 After Effects ausente: aviso claro em vez de erro.
-- [ ] 11.5 Testes e validação no app.
+- [x] 11.1 Levantamento feito (15/11): o servidor é um fork do `mcp-aftereffects` da Kumo (MIT) com as ferramentas da casa; precisa do After Effects 2024 a 2026 com a permissão de scripts ligada e roda com o próprio executável do app, sem Node instalado. Ficam de fora a documentação da Adobe, pacotes de terceiros sem licença de redistribuição e o que depende de produtos comerciais.
+- [x] 11.2 Empacotado (15/11): o servidor vive no repositório público `iamjeffia/ae-mcp-tuift` (MIT, decisão do dono do projeto, com código, estilo padrão e lições), e o app fixa a versão 0.4.0 por SHA-256 em `packages/after-effects-mcp/server.json` e a leva no instalador, fora do arquivo compactado do app.
+- [x] 11.3 Liga junto com o modo Motion, só naquele chat (fase 5 do Motion).
+- [x] 11.4 After Effects ausente: aviso no boneco Cloud e na instrução do agente, em vez de erro.
+- [~] 11.5 Testes feitos com servidores e arquivos falsos e com o pacote real subindo sem After Effects. Falta a validação no app instalado com o After Effects aberto, em cada provedor.
 
 ## 12. Tonal sounds dentro do app
 
@@ -224,3 +224,4 @@ Cada frente roda num worktree próprio em `C:/Dev/tuift-wt/<frente>`, numa branc
 | 4    | `restos-i18n`                                                                                        | 1.16                                  | na `main` (15/11), testada |
 | 5    | `motion-read`, `motion-session`, `bulk-count`, `pdf-viewer`, `output-caps`                           | 9.3b, 9.3c, 9.4b, 9.4c, 4.5, 5.8, 8.7 | na `main` (15/11), testada |
 | 6    | `motion-stage-tool`, `motion-stage-ui`                                                               | 9.5a, 9.5b, 9.5c                      | na `main` (15/11), testada |
+| 7    | `motion-ae`, `motion-ae-ui`, `ae-bundle`                                                             | 9.6, 11.1 a 11.4                      | na `main` (15/11), testada |

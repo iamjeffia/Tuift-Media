@@ -176,6 +176,7 @@ describe('the server as a stdio MCP server', () => {
           ELECTRON_RUN_AS_NODE: { source: 'literal', value: '1' },
           AE_MCP_EXE: { source: 'literal', value: aeExe(2026) },
           AE_MCP_ENABLE_EVAL: { source: 'literal', value: '1' },
+          AE_MCP_TOOLS: { source: 'literal', value: 'core' },
         },
       },
     })

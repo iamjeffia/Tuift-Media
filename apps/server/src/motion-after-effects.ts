@@ -159,6 +159,8 @@ export function afterEffectsServerConfig(
         ELECTRON_RUN_AS_NODE: literal('1'),
         AE_MCP_EXE: literal(executable),
         AE_MCP_ENABLE_EVAL: literal('1'),
+        // The lean tool list: what needs only After Effects. Every tool is paid on each request.
+        AE_MCP_TOOLS: literal('core'),
       },
     },
   }
