@@ -96,7 +96,12 @@ import {
 } from './owned-server-env.js'
 import { revealablePath } from './reveal-path.js'
 import { projectFilePath } from './project-file-path.js'
-import { projectFilePreview, projectFilePreviewFromUrl } from './project-file-preview.js'
+import {
+  isProjectPdfUrl,
+  projectFilePreview,
+  projectFilePreviewFromUrl,
+} from './project-file-preview.js'
+import { PDF_PARTITION } from './pdf-guest.js'
 import { PreviewCaptureOwner } from './preview-capture.js'
 import { configureRendererLifecycle } from './renderer-lifecycle.js'
 import { ServerSupervisor, type SupervisedServerProcess } from './server-supervisor.js'
@@ -702,7 +707,11 @@ function createWindow(): void {
     window.webContents.setZoomFactor(DEFAULT_ZOOM_FACTOR),
   )
   window.webContents.on('render-process-gone', () => nativeMenuDispatch.reset(window.webContents))
-  configureEmbeddedBrowser(window.webContents)
+  configureEmbeddedBrowser(window.webContents, {
+    session: session.fromPartition(PDF_PARTITION),
+    isPdfUrl: (url) => isProjectPdfUrl(url, attachmentPreviewSecret),
+    openExternal: (url) => void shell.openExternal(url),
+  })
   configureImageContextMenu(window.webContents, window, currentLanguage)
   window.webContents.on('did-attach-webview', (_event, guest) => {
     configureImageContextMenu(guest, window, currentLanguage)
@@ -1479,7 +1488,7 @@ if (ownsSingleInstance) {
 /** Stream only files that came from the native picker. The signed URL keeps a
  * compromised renderer from turning the preview surface into a filesystem API. */
 function configureAttachmentPreviews(): void {
-  protocol.handle(ATTACHMENT_PREVIEW_SCHEME, async (request) => {
+  const serve = async (request: Request): Promise<Response> => {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD' } })
     }
@@ -1541,7 +1550,17 @@ function configureAttachmentPreviews(): void {
     } catch {
       return new Response(null, { status: 404 })
     }
-  })
+  }
+  protocol.handle(ATTACHMENT_PREVIEW_SCHEME, serve)
+  // The PDF guest's session serves signed project PDFs and nothing else. A file that is gone is
+  // a failed load, not an empty page, so the Files tab can say so.
+  session
+    .fromPartition(PDF_PARTITION)
+    .protocol.handle(ATTACHMENT_PREVIEW_SCHEME, async (request) => {
+      if (!isProjectPdfUrl(request.url, attachmentPreviewSecret)) return Response.error()
+      const response = await serve(request)
+      return response.ok ? response : Response.error()
+    })
 }
 
 function attachmentThumbnail(

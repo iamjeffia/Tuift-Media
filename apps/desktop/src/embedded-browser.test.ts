@@ -175,6 +175,87 @@ describe('embedded browser guest', () => {
     expect(guestListeners.has('did-start-navigation')).toBe(false)
   })
 
+  it('gives a signed PDF its own partition and still refuses every other non-web source', () => {
+    const owner = ownerHarness()
+    const pdfSession = {}
+    configureEmbeddedBrowser(owner.contents, {
+      session: pdfSession as never,
+      isPdfUrl: (url) => url === 'tastecode-attachment://file/sig/path',
+      openExternal: vi.fn(),
+    })
+    const willAttach = owner.listener('will-attach-webview')
+
+    const preferences = { preload: '/tmp/untrusted.cjs', sandbox: false }
+    const params = {
+      src: 'tastecode-attachment://file/sig/path',
+      partition: 'persist:harness-browser',
+    }
+    const event = { preventDefault: vi.fn() }
+    willAttach(event, preferences, params)
+
+    expect(event.preventDefault).not.toHaveBeenCalled()
+    expect(params['partition']).toBe('persist:harness-pdf')
+    expect(preferences).toMatchObject({
+      contextIsolation: true,
+      nodeIntegration: false,
+      partition: 'persist:harness-pdf',
+      plugins: false,
+      sandbox: true,
+      webSecurity: true,
+      webviewTag: false,
+    })
+    expect(preferences).not.toHaveProperty('preload')
+
+    // Any other source, even one on the same scheme, is refused and stays on the browser rules.
+    for (const src of [
+      'tastecode-attachment://file/sig/other',
+      'tastecode-attachment://preview/sig/path',
+      'file:///private/data',
+    ]) {
+      const refused = { preventDefault: vi.fn() }
+      const other = { src, partition: 'persist:harness-pdf' }
+      willAttach(refused, {}, other)
+      expect(refused.preventDefault).toHaveBeenCalledOnce()
+      expect(other['partition']).toBe('persist:harness-browser')
+    }
+  })
+
+  it('locks a guest attached to the PDF session and leaves a browser guest on its own rules', () => {
+    const owner = ownerHarness()
+    const fakeSession = () => ({
+      webRequest: { onBeforeRequest: vi.fn() },
+      setPermissionCheckHandler: vi.fn(),
+      setPermissionRequestHandler: vi.fn(),
+      on: vi.fn(),
+    })
+    const fakeGuest = (session: ReturnType<typeof fakeSession>) => ({
+      session,
+      getUserAgent: vi.fn(() => ''),
+      on: vi.fn(),
+      setUserAgent: vi.fn(),
+      setWindowOpenHandler: vi.fn(),
+    })
+    const pdfSession = fakeSession()
+    configureEmbeddedBrowser(owner.contents, {
+      session: pdfSession as never,
+      isPdfUrl: () => true,
+      openExternal: vi.fn(),
+    })
+
+    const pdfGuest = fakeGuest(pdfSession)
+    owner.listener('did-attach-webview')({}, pdfGuest)
+    expect(pdfSession.webRequest.onBeforeRequest).toHaveBeenCalledOnce()
+    expect(pdfGuest.setWindowOpenHandler).toHaveBeenCalledOnce()
+    // Not the browser's setup: no user agent rewrite, no unload on a non-web address.
+    expect(pdfGuest.setUserAgent).not.toHaveBeenCalled()
+    expect(pdfGuest.on.mock.calls.map(([name]) => name)).not.toContain('did-navigate')
+
+    const browserGuest = fakeGuest(fakeSession())
+    owner.listener('did-attach-webview')({}, browserGuest)
+    expect(browserGuest.setUserAgent).toHaveBeenCalledOnce()
+    expect(browserGuest.on.mock.calls.map(([name]) => name)).toContain('did-navigate')
+  })
+
   it.each([
     { contentType: 'application/x-www-form-urlencoded', boundary: undefined },
     { contentType: 'multipart/form-data', boundary: '----chromium-form-boundary' },

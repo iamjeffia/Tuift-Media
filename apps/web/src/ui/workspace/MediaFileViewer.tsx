@@ -1,10 +1,11 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   IconAlertTriangle as Warning,
   IconMaximize as Maximize,
   IconZoomIn as ZoomIn,
   IconZoomOut as ZoomOut,
 } from '@tabler/icons-react'
+import { z } from 'zod'
 import { useI18n } from '../../i18n/index.js'
 import { previewProjectFile } from '../../bridge.js'
 import { FileTypeIcon } from '../FileTypeIcon.js'
@@ -31,7 +32,7 @@ export function useProjectFileMedia(
 ): MediaSource {
   const [source, setSource] = useState<MediaSource>({ state: 'loading' })
   useEffect(() => {
-    if (!absolutePath || !projectRoot || kind === 'pdf') {
+    if (!absolutePath || !projectRoot) {
       setSource({ state: 'unavailable' })
       return
     }
@@ -87,16 +88,8 @@ export function MediaFileViewer(props: {
     return (
       <WorkspaceEmptyState
         kind="files"
-        title={
-          props.kind === 'pdf'
-            ? t('workspace.media.pdf.title')
-            : t('workspace.media.unavailable.title')
-        }
-        detail={
-          props.kind === 'pdf'
-            ? t('workspace.media.pdf.detail', { name: props.name })
-            : t('workspace.media.unavailable.detail', { name: props.name })
-        }
+        title={t('workspace.media.unavailable.title')}
+        detail={t('workspace.media.unavailable.detail', { name: props.name })}
       >
         {props.onReveal ? (
           <button type="button" className="btn" onClick={props.onReveal}>
@@ -117,6 +110,10 @@ export function MediaFileViewer(props: {
     )
   if (props.kind === 'video')
     return <VideoStage url={source.url} name={props.name} onReveal={props.onReveal} />
+  if (props.kind === 'pdf')
+    return (
+      <PdfStage key={source.url} url={source.url} name={props.name} onReveal={props.onReveal} />
+    )
   return <AudioStage url={source.url} name={props.name} onReveal={props.onReveal} />
 }
 
@@ -240,6 +237,63 @@ function AudioStage(props: { url: string; name: string; onReveal?: (() => void) 
           onError={() => setFailed(true)}
         />
       </div>
+    </div>
+  )
+}
+
+/** The partition the desktop gives PDF guests (apps/desktop/src/pdf-guest.ts explains why). */
+const PDF_PARTITION = 'persist:harness-pdf'
+const LoadFailureEventSchema = z.object({
+  errorCode: z.number().optional(),
+  isMainFrame: z.boolean().optional(),
+})
+
+/**
+ * A PDF in Chromium's own viewer, which a `<webview>` guest of the desktop shell hosts. The guest
+ * is a separate process with no preload and no access to the app; the desktop lets it load only
+ * the signed URL it handed out. A damaged or encrypted file shows the viewer's own message.
+ */
+function PdfStage(props: { url: string; name: string; onReveal?: (() => void) | undefined }) {
+  const { t } = useI18n()
+  const host = useRef<HTMLDivElement>(null)
+  const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading')
+
+  useLayoutEffect(() => {
+    const element = host.current
+    if (!element) return
+    const view = document.createElement('webview')
+    view.className = 'workspace-media__pdf'
+    view.setAttribute('aria-label', props.name)
+    view.setAttribute('partition', PDF_PARTITION)
+    view.setAttribute(
+      'webpreferences',
+      'contextIsolation=yes, nodeIntegration=no, sandbox=yes, spellcheck=no',
+    )
+    view.addEventListener('did-stop-loading', () =>
+      setState((current) => (current === 'loading' ? 'ready' : current)),
+    )
+    view.addEventListener('did-fail-load', (event) => {
+      const failure = LoadFailureEventSchema.safeParse(event)
+      // -3 is a load another one replaced, which is not a failure.
+      if (failure.success && failure.data.isMainFrame !== false && failure.data.errorCode !== -3) {
+        setState('failed')
+      }
+    })
+    view.setAttribute('src', props.url)
+    element.append(view)
+    return () => view.remove()
+  }, [props.url, props.name])
+
+  if (state === 'failed') {
+    return <MediaFailure message={t('workspace.media.pdf.failed')} onReveal={props.onReveal} />
+  }
+  return (
+    <div className="workspace-media workspace-media--pdf" ref={host}>
+      {state === 'loading' ? (
+        <SkeletonStatus label={t('workspace.media.opening')} className="workspace-media__loading">
+          <Skeleton height="100%" />
+        </SkeletonStatus>
+      ) : null}
     </div>
   )
 }
