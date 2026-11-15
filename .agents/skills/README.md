@@ -61,6 +61,7 @@ CLI, use `npx skills add heygen-com/hyperframes --skill <workflow-name>`.
 | Skill                 | For                                                               | Origin             | Licence                       |
 | --------------------- | ----------------------------------------------------------------- | ------------------ | ----------------------------- |
 | `humanizer`         | Rewriting text that reads as machine-written so it sounds natural | `blader/humanizer` | MIT                           |
+| `escrita-pt-br`     | Writing, translating and revising text in Brazilian Portuguese: plain language, natural phrasing, interface text, punctuation and grammar traps | TUIFT Media        | Apache-2.0                    |
 
 ### Capture & tools
 

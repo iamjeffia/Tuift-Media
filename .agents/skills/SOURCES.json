@@ -214,6 +214,14 @@
       "license": "Apache-2.0",
       "licenseFile": "LICENSE",
       "modified": "Written by the TUIFT Media team as its own method."
+    },
+    {
+      "name": "escrita-pt-br",
+      "repository": "TUIFT Media",
+      "path": ".agents/skills/escrita-pt-br",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "modified": "Written by the TUIFT Media team as its own method, from general knowledge of Brazilian Portuguese and plain-language practice. All examples are original. It is not derived from any third-party writing skill."
     }
   ],
   "notBrought": [
