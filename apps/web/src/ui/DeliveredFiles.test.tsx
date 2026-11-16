@@ -139,7 +139,8 @@ describe('the cards under a reply', () => {
   it('shows an image as a thumbnail that opens in the media viewer', async () => {
     renderFiles(message('c.png'), [IMAGE])
     const open = await screen.findByRole('button', { name: `Open ${IMAGE.name}` })
-    expect(open.querySelector('img')?.getAttribute('src')).toBe(IMAGE.url)
+    // The picture mounts once its card is on screen, a tick after the button appears.
+    await waitFor(() => expect(open.querySelector('img')?.getAttribute('src')).toBe(IMAGE.url))
     fireEvent.click(open)
     expect(await screen.findByRole('dialog')).toBeTruthy()
   })
