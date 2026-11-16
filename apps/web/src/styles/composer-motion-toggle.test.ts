@@ -56,10 +56,10 @@ describe('composer Motion toggle styles', () => {
 
   it('keeps the box inner glow under the shelf, so a new chat shows no cut block', () => {
     const inner =
-      /\n\.composer__design-beam:is\(\[data-active\], \[data-fading\]\)::before \{([\s\S]*?)\n\}/.exec(
-        beamCss,
-      )?.[1] ?? ''
+      /\n\.composer__design-beam > \[data-beam-glow\] \{([\s\S]*?)\n\}/.exec(beamCss)?.[1] ?? ''
     expect(inner).toContain('z-index: 0;')
+    // Limited to the edge bands, so the glow stays a rim and not a wash over the prompt.
+    expect(inner).toContain('28px')
   })
 
   it('tints the active chip orange, also while hovered', () => {
