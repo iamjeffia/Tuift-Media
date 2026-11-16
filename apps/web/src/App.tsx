@@ -1365,6 +1365,15 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     },
     [setThreadDesignMode, setThreadMotionMode],
   )
+  // Design is this window's toggle; the server only needs the mode, so the chat's next
+  // session loads the Design pack while the toggle is on (and not after it ends).
+  const designServerState = useSyncExternalStore(motionStore.subscribe, () =>
+    motionStore.designState(activeId),
+  )
+  useEffect(() => {
+    if (activeId && !activeId.startsWith('pending:'))
+      void motionStore.setDesign(activeId, designMode)
+  }, [motionStore, activeId, designMode, designServerState, thread.running])
   // A multi-chat delete can stop on several isolated checkouts; each one is
   // confirmed in turn while the rest of the batch goes ahead.
   const [checkoutDeletes, setCheckoutDeletes] = useState<
@@ -4590,7 +4599,11 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
             : {}),
           ...(selectedEffort ? { effort: selectedEffort } : {}),
           ...(isolate ? { isolate: true } : {}),
-          ...(motionMode ? { mode: 'motion' as const } : {}),
+          ...(motionMode
+            ? { mode: 'motion' as const }
+            : designMode
+              ? { mode: 'design' as const }
+              : {}),
         })
         if (motionMode) seedMotion(threadId)
         let pendingApproval = pendingThreadApprovals.current.get(provisionalId)

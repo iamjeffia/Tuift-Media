@@ -13067,13 +13067,22 @@ describe('Motion mode session start', () => {
     ['motion-app-ae', 'app motion in After Effects'],
   ] as const
 
-  const motionHarness = async ({ pack = true }: { pack?: boolean } = {}) => {
+  const DESIGN_SKILLS = [
+    ['ui-profissional', 'screens without a generic look'],
+    ['frontend-design', 'a distinctive visual direction'],
+  ] as const
+
+  const motionHarness = async ({
+    pack = true,
+    design = false,
+  }: { pack?: boolean; design?: boolean } = {}) => {
     const parent = mkdtempSync(path.join(os.tmpdir(), 'tc-orchestrator-motion-'))
     onTestFinished(() =>
       rmSync(parent, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }),
     )
     const root = await writeDefaultSkillsFixture(parent)
     if (pack) await writeDefaultSkillPackFixture(root, 'motion', MOTION_SKILLS)
+    if (design) await writeDefaultSkillPackFixture(root, 'design', DESIGN_SKILLS)
     return { root, ...harness(undefined, undefined, undefined, undefined, undefined, root) }
   }
 
@@ -13118,17 +13127,37 @@ describe('Motion mode session start', () => {
     },
   )
 
-  it('adds nothing in Design mode yet', async () => {
+  it.each(ProviderIdSchema.options)(
+    'gives a Design chat on %s the Design role and pack, and nothing of Motion',
+    async (provider) => {
+      const { orchestrator, startedOptions, root } = await motionHarness({ design: true })
+      await orchestrator.startThread(provider, process.cwd(), { mode: 'design' })
+
+      const started = startedOptions[0]!
+      expect(started.instructions).toContain('This chat is in Design mode.')
+      expect(started.instructions).toContain('Do not use em dashes')
+      expect(started.instructions).not.toContain('Motion')
+      expect(started.instructions).not.toContain('hyperframes')
+      if (PROVIDER_CAPABILITIES[provider].defaultSkillsPlugin) {
+        expect(started.skillPlugin).toBe(root)
+        expect(started.packPlugins).toEqual([path.join(root, 'packs', 'design')])
+        expect(started.instructions).toContain('The skills of the Design pack are loaded')
+        expect(started.instructions).not.toContain('- ui-profissional')
+      } else {
+        expect(started.packPlugins).toBeUndefined()
+        expect(started.instructions).toContain(path.join(root, 'packs', 'design', 'skills'))
+        expect(started.instructions).toContain('- ui-profissional: screens without a generic look')
+      }
+      await orchestrator.disposeAll()
+    },
+  )
+
+  it('keeps the Design role when its pack is not on disk, without an error', async () => {
     const { orchestrator, startedOptions } = await motionHarness()
-    await orchestrator.startThread('claude-code', process.cwd())
     await orchestrator.startThread('claude-code', process.cwd(), { mode: 'design' })
 
-    const [plain, design] = startedOptions.map(({ instructions, skillPlugin, packPlugins }) => ({
-      instructions,
-      skillPlugin,
-      packPlugins,
-    }))
-    expect(design).toEqual(plain)
+    expect(startedOptions[0]!.instructions).toContain('This chat is in Design mode.')
+    expect(Object.keys(startedOptions[0]!)).not.toContain('packPlugins')
     await orchestrator.disposeAll()
   })
 

@@ -43,6 +43,8 @@ export class ThreadMotionStore {
   #active: string | undefined
   #running = false
   #migrating = new Set<string>()
+  /** What the server refused for the Design toggle of a chat, until the chat's turn state changes: no retry loop. */
+  #designRefused = new Map<string, boolean>()
 
   constructor(private readonly deps: ThreadMotionDeps) {}
 
@@ -106,6 +108,7 @@ export class ThreadMotionStore {
   watch(threadId: string | undefined, running: boolean): void {
     this.#active = threadId
     this.#running = running
+    this.#designRefused.clear()
     if (threadId) this.#settle(threadId)
   }
 
@@ -128,6 +131,44 @@ export class ThreadMotionStore {
       this.adopt(threadId, await this.deps.setMode({ threadId, mode: enabled ? 'motion' : null }))
     } catch (error) {
       // A push that arrived meanwhile is newer than the state to go back to.
+      if (this.#entries.get(threadId) === optimistic) this.#write(threadId, before)
+      this.deps.onError(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  /**
+   * What the chat's server mode means for the Design toggle: `unknown` until the
+   * server's settings arrive, then `design`, `motion` (its own toggle owns the
+   * chat) or `none`.
+   */
+  designState = (threadId: string | undefined): 'unknown' | 'design' | 'motion' | 'none' => {
+    const entry = threadId ? this.#entries.get(threadId) : undefined
+    if (!entry) return 'unknown'
+    return entry.mode === 'design' ? 'design' : entry.mode === 'motion' ? 'motion' : 'none'
+  }
+
+  /**
+   * Makes the server's mode of a chat follow the Design toggle, which this window
+   * keeps for itself: the chat's next session loads the Design pack while it is on.
+   * A Motion chat is left alone, a chat whose settings have not arrived waits for
+   * them, and a turn that runs is not interrupted: the next call settles it. A
+   * refusal returns the chat to what the server last said and reports why.
+   */
+  async setDesign(threadId: string, enabled: boolean): Promise<void> {
+    if (threadId === this.#active && this.#running) return
+    const before = this.#entries.get(threadId)
+    if (!before || before.mode === 'motion' || (before.mode === 'design') === enabled) return
+    if (this.#designRefused.get(threadId) === enabled) return
+    const optimistic: Entry = { ...before, mode: enabled ? 'design' : undefined }
+    this.#write(threadId, optimistic)
+    try {
+      const settings = await this.deps.setMode({ threadId, mode: enabled ? 'design' : null })
+      this.adopt(threadId, settings)
+      // A server that answers without applying the mode would be asked again at every render.
+      if ((settings.mode === 'design') !== enabled) this.#designRefused.set(threadId, enabled)
+    } catch (error) {
+      // Put back what the server said; asking again would only be refused again.
+      this.#designRefused.set(threadId, enabled)
       if (this.#entries.get(threadId) === optimistic) this.#write(threadId, before)
       this.deps.onError(error instanceof Error ? error.message : String(error))
     }

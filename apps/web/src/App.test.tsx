@@ -8128,6 +8128,54 @@ describe('new chats', () => {
     await waitFor(() => expect(pressed('Motion')).toBe('false'))
   })
 
+  it('starts a Design draft as a Design chat, so its first session loads the Design pack', async () => {
+    serverProjects = [
+      { path: '/work/project', name: 'project', pinned: false, createdAt: 0, sessions: [] },
+    ]
+    render(<App />)
+    await screen.findByPlaceholderText('Do anything')
+    fireEvent.click(screen.getByRole('button', { name: 'Design' }))
+    submitTurn('Design a landing page')
+    await waitFor(() =>
+      expect(transport.request).toHaveBeenCalledWith(
+        'thread.start',
+        expect.objectContaining({ mode: 'design' }),
+      ),
+    )
+  })
+
+  it('tells the server when Design is turned on or off in a chat that exists, and asks no more than once', async () => {
+    serverProjects[0]!.sessions = [
+      { id: 'chat-a', title: 'Chat A', provider: 'codex', createdAt: 1 },
+    ]
+    const request = transport.request.getMockImplementation()!
+    transport.request.mockImplementation((method, params) =>
+      method === 'thread.setMode'
+        ? Promise.resolve({ mode: (params as { mode: string | null }).mode ?? undefined })
+        : request(method, params),
+    )
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: /^Chat A,/ }))
+    const design = () => screen.getByRole('button', { name: 'Design' })
+    const modes = () =>
+      transport.request.mock.calls
+        .filter(([method]) => method === 'thread.setMode')
+        .map(([, params]) => (params as { mode: string | null }).mode)
+
+    await waitFor(() => expect(design().getAttribute('aria-pressed')).toBe('false'))
+    fireEvent.click(design())
+    await waitFor(() => expect(modes()).toEqual(['design']))
+    expect(transport.request).toHaveBeenCalledWith('thread.setMode', {
+      threadId: 'chat-a',
+      mode: 'design',
+    })
+    fireEvent.click(design())
+    await waitFor(() => expect(modes()).toEqual(['design', null]))
+    // Settled: nothing more is asked while the toggle stays as it is.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(modes()).toEqual(['design', null])
+  })
+
   it("does not carry a failed new chat prompt into another project's new chat", async () => {
     serverProjects = [
       { path: '/work/project', name: 'project', pinned: false, createdAt: 0, sessions: [] },

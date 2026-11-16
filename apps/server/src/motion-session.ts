@@ -54,25 +54,68 @@ const motionRole = (stageTool: boolean, afterEffects?: AfterEffectsState) =>
 export const MOTION_ROLE_INSTRUCTION = motionRole(false)
 export const MOTION_ROLE_WITH_STAGE_TOOL = motionRole(true)
 
-const PACK_LOADED = 'The skills of the Motion pack are loaded in this session.'
+/**
+ * About 330 tokens, written for the agent. The skills it names are folders of the
+ * Design pack; the test checks every name against the real pack. A Design chat
+ * can also be in the middle of the Design pipeline (packages/design-agent), whose
+ * phase turns carry their own instructions, some of them JSON only: the role
+ * says those come first, since it is part of the whole session.
+ */
+const DESIGN_HEAD = `This chat is in Design mode. You are the designer and front-end engineer of one interface (a site, an app screen, a redesign, a review or an interface animation), and the person you talk to decides what it should feel like.
+
+Look for references before you design, and say where each one came from: a site, an app, a screenshot or something the person named. Do not invent a look from memory.
+
+Pick skills of the Design pack by the request, and read one only when the request needs it, never all of them:
+- build something new: ui-profissional and frontend-design, then better-colors, better-typography and better-layout
+- redesign or review: better-interface, interface-review and better-accessibility
+- interface text: better-writing
+- interface animation: animate, choreograph and review-animations
+- a library or an effect: pick-ui-library and libraries-dev`
+
+/** Only where the chat's provider reaches the app's tools: the others have no browser of the app. */
+const DESIGN_CHECK_WITH_BROWSER =
+  "Before you say it is done, open the result in the app's browser (browser_open, browser_screenshot) at a phone width and at a desktop width: for the narrow one, load it inside a page that frames it at 390 px."
+const DESIGN_CHECK_WITHOUT_BROWSER =
+  'Before you say it is done, run the result and look at it at a phone width and at a desktop width.'
+
+const DESIGN_TAIL =
+  'Never ship an interface that looks machine-made: the skills say what gives it away, so use them instead of restating them here. The final wording of anything the person will publish, and every approval, is theirs: propose, then wait. A message that carries its own phase instructions, or asks for a JSON answer only, comes first: follow it and leave this role aside for that turn. Outside interface work, ignore this role.'
+
+const designRole = (browser: boolean) =>
+  [
+    DESIGN_HEAD,
+    browser ? DESIGN_CHECK_WITH_BROWSER : DESIGN_CHECK_WITHOUT_BROWSER,
+    DESIGN_TAIL,
+  ].join('\n\n')
+
+export const DESIGN_ROLE_INSTRUCTION = designRole(false)
+export const DESIGN_ROLE_WITH_BROWSER = designRole(true)
 
 type ModeSession = {
   pack: string
-  role: (stageTool: boolean, afterEffects?: AfterEffectsState) => string
+  role: (agentTools: boolean, afterEffects?: AfterEffectsState) => string
   loaded: string
 }
 
 const MOTION_SESSION: ModeSession = {
   pack: 'motion',
   role: motionRole,
-  loaded: PACK_LOADED,
+  loaded: 'The skills of the Motion pack are loaded in this session.',
 }
 
-/** The Design pack will get its own case, with its own role instruction. */
+const DESIGN_SESSION: ModeSession = {
+  pack: 'design',
+  role: designRole,
+  loaded: 'The skills of the Design pack are loaded in this session.',
+}
+
+/** One pack at a time: a chat has one mode, so a skill both packs hold is never listed twice. */
 function modeSession(mode: ThreadMode | undefined): ModeSession | undefined {
   switch (mode) {
     case 'motion':
       return MOTION_SESSION
+    case 'design':
+      return DESIGN_SESSION
     default:
       return undefined
   }
@@ -89,7 +132,8 @@ export type ModeSessionStart = {
  * The session start of a chat in `mode`, or undefined when the mode adds nothing.
  * `native`: the provider loads plugin folders itself. A pack missing on disk
  * leaves the role instruction alone. `stageTool`: the chat's provider reaches the
- * `motion_stage` tool, so the role tells the agent to call it. `afterEffects`: what the
+ * app's tools, so the Motion role tells the agent to call `motion_stage` and the Design
+ * role points it at the browser tools. `afterEffects`: what the
  * session has of After Effects; absent, the role says nothing about it.
  */
 export function modeSessionStart(
