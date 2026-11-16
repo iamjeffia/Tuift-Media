@@ -11,6 +11,17 @@ export type KillableProcess = Pick<ChildProcess, 'exitCode' | 'signalCode' | 'pi
 const groups = new WeakMap<KillableProcess, number>()
 const stopping = new WeakMap<KillableProcess, Promise<void>>()
 
+/**
+ * Told of every child `spawnOwned` starts. The child registry sets it while it is open; a hook
+ * rather than an import keeps this file free of other modules, as the tests that load it from
+ * source expect.
+ */
+let onOwnedChild: ((child: ChildProcess) => void) | undefined
+
+export function setOwnedChildHook(hook: ((child: ChildProcess) => void) | undefined): void {
+  onOwnedChild = hook
+}
+
 /** Owned children whose exit this process has not seen, and POSIX groups not yet retired. */
 const unfinished = new Set<ChildProcess>()
 const openGroups = new Set<number>()
@@ -44,6 +55,7 @@ export function spawnOwned(
   const { keepGroupAfterExit, ...spawnOptions } = options
   const child = spawn(command, args, { ...spawnOptions, detached: process.platform !== 'win32' })
   if (child.pid) ownUntilExit(child)
+  onOwnedChild?.(child)
   if (process.platform !== 'win32' && child.pid) {
     const group = child.pid
     groups.set(child, group)
