@@ -637,7 +637,9 @@ test('the committed packs hold the Motion skills and the Design skills, with a l
   const design = inPack('design').map((entry) => entry.folder)
   // The team's own skills first, then the third-party ones.
   assert.deepEqual(design.slice(0, 3), ['stageshow', 'figma', 'ui-profissional'])
-  assert.equal(design.length, 36)
+  assert.equal(design.length, 43)
+  // The seven 21st skills ship in the pack (Apache-2.0 at the pinned commit), pinned to one commit.
+  assert.equal(design.filter((folder) => folder.startsWith('21st-')).length, 7)
   // The two skills the packs share are the only ones in both.
   assert.deepEqual(
     manifest.skills.filter((entry) => skillPacks(entry).length > 1).map((entry) => entry.folder),

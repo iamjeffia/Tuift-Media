@@ -36,7 +36,7 @@ bundle/                         base plugin ("tastecode"): skills with no pack
 - Other providers: a short catalog of the pack, from `loadDefaultSkillPack` in
   `apps/server/src/default-skills.ts`.
 
-Packs today: `motion` (video and motion skills) and `design` (36 skills: the team's own, and the
+Packs today: `motion` (video and motion skills) and `design` (43 skills: the team's own, and the
 third-party ones whose licences allow embedding, each pinned by commit; see
 `THIRD_PARTY_NOTICES.md`). A source whose archive is too large to fetch for one skill is copied into
 `.agents/skills/` instead and bundled as a local skill (`libraries-dev`).
@@ -55,13 +55,30 @@ Some skills cannot ship inside the app: their repositories declare no licence, o
 republishing. `third-party-skills.json` lists them instead (author, licence as the repository
 declares it, the exact commit, the archive's SHA-256 and size). The Skills page offers them under
 "Available to install"; an install downloads the pinned archive straight from the author's host
-(`apps/server/src/skill-catalog.ts`, `skill-download.ts`), checks it, unpacks only the skill's folder
-and hands it to the same path "Install from folder" uses. Nothing of those skills is in this
-repository. Before a release, run `pnpm --filter @harness/default-skills check:third-party`: it
-downloads each pinned archive and checks the commit, hash, folders and licence text against the
-network.
+(`apps/server/src/skill-catalog.ts`, `skill-download.ts`), checks it and unpacks only the skill's
+folder into the app's own data folder. Nothing of those skills is in this repository. Before a
+release, run `pnpm --filter @harness/default-skills check:third-party`: it downloads each pinned
+archive and checks the commit, hash, folders and licence text against the network.
 
-What an install leaves in the project: the skill's folder under `.agents/skills/<id>` and
-`.agents/skills/.tuift-catalog.json`, `{ version: 1, skills: { <id>: { commit, category, set?,
-installedAt } } }`. The category (`motion`, `design`, `general`) is there for whatever later loads
-installed `design` skills into Design chats; read it with `readCatalogRecord(projectPath)`.
+An install is made once for the whole app, not for a project or a provider. It is laid out like the
+bundle, so the same mechanism serves it (`apps/server/src/installed-skills.ts`):
+
+```
+<data folder>/third-party-skills/          next to the app's database
+  installed.json                           { version: 1, skills: { <id>: { commit, category, set?, installedAt } } }
+  <category>/                              design, motion or general: a Claude Code plugin, "tastecode-installed-<category>"
+    .claude-plugin/plugin.json
+    skills/<id>/SKILL.md
+```
+
+The `category` each manifest entry carries decides which chats load it: `general` in every chat,
+`design` in a chat with Design on, `motion` in a chat with Motion on, through the same session
+start that carries the bundled packs. A provider that loads plugins gets the folder as one more
+plugin directory; the others get a short catalog (about 300 tokens per category at most). A skill
+the bundle already has is neither offered nor listed twice. The page can remove an installed skill
+(its folder and its record). An earlier version installed into a project's `.agents/skills`, with a
+record in `.agents/skills/.tuift-catalog.json`: those stay where they are, are shown as installed
+for that project, and are read with `readCatalogRecord(projectPath)`. They are not migrated.
+
+A manifest entry whose files another entry carries inside it is listed once: `remotion-best-practices`
+holds the other twelve Remotion skills as subfolders, so it alone is in the manifest.
