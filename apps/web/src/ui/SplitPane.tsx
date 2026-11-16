@@ -24,6 +24,19 @@ export function PaneComposer(props: {
   composer: ComponentProps<typeof Composer>
   dormant?: boolean | undefined
   queue?: { items: QueuedTurn[]; canSteer: boolean } | undefined
+  /** The Motion team of this pane's chat, live where the rest of a dormant composer is frozen. */
+  motion?:
+    | Pick<
+        ComponentProps<typeof Composer>,
+        | 'motionMode'
+        | 'motionStage'
+        | 'motionAfterEffects'
+        | 'motionWaiting'
+        | 'motionWorking'
+        | 'motionLocked'
+        | 'onMotionStageChange'
+      >
+    | undefined
 }) {
   const thread = useSyncExternalStore(
     props.store.subscribeStructure,
@@ -33,6 +46,7 @@ export function PaneComposer(props: {
   return (
     <Composer
       {...props.composer}
+      {...props.motion}
       frameStore={props.store}
       dormant
       errorsVisible={false}

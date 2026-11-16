@@ -1,5 +1,5 @@
 import { IconAlertTriangle, IconDots } from '@tabler/icons-react'
-import { memo, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { memo, useRef, type CSSProperties } from 'react'
 import { useI18n } from '../i18n/index.js'
 import { Menu, MenuItem } from '../ui/Menu.js'
 import { usePopupPresence } from '../ui/use-popup-presence.js'
@@ -19,6 +19,7 @@ import {
   type CastMember,
   type MotionStageId,
 } from './cast.js'
+import { useCastAnnouncement } from './cast-announcement.js'
 import './motion-cast.css'
 
 export type MotionCastProps = {
@@ -53,48 +54,22 @@ export type MotionCastProps = {
 type MemberStyle = CSSProperties & { '--cast-color': string; '--cast-index': number }
 
 /**
- * The scene of the Motion team above the chat. It takes its props and never
- * reads the thread, so a streaming reply cannot re-render it.
+ * The scene of the Motion team above the title of a new chat (a chat that exists has
+ * the team in its status strip, see MotionStrip). It takes its props and never reads
+ * the thread, so a streaming reply cannot re-render it.
  */
 export const MotionCast = memo(function MotionCast(props: MotionCastProps) {
   const { t } = useI18n()
   const root = useRef<HTMLDivElement>(null)
   const present = usePopupPresence(props.mode, root)
-  const [announcement, setAnnouncement] = useState('')
   const stage = props.stage ?? 'idea'
   const leader = CAST.find((member) => member.id === STAGE_OWNER[stage])
   const stageLabel = t(STAGE_LABEL[stage])
 
   const problem = afterEffectsProblem(props.afterEffects)
   const note = problem ? t(AFTER_EFFECTS_NOTE[problem]) : ''
-  const said = useRef<{ stage: string; note: string; waiting: boolean } | undefined>(undefined)
   const waiting = props.waiting === true
-
-  // A live region only speaks about changes made after it exists, so the text
-  // goes in one render after the scene appears. The first text says the mode
-  // is on; after that every new stage, chosen here or pushed by the server, is
-  // said once with its character. The After Effects notice is said once when
-  // the scene appears with it and again each time it changes, and so is the
-  // chat starting to wait for the person (its end is not said).
-  useEffect(() => {
-    if (!props.mode || !leader) {
-      said.current = undefined
-      return
-    }
-    const before = said.current
-    const stageText = `${leader.name}|${stageLabel}`
-    const lines: string[] = []
-    if (before?.stage !== stageText) {
-      const key = before ? 'chat.motion.announceStage' : 'chat.motion.announce'
-      lines.push(t(key, { stage: stageLabel, name: leader.name }))
-    }
-    if (note && before?.note !== note) lines.push(note)
-    if (waiting && !before?.waiting)
-      lines.push(t('chat.motion.announceWaiting', { name: leader.name }))
-    said.current = { stage: stageText, note, waiting }
-    setAnnouncement(lines.join(' '))
-    return () => setAnnouncement('')
-  }, [props.mode, leader, stageLabel, note, waiting, t])
+  const announcement = useCastAnnouncement({ mode: props.mode, leader, stageLabel, note, waiting })
 
   if (!present) return null
   return (
@@ -127,7 +102,7 @@ export const MotionCast = memo(function MotionCast(props: MotionCastProps) {
   )
 })
 
-function Member(props: {
+export function Member(props: {
   member: CastMember
   index: number
   current: boolean
@@ -140,6 +115,12 @@ function Member(props: {
   locked: boolean | undefined
   /** After Effects cannot be used: only Cloud, who builds in it, carries it. */
   problem: AfterEffectsProblem | undefined
+  /** The ring and the breath, when it is not the owner of the stage who has them (a running helper's character). */
+  ring?: boolean | undefined
+  /** The stage name beside the owner's head; the status strip says it elsewhere. Default: shown. */
+  showLabel?: boolean | undefined
+  /** Which way the character's menu opens; below the heads by default. */
+  drop?: 'up' | 'down' | undefined
 }) {
   const { t } = useI18n()
   const { member, current, waiting, working, problem, onStageChange } = props
@@ -179,7 +160,7 @@ function Member(props: {
           </span>
         ) : null}
       </span>
-      {current ? (
+      {current && props.showLabel !== false ? (
         <span className="motion-cast__label">
           {waiting ? t('chat.motion.labelWaiting', { stage: stageLabel }) : stageLabel}
         </span>
@@ -190,7 +171,7 @@ function Member(props: {
     <span
       className="motion-cast__member"
       style={style}
-      data-current={current ? '' : undefined}
+      data-current={(props.ring ?? current) ? '' : undefined}
       data-waiting={waiting ? '' : undefined}
       data-working={working ? '' : undefined}
     >
@@ -198,7 +179,7 @@ function Member(props: {
         <Menu
           label={described}
           triggerTitle={title}
-          drop="down"
+          drop={props.drop ?? 'down'}
           triggerClassName="motion-cast__trigger"
           panelClassName={`menu--compact menu--cast${problem ? ' menu--cast-note' : ''}`}
           panelLabel={t('chat.motion.stageMenu', { name: member.name })}

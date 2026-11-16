@@ -58,11 +58,16 @@ describe('Motion cast styles', () => {
     expect(tokens).toContain('--dur-slow: 260ms;')
   })
 
-  it('appears in one layout step: the band never animates its size', () => {
+  it('is the scene of a new chat only: no band over a chat that exists', () => {
+    // The short-window fallback of a new chat is a 48px row in flow; it never animates its size.
     expect(rule('.motion-cast')).toContain('height: 48px;')
     expect(rule('.motion-cast')).not.toMatch(/transition:[^;]*(height|grid)/)
-    expect(css).toContain('.stage__conversation:has(> .motion-cast)')
-    expect(rule('.stage__conversation:has(> .motion-cast)')).not.toContain('transition')
+    // The new chat's own row stays; the band's grid row and the fade under it are gone.
+    expect(rule('.stage__conversation.is-new-session:has(> .motion-cast)')).not.toContain(
+      'transition',
+    )
+    expect(css).not.toContain('grid-template-rows: 48px minmax')
+    expect(css).not.toContain('.motion-cast::after')
   })
 
   it('breathes only the highlighted head while a turn runs, and the heads a running helper lights', () => {

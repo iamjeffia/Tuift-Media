@@ -12,6 +12,8 @@ const layout = vi.hoisted(() => ({
   height: 1_200,
   count: 0,
   heightReads: 0,
+  /** Scroll height the scroller's own bottom padding adds: the composer's overlay. */
+  clearance: 0,
   /** Where each row starts, for the rows a test places. */
   starts: [] as number[],
   /** Each placed row's measured height, where a test cares; a hidden row measures 0. */
@@ -109,6 +111,7 @@ beforeEach(() => {
   mockKeyboardModifierState()
   layout.height = 1_200
   layout.heightReads = 0
+  layout.clearance = 0
   layout.starts = []
   layout.sizes = []
   layout.listWrites = 0
@@ -653,12 +656,12 @@ describe('Thread scroll position', () => {
       vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (
         this: HTMLElement,
       ) {
-        return layout.height + room(this)
+        return layout.height + layout.clearance + room(this)
       })
       vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
         this: Element,
       ) {
-        const height = this.classList.contains('thread__col') ? layout.height : 0
+        const height = this.classList.contains('thread__col') ? layout.height + layout.clearance : 0
         return {
           top: 0,
           height,
@@ -681,15 +684,16 @@ describe('Thread scroll position', () => {
      * A finished chat open at its end. `send` starts a turn with a 60px
      * prompt and, like the app, asks for the end in the same render.
      */
-    function chat() {
+    function chat({ clearance = 0 } = {}) {
       layout.starts = [0, 600]
+      layout.clearance = clearance
       let state: ThreadState = { ...emptyThread, items: finished }
       let reveal = 0
       const store = new ThreadFrameStore(state)
       const threadProps = props(store)
       const view = render(<Thread {...threadProps} threadId="pinned" revealRequest={reveal} />)
       const scroller = view.container.querySelector<HTMLElement>('.thread')!
-      expect(scroller.scrollTop).toBe(1_000)
+      expect(scroller.scrollTop).toBe(1_000 + clearance)
       now += 1_000
       const publish = (next: ThreadState) => {
         state = next
@@ -831,6 +835,63 @@ describe('Thread scroll position', () => {
       // 776px away in a 200px viewport: no glide through the whole chat.
       expect(scroller.scrollTop).toBe(1_200 - TURN_TOP_GAP)
       expect(frames).toHaveLength(0)
+      expect(view.queryByRole('button', { name: 'Jump to latest' })).toBeNull()
+    })
+
+    /**
+     * What sits over the scroller's bottom (the composer: its draft, a status line, a
+     * queue) is padding of the scroller, so when it shrinks the scroll range does too.
+     * The browser clamps the scroll to the smaller range in the layout that just ran, the
+     * resize notification comes in the same frame, and the scroll event a frame later.
+     */
+    function overlayShrinks() {
+      const callbacks: ResizeObserverCallback[] = []
+      vi.spyOn(globalThis, 'ResizeObserver').mockImplementation(function (callback) {
+        callbacks.push(callback)
+        return { observe: noop, disconnect: noop, unobserve: noop }
+      })
+      return (scroller: HTMLElement, by: number) => {
+        layout.clearance -= by
+        scroller.scrollTop = Math.min(scroller.scrollTop, scroller.scrollHeight - 200)
+        act(() => callbacks.forEach((callback) => callback([], {} as ResizeObserver)))
+        fireEvent.scroll(scroller)
+      }
+    }
+
+    it('keeps the prompt where it landed when the composer overlay shrinks afterwards', () => {
+      const shrink = overlayShrinks()
+      const { view, scroller, send, line } = chat({ clearance: 36 })
+      send()
+      settle(scroller)
+      const pinned = scroller.scrollTop
+      expect(pinned).toBe(1_200 - TURN_TOP_GAP)
+
+      shrink(scroller, 36)
+
+      expect(scroller.scrollTop).toBe(pinned)
+      // The reply fills the screen and the follow takes over: nothing was let go of.
+      for (let lines = 0; lines < 10; lines += 1) {
+        line()
+        settle(scroller)
+      }
+      expect(room(scroller)).toBe(0)
+      expect(scroller.scrollTop).toBe(layout.height + layout.clearance - 200)
+      expect(view.queryByRole('button', { name: 'Jump to latest' })).toBeNull()
+    })
+
+    it('does not lose the glide to the prompt when the overlay shrinks during it', () => {
+      const shrink = overlayShrinks()
+      const { view, scroller, send } = chat({ clearance: 36 })
+      send()
+      while (scroller.scrollTop < 1_160) runFrame()
+      const before = scroller.scrollTop
+
+      shrink(scroller, 36)
+
+      // Nothing is painted between the clamp and the put-back: the glide never moved back.
+      expect(scroller.scrollTop).toBeGreaterThan(before - 1)
+      settle(scroller)
+      expect(scroller.scrollTop).toBe(1_200 - TURN_TOP_GAP)
       expect(view.queryByRole('button', { name: 'Jump to latest' })).toBeNull()
     })
 

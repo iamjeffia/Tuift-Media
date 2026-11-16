@@ -1,0 +1,180 @@
+/* The Motion team in the status strip above the prompt box. Loaded with the strip
+   the first time a Motion chat shows it (LazyMotionStrip), so none of it is startup
+   CSS. The heads, rings, marks and menus are the scene's own (motion-cast.css); this
+   file only scales them down to the strip's line and says where they stand. Nothing
+   here is a new value but the sizes: the strip keeps its type, inks and spacing, and
+   every motion is transform or opacity on the app's motion tokens. */
+
+.motion-strip {
+  --cast-size: 20px;
+  --cast-ring: 1.5px;
+  --cast-ring-offset: 2px;
+  --cast-mark: 11px;
+  --cast-angle: 40deg;
+  --cast-d: calc(var(--cast-size) / 2 + var(--cast-mark) / 2 + 1px);
+
+  /* A state change fades the row in; the row itself never changes height. */
+  animation: motion-strip-in var(--dur-fast) var(--ease-out) backwards;
+}
+
+@keyframes motion-strip-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The scene's heads arrive staggered with a spring; in the strip they only sit. */
+.motion-strip .motion-cast__member {
+  animation: none;
+}
+
+.motion-strip__heads,
+.motion-strip__lead,
+.motion-strip__tail {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+
+.motion-strip__heads {
+  gap: 10px;
+}
+
+/* The idle row names the stage next to the ring, in the strip's own words. */
+.motion-strip .motion-cast__label {
+  max-width: none;
+  margin-inline: 2px 0;
+  font-size: inherit;
+  line-height: inherit;
+  color: var(--text-2);
+}
+
+/* Running: the head leads the status line, where the dot used to be. */
+.motion-strip__lead {
+  position: relative;
+  margin-inline: 2px 4px;
+}
+
+.motion-strip__arriving {
+  display: flex;
+  animation: motion-strip-arrive var(--dur-fast) var(--ease-out) backwards;
+}
+
+/* The head that led before fades out over the new one. */
+.motion-strip__leaving {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  border-radius: var(--r-circle);
+  animation: motion-strip-leave var(--dur-fast) var(--ease-out) forwards;
+}
+
+.motion-strip__leaving img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+@keyframes motion-strip-arrive {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes motion-strip-leave {
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+.motion-strip .work-status__label {
+  flex: none;
+  white-space: nowrap;
+}
+
+.motion-strip__waiting {
+  flex: none;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* The others: small and dim at the end of the strip, lit when a helper named after
+   them runs. */
+.motion-strip__tail {
+  --cast-size: 16px;
+  --cast-ring-offset: 1.5px;
+  --cast-mark: 9px;
+  --cast-d: calc(var(--cast-size) / 2 + var(--cast-mark) / 2 + 1px);
+
+  gap: 8px;
+  margin-left: auto;
+}
+
+.motion-strip__tail .motion-cast__member:not([data-working]) .motion-cast__head {
+  opacity: 0.55;
+}
+
+.motion-strip__tail .motion-cast__head {
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
+/* Only the leading head breathes while a turn runs (a helper's character breathes by
+   the scene's own rule), and not when the chat waits for the person: the strip leaves
+   `data-running` off then. */
+.motion-strip[data-running] .motion-cast__member[data-current] .motion-cast__head::before {
+  animation: motion-cast-breathe 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  will-change: transform, opacity;
+}
+
+/* Behind Settings nothing is looking at it, so the breath stops. The selector repeats
+   the one that loops above: covered-shell.test.ts matches them exactly. */
+.shell__body[data-covered]
+  .motion-strip[data-running]
+  .motion-cast__member[data-current]
+  .motion-cast__head::before {
+  animation-play-state: paused !important;
+}
+
+/* The idle heads stay a hair apart from the stage name; the head's own ring needs room. */
+.motion-strip[data-state='idle'] .motion-cast__member[data-current] .motion-cast__body {
+  gap: 6px;
+}
+
+/* Narrow: the other heads go first, then the stage name; the leading head and the
+   status text stay. */
+@container chat-stage (max-width: 620px) {
+  .motion-strip__tail,
+  .motion-strip[data-state='idle'] .motion-cast__member:not([data-current]) {
+    display: none;
+  }
+}
+
+@container chat-stage (max-width: 400px) {
+  .motion-strip[data-state='idle'] .motion-cast__label {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-strip,
+  .motion-strip__arriving,
+  .motion-strip[data-running] .motion-cast__member[data-current] .motion-cast__head::before {
+    animation: none;
+    transition: none;
+  }
+
+  .motion-strip__tail .motion-cast__head {
+    transition: none;
+  }
+
+  .motion-strip__leaving {
+    display: none;
+  }
+}

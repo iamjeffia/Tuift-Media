@@ -88,7 +88,9 @@ import { LazyMediaViewer as MediaViewer, preloadMediaViewer } from './LazyMediaV
 import { preloadThread } from './LazyThread.js'
 import { ModelSearchField } from './ModelSearchField.js'
 import { ComposerErrors, useComposerError, type ComposerError } from './ComposerErrors.js'
-import { ComposerWorkStatus } from './ComposerWorkStatus.js'
+import { ComposerWorkStatus, type ComposerMotion } from './ComposerWorkStatus.js'
+import type { AfterEffectsState } from '../motion/after-effects.js'
+import type { CastId, MotionStageId } from '../motion/cast.js'
 import type { ThreadFrameStore } from '../thread-frame-store.js'
 import { Skeleton, SkeletonRows, SkeletonStatus } from './Skeleton.js'
 import { droppedFilePath } from './composer-dropped-file.js'
@@ -611,6 +613,13 @@ function ComposerComponent(props: {
   motionMode: boolean
   /** A turn runs, so the server would refuse a change of mode. */
   motionLocked?: boolean | undefined
+  /** What the Motion team in the status strip shows (see ComposerWorkStatus); plain values, so a streaming reply renders nothing. */
+  motionStage?: MotionStageId | undefined
+  motionAfterEffects?: AfterEffectsState | undefined
+  /** The chat is stopped because it needs the person. */
+  motionWaiting?: boolean | undefined
+  motionWorking?: readonly CastId[] | undefined
+  onMotionStageChange?: ((stage: MotionStageId) => void) | undefined
   /** Why Ask first cannot run with this provider; the option is disabled with it. */
   askFirstUnavailable?: string | undefined
   keybindings?: Keybindings | undefined
@@ -1936,6 +1945,41 @@ function ComposerComponent(props: {
   // it fades out, so turning Motion off does not flash Design's palette.
   if (props.motionMode) promptBeamKind.current = 'motion'
   else if (props.designMode) promptBeamKind.current = 'design'
+  // The Motion team lives in the status strip of a chat that exists; a new chat has its scene above the title.
+  const {
+    motionMode,
+    motionStage,
+    motionAfterEffects,
+    motionWaiting,
+    motionWorking,
+    motionLocked,
+    onMotionStageChange,
+    newSession,
+  } = props
+  const motionStrip = useMemo<ComposerMotion | undefined>(
+    () =>
+      motionMode && !newSession
+        ? {
+            mode: true,
+            stage: motionStage,
+            afterEffects: motionAfterEffects,
+            waiting: motionWaiting,
+            working: motionWorking,
+            locked: motionLocked,
+            onStageChange: onMotionStageChange,
+          }
+        : undefined,
+    [
+      motionMode,
+      newSession,
+      motionStage,
+      motionAfterEffects,
+      motionWaiting,
+      motionWorking,
+      motionLocked,
+      onMotionStageChange,
+    ],
+  )
   const promptBeamClass =
     promptBeamKind.current === 'motion'
       ? 'composer__design-beam composer__motion-beam'
@@ -2085,8 +2129,8 @@ function ComposerComponent(props: {
             visible={props.errorsVisible ?? true}
             onDismiss={() => area.current?.focus()}
           />
-          {props.frameStore && props.running ? (
-            <ComposerWorkStatus frameStore={props.frameStore} />
+          {props.frameStore && (props.running || motionStrip) ? (
+            <ComposerWorkStatus frameStore={props.frameStore} motion={motionStrip} />
           ) : null}
           {resourcePickerMounted ? (
             <Suspense
