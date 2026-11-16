@@ -64,6 +64,7 @@ import {
   IconDatabase as Database,
   IconFileImport as FileImport,
   IconDeviceMobile as Smartphone,
+  IconPlugConnected as PlugConnected,
   IconInfoCircle as Info,
   IconPackages as Boxes,
   IconKeyboard as Keyboard,
@@ -247,6 +248,12 @@ const PhoneSettings = lazy(() =>
     .catch(surfaceLoadFailed),
 )
 
+const ClubeSettings = lazy(() =>
+  import('./ClubeSettings.js')
+    .then((module) => ({ default: module.ClubeSettings }))
+    .catch(surfaceLoadFailed),
+)
+
 const InstallTerminal = lazy(() =>
   import('./InstallTerminal.js')
     .then((module) => ({ default: module.InstallTerminal }))
@@ -261,6 +268,7 @@ export type SettingsSection =
   | 'skills'
   | 'workflows'
   | 'usage'
+  | 'clube'
   | 'phone'
   | 'appearance'
   | 'keybinds'
@@ -670,6 +678,12 @@ function SettingsComponent(props: {
               label={t('settings.nav.usage')}
               onClick={() => setSection('usage')}
             />
+            <SettingsNavItem
+              active={section === 'clube'}
+              icon={<PlugConnected size={15} aria-hidden />}
+              label={t('settings.nav.clube')}
+              onClick={() => setSection('clube')}
+            />
             {phoneAvailable ? (
               <SettingsNavItem
                 active={section === 'phone'}
@@ -746,6 +760,17 @@ function SettingsComponent(props: {
             {section === 'workflows' ? <GeneralSettings {...props} /> : null}
             {section === 'usage' ? (
               <UsageSettings transport={props.transport} limits={props.usageLimits} />
+            ) : null}
+            {section === 'clube' ? (
+              <Suspense
+                fallback={
+                  <SkeletonStatus label={t('settings.clube.loading')}>
+                    <Skeleton width={260} height={11} />
+                  </SkeletonStatus>
+                }
+              >
+                <ClubeSettings transport={props.transport} />
+              </Suspense>
             ) : null}
             {section === 'phone' ? (
               <Suspense

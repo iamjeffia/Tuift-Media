@@ -140,3 +140,22 @@ describe('MCP card state', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
   })
 })
+
+describe('the server provided by the Clube link', () => {
+  it('says who provides it and offers no control over it', () => {
+    const { container } = card(
+      server({
+        id: 'tuift-clube',
+        displayName: 'Clube do Motion',
+        scope: 'global',
+        providedBy: 'clube',
+        transport: { type: 'http', url: 'https://clubedomotion.com/mcp' },
+        startup: { state: 'ready' },
+      }),
+    )
+    expect(screen.getByText('Provided by your Clube do Motion account link.')).toBeTruthy()
+    expect(screen.queryByRole('switch')).toBeNull()
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(container.querySelector('details')?.hasAttribute('hidden')).toBe(true)
+  })
+})

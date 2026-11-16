@@ -234,7 +234,10 @@ export function McpServerCard(props: {
   const inherited = server.scope === 'global'
   const needsOAuth =
     props.capabilities.startOAuth && auth?.status === 'sign_in_required' && auth.method === 'oauth'
+  // The link to the person's Clube account provides this one; it is changed in the Clube page of Settings.
+  const provided = server.providedBy !== undefined
   const canToggle =
+    !provided &&
     props.capabilities.remove &&
     ((!server.enabled && server.scope === 'project') ||
       (canHideInherited(props.capabilities) && server.scope === 'global'))
@@ -284,8 +287,12 @@ export function McpServerCard(props: {
             {server.startup.message}
           </p>
         ) : null}
+        {provided ? (
+          <p className="mcp-card__detail">{t('settings.mcpServerCard.providedByClube')}</p>
+        ) : null}
         <details
           className="mcp-row__details"
+          hidden={provided}
           onToggle={(event) => setToolsOpen(event.currentTarget.open)}
         >
           <summary>
