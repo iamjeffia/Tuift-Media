@@ -114,6 +114,11 @@ export const clubePanelPt = {
   'clubePanel.reference.credits': 'Você usou {used} de {of} créditos de referência.',
   // Parts and download
   'clubePanel.parts.title': 'O que baixar',
+  'clubePanel.parts.name.project': 'Projeto',
+  'clubePanel.parts.name.guide': 'Guia',
+  'clubePanel.parts.name.audio': 'Áudio',
+  'clubePanel.parts.name.references': 'Referências',
+  'clubePanel.parts.name.render': 'Vídeo final',
   'clubePanel.parts.size': '{size} MB',
   'clubePanel.parts.onDisk': 'Já está no projeto',
   'clubePanel.parts.files_one': '{count} arquivo',

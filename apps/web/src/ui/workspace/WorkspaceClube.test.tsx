@@ -610,7 +610,7 @@ describe('a project: the parts and the download', () => {
     expect(screen.getByText('Already in the project')).toBeTruthy()
     // The part already on disk fetches nothing and counts nothing.
     expect(screen.getByText('40 MB in total · 2 files will count in the day’s limit.')).toBeTruthy()
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Include projeto' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Include Project' }))
     expect(screen.getByText('0.1 MB in total · 1 file will count in the day’s limit.')).toBeTruthy()
     expect(screen.getByText('Goes to clube/projetos/p1/')).toBeTruthy()
   })
@@ -618,8 +618,8 @@ describe('a project: the parts and the download', () => {
   it('says everything is already there when only parts on disk are chosen', async () => {
     open({ item: projectRecord })
     await openItem('Anúncio de teste')
-    fireEvent.click(await screen.findByRole('checkbox', { name: 'Include guia' }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Include projeto' }))
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Include Guide' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Include Project' }))
     expect(screen.getByText('Everything chosen is already in the project.')).toBeTruthy()
   })
 
@@ -640,7 +640,7 @@ describe('a project: the parts and the download', () => {
       ],
     })
     await openItem('Anúncio de teste')
-    fireEvent.click(await screen.findByRole('checkbox', { name: 'Include guia' }))
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Include Guide' }))
     fireEvent.click(screen.getByRole('button', { name: 'Download into the project' }))
     await waitFor(() => expect(asked(transport, 'clube.library.download')).toHaveLength(1))
     expect(asked(transport, 'clube.library.download')[0]!.params).toEqual({
@@ -1013,7 +1013,7 @@ describe('the Clube tab in Portuguese', () => {
       screen.getByText('40 MB no total · 2 arquivos vão contar no limite do dia.'),
     ).toBeTruthy()
     expect(screen.getByText('Vai para clube/projetos/p1/')).toBeTruthy()
-    expect(screen.getByRole('checkbox', { name: 'Incluir guia' })).toBeTruthy()
+    expect(screen.getByRole('checkbox', { name: 'Incluir Guia' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Não mostrar mais' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Baixar para o projeto' }))
     expect(await screen.findByText('Esperando outro download…')).toBeTruthy()

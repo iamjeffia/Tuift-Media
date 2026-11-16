@@ -572,11 +572,11 @@ function PartsDownload(props: Props & { record: ClubeRecord; i18n: I18n }) {
                 className="clube-check"
                 checked={chosen.has(part.key)}
                 disabled={running}
-                aria-label={t('clubePanel.parts.pick', { label: part.label })}
+                aria-label={t('clubePanel.parts.pick', { label: partName(part, props.i18n) })}
                 onChange={() => toggle(part.key)}
               />
               <span className="clube-part__text">
-                <span className="clube-part__name">{part.label}</span>
+                <span className="clube-part__name">{partName(part, props.i18n)}</span>
                 <span className="clube-part__detail">
                   {part.onDisk
                     ? t('clubePanel.parts.onDisk')
@@ -836,6 +836,21 @@ function SendText(props: Props & { record: ClubeRecord; i18n: I18n }) {
       ) : null}
     </section>
   )
+}
+
+/** The Clube names a project's parts by key: the five it has get a name of ours, any other shows as it came. */
+const PART_NAMES = {
+  projeto: 'clubePanel.parts.name.project',
+  guia: 'clubePanel.parts.name.guide',
+  audio: 'clubePanel.parts.name.audio',
+  referencias: 'clubePanel.parts.name.references',
+  render: 'clubePanel.parts.name.render',
+} as const satisfies Record<string, MessageKey>
+
+function partName(part: { key: string; label: string }, i18n: I18n): string {
+  return Object.hasOwn(PART_NAMES, part.key)
+    ? i18n.t(PART_NAMES[part.key as keyof typeof PART_NAMES])
+    : part.label
 }
 
 // ----------------------------------------------------------------------- music
