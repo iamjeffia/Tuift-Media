@@ -90,7 +90,7 @@ const TokenSchema = z.object({
 const AccountSchema = z.object({
   nome: z.string(),
   email: z.string(),
-  plano: z.enum(['mensal', 'anual', 'teste', 'grátis']),
+  plano: z.enum(['mensal', 'anual', 'tuift', 'teste', 'grátis']),
 })
 
 export type ClubeAccountInfo = { name: string; email: string; plan: ClubePlan }
@@ -119,8 +119,12 @@ export type ClubeOptions = {
   signInTimeoutMs?: number
 }
 
-/** The plan includes the MCP server and the API. A free account has neither. */
-export const isSubscriber = (plan: ClubePlan): boolean => plan !== 'grátis'
+/**
+ * Who the Clube lets through its MCP server and API: a paid plan, or an account the Clube itself
+ * released (`tuift`). A free trial is for the site only and gets the same 403 as a free account.
+ */
+export const isSubscriber = (plan: ClubePlan): boolean =>
+  plan === 'mensal' || plan === 'anual' || plan === 'tuift'
 
 const base64url = (bytes: Buffer): string => bytes.toString('base64url')
 

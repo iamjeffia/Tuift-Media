@@ -14,6 +14,7 @@ export const CLUBE_PLANS_LINK = CLUBE_PLANS_URL
 export const CLUBE_PLAN_WORDS = {
   mensal: 'settings.clube.plan.mensal',
   anual: 'settings.clube.plan.anual',
+  tuift: 'settings.clube.plan.tuift',
   teste: 'settings.clube.plan.teste',
   grátis: 'settings.clube.plan.gratis',
 } as const satisfies Record<ClubePlan, MessageKey>

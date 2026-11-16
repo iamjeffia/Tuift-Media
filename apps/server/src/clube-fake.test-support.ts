@@ -16,7 +16,7 @@ type Code = { challenge: string; redirectUri: string; clientId: string }
 
 export class FakeClube {
   origin = ''
-  plan: 'mensal' | 'anual' | 'teste' | 'grátis' = 'mensal'
+  plan: 'mensal' | 'anual' | 'tuift' | 'teste' | 'grátis' = 'mensal'
   /** The token endpoint refuses every refresh with invalid_grant. */
   refuseRefresh = false
   /** The token endpoint answers 503 to a refresh. */

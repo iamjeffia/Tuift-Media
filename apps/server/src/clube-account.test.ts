@@ -88,6 +88,22 @@ describe('linking the account', () => {
     expect(await clube.subscriber()).toBe(false)
   })
 
+  it('counts as subscriber only what the Clube lets through its MCP server and API', async () => {
+    // The Clube answers a free trial with the same 403 as a free account, and lets through an
+    // account it released itself (`tuift`).
+    for (const [plan, subscriber] of [
+      ['teste', false],
+      ['tuift', true],
+      ['anual', true],
+    ] as const) {
+      const { fake, clube, link } = await setup()
+      fake.plan = plan
+      await link()
+      expect(await clube.status()).toMatchObject({ account: { plan }, subscriber })
+      expect(await clube.subscriber()).toBe(subscriber)
+    }
+  })
+
   it('ends a cancelled sign-in without calling it a failure, and closes the listener', async () => {
     const { clube, fake } = await setup()
     const { authUrl } = await clube.connect()

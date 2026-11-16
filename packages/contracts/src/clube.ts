@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 /** The Clube do Motion plans an account can be on, as the Clube names them. */
-export const ClubePlanSchema = z.enum(['mensal', 'anual', 'teste', 'grátis'])
+export const ClubePlanSchema = z.enum(['mensal', 'anual', 'tuift', 'teste', 'grátis'])
 export type ClubePlan = z.infer<typeof ClubePlanSchema>
 
 /** Why a link is not (or no longer) working. The screen words each one; the server never sends prose. */

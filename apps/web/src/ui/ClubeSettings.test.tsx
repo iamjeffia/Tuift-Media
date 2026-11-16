@@ -201,8 +201,12 @@ describe('Clube do Motion settings in Portuguese', () => {
         [translate('pt-BR', 'settings.clube.plan.anual')],
       ],
       [
-        { state: 'connected', account: { ...account, plan: 'teste' }, subscriber: true },
+        { state: 'connected', account: { ...account, plan: 'teste' }, subscriber: false },
         [translate('pt-BR', 'settings.clube.plan.teste')],
+      ],
+      [
+        { state: 'connected', account: { ...account, plan: 'tuift' }, subscriber: true },
+        [translate('pt-BR', 'settings.clube.plan.tuift')],
       ],
       [{ state: 'connected' }, [translate('pt-BR', 'settings.clube.accountUnavailable')]],
     ]

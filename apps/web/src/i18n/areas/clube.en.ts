@@ -22,6 +22,7 @@ export const clubeEn = {
   'settings.clube.plan': 'Plan',
   'settings.clube.plan.mensal': 'Monthly',
   'settings.clube.plan.anual': 'Annual',
+  'settings.clube.plan.tuift': 'Released by the Clube',
   'settings.clube.plan.teste': 'Trial',
   'settings.clube.plan.gratis': 'Free account',
   'settings.clube.mcp.name': 'MCP server',

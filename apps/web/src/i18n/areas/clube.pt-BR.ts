@@ -30,6 +30,7 @@ export const clubePt = {
   'settings.clube.plan': 'Plano',
   'settings.clube.plan.mensal': 'Mensal',
   'settings.clube.plan.anual': 'Anual',
+  'settings.clube.plan.tuift': 'Liberada pelo Clube',
   'settings.clube.plan.teste': 'Período de teste',
   'settings.clube.plan.gratis': 'Conta gratuita',
   'settings.clube.mcp.name': 'Servidor MCP',
