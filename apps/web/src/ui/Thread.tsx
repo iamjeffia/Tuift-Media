@@ -74,6 +74,8 @@ import { parseToolCall, toolArgumentEntries, toolArgumentSnippet } from './tool-
 import { browserCommentsAsPlainText } from './browser-comments.js'
 import { CopyButton } from './CopyButton.js'
 import { MessageActionButton } from './MessageActionButton.js'
+import { canShowDeliveredFiles } from '../delivered-files.js'
+import { DeliveredFileMenu, DeliveredFiles } from './DeliveredFiles.js'
 import { LazyMediaViewer as MediaViewer, preloadMediaViewer } from './LazyMediaViewer.js'
 import { Markdown } from './Markdown.js'
 import { Plan } from './Plan.js'
@@ -2426,6 +2428,9 @@ const Row = memo(function Row({
           updateVersion={liveUpdateVersion}
           literalHtml
         />
+        {!live && !notice && item.status === 'completed' && text && canShowDeliveredFiles() ? (
+          <DeliveredFiles text={text} projectPath={projectPath} />
+        ) : null}
         {stoppedByUser ? <TurnStopped /> : null}
         {finalResponse && !notice && !live && item.status === 'completed' && text ? (
           <ResponseActions
@@ -3422,6 +3427,7 @@ function ViewedImagePreview({
   const [viewerOpen, setViewerOpen] = useState(false)
   const [thumbnailFailed, setThumbnailFailed] = useState(false)
   const [imageFailed, setImageFailed] = useState(false)
+  const openButton = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!active) return
@@ -3509,6 +3515,7 @@ function ViewedImagePreview({
       className={`viewed-image-preview${variant === 'message' ? ' viewed-image-preview--message' : ''}`}
     >
       <button
+        ref={openButton}
         type="button"
         className="viewed-image-preview__open"
         aria-label={`Open preview of ${preview.name}`}
@@ -3528,6 +3535,15 @@ function ViewedImagePreview({
           }
         />
       </button>
+      {variant === 'message' && canShowDeliveredFiles() && !reference.startsWith('data:') ? (
+        <DeliveredFileMenu
+          targetRef={openButton}
+          file={{ path: preview.path, name: preview.name, mediaType: 'image', copyable: true }}
+          roots={[]}
+          actionPath={reference}
+          onReveal={() => void revealPath(reference)}
+        />
+      ) : null}
       {variant === 'detail' ? (
         <span className="viewed-image-preview__name" title={reference}>
           {reference}

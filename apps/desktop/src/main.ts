@@ -98,6 +98,13 @@ import {
 import { revealablePath } from './reveal-path.js'
 import { projectFilePath } from './project-file-path.js'
 import {
+  confineDeliveredFile,
+  copyDeliveredFile,
+  copyFileToWindowsClipboard,
+  resolveDeliveredFiles,
+  saveDeliveredFileAs,
+} from './delivered-media.js'
+import {
   isProjectPdfUrl,
   projectFilePreview,
   projectFilePreviewFromUrl,
@@ -1413,6 +1420,63 @@ ipcMain.handle(
     return projectFilePreview(file, attachmentPreviewSecret)
   },
 )
+
+// A reply names media by path; the chat shows a card for each one that resolves inside the
+// project (or what the person attached). The renderer never decides that from the text.
+const deliveredScope = () => ({
+  attachmentFolders: [
+    path.join(productDataPath, 'pasted-files'),
+    path.join(app.getPath('temp'), 'TUIFT Code', 'pasted-files'),
+  ],
+  grants: pickedImagePaths,
+})
+
+ipcMain.handle('harness:resolveDeliveredFiles', (event, candidates: unknown, roots: unknown) => {
+  requireOwnRenderer(event.sender)
+  return resolveDeliveredFiles(candidates, roots, deliveredScope(), attachmentPreviewSecret)
+})
+
+async function deliveredFileOrThrow(value: unknown, roots: unknown): Promise<string> {
+  const file = await confineDeliveredFile(value, roots, deliveredScope())
+  if (!file) throw new Error('Not a file this chat may use')
+  return file
+}
+
+ipcMain.handle('harness:copyDeliveredFile', async (event, value: unknown, roots: unknown) => {
+  requireOwnRenderer(event.sender)
+  await copyDeliveredFile(await deliveredFileOrThrow(value, roots), {
+    writeImage: (file) => {
+      const image = nativeImage.createFromPath(file)
+      if (image.isEmpty()) throw new Error('Not an image the system can read')
+      clipboard.writeImage(image)
+    },
+    writeFile: copyFileToWindowsClipboard,
+  })
+})
+
+ipcMain.handle('harness:saveDeliveredFile', async (event, value: unknown, roots: unknown) => {
+  requireOwnRenderer(event.sender)
+  const file = await deliveredFileOrThrow(value, roots)
+  const owner = BrowserWindow.fromWebContents(event.sender) ?? undefined
+  const options = (defaultPath: string) => ({
+    title: t('dialog.saveDeliveredFile.title'),
+    defaultPath,
+  })
+  const saved = await saveDeliveredFileAs(file, async (defaultName) => {
+    const result = owner
+      ? await dialog.showSaveDialog(owner, options(defaultName))
+      : await dialog.showSaveDialog(options(defaultName))
+    return result.canceled ? undefined : result.filePath
+  })
+  return saved !== undefined
+})
+
+// Attaching goes through the same intake a dropped file does, so the preview and the grant exist.
+ipcMain.handle('harness:attachDeliveredFile', async (event, value: unknown, roots: unknown) => {
+  requireOwnRenderer(event.sender)
+  const file = await deliveredFileOrThrow(value, roots)
+  return nativeAttachment(file, attachmentPreviewSecret, pickedImagePaths)
+})
 
 ipcMain.handle('harness:savePastedFile', async (event, payload: unknown) => {
   requireOwnRenderer(event.sender)

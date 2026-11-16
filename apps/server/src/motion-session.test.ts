@@ -30,8 +30,17 @@ describe('the Motion role instruction', () => {
 
   it('stays short, and free of the em dashes the reply style forbids', () => {
     // About 250 tokens at four characters each.
-    expect(MOTION_ROLE_INSTRUCTION.length).toBeLessThan(1400)
+    // 1081 characters with the delivery sentence (948 before it).
+    expect(MOTION_ROLE_INSTRUCTION.length).toBeLessThan(1200)
     expect(MOTION_ROLE_INSTRUCTION).not.toContain('—')
+  })
+
+  it('tells the agent to give a finished file by its full path, because the app shows it in the chat', () => {
+    for (const role of [MOTION_ROLE_INSTRUCTION, MOTION_ROLE_WITH_STAGE_TOOL]) {
+      expect(role).toContain(
+        'Give a finished file with its full path on a line of its own: the app shows it in the chat, so never send the person to look for it.',
+      )
+    }
   })
 })
 
@@ -48,7 +57,8 @@ describe('the Motion role instruction with the stage tool', () => {
       /A helper agent named after a character \(Zig, Bun, Moss, Cloud, Penny or Pip\)/,
     )
     expect(MOTION_ROLE_WITH_STAGE_TOOL.length - MOTION_ROLE_INSTRUCTION.length).toBeLessThan(320)
-    expect(MOTION_ROLE_WITH_STAGE_TOOL.length).toBeLessThan(1600)
+    // 1367 characters with the delivery sentence (1234 before it).
+    expect(MOTION_ROLE_WITH_STAGE_TOOL.length).toBeLessThan(1500)
     expect(MOTION_ROLE_WITH_STAGE_TOOL).not.toContain('—')
   })
 

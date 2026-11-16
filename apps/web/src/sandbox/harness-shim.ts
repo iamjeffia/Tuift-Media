@@ -28,6 +28,37 @@ if (new URLSearchParams(window.location.search).get('bridge') === 'files') {
       revealProjectFile: async (path: string) => void asked.push(path),
       previewProjectFile: async (path: string) => demoMedia(path),
       writeClipboardText: async (text: string) => void copied.push(text),
+      // What a reply that names media by path needs: the desktop resolves each path inside the
+      // project. Here every path with a media extension exists except one that says it is gone.
+      resolveDeliveredFiles: async (candidates: string[]) =>
+        (
+          await Promise.all(
+            candidates.map(async (path) => {
+              if (/gone|missing/.test(path)) return undefined
+              const name = path.split('/').at(-1) ?? path
+              const pdf = /\.pdf$/i.test(path)
+              const media = pdf ? { url: 'about:blank', mediaType: 'pdf' } : await demoMedia(path)
+              return media
+                ? {
+                    path: ['C:', 'Users', 'demo', 'tuift', ...path.split('/')].join('\\'),
+                    name,
+                    size: pdf ? 184_320 : media.mediaType === 'video' ? 6_300_000 : 412_000,
+                    copyable: true,
+                    ...media,
+                  }
+                : undefined
+            }),
+          )
+        ).filter(Boolean),
+      copyDeliveredFile: async (path: string) => void asked.push(`copy ${path}`),
+      saveDeliveredFile: async (path: string) => {
+        asked.push(`save ${path}`)
+        return true
+      },
+      attachDeliveredFile: async (path: string) => {
+        asked.push(`attach ${path}`)
+        return { path, name: path.split('\\').at(-1) ?? path }
+      },
       // `?quit=2` holds a quit with two chats running, as the desktop shell asks for it.
       ...(Number(new URLSearchParams(window.location.search).get('quit')) > 0
         ? {

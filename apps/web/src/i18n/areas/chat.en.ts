@@ -200,6 +200,24 @@ export const chatEn = {
   'chat.browserComment.oneElement': '1 element',
   'chat.fileOptions': 'File options',
 
+  // A video, image, sound or PDF a reply names by path, shown as a card under the reply
+  'chat.delivered.files': 'Files in this message',
+  'chat.delivered.capped': 'Showing the first {shown} of {total} files in this message',
+  'chat.delivered.openImage': 'Open {name}',
+  'chat.delivered.openPdf': 'Open {name} in the side panel',
+  'chat.delivered.unavailable': 'Could not load {name}',
+  'chat.delivered.pdf': 'PDF',
+  'chat.delivered.copyImage': 'Copy image',
+  'chat.delivered.copyFile': 'Copy file',
+  'chat.delivered.saveAs': 'Save as…',
+  'chat.delivered.attach': 'Attach as context',
+  'chat.delivered.copyName': 'Copy file name',
+  'chat.delivered.showInExplorer': 'Show in Explorer',
+  'chat.delivered.showInFinder': 'Show in Finder',
+  'chat.delivered.copyFailed': 'Could not copy the file',
+  'chat.delivered.saveFailed': 'Could not save the file',
+  'chat.delivered.attachFailed': 'Could not attach the file',
+
   // Titles a chat has before it is named (stored in English, mapped when shown)
   'chat.title.newSession': 'New session',
   'chat.title.newChat': 'New chat',

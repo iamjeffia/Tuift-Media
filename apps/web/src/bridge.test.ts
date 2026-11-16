@@ -371,3 +371,33 @@ describe('running agents bridge', () => {
     expect(reportRunningAgents.mock.calls).toEqual([[0], [2], [0]])
   })
 })
+
+describe('delivered files bridge', () => {
+  const video = {
+    path: 'C:\\site\\render\\a.mp4',
+    name: 'a.mp4',
+    size: 10,
+    mediaType: 'video',
+    url: 'tastecode-attachment://file/sig/path',
+    copyable: true,
+  }
+
+  it('resolves nothing without a desktop, and refuses the actions', async () => {
+    const bridge = await import('./bridge.js')
+    await expect(bridge.resolveDeliveredFiles(['a.mp4'], ['C:\\site'])).resolves.toEqual([])
+    await expect(bridge.copyDeliveredFile('a.mp4', [])).rejects.toThrow()
+    await expect(bridge.saveDeliveredFile('a.mp4', [])).rejects.toThrow()
+    await expect(bridge.attachDeliveredFile('a.mp4', [])).rejects.toThrow()
+  })
+
+  it('keeps only answers shaped like a file, whatever the shell sends back', async () => {
+    const resolveDeliveredFiles = vi
+      .fn()
+      .mockResolvedValue([video, { ...video, mediaType: 'archive' }, { path: 'x' }, null, 'a.mp4'])
+    ;(globalThis as { harness?: unknown }).harness = { isDesktop: true, resolveDeliveredFiles }
+    const bridge = await import('./bridge.js')
+
+    await expect(bridge.resolveDeliveredFiles(['a.mp4'], ['C:\\site'])).resolves.toEqual([video])
+    expect(resolveDeliveredFiles).toHaveBeenCalledWith(['a.mp4'], ['C:\\site'])
+  })
+})

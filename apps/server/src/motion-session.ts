@@ -29,7 +29,11 @@ const STAGE_TOOL_SENTENCE =
   // The scene lights a character while a helper with its name runs.
   'A helper agent named after a character (Zig, Bun, Moss, Cloud, Penny or Pip) lights that character in the app; motion_stage says who owns each stage.'
 
-const ROLE_TAIL = `The final wording of anything the person will say or publish, and every approval, is theirs: propose, then wait. Read a skill only when the stage needs it, never all of them. Outside video work, ignore this role.`
+/** The app shows a video, image, sound or PDF named by path as a card in the chat (see DeliveredFiles in the web app). */
+const DELIVERY_SENTENCE =
+  'Give a finished file with its full path on a line of its own: the app shows it in the chat, so never send the person to look for it.'
+
+const ROLE_TAIL = `The final wording of anything the person will say or publish, and every approval, is theirs: propose, then wait. Read a skill only when the stage needs it, never all of them. ${DELIVERY_SENTENCE} Outside video work, ignore this role.`
 
 /** Chosen by what the chat's session actually has: the agent must not plan around a tool it lacks. */
 export const AFTER_EFFECTS_SENTENCES = {

@@ -75,6 +75,14 @@ const api = {
     projectPath: string,
   ): Promise<{ url: string; mediaType: 'image' | 'video' | 'audio' } | undefined> =>
     ipcRenderer.invoke('harness:previewProjectFile', path, projectPath),
+  resolveDeliveredFiles: (candidates: string[], roots: string[]): Promise<unknown[]> =>
+    ipcRenderer.invoke('harness:resolveDeliveredFiles', candidates, roots),
+  copyDeliveredFile: (path: string, roots: string[]): Promise<void> =>
+    ipcRenderer.invoke('harness:copyDeliveredFile', path, roots),
+  saveDeliveredFile: (path: string, roots: string[]): Promise<boolean> =>
+    ipcRenderer.invoke('harness:saveDeliveredFile', path, roots),
+  attachDeliveredFile: (path: string, roots: string[]): Promise<PickedAttachment> =>
+    ipcRenderer.invoke('harness:attachDeliveredFile', path, roots),
   savePastedFile: (file: {
     name: string
     type: string

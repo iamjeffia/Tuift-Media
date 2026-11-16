@@ -12,7 +12,11 @@ import type {
   Skill,
   Usage,
 } from '@harness/contracts'
-import { FILE_LINK_DEMO_CHAT, FILE_VIEWER_DEMO_FILES } from './demo-files.js'
+import {
+  FILE_LINK_DEMO_CHAT,
+  FILE_VIEWER_DEMO_FILES,
+  MEDIA_DELIVERY_DEMO_CHAT,
+} from './demo-files.js'
 
 /**
  * The made-up world the design sandbox shows: three signed-in providers,
@@ -496,6 +500,7 @@ export const DEMO_PROJECTS: ReadonlyArray<DemoProject> = [
     ],
     chats: [
       FILE_LINK_DEMO_CHAT,
+      MEDIA_DELIVERY_DEMO_CHAT,
       {
         id: 'demo-focus-ring',
         title: 'Soften the prompt bar focus ring',
