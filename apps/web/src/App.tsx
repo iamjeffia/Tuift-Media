@@ -63,6 +63,7 @@ import {
 import { sliceCodeUnits } from './slice-code-units.js'
 import { readTerminalPlacement, subscribeTerminalPlacement } from './terminal-placement.js'
 import { useChatNotifications } from './use-chat-notifications.js'
+import { useShellLifecycle } from './use-shell-lifecycle.js'
 import { useAppUpdateInstallGate } from './app-update-install.js'
 import { ProviderUpdateNotice } from './ui/ProviderUpdates.js'
 import { useWorkingCast, waitingForPerson } from './motion/cast-activity.js'
@@ -6574,6 +6575,19 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     [selectSession],
   )
   useChatNotifications(projects, projectsStatus === 'ready', openNotifiedChat)
+  // The desktop shell rebuilds a hidden or crashed window on this chat; it unloads only what is saved.
+  useShellLifecycle({
+    activeChatId: activeId,
+    unloadSafe:
+      !settingsOpen &&
+      !onboardingMounted &&
+      surface === 'chat' &&
+      !workspacePanelHasMounted &&
+      !bottomTerminalMounted &&
+      providerLoginTerminal === undefined &&
+      split === undefined,
+    showNotice: setNotice,
+  })
   // An app update waits for running chats instead of cutting them off.
   useAppUpdateInstallGate(transport, projects, projectsStatus === 'ready')
   // The pull request the header chip asked the surface to open with.
