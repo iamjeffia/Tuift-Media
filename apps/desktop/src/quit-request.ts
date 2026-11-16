@@ -16,6 +16,8 @@ export type QuitRequestDeps = {
   askNatively: (chats: number) => Promise<boolean>
   /** The person said quit: let the quit through. */
   confirm: () => void
+  /** The person said keep working: nothing changes. */
+  declined?: () => void
   /** How long the page has to say it shows the question. */
   ackMs?: number
 }
@@ -34,6 +36,7 @@ export function createQuitRequest(deps: QuitRequestDeps) {
     clearTimeout(timer)
     timer = undefined
     if (quit) deps.confirm()
+    else deps.declined?.()
   }
   const natively = (chats: number) => {
     shown = true

@@ -1,0 +1,2 @@
+This build starts with --quit-for-install=silent|ask to ask the running app to quit for an install (see src/install-quit.ts).
+The installer looks for this file before it uses the switch.

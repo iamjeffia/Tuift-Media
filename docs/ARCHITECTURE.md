@@ -203,6 +203,17 @@ question, the hidden-window unload and the OS notifications are right with no wi
 window only adds the notification mode the person chose. The packaged server takes its port from the
 renderer's compiled CSP, so a stray `HARNESS_PORT` cannot split the two.
 
+Every quit runs against deadlines (`quit-watchdog.ts`): the update cleanup 3 s, the server's own
+shutdown 10 s, the whole quit 15 s, after which the log names what did not close and the app
+exits with code 3. An installer asks the running app to quit by starting the app's own
+executable with `--quit-for-install=silent|ask`: Electron's single-instance lock hands the
+request to the running app (`install-quit.ts`), which answers through a status file in its data
+folder and ignores a request without the per-run secret it wrote there. Rejected: ending the
+processes by name from the installer (what electron-builder's default does, and what skips the
+ordered shutdown), a localhost endpoint for the request (a port anything on the machine could
+reach), and a native message window of our own in the installer (the app already has the quit
+question).
+
 Durable user data never lives in the OS temp folder, which the system may clean at any time.
 Pasted attachments are written under the app's data folder, because chat history keeps their
 paths; files pasted by older builds into `<temp>/TasteCode/pasted-files` stay readable. They
@@ -1200,3 +1211,4 @@ registry entry, which is deliberately a good first outside contribution.
 | 2026-11-16 | Gave the plan, the reasoning and the person's message a ceiling (256 KiB each; the message is refused, never cut), sent an event over the frame limit cut to fit instead of closing the socket, and wrote provider children to a registry the next start reads to end the ones a crash left behind.                                                                                                                                                                                                                                                                                                                       |
 | 2026-11-16 | Linked the app to a Clube do Motion account (OAuth 2.1 public client, tokens in the credential store) and offered the Clube's MCP server to every chat through the app's own endpoint.                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | 2026-11-16 | Added the Clube's sound library to Motion chats: agent tools to search and use one sound or track at a time into the project's `audio/clube/`, a line about it in the Motion session start, two Settings rows and a Sounds tab in the side panel.                                                                                                                                                                                                                                                                                                                                                                         |
+| 2026-11-16 | An installer asks the running app to quit (`--quit-for-install`, through the single-instance lock) and waits for an ordered quit with deadlines before replacing files, instead of ending its processes by force; a silent install never interrupts a working chat (exit code 10); the Windows Update button starts the installer after the app has shut down.                                                                                                                                                                                                                                                            |

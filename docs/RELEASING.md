@@ -22,6 +22,54 @@ API request only on a tag newer than the installed version. A pushed tag without
 release is harmless. More than ten new tags after the newest release push installs onto the
 slower full release list, which spends API quota, so avoid bursts of non-release tags.
 
+## Installing over a running app (Windows)
+
+Closing the window only sends the app to the tray, so a new version is installed over an app
+that is still running. The installer therefore asks it to quit first, and waits
+(`apps/desktop/installer/clean-exit.nsh`, with `src/install-quit.ts` on the app's side):
+
+- The installer starts the app's own executable with `--quit-for-install=silent` (an
+  installer run with `/S`) or `=ask`. Electron's single-instance lock hands the request to the
+  running app, which answers through a small file in its data folder; the request must carry a
+  per-run secret the app wrote there, so only a process that can read that folder is heard.
+- No chat working, or the person says "Install and stop": the app quits in order (turns
+  stopped and marked, the server's own shutdown, provider processes ended, power blocker,
+  tray and notifications released). Its steps have deadlines: update cleanup 3 s, the server
+  10 s, the whole quit 15 s, after which the log says what did not close and the app exits
+  with code 3. The installer waits up to 25 s for the app, then ends whatever is left by
+  force as before, and writes that it had to to `%TEMP%\TUIFT-Code-install.log`.
+- Chats working and the install silent: nothing is closed and the install stops with exit
+  code 10 (an install run by a script never interrupts work). Interactive, the app asks in a
+  native dialog ("Install and stop" or "Keep working"); keeping them shows a box with Retry
+  (ask again) or Cancel (exit code 1).
+- **First update after this shipped:** a version without the marker file
+  `resources\clean-exit.txt` does not know the switch, so the installer ends it as before.
+  The clean path starts from the next update.
+- The Update button (**Restart to update**) quits the same way first and starts the
+  installer as the last step, so the installer finds the app already gone. On macOS the update
+  is applied by Squirrel.Mac after the app exits and the app goes through the same quit; Linux
+  has no package target. Neither was changed.
+
+A script that installs a new version (per-user default folder, PowerShell):
+
+```powershell
+$app   = "$env:LOCALAPPDATA\Programs\TUIFT Code\TUIFT Code.exe"
+$setup = '.\TUIFT-Code-<version>-win-x64.exe'
+# 1. Ask the running app to quit. Optional: the installer asks too, but this gives the answer first.
+$ask = Start-Process -FilePath $app -ArgumentList '--quit-for-install=silent' -Wait -PassThru
+if ($ask.ExitCode -in 10, 11, 12) { exit 10 }   # a chat is working: try later, nothing was closed
+# 2. Install silently and start the app again.
+$run = Start-Process -FilePath $setup -ArgumentList '/S', '--force-run' -Wait -PassThru
+exit $run.ExitCode
+```
+
+`--quit-for-install` exit codes: `0` nothing running, or the app quit by itself; `10` chats
+working and nobody to ask, app left running; `11` the person chose to keep them working;
+`12` the question went unanswered for 120 s; `20` no answer in 5 s (an older version, or
+hung), nothing was closed; `21` the app agreed but was still there after 25 s. Installer exit
+codes: `0` installed; `10` stopped because a chat is working, nothing was closed; `1` the
+person cancelled; any other value is NSIS's own. Both write to `%TEMP%\TUIFT-Code-install.log`.
+
 ## 0.5.1 published
 
 [Version 0.5.1](https://github.com/Leonxlnx/tastecode/releases/tag/v0.5.1) was published on
