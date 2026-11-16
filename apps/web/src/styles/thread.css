@@ -555,16 +555,21 @@ button.thread__older:hover {
 
 .activity--live .activity__label {
   flex: 0 1 auto;
-  background: linear-gradient(100deg, var(--text-2) 20%, var(--text) 48%, var(--text-2) 76%);
+  background: linear-gradient(100deg, var(--text-2) 62%, var(--text) 82%, var(--text-2) 100%);
   background-clip: text;
-  background-size: 220% 100%;
+  background-size: 330% 100%;
   color: transparent;
-  animation: activity-label-shine 2.4s linear infinite;
+  /* The shine moves a paint property, which costs style, paint and commit on the main thread
+     for every refresh, and no stepping makes that cheaper. So it sweeps a few times when the
+     row appears and then rests flat in --text-2: the gradient is flat across the label at both
+     ends of a sweep, so it is also flat when the sweeps stop. The pulse beside it carries the
+     live signal. */
+  animation: activity-label-shine 2.4s linear var(--activity-label-shine-runs, 3) forwards;
 }
 
 @keyframes activity-label-shine {
   to {
-    background-position: -220% 0;
+    background-position: -100% 0;
   }
 }
 
@@ -721,7 +726,9 @@ button.thread__older:hover {
   /* A pill radius on a square clamps to half its side: the same circle. */
   border-radius: var(--r-pill);
   background: var(--text-2);
-  animation: working-pulse 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  /* Stepped, six a breath each way: a dot this size hardly shows the steps, and the window
+     draws about eight frames a second for it instead of one on every refresh. */
+  animation: working-pulse 1.6s steps(6) infinite;
   will-change: transform, opacity;
 }
 

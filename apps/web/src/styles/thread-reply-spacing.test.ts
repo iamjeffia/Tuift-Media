@@ -102,7 +102,11 @@ describe('thread reply spacing', () => {
 
     expect(label).not.toContain('animation')
     expect(liveLabel).toContain('background-clip: text')
-    expect(liveLabel).toContain('animation: activity-label-shine 2.4s linear infinite')
+    // A few sweeps, then still: it moves a paint property, so it may not run for ever.
+    expect(liveLabel).toContain(
+      'animation: activity-label-shine 2.4s linear var(--activity-label-shine-runs, 3) forwards',
+    )
+    expect(liveLabel).not.toContain('infinite')
     expect(css).toContain('@keyframes activity-label-shine')
     expect(css).toContain(
       '  .activity--live .activity__label {\n    animation: none;\n    background: none;\n    color: var(--text-2);\n  }',

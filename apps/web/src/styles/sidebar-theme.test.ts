@@ -149,7 +149,7 @@ describe('sidebar theme CSS', () => {
   it('keeps the provider visible before the working chat spinner', () => {
     expect(appCss).not.toContain('.sess:has(.sess__spinner)')
     expect(appCss).toMatch(
-      /\.sess__spinner \{[^}]*width: 14px;[^}]*flex: none;[^}]*color: var\(--running\);[^}]*animation: spin 800ms linear infinite;/s,
+      /\.sess__spinner \{[^}]*width: 14px;[^}]*flex: none;[^}]*color: var\(--running\);[^}]*animation: spin 800ms steps\(12\) infinite;/s,
     )
   })
 

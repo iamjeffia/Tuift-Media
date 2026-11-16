@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { DesignBeam } from './DesignBeam.js'
@@ -17,13 +17,15 @@ function endAnimation(element: Element, animationName: string) {
   })
 }
 
-function beam(active: boolean) {
+function beam(active: boolean, extra: { running?: boolean; travelOnFocus?: boolean } = {}) {
   return (
-    <DesignBeam className="composer__design-beam" strength={1} active={active}>
-      <div data-testid="content" />
+    <DesignBeam className="composer__design-beam" strength={1} active={active} {...extra}>
+      <button type="button" data-testid="content" />
     </DesignBeam>
   )
 }
+
+const resting = (container: Element) => container.querySelectorAll('[data-resting]').length
 
 describe('DesignBeam layers', () => {
   it('draws nothing while idle', () => {
@@ -114,5 +116,76 @@ describe('DesignBeam while nobody looks', () => {
       document.dispatchEvent(new Event('visibilitychange'))
     })
     expect(root.hasAttribute('data-page-hidden')).toBe(false)
+  })
+})
+
+describe('DesignBeam travels, then rests', () => {
+  it('travels when it appears and rests once the last lap has eased to a stop', () => {
+    const { container } = render(beam(true))
+    const stroke = container.querySelector('[data-beam-stroke]')!
+    expect(resting(container)).toBe(0)
+
+    // A lap or the fade ending is not the end of the travel.
+    endAnimation(stroke, 'composer-design-beam-spin')
+    endAnimation(stroke, 'composer-design-beam-fade-in')
+    expect(resting(container)).toBe(0)
+
+    endAnimation(stroke, 'composer-design-beam-settle')
+    expect(container.querySelector('[data-beam-glow]')?.hasAttribute('data-resting')).toBe(true)
+    expect(stroke.hasAttribute('data-resting')).toBe(true)
+    expect(container.querySelector('[data-beam-bloom]')?.hasAttribute('data-resting')).toBe(true)
+    // The layers stay: resting is the lit picture, held.
+    expect(container.querySelector('[data-beam-turn]')).toBeTruthy()
+  })
+
+  it('travels again when the mode is turned back on', () => {
+    const { container, rerender } = render(beam(true))
+    endAnimation(container.querySelector('[data-beam-stroke]')!, 'composer-design-beam-settle')
+    expect(resting(container)).toBe(3)
+    rerender(beam(false))
+    expect(resting(container)).toBe(3)
+    rerender(beam(true))
+    expect(resting(container)).toBe(0)
+  })
+
+  it('travels again when a turn starts, and not on every render of a running one', () => {
+    const { container, rerender } = render(beam(true, { running: false }))
+    endAnimation(container.querySelector('[data-beam-stroke]')!, 'composer-design-beam-settle')
+    expect(resting(container)).toBe(3)
+    rerender(beam(true, { running: true }))
+    expect(resting(container)).toBe(0)
+    endAnimation(container.querySelector('[data-beam-stroke]')!, 'composer-design-beam-settle')
+    rerender(beam(true, { running: true }))
+    expect(resting(container)).toBe(3)
+  })
+
+  it('travels again when focus enters the box, not when it moves inside it', () => {
+    const { container, getByTestId } = render(beam(true, { travelOnFocus: true }))
+    const content = getByTestId('content')
+    endAnimation(container.querySelector('[data-beam-stroke]')!, 'composer-design-beam-settle')
+    expect(resting(container)).toBe(3)
+
+    fireEvent.focusIn(content, { relatedTarget: container.querySelector('[data-beam-stroke]') })
+    expect(resting(container)).toBe(3)
+
+    fireEvent.focusIn(content, { relatedTarget: document.body })
+    expect(resting(container)).toBe(0)
+  })
+
+  it('ignores focus unless the beam was asked to travel on it', () => {
+    const { container, getByTestId } = render(beam(true))
+    endAnimation(container.querySelector('[data-beam-stroke]')!, 'composer-design-beam-settle')
+    fireEvent.focusIn(getByTestId('content'), { relatedTarget: document.body })
+    expect(resting(container)).toBe(3)
+  })
+
+  it('starts over from travelling after it has faded out and come back', () => {
+    const { container, rerender } = render(beam(true))
+    endAnimation(container.querySelector('[data-beam-stroke]')!, 'composer-design-beam-settle')
+    rerender(beam(false))
+    endAnimation(container.querySelector('[data-beam-stroke]')!, 'composer-design-beam-fade-out')
+    expect(container.querySelector('[data-beam-stroke]')).toBeNull()
+    rerender(beam(true))
+    expect(resting(container)).toBe(0)
   })
 })

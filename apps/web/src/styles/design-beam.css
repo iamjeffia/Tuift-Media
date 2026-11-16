@@ -4,6 +4,15 @@
 :is(.composer__design-beam, .composer__design-button-beam) {
   --design-beam-ring: 1px;
   --design-beam-bleed: 2px;
+  /* The light travels only when it has something to say, then rests. A lap takes
+     --design-beam-lap; it goes round --design-beam-runs times at that pace, then one
+     last lap that eases to a stop (--design-beam-settle: twice a lap, so the pace
+     is the same where the ease begins). Resting is the picture at angle zero, the
+     one reduced motion shows, so the end of the travel and its start are the same
+     picture. The one token for the run count is the only place it is set. */
+  --design-beam-lap: 2.4s;
+  --design-beam-runs: 2;
+  --design-beam-settle: 4.8s;
   position: relative;
   overflow: hidden;
 }
@@ -452,26 +461,53 @@
 
 [data-beam-turn] {
   --beam-d: hypot(100cqw + 2 * var(--beam-ring, 0px), 100cqh + 2 * var(--beam-ring, 0px));
+  --beam-way: 1;
   position: absolute;
   top: calc(50% - var(--beam-d) / 2);
   left: calc(50% - var(--beam-d) / 2);
   width: var(--beam-d);
   height: var(--beam-d);
-  animation: composer-design-beam-spin 2.4s linear infinite;
 }
 
 [data-beam-still] {
+  --beam-way: -1;
   position: absolute;
   top: calc(50% - 50cqh - var(--beam-ring, 0px) - var(--beam-bleed, 0px));
   left: calc(50% - 50cqw - var(--beam-ring, 0px) - var(--beam-bleed, 0px));
   width: calc(100cqw + 2 * (var(--beam-ring, 0px) + var(--beam-bleed, 0px)));
   height: calc(100cqh + 2 * (var(--beam-ring, 0px) + var(--beam-bleed, 0px)));
-  animation: composer-design-beam-spin 2.4s linear infinite reverse;
+}
+
+/* Travelling: the runs at the lap's pace, then the last lap that eases out and holds.
+   The colours' layer turns the opposite way through the same angles (--beam-way), so
+   their net turn stays nil at every moment of the ease too. Both animations are
+   finite: when the second ends, each wrapper gets data-resting and its layers go back
+   to no animation at all, which is the same picture as their last frame. (The mark is
+   on the wrappers, not the host: a prompt box holds the chips' beams inside it.) */
+[data-beam-turn],
+[data-beam-still] {
+  animation:
+    composer-design-beam-spin var(--design-beam-lap) linear var(--design-beam-runs),
+    composer-design-beam-settle var(--design-beam-settle) cubic-bezier(0.25, 0.5, 0.5, 1)
+      calc(var(--design-beam-lap) * var(--design-beam-runs)) 1 forwards;
+}
+
+/* Resting: still, lit, and no frames produced for it. */
+:is([data-beam-glow], [data-beam-stroke], [data-beam-bloom])[data-resting]
+  :is([data-beam-turn], [data-beam-still]) {
+  animation: none;
 }
 
 /* Nobody is looking: the window is minimised or in the tray. */
 :root[data-page-hidden] :is([data-beam-turn], [data-beam-still]) {
   animation-play-state: paused;
+}
+
+/* Reduced motion shows the resting picture from the start. */
+@media (prefers-reduced-motion: reduce) {
+  :is([data-beam-turn], [data-beam-still]) {
+    animation: none;
+  }
 }
 
 /* The glow keeps to the edge bands in the prompt box, and sits under the shelf
@@ -589,7 +625,13 @@
 
 @keyframes composer-design-beam-spin {
   to {
-    transform: rotate(360deg);
+    transform: rotate(calc(360deg * var(--beam-way)));
+  }
+}
+
+@keyframes composer-design-beam-settle {
+  to {
+    transform: rotate(calc(360deg * var(--beam-way)));
   }
 }
 

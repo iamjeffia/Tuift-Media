@@ -1,0 +1,40 @@
+perf-gpu: CPU of the renderer (R) and of the GPU process (G), in % of one core, mean over 60 s.
+Browser: Chromium 153, new headless, nothing on screen, ANGLE on Direct3D 11, NVIDIA GeForce RTX 5070
+(gpu-report.txt: Compositing and Rasterization "Hardware accelerated"). Window 1600x1000, dpr 1.
+Frames come from the real display's refresh: 360 a second here (the display reports 359 Hz).
+Source of each row: the .jsonl files in this folder; scripts: measure.py and series*.sh.
+
+BEFORE (original code) vs AFTER, same method; before was measured twice (the machine varies about 2x between hours)
+state                                   before#1 R / G   before#2 R / G   frames/s   after R / G   frames/s
+a  chat, nothing special                  1.1 /   0.5      0.4 /   0.1        2        0.7 /  0.2       2
+b  idle Motion chat (beam)               32.5 / 135.0     14.5 /  62.4      360        1.1 /  0.2       2
+c  Motion chat, beam visible, loops off   1.2 /   0.9      0.8 /   0.4        2        (same as b: the beam rests)
+d  running turn, plain chat              65.5 /  91.1     36.9 /  56.2      360        6.3 /  7.5      53
+e  running turn, Motion chat             90.6 / 149.7     60.7 / 109.3      360       13.2 / 29.3     360 (*)
+e' the same with the Motion scene's breathing stepped (not in this branch)                6.9 /  8.1      53
+
+(*) The Motion scene's breathing (motion-cast-breathe, another front's file) still runs smooth: alone it costs
+    about 6 / 21 of the 13.2 / 29.3 and keeps the window at 360 frames a second.
+
+Attribution, before#1, 40 to 60 s each:
+  running turn, plain chat, one loop at a time (rest switched off by CSS)
+    all loops off                         1.6 /   1.8   14 frames/s
+    spinner only (sidebar)               12.7 /  37.9  360
+    working-pulse only                   14.0 /  40.8  360
+    text shimmer only (background-position) 41.6 / 52.0 360, and a main-thread commit on every frame
+    shimmer stepped, steps(24)           43.1 /  71.5 total: stepping a paint property does not lower the main-thread cost
+  beam parts alone, Motion idle chat (the other parts hidden):
+    stroke (ring)    12.0 / 49.4   glow  12.8 / 50.1   bloom  12.6 / 50.3   both chips  17.8 / 12.9   all together 32.5 / 135
+    one smooth animation of any size is already 12 / 40 at 360 frames a second; the box's layers add the rest.
+    From a trace: 23 render passes per frame (8300 a second) while the beam travels.
+  a 12px square turning, in an empty page: smooth 4.6 / 19.5 at 360 fps; steps(12) 3.0 / 4.1 at 12 fps; steps(4) 1.8 / 4.4 at 4 fps.
+
+Scaling with the number of frames (Motion chat, beam travelling, forced to a stepped turn, 40 s):
+    30 frames/s    6.1 / 10.5
+    60 frames/s    7.9 / 15.1
+   120 frames/s    7.8 / 26.4
+   360 frames/s   14.4 / 64.9   (smooth)
+The refresh rate itself could not be lowered without touching the owner's display, so frames were set by the animation.
+
+Travel burst after the change: about 11 s (2 laps at the old pace, 4.8 s of one lap easing to a stop, plus the fade-in)
+at the 360 frames/s row above, then 2 frames/s.
