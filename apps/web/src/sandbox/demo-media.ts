@@ -34,7 +34,7 @@ function paint(context: CanvasRenderingContext2D, width: number, height: number,
   context.arc(width * (0.25 + 0.5 * t), height * 0.55, height * 0.16, 0, Math.PI * 2)
   context.fill()
   context.fillStyle = 'rgb(255 255 255 / 92%)'
-  context.font = `600 ${Math.round(height / 9)}px sans-serif`
+  context.font = `600 ${Math.round(Math.min(height / 9, width / 7))}px sans-serif`
   context.fillText('Frame 0042', width * 0.06, height * 0.2)
 }
 
@@ -91,8 +91,9 @@ function sound(): DemoMedia {
 async function video(): Promise<DemoMedia | undefined> {
   if (typeof MediaRecorder === 'undefined') return undefined
   const canvas = document.createElement('canvas')
-  canvas.width = 640
-  canvas.height = 360
+  // Vertical, the shape of a short video: the card and the panel must show all of it.
+  canvas.width = 360
+  canvas.height = 640
   const context = canvas.getContext('2d')!
   const recorder = new MediaRecorder(canvas.captureStream(30), { mimeType: 'video/webm' })
   const chunks: Blob[] = []
@@ -103,7 +104,7 @@ async function video(): Promise<DemoMedia | undefined> {
   await new Promise<void>((resolve) => {
     const frame = () => {
       const t = Math.min(1, (performance.now() - started) / 2_000)
-      paint(context, 640, 360, t)
+      paint(context, 360, 640, t)
       if (t < 1) requestAnimationFrame(frame)
       else resolve()
     }

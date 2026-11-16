@@ -1,8 +1,10 @@
 /* ---------- files a reply delivers: cards right under the message ---------- */
 
 /* The card belongs to the transcript's family: the edit card's surface and hairline, the image
-   row's recessed frame. Every card has a box of fixed proportions before its media loads, so a
-   row never changes height when a video or an image arrives. */
+   row's recessed frame. A video or an image is shown whole, in its own proportions: the card is
+   16:9 until the media says its size (DeliveredFiles remembers it, so a card that comes back on
+   screen starts right), then takes the media's shape, never taller than --delivered-max-h. A
+   vertical video makes a narrow, tall card; nothing is cropped. */
 
 .delivered {
   display: grid;
@@ -11,11 +13,20 @@
 }
 
 .delivered__card {
+  --delivered-ratio: 1.7778;
+  --delivered-max-h: 480px;
+
   width: min(100%, 440px);
   overflow: hidden;
   background: color-mix(in srgb, var(--surface) 55%, var(--bg));
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
+}
+
+/* Narrow enough that the frame is no taller than the cap, but wide enough for the player's
+   controls: past that, the media sits centred in the frame with the recessed colour beside it. */
+.delivered__card:is(.delivered__card--video, .delivered__card--image) {
+  width: min(100%, 440px, max(260px, calc(var(--delivered-max-h) * var(--delivered-ratio))));
 }
 
 .delivered__card:focus-visible {
@@ -24,16 +35,22 @@
 }
 
 .delivered__frame {
+  position: relative;
   display: grid;
   place-items: center;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  max-height: var(--delivered-max-h);
+  aspect-ratio: var(--delivered-ratio);
   overflow: hidden;
   background: var(--chrome-recessed);
   color: var(--text-3);
 }
 
+/* Out of flow: a percentage height in the frame's auto row would not hold, and the media would
+   take its own height and be cut by the frame. */
 .delivered__frame :is(video, img) {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -93,6 +110,20 @@ button.delivered__row:hover {
   align-items: center;
   height: 36px;
   padding: 0 11px;
+}
+
+/* A narrow card has no room for the name and the details side by side. */
+.delivered__card[data-narrow] > .delivered__meta {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 2px;
+  height: 50px;
+}
+
+.delivered__card[data-narrow] .delivered__detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .delivered__name {

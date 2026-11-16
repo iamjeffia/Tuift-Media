@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
   type RefObject,
   type SyntheticEvent,
@@ -102,6 +103,10 @@ export const DeliveredFiles = memo(function DeliveredFiles(props: {
   )
 })
 
+// Width over height of each video and image already measured, by path: a card that scrolls out and
+// back in starts with its real shape instead of changing height again.
+const ratios = new Map<string, number>()
+
 function useNearViewport(target: RefObject<Element | null>): boolean {
   const [near, setNear] = useState(() => typeof IntersectionObserver === 'undefined')
   useEffect(() => {
@@ -137,6 +142,12 @@ function DeliveredCard({ file, roots }: { file: DeliveredFile; roots: string[] }
   const [playing, setPlaying] = useState(false)
   const [failed, setFailed] = useState(false)
   const [measured, setMeasured] = useState<string>()
+  const [ratio, setRatio] = useState(() => ratios.get(file.path))
+  const measure = (width: number, height: number) => {
+    if (!(width > 0 && height > 0)) return
+    ratios.set(file.path, width / height)
+    setRatio(width / height)
+  }
   const [failure, setFailure] = useState<Failure>()
   const [viewer, setViewer] = useState(false)
   const projectPath = roots[0]!
@@ -187,6 +198,7 @@ function DeliveredCard({ file, roots }: { file: DeliveredFile; roots: string[] }
             preload="metadata"
             onLoadedMetadata={(event: SyntheticEvent<HTMLVideoElement>) => {
               const video = event.currentTarget
+              measure(video.videoWidth, video.videoHeight)
               setMeasured(
                 [
                   Number.isFinite(video.duration) ? duration(video.duration) : undefined,
@@ -221,11 +233,11 @@ function DeliveredCard({ file, roots }: { file: DeliveredFile; roots: string[] }
             alt=""
             decoding="async"
             draggable={false}
-            onLoad={(event) =>
-              setMeasured(
-                `${event.currentTarget.naturalWidth} × ${event.currentTarget.naturalHeight}`,
-              )
-            }
+            onLoad={(event) => {
+              const image = event.currentTarget
+              measure(image.naturalWidth, image.naturalHeight)
+              setMeasured(`${image.naturalWidth} × ${image.naturalHeight}`)
+            }}
             onError={() => setFailed(true)}
           />
         ) : (
@@ -280,6 +292,8 @@ function DeliveredCard({ file, roots }: { file: DeliveredFile; roots: string[] }
         role="group"
         aria-label={file.name}
         tabIndex={0}
+        data-narrow={ratio !== undefined && ratio < 0.8 ? '' : undefined}
+        style={ratio === undefined ? undefined : ({ '--delivered-ratio': ratio } as CSSProperties)}
       >
         {body}
         {file.mediaType === 'video' || file.mediaType === 'image' ? (

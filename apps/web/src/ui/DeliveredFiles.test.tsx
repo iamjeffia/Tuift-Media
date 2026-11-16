@@ -136,6 +136,26 @@ describe('the cards under a reply', () => {
     expect(screen.getByText('0:15 · 1920 × 1080 · 4.2 MB')).toBeTruthy()
   })
 
+  it('gives a vertical video a card of its own shape, and remembers it', async () => {
+    const VERTICAL = { ...VIDEO, path: `${PROJECT}/render/vertical.mp4`, name: 'vertical.mp4' }
+    const first = renderFiles(message('vertical.mp4'), [VERTICAL])
+    const player = (await screen.findByLabelText(VERTICAL.name, {
+      selector: 'video',
+    })) as HTMLVideoElement
+    const card = () => document.querySelector<HTMLElement>('.delivered__card')!
+    expect(card().style.getPropertyValue('--delivered-ratio')).toBe('')
+    Object.defineProperty(player, 'videoWidth', { value: 1080 })
+    Object.defineProperty(player, 'videoHeight', { value: 1920 })
+    fireEvent.loadedMetadata(player)
+    expect(card().style.getPropertyValue('--delivered-ratio')).toBe('0.5625')
+    expect(card().hasAttribute('data-narrow')).toBe(true)
+    // Back on screen later: the card starts with the shape it measured.
+    first.unmount()
+    renderFiles(message('vertical.mp4'), [VERTICAL])
+    await screen.findByLabelText(VERTICAL.name, { selector: 'video' })
+    expect(card().style.getPropertyValue('--delivered-ratio')).toBe('0.5625')
+  })
+
   it('shows an image as a thumbnail that opens in the media viewer', async () => {
     renderFiles(message('c.png'), [IMAGE])
     const open = await screen.findByRole('button', { name: `Open ${IMAGE.name}` })

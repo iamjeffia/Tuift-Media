@@ -1184,9 +1184,14 @@ textarea.workspace-review__field {
   background: var(--chrome-recessed);
 }
 
+/* Out of flow, so the whole video fits the panel whatever its shape: in the grid's auto row a
+   vertical video took its own height and was cut. */
 .workspace-media--video video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+  object-fit: contain;
   accent-color: var(--light);
   outline: none;
 }
