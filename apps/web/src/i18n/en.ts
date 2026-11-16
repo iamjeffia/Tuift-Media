@@ -1,6 +1,7 @@
 import { soundsEn } from './areas/sounds.en.js'
 import { settingsEn } from './areas/settings.en.js'
 import { clubeEn } from './areas/clube.en.js'
+import { clubePanelEn } from './areas/clubePanel.en.js'
 import { sidebarEn } from './areas/sidebar.en.js'
 import { onboardingEn } from './areas/onboarding.en.js'
 import { workspaceEn } from './areas/workspace.en.js'
@@ -85,6 +86,7 @@ export const en = {
   ...startupEn,
   ...designEn,
   ...clubeEn,
+  ...clubePanelEn,
   ...soundsEn,
 } as const
 

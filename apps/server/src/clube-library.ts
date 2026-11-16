@@ -1129,7 +1129,7 @@ export class ClubeLibrary {
     }
     void this.#used(id)
     this.#log('[clube] a skill was installed')
-    return { ok: true, name: title }
+    return { ok: true, name: title, category }
   }
 
   /** The archive's `<id>/...` entries into `folder`, which must end up with a SKILL.md. */

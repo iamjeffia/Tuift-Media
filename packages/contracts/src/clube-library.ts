@@ -228,7 +228,12 @@ export const ClubeExportResultSchema = z.union([
 export type ClubeExportResult = z.infer<typeof ClubeExportResultSchema>
 
 export const ClubeSkillInstallResultSchema = z.union([
-  z.object({ ok: z.literal(true), name: z.string() }),
+  z.object({
+    ok: z.literal(true),
+    name: z.string(),
+    /** Where it loads: `motion` in Motion chats, `general` in every chat. */
+    category: z.enum(['motion', 'general']),
+  }),
   ClubeLibraryFailureSchema,
 ])
 export type ClubeSkillInstallResult = z.infer<typeof ClubeSkillInstallResultSchema>

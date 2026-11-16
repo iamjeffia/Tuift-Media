@@ -659,7 +659,7 @@ describe('installing a skill of the Clube', () => {
   it('installs once in the app folder, lists it with its origin, and removes it by the road of the others', async () => {
     const { library, skillsRoot, catalog, changed, fake } = await setup()
     const result = await library.installSkill('skill/ritmo-de-corte', where)
-    expect(result).toEqual({ ok: true, name: 'Ritmo de corte' })
+    expect(result).toEqual({ ok: true, name: 'Ritmo de corte', category: 'motion' })
     expect(
       readFileSync(path.join(skillsRoot, 'motion', 'skills', 'ritmo-de-corte', 'SKILL.md'), 'utf8'),
     ).toContain('name: ritmo-de-corte')
