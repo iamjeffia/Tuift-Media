@@ -224,8 +224,10 @@ Pedido de 15/11, depois de um trabalho longo de vídeo em que o sistema ficou se
 - [x] 16.16 A porta do servidor abre antes de refazer índices grandes (16/11): com 197 mil eventos a partida até a primeira resposta caiu de cerca de 7 a 9 segundos para 0,5 a 2,3 segundos; a reconstrução segue em fatias, retoma se o app fechar, e a busca avisa que ainda está atualizando.
 - [ ] 16.17 Validação do dono do projeto no app instalado: memória e CPU com um chat Motion aberto por uma hora.
 - [x] 16.18 O app sabe pelo servidor quais chats trabalham, não pela tela (16/11): o servidor avisa o processo que o iniciou a cada mudança de estado (trabalhando, esperando aprovação ou resposta, falhou), pelo mesmo canal do pedido de encerramento. Sono do computador, descarga da janela escondida, pergunta ao sair e notificações usam esse aviso, então valem para um turno iniciado pelo celular com a janela descarregada ou fechada. O modo de notificação escolhido fica guardado pelo app para valer sem tela. Falta ver no app instalado com um turno real do celular.
-- [ ] 16.19 Restos da rodada de 16/11: o app do celular recebe o aviso de banco restaurado mas não o mostra; terminais não entram no registro de processos órfãos; login vencido em Grok, Cursor, Pi e Antigravity ainda aparece cru.
+- [x] 16.19 Restos da rodada de 16/11, feitos em 16/11: o app do celular mostra o aviso de banco restaurado (alerta com a data da cópia e o local do arquivo no computador; dispensar no celular dispensa em todo lugar); o shell de cada terminal entra no registro de processos órfãos; login recusado vira aviso com Entrar no Grok, no Cursor e no Antigravity, só pelas mensagens que o próprio programa de cada um traz.
 - [ ] 16.20 Validação do dono do projeto no app instalado dos itens 16.6 a 16.16: nenhum foi visto com sono real, bandeja real, queda real, disco cheio ou banco danificado de verdade.
+- [ ] 16.21 O Swift do aviso no celular não foi compilado (não há Mac nesta máquina): falta gerar o app do iPhone e ver o alerta. O app do celular segue o idioma do aparelho, não o escolhido no computador.
+- [ ] 16.22 Login vencido ainda cru: Pi (sem mensagem de erro documentada e sem o programa instalado para capturar) e, em todos os quatro, conta sem acesso. Um processo que um comando do terminal separou do grupo sobrevive a uma queda e o registro não o alcança.
 
 ## Ondas de trabalho
 
@@ -256,3 +258,4 @@ Cada frente roda num worktree próprio em `C:/Dev/tuift-wt/<frente>`, numa branc
 | 9    | `strip-cast`, `perf-gpu`, `media-delivery`                                                           | 5.11, 16.1, 16.5, 16.5b, 16.15        | na `main` (16/11), testada |
 | 10   | `desk-lifecycle`, `server-startup`, `write-safety`, `orphans-caps`                                   | 16.6 a 16.14, 16.16                   | na `main` (16/11), testada |
 | 11   | `server-activity`                                                                                    | 16.18                                 | na `main` (16/11), testada |
+| 12   | `reliability-leftovers`                                                                              | 16.19                                 | na `main` (16/11), testada |
