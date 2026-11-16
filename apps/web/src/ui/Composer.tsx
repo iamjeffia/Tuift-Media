@@ -2161,6 +2161,8 @@ function ComposerComponent(props: {
             className={`${promptBeamClass}${props.newSession ? ' is-shelved' : ''}`}
             strength={1}
             active={props.designMode || props.motionMode}
+            running={props.running}
+            travelOnFocus
           >
             {/* New chat: the beam wraps shelf and prompt, so its clip and glow follow the one surface. */}
             {props.newSession ? (

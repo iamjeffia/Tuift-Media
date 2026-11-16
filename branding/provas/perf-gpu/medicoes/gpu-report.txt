@@ -1,0 +1,45 @@
+devices [
+{
+"vendorId": 4318,
+"deviceId": 12036,
+"subSysId": 1098716248,
+"revision": 161,
+"vendorString": "",
+"deviceString": "NVIDIA GeForce RTX 5070",
+"driverVendor": "NVIDIA",
+"driverVersion": "32.0.16.2101"
+},
+{
+"vendorId": 4318,
+"deviceId": 12036,
+"subSysId": 1098716248,
+"revision": 161,
+"vendorString": "",
+"deviceString": "NVIDIA GeForce RTX 5070",
+"driverVendor": "",
+"driverVersion": "32.0.16.2101"
+},
+{
+"vendorId": 5140,
+"deviceId": 140,
+"subSysId": 0,
+"revision": 0,
+"vendorString": "",
+"deviceString": "Microsoft Basic Render Driver",
+"driverVendor": "",
+"driverVersion": "10.0.26100.9711"
+}
+]
+featureStatus {"2d_canvas": "enabled", "direct_rendering_display_compositor": "disabled_off_ok", "gpu_compositing": "enabled", "multiple_raster_threads": "enabled_on", "opengl": "enabled_on", "rasterization": "enabled_force", "raw_draw": "disabled_off_ok", "skia_graphite": "disabled_off", "trees_in_viz": "disabled_off", "video_decode": "enabled", "video_encode": "enabled", "webgl": "enabled", "webgpu": "enabled", "webnn": "disabled_off"}
+driverBugWorkarounds 6
+auxAttributes {'directComposition': True, 'displayType': 'ANGLE_D3D11', 'glImplementationParts': '(gl=egl-angle,angle=d3d11)', 'glRenderer': 'ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 (0x00002F04) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.2101)', 'glVendor': 'Google Inc. (NVIDIA)', 'glVersion': 'OpenGL ES 3.0 (ANGLE 2.1.28646 git hash: a6bc9eff8444)', 'initializationTime': 0.189413}
+BROWSER 153.0.8010.12
+Canvas => Canvas: Hardware accelerated * Direct Rendering Display Compositor: Disabled * Compositing: Hardware accelerated * Multiple Ra
+Compositing => Compositing: Hardware accelerated * Multiple Raster Threads: Enabled * OpenGL: Enabled * Rasterization: Hardware accelerated on all
+Rasterization => Rasterization: Hardware accelerated on all pages * Raw Draw: Disabled * Skia Graphite: Disabled * TreesInViz: Disabled * Video Decode
+GL_RENDERER => GL_RENDERER : ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 (0x00002F04) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.2101) GL_VERSION : OpenGL
+Direct3D => Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.2101) GL_VERSION : OpenGL ES 3.0 (ANGLE 2.1.28646 git hash: a6bc9eff8444) GL_EXTENSIONS 
+Skia Graphite => Skia Graphite: Disabled * TreesInViz: Disabled * Video Decode: Hardware accelerated * Video Encode: Hardware accelerated * WebGL: Har
+Display type => Display type : ANGLE_D3D11 GL_VENDOR : Google Inc. (NVIDIA) GL_RENDERER : ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 (0x00002F04) Direct
+GL implementation parts => GL implementation parts : (gl=egl-angle,angle=d3d11) Display type : ANGLE_D3D11 GL_VENDOR : Google Inc. (NVIDIA) GL_RENDERER : ANGLE (NVIDIA, N
+Driver D3D12 => Driver D3D12 feature level : D3D 12.2 Driver Vulkan API version : Not supported Pixel shader version : 5.0 Vertex shader version : 5

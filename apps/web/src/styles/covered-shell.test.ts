@@ -30,6 +30,19 @@ const OUTSIDE_SHELL = {
 } satisfies Record<string, string>
 const outsideShell = new Set<string>(Object.keys(OUTSIDE_SHELL))
 
+/**
+ * Animations that no longer loop but still wait behind Settings: they run a few seconds when
+ * something appears, and pausing them means nothing is drawn for nobody and they finish when
+ * Settings closes. They are listed here so that a pause on a one-shot animation by mistake
+ * (one that should keep playing) still fails the test below.
+ */
+const FINITE_BUT_PAUSED = {
+  '[data-beam-turn]': 'the beam travels a few laps, then rests',
+  '[data-beam-still]': 'the beam travels a few laps, then rests',
+  '.activity--live .activity__label': 'the working label shines a few sweeps, then rests',
+  '.composer__design:focus-visible > span': "the Design chip's label shines twice, then rests",
+} satisfies Record<string, string>
+
 interface Rule {
   file: string
   selectors: string[]
@@ -129,6 +142,10 @@ describe('the shell behind Settings', () => {
   it('leaves one-shot animations playing behind Settings', () => {
     const looping = new Set(loops.map((loop) => loop.selector))
     for (const selector of paused.keys()) {
+      if (selector in FINITE_BUT_PAUSED) {
+        expect(looping.has(selector), `${selector} loops again: it is no longer finite`).toBe(false)
+        continue
+      }
       expect(looping.has(selector), `${selector} is paused but does not loop`).toBe(true)
       expect(selector).not.toMatch(/(^|\s)\*/)
     }

@@ -966,7 +966,10 @@
   height: 14px;
   flex: none;
   color: var(--running);
-  animation: spin 800ms linear infinite;
+  /* Stepped: a running chat can sit open for an hour. A smooth endless animation makes the
+     window draw a frame on every refresh (360 a second on the owner's display); twelve
+     steps a turn draw twelve a turn and look like the spinner they replace. */
+  animation: spin 800ms steps(12) infinite;
 }
 
 .sess__spinner > svg {
@@ -2543,7 +2546,9 @@
   background-clip: text;
   background-size: 200% 100%;
   color: transparent;
-  animation: design-label-shimmer 2.4s linear infinite;
+  /* A few sweeps, not for as long as the chip keeps focus: it moves a paint property,
+     which costs a frame of style, paint and commit for every refresh. */
+  animation: design-label-shimmer 2.4s linear 2;
 }
 
 @keyframes design-label-shimmer {
@@ -3265,7 +3270,7 @@
   height: 11px;
   flex: none;
   color: var(--text-2);
-  animation: spin 0.7s linear infinite;
+  animation: spin 0.7s steps(12) infinite;
 }
 
 @keyframes spin {

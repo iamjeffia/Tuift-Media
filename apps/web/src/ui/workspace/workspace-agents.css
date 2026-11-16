@@ -88,7 +88,7 @@
   border-top-color: var(--sigil-a);
   border-right-color: var(--sigil-a);
   border-radius: var(--r-circle);
-  animation: subagent-sigil-turn 1.6s linear infinite;
+  animation: subagent-sigil-turn 1.6s steps(16) infinite;
   content: '';
 }
 
