@@ -76,20 +76,44 @@ export function skillPacks(skill) {
   return Array.isArray(skill.pack) ? skill.pack : [skill.pack]
 }
 
+/** A path inside a skill folder: no absolute path, no `..`, no empty part. */
+function isSafeRelative(relative) {
+  return (
+    typeof relative === 'string' &&
+    !path.isAbsolute(relative) &&
+    relative
+      .split('/')
+      .every((part) => part && part !== '.' && part !== '..' && !part.includes('\\'))
+  )
+}
+
 export function patchPath(skill, relative, root = patchesRoot) {
   return path.join(root, skill.folder, ...relative.split('/'))
 }
 
 /**
  * Takes the files a skill's `patch` entry replaces out of `files` and returns
- * TUIFT Code's copies of them. Each upstream file must still be the one its
- * patch was written against; with `update`, the measured hashes are returned
- * instead, for a maintainer who has carried the patch over to a new pin.
+ * TUIFT Code's copies of them, plus the files `patch.add` lists: TUIFT Code's
+ * own files that sit beside the upstream ones and must not exist upstream.
+ * Each replaced upstream file must still be the one its patch was written
+ * against; with `update`, the measured hashes are returned instead, for a
+ * maintainer who has carried the patch over to a new pin.
  */
 async function patchFiles(files, skill, update, root = patchesRoot) {
   const replacements = new Map()
   if (!skill.patch) return { replacements, entry: undefined }
   const measured = {}
+  for (const relative of skill.patch.add ?? []) {
+    if (!isSafeRelative(relative))
+      throw new Error(
+        `${skill.folder}: added file ${relative} is not a relative path inside the skill`,
+      )
+    if (files.has(relative))
+      throw new Error(
+        `${skill.folder}: added file ${relative} already exists upstream; use patch.files`,
+      )
+    replacements.set(relative, await readFile(patchPath(skill, relative, root)))
+  }
   for (const [relative, base] of Object.entries(skill.patch.files)) {
     const upstream = files.get(relative)
     if (!upstream) throw new Error(`${skill.folder}: patched file ${relative} is not upstream`)
@@ -290,7 +314,10 @@ async function pluginProblems({ name, dir, plugin, skills }, patches, locals) {
       problems.push(`${label}${skill.folder} is missing`)
       continue
     }
-    for (const relative of Object.keys(skill.patch?.files ?? {})) {
+    for (const relative of [
+      ...Object.keys(skill.patch?.files ?? {}),
+      ...(skill.patch?.add ?? []),
+    ]) {
       const shipped = files.get(relative)
       if (!shipped?.equals(await readFile(patchPath(skill, relative, patches))))
         problems.push(`${label}${skill.folder}: ${relative} is not TUIFT Code's patched copy`)
