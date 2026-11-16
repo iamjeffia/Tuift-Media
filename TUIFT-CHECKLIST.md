@@ -211,18 +211,21 @@ Pedido de 15/11, depois de um trabalho longo de vídeo em que o sistema ficou se
 - [x] 16.4 Aviso de memória baixa do sistema, uma vez por episódio, citando os maiores consumidores (Windows).
 - [x] 16.5 O chat sempre mostra que há trabalho: ajudante, ferramenta e comando com tempo próprio e o que estão fazendo agora; faixa de status acima do campo de texto; "última atividade há…" quando nada chega, e uma linha calma depois de dois minutos; turno interrompido não aparece como concluído. Em 16/11 os bonecos do Motion passaram a morar nessa faixa (parado: os seis rostos e a etapa; trabalhando: o rosto de quem trabalha no lugar do ponto), e a faixa de bonecos acima da conversa saiu.
 - [x] 16.5b Ao enviar uma mensagem, o prompt fica ancorado no topo mesmo quando a área da conversa muda de altura logo depois (16/11). O caso exato relatado pelo dono do projeto não foi reproduzido em bancada; ele confirmou no app instalado, em 16/11, que o chat não sobe mais.
-- [ ] 16.6 Impedir o computador de dormir enquanto um turno roda.
-- [ ] 16.7 Queda do servidor do app: guardar o motivo e dar mensagem útil (porta ocupada, banco) em vez de sugerir reinstalar.
-- [ ] 16.8 Falha de escrita no meio de um turno (disco cheio, banco travado) não derruba o servidor.
-- [ ] 16.9 Cópia de segurança rotativa do banco de conversas e recuperação quando ele não abre.
-- [ ] 16.10 Descarregar a tela quando a janela fica escondida na bandeja sem chat rodando.
-- [ ] 16.11 Encerrar processos órfãos de provedores na partida.
-- [ ] 16.12 Recuperação da tela depois de queda por falta de memória (hoje recarrega uma vez e nunca mais).
-- [ ] 16.13 Teto para mensagem do usuário, plano e raciocínio, e tratar evento grande demais para o canal.
-- [ ] 16.14 Reconhecer login vencido no meio do turno e mostrar o aviso com atalho para a conta.
+- [x] 16.6 O computador não dorme enquanto um turno roda (16/11): o app segura o sono do sistema, deixa a tela apagar, e solta quando o último chat termina, ao sair, ou dois minutos depois de a tela sumir sem avisar.
+- [x] 16.7 Servidor do app que não sobe diz o motivo (16/11): código de saída próprio para porta em uso, pasta de dados presa por outra cópia, banco travado, banco danificado, sem permissão e disco cheio; o aviso fala a causa e o que fazer, sem repetir tentativas inúteis; "reinstale" ficou só para causa desconhecida, com o caminho do registro. As últimas linhas de saída do servidor ficam num arquivo pequeno e filtrado.
+- [x] 16.8 Falha de escrita no meio de um turno não derruba o servidor (16/11): reproduzida antes de corrigir (com o disco cheio o servidor caía). Agora o turno termina com aviso traduzido (disco cheio, arquivo em uso ou falha ao salvar), o provedor é parado, a fila fica guardada e o servidor segue respondendo.
+- [x] 16.9 Cópia de segurança rotativa do banco de conversas (16/11): no máximo uma por dia, as duas mais novas ficam na pasta `backups` ao lado do banco, feita em segundo plano sem travar um turno. Banco danificado é separado com data, a cópia mais nova que abre é restaurada e um aviso fica na tela até ser dispensado; banco só travado nunca é separado. Nada é apagado.
+- [x] 16.10 Janela escondida na bandeja deixa de ocupar memória (16/11): depois de 5 minutos escondida, sem chat trabalhando e sem nada a perder (rascunho é salvo; painel lateral, terminal, Ajustes ou diálogo abertos seguram a descarga), a janela é desfeita e volta no mesmo chat ao ser mostrada.
+- [x] 16.11 Processos de provedor que sobraram de uma queda são encerrados na partida seguinte (16/11): só quando o número, a hora de início e o executável batem com o que foi gravado e o app que os iniciou já não existe. Um registro por pasta de dados.
+- [x] 16.12 A tela se recupera depois de cair, até três vezes seguidas; a contagem zera depois de cinco minutos saudável (16/11). O motivo vai para o diagnóstico. Depois de queda por falta de memória o chat não é reaberto, com um aviso de uma linha.
+- [x] 16.13 Teto de 256 KiB para a mensagem da pessoa, o plano e o raciocínio (16/11). A mensagem da pessoa nunca é cortada: o campo recusa antes de enviar e oferece "Anexar como arquivo". Nenhum evento passa de 4 MiB, então um texto enorme não derruba mais a conexão.
+- [x] 16.14 Login vencido ou sem acesso no meio do turno vira aviso com o botão Entrar, que abre os provedores, e Continuar ao lado (16/11). Cobre Claude Code, Codex, OpenCode e agentes ACP, pelo sinal que o próprio provedor dá. Grok, Cursor, Pi e Antigravity seguem com o texto cru.
 - [x] 16.15 Brilhos de texto que redesenhavam a cada quadro: agora varrem poucas vezes e param (16/11). Um teste lista toda animação contínua e falha quando aparece uma que não seja barata.
-- [ ] 16.16 Abrir a porta do servidor antes de refazer índices grandes.
+- [x] 16.16 A porta do servidor abre antes de refazer índices grandes (16/11): com 197 mil eventos a partida até a primeira resposta caiu de cerca de 7 a 9 segundos para 0,5 a 2,3 segundos; a reconstrução segue em fatias, retoma se o app fechar, e a busca avisa que ainda está atualizando.
 - [ ] 16.17 Validação do dono do projeto no app instalado: memória e CPU com um chat Motion aberto por uma hora.
+- [ ] 16.18 Turno iniciado pelo celular com a janela descarregada ou fechada: o PC não recebe notificação, pode dormir e o app não pergunta antes de sair, porque a contagem de chats trabalhando vem da tela. Falta o servidor informar essa contagem ao app.
+- [ ] 16.19 Restos da rodada de 16/11: o app do celular recebe o aviso de banco restaurado mas não o mostra; terminais não entram no registro de processos órfãos; login vencido em Grok, Cursor, Pi e Antigravity ainda aparece cru.
+- [ ] 16.20 Validação do dono do projeto no app instalado dos itens 16.6 a 16.16: nenhum foi visto com sono real, bandeja real, queda real, disco cheio ou banco danificado de verdade.
 
 ## Ondas de trabalho
 
@@ -251,3 +254,4 @@ Cada frente roda num worktree próprio em `C:/Dev/tuift-wt/<frente>`, numa branc
 | 7    | `motion-ae`, `motion-ae-ui`, `ae-bundle`                                                             | 9.6, 11.1 a 11.4                      | na `main` (15/11), testada |
 | 8    | `motion-react`, `chat-feedback`, `crash-recovery`, `memory-images`, `beam-compositor`                | 9.7, 8.5, 16.1 a 16.5                 | na `main` (15/11), testada |
 | 9    | `strip-cast`, `perf-gpu`, `media-delivery`                                                           | 5.11, 16.1, 16.5, 16.5b, 16.15        | na `main` (16/11), testada |
+| 10   | `desk-lifecycle`, `server-startup`, `write-safety`, `orphans-caps` | 16.6 a 16.14, 16.16 | na `main` (16/11), testada |
