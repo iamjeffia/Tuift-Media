@@ -19,6 +19,28 @@ takeEdition(process.env)
 const instanceToken = process.env['HARNESS_INSTANCE_TOKEN']
 delete process.env['HARNESS_INSTANCE_TOKEN']
 
+// Electron utility processes expose their private parent channel separately
+// from Node's child_process IPC channel.
+const parentPort = (
+  process as typeof process & {
+    parentPort?: {
+      on(event: 'message', listener: (event: { data: unknown }) => void): void
+      postMessage(message: unknown): void
+    }
+  }
+).parentPort
+
+/** The way up to the process that owns this server; none for the CLI or a dev server. */
+function toParent(): ((message: unknown) => void) | undefined {
+  if (parentPort) return (message) => parentPort.postMessage(message)
+  if (process.send) {
+    return (message) => {
+      if (process.connected) process.send?.(message, undefined, undefined, () => {})
+    }
+  }
+  return undefined
+}
+
 const port = Number(process.env['HARNESS_PORT'] ?? DEFAULT_PORT)
 // A start that fails says why, in the log line and in the exit code, so the desktop can tell a
 // busy port or a locked database from a broken install instead of retrying them all alike.
@@ -30,6 +52,7 @@ function start(): ReturnType<typeof startServer> {
       accessToken: process.env['HARNESS_ACCESS_TOKEN'],
       instanceToken,
       feedback,
+      onChatActivity: toParent(),
     })
   } catch (error) {
     const cause = startupCause(error)
@@ -77,11 +100,4 @@ process.on('message', shutdownMessage)
 // owns this server any more. Without an IPC channel this never fires.
 process.on('disconnect', shutdown)
 
-// Electron utility processes expose their private parent channel separately
-// from Node's child_process IPC channel.
-const parentPort = (
-  process as typeof process & {
-    parentPort?: { on(event: 'message', listener: (event: { data: unknown }) => void): void }
-  }
-).parentPort
 parentPort?.on('message', (event) => shutdownMessage(event.data))

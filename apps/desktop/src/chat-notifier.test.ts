@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { NotificationMode, ReportedChat } from './chat-attention.js'
 import type { Language } from './i18n.js'
 import { ChatNotifier, type ChatNotifierHost } from './chat-notifier.js'
 
-function setup(options: { away?: boolean; language?: Language } = {}) {
+function setup(
+  options: { away?: boolean; language?: Language; server?: boolean; mode?: NotificationMode } = {},
+) {
   let away = options.away ?? true
   const shown: Array<{ title: string; body: string; click: () => void; close: () => void }> = []
   const host = {
@@ -15,6 +18,9 @@ function setup(options: { away?: boolean; language?: Language } = {}) {
     setBadge: vi.fn(),
     openChat: vi.fn(),
     language: () => options.language ?? 'en',
+    serverReports: () => options.server ?? false,
+    loadMode: () => options.mode,
+    saveMode: vi.fn(),
   } satisfies ChatNotifierHost
   const notifier = new ChatNotifier(host)
   return {
@@ -151,5 +157,148 @@ describe('ChatNotifier', () => {
     expect(host.setBadge).toHaveBeenLastCalledWith(1)
     notifier.dispose()
     expect(host.setBadge).toHaveBeenLastCalledWith(0)
+  })
+})
+
+describe('ChatNotifier with the server as the source of the chats', () => {
+  const run = (id: string, title = `Chat ${id}`): ReportedChat => ({ id, title, state: 'working' })
+  const wait = (
+    id: string,
+    state: 'approval' | 'input' | 'failed' = 'approval',
+    title = `Chat ${id}`,
+  ): ReportedChat => ({ id, title, state })
+
+  it('announces a chat that finishes, with no page at all', () => {
+    const { host, notifier, shown } = setup({ server: true, mode: 'needs-you-or-finished' })
+    notifier.serverStarted()
+    notifier.serverReport([])
+    notifier.serverReport([run('a', 'Fix login')])
+    notifier.serverReport([])
+    expect(shown.map(({ title, body }) => ({ title, body }))).toEqual([
+      { title: 'Fix login', body: 'Finished' },
+    ])
+    expect(host.setBadge).not.toHaveBeenCalled()
+  })
+
+  it('announces an approval and a question, with no page at all', () => {
+    const { host, notifier, shown } = setup({ server: true })
+    notifier.serverStarted()
+    notifier.serverReport([])
+    notifier.serverReport([run('a', 'Fix login'), run('b', 'Add tests')])
+    notifier.serverReport([wait('a', 'approval', 'Fix login'), wait('b', 'input', 'Add tests')])
+    expect(shown.map(({ title, body }) => ({ title, body }))).toEqual([
+      { title: 'Fix login', body: 'Needs your approval' },
+      { title: 'Add tests', body: 'Has a question' },
+    ])
+    expect(host.setBadge).toHaveBeenLastCalledWith(2)
+  })
+
+  it('says nothing about a finished chat in the default mode', () => {
+    const { host, notifier } = setup({ server: true })
+    notifier.serverStarted()
+    notifier.serverReport([run('a')])
+    notifier.serverReport([])
+    expect(host.show).not.toHaveBeenCalled()
+  })
+
+  it('says nothing while the window is in front', () => {
+    const { host, notifier } = setup({ server: true, away: false, mode: 'needs-you-or-finished' })
+    notifier.serverStarted()
+    notifier.serverReport([])
+    notifier.serverReport([run('a')])
+    notifier.serverReport([wait('a')])
+    notifier.serverReport([])
+    expect(host.show).not.toHaveBeenCalled()
+    expect(host.setBadge).not.toHaveBeenCalled()
+  })
+
+  it('announces nothing for what was already waiting when the server started', () => {
+    const { host, notifier } = setup({ server: true, mode: 'needs-you-or-finished' })
+    notifier.serverStarted()
+    notifier.serverReport([wait('a'), wait('b', 'failed')])
+    notifier.serverReport([wait('a'), wait('b', 'failed')])
+    expect(host.show).not.toHaveBeenCalled()
+  })
+
+  it('treats the first report of a restarted server as a baseline again', () => {
+    const { host, notifier } = setup({ server: true, mode: 'needs-you-or-finished' })
+    notifier.serverStarted()
+    notifier.serverReport([run('a')])
+    // The server died and came back: what it says first replaces the stale picture, silently.
+    notifier.serverStarted()
+    notifier.serverReport([wait('a')])
+    expect(host.show).not.toHaveBeenCalled()
+    notifier.serverReport([])
+    expect(host.show).toHaveBeenCalledOnce()
+  })
+
+  it('ignores the chats of a page, and a page that was replaced is not a new baseline', () => {
+    const { host, notifier } = setup({ server: true })
+    notifier.serverStarted()
+    notifier.serverReport([run('a')])
+    // The page says another chat waits; the server did not, so nothing is announced.
+    notifier.report({ mode: 'needs-you', chats: [waiting('b', 'approval')] })
+    notifier.pageReplaced()
+    notifier.report({ mode: 'needs-you', chats: [waiting('c', 'approval')] })
+    expect(host.show).not.toHaveBeenCalled()
+    notifier.serverReport([wait('a')])
+    expect(host.show).toHaveBeenCalledExactlyOnceWith(
+      'Chat a',
+      'Needs your approval',
+      expect.any(Function),
+    )
+  })
+
+  it('keeps the mode the page sent, for when there is no page', () => {
+    const { host, notifier } = setup({ server: true })
+    expect(host.saveMode).not.toHaveBeenCalled()
+    notifier.report({ mode: 'needs-you-or-finished', chats: [] })
+    expect(host.saveMode).toHaveBeenCalledExactlyOnceWith('needs-you-or-finished')
+    // The same mode again is not written again.
+    notifier.report({ mode: 'needs-you-or-finished', chats: [] })
+    expect(host.saveMode).toHaveBeenCalledOnce()
+    // The page is gone; the server's chats still follow the mode it left.
+    notifier.serverStarted()
+    notifier.serverReport([run('a')])
+    notifier.serverReport([])
+    expect(host.show).toHaveBeenCalledOnce()
+  })
+
+  it('starts from the saved mode, so a run with no page already follows it', () => {
+    const { host, notifier } = setup({ server: true, mode: 'off' })
+    notifier.serverStarted()
+    notifier.serverReport([run('a')])
+    notifier.serverReport([wait('a')])
+    expect(host.show).not.toHaveBeenCalled()
+    expect(host.setBadge).not.toHaveBeenCalled()
+  })
+
+  it('takes everything down when the page turns notifications off between server reports', () => {
+    const { host, notifier, shown } = setup({ server: true })
+    notifier.serverStarted()
+    notifier.serverReport([run('a')])
+    notifier.serverReport([wait('a')])
+    expect(host.setBadge).toHaveBeenLastCalledWith(1)
+    notifier.report({ mode: 'off', chats: [] })
+    expect(shown[0]!.close).toHaveBeenCalledTimes(1)
+    expect(host.setBadge).toHaveBeenLastCalledWith(0)
+  })
+
+  it('opens the chat of a clicked notification when there is no window', () => {
+    // Opening is the host's job: it creates the window and hands the chat to the new page.
+    const { host, notifier, shown } = setup({ server: true })
+    notifier.serverStarted()
+    notifier.serverReport([run('a')])
+    notifier.serverReport([wait('a')])
+    shown[0]!.click()
+    expect(host.openChat).toHaveBeenCalledExactlyOnceWith('a')
+  })
+
+  it('carries on when the mode cannot be saved', () => {
+    const { host, notifier } = setup({ server: true })
+    host.saveMode.mockImplementation(() => {
+      throw new Error('disk full')
+    })
+    expect(() => notifier.report({ mode: 'off', chats: [] })).not.toThrow()
   })
 })

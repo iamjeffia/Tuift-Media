@@ -48,7 +48,10 @@ import {
 } from './app-updater.js'
 import { createApplicationMenuTemplate } from './app-menu.js'
 import { badgeBitmap, badgeDescription } from './attention-badge.js'
+import { parseChatActivity } from './chat-attention.js'
 import { ChatNotifier, type ShownNotification } from './chat-notifier.js'
+import { loadNotificationMode, saveNotificationMode } from './notification-mode.js'
+import { ServerActivity } from './server-activity.js'
 import { clipboardText } from './clipboard-text.js'
 import { droppedFolderPaths, MAX_DROPPED_PROJECT_PATHS } from './dropped-folder-paths.js'
 import { forwardBrowserShortcuts } from './browser-shortcuts.js'
@@ -190,6 +193,7 @@ const windowChromePath = path.join(productDataPath, 'window-chrome.json')
 let savedWindowChrome: string | undefined
 const windowMaterialPath = path.join(productDataPath, 'window-material.json')
 const languagePath = path.join(productDataPath, 'language.json')
+const notificationModePath = path.join(productDataPath, 'chat-notifications.json')
 /** The interface language the renderer last chose; read from disk on first use. */
 let appLanguage: Language | undefined
 
@@ -374,8 +378,24 @@ function showServerFailureNotice(failure?: ServerExit): void {
 }
 let diagnostics: LocalDiagnostics | undefined
 let appUpdater: AppUpdateController | undefined
-/** Chats with a running turn, as the main window's page last reported them. */
+/**
+ * Chats with a running turn. The server this app owns reports them over the parent channel, so
+ * the count is right with no window open; only a server this app does not own (a dev server)
+ * leaves it to the main window's page, which then reports after every sidebar status change.
+ */
 let runningAgents = 0
+/** Set once this app starts its own server: the page's count and chats are then not the source. */
+let serverReportsActivity = false
+function setRunningAgents(count: number): void {
+  runningAgents = count
+  turnPower.report(count)
+  hiddenWindowUnloader.agentsChanged(count)
+}
+/** The page's last count holds only for a while; a server's count does not depend on any page. */
+function pageGone(): void {
+  if (!serverReportsActivity) turnPower.pageGone()
+}
+const serverActivity = new ServerActivity(setRunningAgents)
 /** Keeps the computer awake while a turn runs (the display may still turn off). */
 const turnPower = new TurnPowerGuard({
   start: () => powerSaveBlocker.start('prevent-app-suspension'),
@@ -420,7 +440,11 @@ let waitingForServerShutdown = false
 let quitConfirmed = false
 const quitRequest = createQuitRequest({
   chats: () => runningAgents,
-  show: showMainWindow,
+  // With no window at all there is nothing to bring forward, and building one only to ask
+  // would leave the question to the native dialog after its wait. Ask natively at once.
+  show: () => {
+    if (mainWindow && !mainWindow.isDestroyed()) showMainWindow()
+  },
   ask: (chats) => {
     const contents = mainWindow?.webContents
     if (!contents || contents.isDestroyed() || contents.isCrashed()) return false
@@ -465,6 +489,9 @@ const chatNotifier = new ChatNotifier({
   show: showChatNotification,
   setBadge: setAttentionBadge,
   language: currentLanguage,
+  serverReports: () => serverReportsActivity,
+  loadMode: () => loadNotificationMode(notificationModePath),
+  saveMode: (mode) => saveNotificationMode(notificationModePath, mode),
   openChat: (chatId) => {
     const window = mainWindow
     const ready = window && !window.isDestroyed() && !window.webContents.isLoading()
@@ -652,7 +679,15 @@ function startOwnedServer(): boolean {
   const serverEntry = app.isPackaged
     ? require.resolve('@harness/server')
     : path.join(here, '../../server/dist/main.js')
+  serverReportsActivity = true
   const supervisorCallbacks = {
+    onStart: () => chatNotifier.serverStarted(),
+    onMessage: (message: unknown) => {
+      const activity = parseChatActivity(message)
+      if (!activity) return
+      serverActivity.report(activity.running)
+      chatNotifier.serverReport(activity.chats)
+    },
     onLog: (line: string) => {
       console.log('[server]', line)
       if (!startupServerReady && line.startsWith('[server] listening on ')) {
@@ -661,8 +696,10 @@ function startOwnedServer(): boolean {
         finishStartupBenchmarkIfReady()
       }
     },
-    onExit: (exit: ServerExit) =>
-      recordServerExit(localDiagnosticsDirectory(app.getPath('userData')), exit),
+    onExit: (exit: ServerExit) => {
+      serverActivity.serverGone()
+      recordServerExit(localDiagnosticsDirectory(app.getPath('userData')), exit)
+    },
     onGaveUp: showServerFailureNotice,
   }
   serverSupervisor =
@@ -723,6 +760,9 @@ function launchUtilityServer(
     kill: () => child.kill(),
     killTree: () => killTree(server),
     requestShutdown: () => child.postMessage({ type: 'harness:shutdown' }),
+    onMessage: (listener) => {
+      child.on('message', listener)
+    },
     onError: (listener) => {
       child.on('error', (type, location) => listener(new Error(`${type} at ${location}`)))
     },
@@ -851,7 +891,7 @@ function createWindow(): void {
   window.on('closed', () => {
     if (mainWindow === window) mainWindow = undefined
     hiddenWindowUnloader.shown()
-    turnPower.pageGone()
+    pageGone()
   })
   window.on('hide', () => hiddenWindowUnloader.hidden())
   window.on('focus', () => {
@@ -874,7 +914,7 @@ function createWindow(): void {
       `[desktop] main window renderer exited: ${details.reason} (code ${details.exitCode})`,
     )
     void diagnostics?.record('renderer crash', `${details.reason} (code ${details.exitCode})`)
-    turnPower.pageGone()
+    pageGone()
   })
   let recoveryPromptOpen = false
   const rendererLifecycle: RendererLifecycle = configureRendererLifecycle(window.webContents, {
@@ -889,7 +929,7 @@ function createWindow(): void {
       else if (reason === 'oom') shellNotice = t('lifecycle.chatNotReopenedOom')
     },
     onPageReplaced: () => {
-      turnPower.pageGone()
+      pageGone()
       nativeMenuDispatch.reset(window.webContents)
       chatNotifier.pageReplaced()
       // A reload during shortcut recording must not leave accelerators off.
@@ -1062,8 +1102,9 @@ ipcMain.on('harness:menuReady', (event) => {
   nativeMenuDispatch.markReady(event.sender)
 })
 
-// The chats that are not at rest, sent after every sidebar status change.
-// Only the main window's own page reports them.
+// The chats that are not at rest, sent after every sidebar status change. Only the main window's
+// own page reports. With the server this app owns, the page's chats are ignored (the server's
+// are used, window or not) and what counts here is the notification mode it carries.
 ipcMain.on('harness:chatAttention', (event, report: unknown) => {
   if (!isOwnRenderer(event.sender) || event.sender !== mainWindow?.webContents) return
   chatNotifier.report(report)
@@ -1195,15 +1236,15 @@ ipcMain.on('harness:answerQuit', (event, quit: unknown) => {
     quitRequest.answer(quit === true)
 })
 
-// Sent after every sidebar status change. Only the main window's page reports;
-// a page that goes away leaves its last count, which errs towards not installing.
+// Sent after every sidebar status change. Only the main window's page reports, and only a server
+// this app does not own is counted from it; a page that goes away leaves its last count, which
+// errs towards not installing.
 ipcMain.on('harness:runningAgents', (event, value: unknown) => {
   if (!isOwnRenderer(event.sender) || event.sender !== mainWindow?.webContents) return
+  if (serverReportsActivity) return
   const count = parseRunningAgents(value)
   if (count === undefined) return
-  runningAgents = count
-  turnPower.report(count)
-  hiddenWindowUnloader.agentsChanged(count)
+  setRunningAgents(count)
 })
 
 // The chat the page shows, and its answer to "would an unload lose anything?".
@@ -1645,6 +1686,7 @@ if (ownsSingleInstance) {
   app.on('will-quit', () => {
     // A notification left in the notification centre would reopen a chat of a closed app.
     chatNotifier.dispose()
+    serverActivity.dispose()
     turnPower.dispose()
     hiddenWindowUnloader.dispose()
     appUpdater?.dispose()

@@ -1,3 +1,4 @@
+export * from './chat-activity.js'
 export * from './chat-import.js'
 export * from './connections.js'
 export * from './domain.js'

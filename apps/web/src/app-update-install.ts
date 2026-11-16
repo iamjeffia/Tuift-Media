@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { isTurnStatus } from '@harness/contracts'
 import { installAppUpdate, reportRunningAgents } from './bridge.js'
 import { t, tp } from './i18n/index.js'
 import type { Transport } from './transport.js'
@@ -39,13 +40,6 @@ export type AppUpdateInstallGate = {
   /** Ends the running turns; queued prompts stay for after the restart. */
   stopRunningChats: () => Promise<void>
 }
-
-/**
- * Inside a turn (also when it waits on an approval or a question: its agent is
- * live, and the restart would lose the turn), or starting one. Not 'queued':
- * the server reports that only while no turn runs or starts.
- */
-const RUNNING = new Set<Session['status']>(['starting', 'working', 'approval', 'input'])
 
 /** A chat that ends sends its next queued prompt within a moment; wait that long first. */
 export const INSTALL_SETTLE_MS = 750
@@ -100,7 +94,7 @@ function runningIds(project: Project): string[] {
   const cached = projectCounts.get(project)
   if (cached) return cached
   const ids = project.sessions
-    .filter((session) => RUNNING.has(session.status))
+    .filter((session) => isTurnStatus(session.status))
     .map((session) => session.id)
   projectCounts.set(project, ids)
   return ids
@@ -126,7 +120,7 @@ export function serverRunningChatCount(
   const ids = new Set<string>()
   for (const project of projects) {
     for (const session of project.sessions) {
-      if (session.running || (session.status && RUNNING.has(session.status))) ids.add(session.id)
+      if (session.running || (session.status && isTurnStatus(session.status))) ids.add(session.id)
     }
   }
   return ids.size
