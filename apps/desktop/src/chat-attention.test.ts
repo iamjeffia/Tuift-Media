@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import * as contracts from '@harness/contracts'
 import {
+  CHAT_ACTIVITY_MESSAGE,
+  CHAT_STATES,
   ChatAttention,
   MAX_REPORTED_CHATS,
   NOTICE_KEY,
+  parseChatActivity,
   parseChatAttentionReport,
   type ChatState,
   type NotificationMode,
@@ -256,5 +260,81 @@ describe('parseChatAttentionReport', () => {
         chats: [{ id: 'a', title: 't', state: 'input', provider: 'codex' }],
       }),
     ).toEqual({ mode: 'off', chats: [{ id: 'a', title: 't', state: 'input' }] })
+  })
+})
+
+describe('parseChatActivity', () => {
+  const message = (extra: Record<string, unknown> = {}) => ({
+    type: CHAT_ACTIVITY_MESSAGE,
+    running: 1,
+    chats: [{ id: 'a', title: 'Fix login', state: 'working' }],
+    ...extra,
+  })
+
+  it('reads what the server sends', () => {
+    expect(parseChatActivity(message())).toEqual({
+      running: 1,
+      chats: [{ id: 'a', title: 'Fix login', state: 'working' }],
+    })
+    expect(parseChatActivity(message({ running: 0, chats: [] }))).toEqual({
+      running: 0,
+      chats: [],
+    })
+  })
+
+  it('keeps the same constants as the contracts the server builds the message from', () => {
+    expect(CHAT_ACTIVITY_MESSAGE).toBe(contracts.CHAT_ACTIVITY_MESSAGE)
+    expect([...CHAT_STATES]).toEqual([...contracts.CHAT_STATES])
+    expect(MAX_REPORTED_CHATS).toBe(contracts.MAX_REPORTED_CHATS)
+  })
+
+  it.each<[string, unknown]>([
+    ['nothing', undefined],
+    ['text', 'harness:chatActivity'],
+    ['an array', []],
+    ['the shutdown message', { type: 'harness:shutdown' }],
+    ['another type', message({ type: 'harness:other' })],
+    ['no type', { running: 0, chats: [] }],
+    ['no count', message({ running: undefined })],
+    ['a negative count', message({ running: -1 })],
+    ['a fractional count', message({ running: 1.5 })],
+    ['a count that is text', message({ running: '1' })],
+    ['chats that are not a list', message({ chats: {} })],
+    ['an unknown state', message({ chats: [{ id: 'a', title: '', state: 'idle' }] })],
+    ['a chat without an id', message({ chats: [{ id: '', title: '', state: 'working' }] })],
+    [
+      'an oversized title',
+      message({ chats: [{ id: 'a', title: 'x'.repeat(1_001), state: 'working' }] }),
+    ],
+    ['an oversized id', message({ chats: [{ id: 'x'.repeat(257), title: '', state: 'working' }] })],
+    [
+      'a repeated chat',
+      message({
+        chats: [
+          { id: 'a', title: '', state: 'working' },
+          { id: 'a', title: '', state: 'input' },
+        ],
+      }),
+    ],
+    [
+      'too many chats',
+      message({
+        chats: Array.from({ length: MAX_REPORTED_CHATS + 1 }, (_, index) => ({
+          id: `c${index}`,
+          title: '',
+          state: 'working',
+        })),
+      }),
+    ],
+  ])('ignores %s', (_name, value) => {
+    expect(parseChatActivity(value)).toBeUndefined()
+  })
+
+  it('keeps only the fields it knows', () => {
+    expect(
+      parseChatActivity(
+        message({ extra: true, chats: [{ id: 'a', title: 't', state: 'input', provider: 'x' }] }),
+      ),
+    ).toEqual({ running: 1, chats: [{ id: 'a', title: 't', state: 'input' }] })
   })
 })

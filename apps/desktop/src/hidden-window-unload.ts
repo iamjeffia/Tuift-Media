@@ -40,7 +40,7 @@ export class HiddenWindowUnloader {
   }
 
   /**
-   * The count of chats working, as the page reports it. A chat that just ended
+   * The count of chats working, as the server reports it. A chat that just ended
    * gets the whole wait again, so its notification and the next queued prompt
    * are not cut off by an unload.
    */

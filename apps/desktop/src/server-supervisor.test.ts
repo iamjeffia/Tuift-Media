@@ -25,6 +25,7 @@ function supervised(child: FakeChild): SupervisedServerProcess {
     stdout: child.stdout,
     stderr: child.stderr,
     kill: () => child.kill(),
+    onMessage: (listener) => child.on('message', listener),
     onError: (listener) => child.on('error', (error) => listener(error)),
     onExit: (listener) => child.on('exit', listener),
   }
@@ -309,4 +310,57 @@ describe('ServerSupervisor', () => {
     await stopped
     expect(child.wasKilled).toBe(false)
   })
+
+  it.each([
+    [
+      'the legacy child',
+      (children: FakeChild[], callbacks: Record<string, unknown>) =>
+        new ServerSupervisor({
+          command: 'node',
+          args: ['server.js'],
+          env: {},
+          onLog: vi.fn(),
+          spawnFn: () => {
+            const child = new FakeChild()
+            children.push(child)
+            return child
+          },
+          ...callbacks,
+        }),
+    ],
+    [
+      'an Electron utility process',
+      (children: FakeChild[], callbacks: Record<string, unknown>) =>
+        new ServerSupervisor({
+          onLog: vi.fn(),
+          launch: () => {
+            const child = new FakeChild()
+            children.push(child)
+            return supervised(child)
+          },
+          ...callbacks,
+        }),
+    ],
+  ])(
+    'passes up what %s sends over the parent channel, and only from the running one',
+    (_, make) => {
+      const children: FakeChild[] = []
+      const heard: unknown[] = []
+      const started = vi.fn()
+      const sup = make(children, { onMessage: (m: unknown) => heard.push(m), onStart: started })
+      sup.start()
+      expect(started).toHaveBeenCalledOnce()
+      children[0]!.emit('message', { type: 'harness:chatActivity', running: 1, chats: [] })
+      expect(heard).toHaveLength(1)
+
+      // The server dies and is started again: the new process is told apart, the old one is silent.
+      children[0]!.emit('exit', 1, null)
+      children[0]!.emit('message', { type: 'late' })
+      vi.advanceTimersByTime(500)
+      expect(started).toHaveBeenCalledTimes(2)
+      children[0]!.emit('message', { type: 'late' })
+      children[1]!.emit('message', 'again')
+      expect(heard).toEqual([{ type: 'harness:chatActivity', running: 1, chats: [] }, 'again'])
+    },
+  )
 })

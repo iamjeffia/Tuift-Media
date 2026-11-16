@@ -48,6 +48,10 @@ type SupervisorCallbacks = {
   onExit?: ((exit: ServerExit) => void) | undefined
   /** Called once when the supervisor gives up, for a user-facing surface. */
   onGaveUp?: ((failure: ServerExit) => void) | undefined
+  /** Called each time a server process is started, before it has said anything. */
+  onStart?: (() => void) | undefined
+  /** What the running server sent up the parent channel; only the current process is heard. */
+  onMessage?: ((message: unknown) => void) | undefined
 }
 
 type CommandSupervisorOptions = {
@@ -69,6 +73,8 @@ export type SupervisedServerProcess = {
    */
   killTree?: () => Promise<void>
   requestShutdown?: () => void | Promise<void>
+  /** Messages the server sends to its parent over the channel the shutdown request uses. */
+  onMessage?: (listener: (message: unknown) => void) => void
   onError: (listener: (error: unknown) => void) => void
   onExit: (listener: (code: number | null, signal: NodeJS.Signals | null) => void) => void
 }
@@ -96,6 +102,7 @@ function supervisedChildProcess(child: ChildProcess): SupervisedServerProcess {
           else resolve()
         })
       }),
+    onMessage: (listener) => child.on('message', listener),
     onError: (listener) => child.on('error', listener),
     onExit: (listener) => child.on('exit', listener),
   }
@@ -146,6 +153,10 @@ export class ServerSupervisor {
             }),
           )
     this.#child = child
+    this.#options.onStart?.()
+    child.onMessage?.((message) => {
+      if (this.#child === child) this.#options.onMessage?.(message)
+    })
     child.stdout?.setEncoding('utf8')
     child.stderr?.setEncoding('utf8')
     // Pipes split writes anywhere, so ready markers must be matched on whole lines.

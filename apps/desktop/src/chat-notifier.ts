@@ -1,8 +1,11 @@
 import {
   ChatAttention,
+  DEFAULT_NOTIFICATION_MODE,
   NOTICE_KEY,
   parseChatAttentionReport,
   type ChatNotification,
+  type NotificationMode,
+  type ReportedChat,
 } from './chat-attention.js'
 import { translate, type Language } from './i18n.js'
 
@@ -21,6 +24,11 @@ export type ChatNotifierHost = {
   openChat: (chatId: string) => void
   /** The interface language now, read each time a notification is composed. */
   language: () => Language
+  /** True when the server this app owns tells which chats need the person, so a page need not. */
+  serverReports: () => boolean
+  /** The notification mode kept from the last time the page sent one. */
+  loadMode: () => NotificationMode | undefined
+  saveMode: (mode: NotificationMode) => void
 }
 
 /**
@@ -33,20 +41,52 @@ export class ChatNotifier {
   readonly #attention = new ChatAttention()
   readonly #shown = new Map<string, ShownNotification>()
   #badge = 0
+  #mode: NotificationMode
+  /** The chats the server last reported, for a change of mode between its reports. */
+  #serverChats: ReportedChat[] = []
 
   readonly #host: ChatNotifierHost
 
   constructor(host: ChatNotifierHost) {
     this.#host = host
+    this.#mode = host.loadMode() ?? DEFAULT_NOTIFICATION_MODE
   }
 
-  /** A report from the renderer, validated here; a malformed one is dropped. */
+  /**
+   * A report from the renderer, validated here; a malformed one is dropped. It
+   * always carries the mode. Its chats count only when no server reports them.
+   */
   report(value: unknown): void {
     const report = parseChatAttentionReport(value)
     if (!report) return
-    const change = this.#attention.report(report, this.#host.isAway())
+    const modeChanged = report.mode !== this.#mode
+    if (modeChanged) {
+      this.#mode = report.mode
+      try {
+        this.#host.saveMode(report.mode)
+      } catch {
+        // Only the next launch, with no page yet, depends on it.
+      }
+    }
+    if (!this.#host.serverReports()) this.#apply(report.chats)
+    else if (modeChanged) this.#apply(this.#serverChats)
+  }
+
+  /** The chats that are not at rest, as the server this app owns reports them (already validated). */
+  serverReport(chats: ReportedChat[]): void {
+    this.#serverChats = chats
+    this.#apply(chats)
+  }
+
+  /** The server process started: its first report is a baseline, and says what the last one left. */
+  serverStarted(): void {
+    this.#attention.reset()
+  }
+
+  #apply(chats: ReportedChat[]): void {
+    const change = this.#attention.report({ mode: this.#mode, chats }, this.#host.isAway())
     for (const chatId of change.stale) this.#close(chatId)
-    if (report.mode === 'off') this.#closeAll()
+    if (this.#mode === 'off') this.#closeAll()
     for (const notification of change.notify) this.#show(notification)
     this.#setBadge(change.badge)
   }
@@ -58,9 +98,9 @@ export class ChatNotifier {
     this.#setBadge(0)
   }
 
-  /** The renderer page was replaced; its first report is a baseline. */
+  /** The renderer page was replaced; its first report is a baseline, unless the server reports. */
   pageReplaced(): void {
-    this.#attention.reset()
+    if (!this.#host.serverReports()) this.#attention.reset()
   }
 
   dispose(): void {

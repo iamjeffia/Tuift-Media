@@ -2,13 +2,13 @@
  * Keeps the computer awake while a chat works, so a long turn is not cut off
  * by the system going to sleep (the display may still turn off).
  *
- * The source of truth is the count the main window's page reports after every
- * sidebar status change: it mirrors the turns the server runs, and it is the
- * only count the desktop receives. The page can go away without saying zero (a
- * crash, a reload), so the last count is held only for a grace period; a page
- * that comes back reports again at once and the hold carries on. A turn
- * started while no page lives (a hidden window the app unloaded, a crash that
- * did not recover) is not known here, and the system may sleep.
+ * With the server this app owns, the count comes from the server itself (see
+ * server-activity.ts), so it is right with no window open, and the page's
+ * grace below is not used. Only a server the app does not own (a dev server)
+ * leaves the count to the main window's page, which reports after every
+ * sidebar status change. That page can go away without saying zero (a crash, a
+ * reload), so its last count is held only for a grace period; a page that
+ * comes back reports again at once and the hold carries on.
  */
 
 /** How long the last count is trusted after its page went away. */

@@ -1,11 +1,13 @@
+import { chatStateOf } from '@harness/contracts'
 import type { Project, Session } from './ui/Sidebar.js'
 
 /**
  * When the desktop shell tells the user about a chat while TUIFT Code is not
  * in front. The shell decides what to show (apps/desktop/src/chat-attention.ts);
- * this side keeps the setting and reports which chats are not at rest, read
- * from the status the sidebar draws, so every provider and API connection
- * behaves the same.
+ * this side keeps the setting and tells the shell, with every report, which mode
+ * the person chose. The chats are reported here too, read from the status the
+ * sidebar draws, but the shell uses them only when it does not own the server:
+ * the server it owns reports its chats itself, with no window open.
  */
 export type ChatNotificationMode = 'off' | 'needs-you' | 'needs-you-or-finished'
 
@@ -49,20 +51,12 @@ export function subscribeChatNotificationMode(onChange: () => void): () => void 
   return () => window.removeEventListener(CHANGE_EVENT, onChange)
 }
 
-/** What a chat is doing, as far as notifications care; undefined is at rest. */
+/**
+ * What a chat is doing, as far as notifications care; undefined is at rest. The server
+ * reports the same states from the same rule (chatStateOf), so the two cannot disagree.
+ */
 export function reportedChatState(session: Session): ReportedChatState | undefined {
-  switch (session.status) {
-    case 'approval':
-    case 'input':
-    case 'failed':
-      return session.status
-    case 'starting':
-    case 'working':
-    case 'queued':
-      return 'working'
-    default:
-      return undefined
-  }
+  return chatStateOf(session.status)
 }
 
 const projectChats = new WeakMap<Project, ReportedChat[]>()

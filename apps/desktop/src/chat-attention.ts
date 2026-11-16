@@ -18,10 +18,17 @@ import type { MessageKey } from './i18n.js'
  *
  * The first report from a page is a baseline: chats that were already waiting
  * before the app or the page started do not notify.
+ *
+ * With the server this app owns, the server is the source of the chats: it tells
+ * this process over the parent channel (see parseChatActivity), so the same rules
+ * hold with no window open. The page then only says which notification mode the
+ * person chose, and the baseline is the server's first report after it starts.
  */
 
 export const NOTIFICATION_MODES = ['off', 'needs-you', 'needs-you-or-finished'] as const
 export type NotificationMode = (typeof NOTIFICATION_MODES)[number]
+/** The page's default, until the person picks another. */
+export const DEFAULT_NOTIFICATION_MODE: NotificationMode = 'needs-you'
 
 export const CHAT_STATES = ['working', 'approval', 'input', 'failed'] as const
 /** A chat missing from a report is at rest: idle, or finished and waiting to be read. */
@@ -132,8 +139,34 @@ export function parseChatAttentionReport(value: unknown): ChatAttentionReport | 
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
   const record = value as Record<string, unknown>
   const mode = record['mode']
-  const chats = record['chats']
   if (!NOTIFICATION_MODES.includes(mode as NotificationMode)) return undefined
+  const chats = parseReportedChats(record['chats'])
+  return chats && { mode: mode as NotificationMode, chats }
+}
+
+/** The type of the message the server sends up; mirrors CHAT_ACTIVITY_MESSAGE in @harness/contracts. */
+export const CHAT_ACTIVITY_MESSAGE = 'harness:chatActivity'
+export type ChatActivity = {
+  /** Chats inside a turn or starting one: what keeps the computer awake and makes a quit ask. */
+  running: number
+  chats: ReportedChat[]
+}
+
+/**
+ * What the server says about its chats. The parent channel carries anything the
+ * server prints to it, so what is not exactly this message is ignored whole.
+ */
+export function parseChatActivity(value: unknown): ChatActivity | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+  const record = value as Record<string, unknown>
+  const running = record['running']
+  if (record['type'] !== CHAT_ACTIVITY_MESSAGE) return undefined
+  if (typeof running !== 'number' || !Number.isSafeInteger(running) || running < 0) return undefined
+  const chats = parseReportedChats(record['chats'])
+  return chats && { running, chats }
+}
+
+function parseReportedChats(chats: unknown): ReportedChat[] | undefined {
   if (!Array.isArray(chats) || chats.length > MAX_REPORTED_CHATS) return undefined
   const parsed: ReportedChat[] = []
   const ids = new Set<string>()
@@ -158,5 +191,5 @@ export function parseChatAttentionReport(value: unknown): ChatAttentionReport | 
     ids.add(id)
     parsed.push({ id, title, state: state as ChatState })
   }
-  return { mode: mode as NotificationMode, chats: parsed }
+  return parsed
 }

@@ -196,7 +196,11 @@ after five healthy minutes) and then offers a Reload dialog instead of looping; 
 out of memory the new page opens without the chat that was open and says so. A window hidden
 in the tray for five minutes with no chat working and nothing unsaved is destroyed and built
 again when shown, on the chat it had open. While a turn runs, the desktop keeps the computer
-awake (the display may still turn off). The packaged server takes its port from the
+awake (the display may still turn off). The server it owns tells it which chats are not at rest
+over the same parent channel, in the other direction (`{ type: 'harness:chatActivity', running,
+chats }`: the whole picture, coalesced, and once in full at start), so that count, the quit
+question, the hidden-window unload and the OS notifications are right with no window open; a
+window only adds the notification mode the person chose. The packaged server takes its port from the
 renderer's compiled CSP, so a stray `HARNESS_PORT` cannot split the two.
 
 Durable user data never lives in the OS temp folder, which the system may clean at any time.
