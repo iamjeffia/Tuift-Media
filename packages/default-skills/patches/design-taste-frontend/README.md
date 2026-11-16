@@ -1,4 +1,4 @@
-# Local patch: design-taste-frontend (taste-skill)
+# Local patch: design-taste-frontend (taste-skill, merged with frontend-design)
 
 TUIFT Code ships taste-skill without its picture library. Leon decided on 2026-11-05 that the
 bundled skill gives no default images: no stock photographs and no sample pictures, nothing
@@ -21,6 +21,17 @@ Two parts in `packages/default-skills/skills.json` do this:
   - `references/photos.md`: the upstream reference without the library, the draft path and the
     `photos.mjs` commands. The rules for placing, showing and crediting pictures are kept.
   - `scripts/photos.mjs`: a stub. It prints where pictures come from and exits 1.
+
+- `add` lists TUIFT Code's own files that sit beside the upstream ones (they must not exist upstream,
+  and they carry no hash): `references/direction.md`, `LICENSE-APACHE-2.0` and `NOTICE`.
+
+On 16 Nov 2026 the owner merged this skill with Anthropic's `frontend-design` (Apache-2.0,
+anthropics/skills at `1780c5e`), which stopped shipping as a skill of its own. `SKILL.md` builds on the
+patched upstream one above: a concept step and a plan review before the deal, the paragraph on the
+brief's words, the machine-made defaults in "Never", and a wider description. The rest of
+`frontend-design` lives in `references/direction.md`, with a table of the places where its rules and the
+kit's differ (the kit's stand). The two licences are carried as `NOTICE` says; keep that file true if
+the text changes.
 
 When a pin moves, `sync.js` refuses to build while any patched upstream file differs from its
 recorded sha256. Compare the new upstream file with the patch here, carry the patch over, then run

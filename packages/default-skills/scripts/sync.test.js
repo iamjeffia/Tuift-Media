@@ -10,6 +10,7 @@ import {
   digestFiles,
   localSkillFiles,
   manifestProblems,
+  patchesRoot,
   readManifest,
   skillFiles,
   skillPacks,
@@ -157,7 +158,7 @@ const patchedSkill = {
   path: 'skills/demo',
   licenseFile: 'LICENSE',
   omit: { paths: ['assets/photos/', 'assets/_demo/'] },
-  patch: { files: { 'SKILL.md': '', 'scripts/photos.mjs': '' } },
+  patch: { add: ['references/own.md'], files: { 'SKILL.md': '', 'scripts/photos.mjs': '' } },
 }
 
 const patchedArchive = tar([
@@ -178,6 +179,8 @@ async function patchedFixture() {
   await mkdir(path.join(patches, 'demo', 'scripts'), { recursive: true })
   await writeFile(path.join(patches, 'demo', 'SKILL.md'), '---\nname: demo\n---\nUse your own.\n')
   await writeFile(path.join(patches, 'demo', 'scripts', 'photos.mjs'), 'switched off')
+  await mkdir(path.join(patches, 'demo', 'references'), { recursive: true })
+  await writeFile(path.join(patches, 'demo', 'references', 'own.md'), 'TUIFT Code own file')
   const manifest = {
     plugin: { name: 'tastecode' },
     skills: [{ ...patchedSkill, archiveSha256: '', treeSha256: '', files: 0, bytes: 0 }],
@@ -250,6 +253,11 @@ test('bundles the patched copies, no library, and nothing that fetches one', asy
       await readFile(path.join(skillDir, 'assets', '_demo', 'page.html'), 'utf8'),
       '<p>demo</p>',
     )
+    assert.equal(
+      await readFile(path.join(skillDir, 'references', 'own.md'), 'utf8'),
+      'TUIFT Code own file',
+    )
+    assert.deepEqual(pinned.skills[0].patch.add, ['references/own.md'])
     await assert.rejects(stat(path.join(skillDir, 'assets', 'photos')))
     await assert.rejects(stat(path.join(skillDir, 'assets', '_demo', 'b.jpg')))
     assert.match(pinned.skills[0].patch.files['SKILL.md'], /^[0-9a-f]{64}$/)
@@ -261,6 +269,37 @@ test('bundles the patched copies, no library, and nothing that fetches one', asy
     assert.match(
       (await verifyBundle(pinned, root, patches)).join('\n'),
       /SKILL\.md is not TUIFT Code's patched copy/,
+    )
+  } finally {
+    await rm(temp, { recursive: true, force: true })
+  }
+})
+
+test('an added file is part of the bundle, checked against its copy, and never an upstream one', async () => {
+  const { temp, root, patches, pinned, options } = await patchedFixture()
+  try {
+    await writeFile(path.join(root, 'skills', 'demo', 'references', 'own.md'), 'edited by hand')
+    assert.match(
+      (await verifyBundle(pinned, root, patches)).join('\n'),
+      /references\/own\.md is not TUIFT Code's patched copy/,
+    )
+    await rm(path.join(root, 'skills', 'demo', 'references', 'own.md'))
+    assert.match(
+      (await verifyBundle(pinned, root, patches)).join('\n'),
+      /references\/own\.md is not TUIFT Code's patched copy/,
+    )
+    // A file that exists upstream belongs under `patch.files`, not `patch.add`.
+    const clash = structuredClone(pinned)
+    clash.skills[0].patch.add = ['scripts/photos.mjs']
+    await assert.rejects(
+      syncBundle(clash, { ...options, update: true }),
+      /added file scripts\/photos\.mjs already exists upstream/,
+    )
+    const escape = structuredClone(pinned)
+    escape.skills[0].patch.add = ['../outside.md']
+    await assert.rejects(
+      syncBundle(escape, { ...options, update: true }),
+      /not a relative path inside the skill/,
     )
   } finally {
     await rm(temp, { recursive: true, force: true })
@@ -284,6 +323,26 @@ test('refuses to build when an upstream file changed under its patch', async () 
   } finally {
     await rm(temp, { recursive: true, force: true })
   }
+})
+
+test('design-taste-frontend carries both licences and the direction merged from frontend-design', async () => {
+  const manifest = await readManifest()
+  const folders = manifest.skills.map((entry) => entry.folder)
+  assert.ok(!folders.includes('frontend-design'), 'frontend-design stopped shipping')
+  const skill = manifest.skills.find((entry) => entry.folder === 'design-taste-frontend')
+  assert.equal(skill.pack, undefined, 'still in the base bundle')
+  assert.equal(skill.license, 'MIT AND Apache-2.0')
+  assert.deepEqual(skill.patch.add, ['LICENSE-APACHE-2.0', 'NOTICE', 'references/direction.md'])
+  const own = (name) => readFile(path.join(patchesRoot, skill.folder, ...name.split('/')), 'utf8')
+  const apache = await readFile(
+    new URL('../../../licenses/anthropic-skills-Apache-2.0.txt', import.meta.url),
+    'utf8',
+  )
+  assert.equal(await own('LICENSE-APACHE-2.0'), apache)
+  assert.match(await own('NOTICE'), /MIT licence[\s\S]*Apache[\s\S]*What was changed/)
+  assert.match(await own('SKILL.md'), /references\/direction\.md/)
+  for (const added of ['ask-emil', 'learn-taste'])
+    assert.equal(manifest.skills.find((entry) => entry.folder === added)?.pack, 'design', added)
 })
 
 test('the committed manifest pins full commits and measured hashes', async () => {
@@ -637,7 +696,7 @@ test('the committed packs hold the Motion skills and the Design skills, with a l
   const design = inPack('design').map((entry) => entry.folder)
   // The team's own skills first, then the third-party ones.
   assert.deepEqual(design.slice(0, 3), ['stageshow', 'figma', 'ui-profissional'])
-  assert.equal(design.length, 36)
+  assert.equal(design.length, 37)
   // The two skills the packs share are the only ones in both.
   assert.deepEqual(
     manifest.skills.filter((entry) => skillPacks(entry).length > 1).map((entry) => entry.folder),

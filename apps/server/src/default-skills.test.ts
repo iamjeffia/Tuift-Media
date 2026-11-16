@@ -336,20 +336,24 @@ describe('default skill packs', () => {
     'fits the real Design pack within the cap: the team skills and the pinned third-party ones',
     () => {
       const pack = loadDefaultSkillPack('design')
-      expect(pack?.skills).toHaveLength(36)
-      expect(new Set(pack?.skills).size).toBe(36)
+      expect(pack?.skills).toHaveLength(37)
+      expect(new Set(pack?.skills).size).toBe(37)
       expect(pack?.skills).toEqual(
         expect.arrayContaining([
           'ui-profissional',
           'stageshow',
           'figma',
-          'frontend-design',
+          'ask-emil',
+          'learn-taste',
           'libraries-dev',
           'design-an-interface',
           'emil-design-eng',
           'better-interface',
         ]),
       )
+      // The merged skill lives in the base bundle, not in the pack.
+      expect(pack?.skills).not.toContain('frontend-design')
+      expect(pack?.skills).not.toContain('design-taste-frontend')
       // Skills whose licence does not allow embedding stay out.
       expect(pack?.skills.some((folder) => /remotion|transitions|^21st/.test(folder))).toBe(false)
       expect(pack?.catalog.length).toBeLessThanOrEqual(PACK_CATALOG_MAX_CHARS)
