@@ -109,7 +109,7 @@ Relato do dono do projeto (15/11): numa conversa com o Codex, o log de um servid
 - [x] 8.2 Corrigir: saída de comando só aparece dentro da linha do comando, recolhida e com tamanho máximo.
 - [x] 8.3 Auditoria de casos parecidos em todos os provedores (resultado de ferramenta, MCP, conteúdo de arquivo, diff, subagentes, terminal, histórico importado): onde há teto e onde não há. Sai em `branding/auditoria-saida-no-chat.md`.
 - [x] 8.4 Testes que reproduzem o caso e travam o teto.
-- [ ] 8.5 Imagens em base64 no histórico do Claude Code: maior peso medido (438 imagens somavam 20 MB de 21,8 MB numa conversa). Guardar em arquivo ou miniatura.
+- [x] 8.5 Imagens fora das mensagens (15/11): cada imagem do histórico é guardada uma vez, como arquivo, e a mensagem leva só a referência; chats antigos migram ao serem abertos, sem perder a imagem se a gravação falhar. No chat medido, os dados enviados à tela caíram de 48 MB para 3 MB e o pico de memória do servidor de 1,1 GB para 0,5 GB.
 - [ ] 8.6 Provedores ACP reenviam a saída acumulada inteira a cada atualização: gravar só a diferença.
 - [x] 8.7 Teto de 1 MiB na mensagem da IA e no diff que vai para a tela, com nota do corte (15/11). O diff inteiro continua guardado no servidor: o Undo funciona em qualquer tamanho e o cartão mostra os totais reais. O painel de revisão por trechos não é cortado.
 
@@ -140,7 +140,7 @@ Depende dos itens 2 (skills) e 3 (MCP). O botão do item 6.2 é a porta de entra
   - [x] 9.5b Etapa guardada e avisada à tela; o boneco certo acende, também na visão dividida, e a mudança é anunciada ao leitor de tela.
   - [x] 9.5c A pessoa troca a etapa clicando num boneco: abre o menu do app com as etapas dele. Travado enquanto a resposta é gerada. Num chat novo o menu só aparece depois da primeira mensagem; no painel secundário da visão dividida a etapa só é mostrada. Falta ver com um provedor real no app instalado.
 - [x] 9.6 Fase 5, After Effects (15/11): o MCP do After Effects liga só em chats Motion, quando o After Effects está instalado; se a pessoa já tem um `after-effects` configurado, o dela vale. Sem After Effects, o agente é orientado a montar em HyperFrames e o Cloud mostra o aviso. Usa a lista enxuta de ferramentas. Falta ver com o After Effects de verdade no app instalado.
-- [ ] 9.7 Fase 6, a cena reage: estado "esperando você" e subagente com nome de boneco acende o boneco.
+- [x] 9.7 Fase 6, a cena reage (15/11): o boneco da etapa mostra "esperando você" (balão na borda do círculo) quando o chat precisa de uma resposta ou aprovação, e um boneco acende enquanto um ajudante com o nome dele trabalha, inclusive nomes de plugin como `equipe:cloud`.
 - [x] 9.10 Feixe do Motion em volta do campo de texto, como o Design tem, em cores mais fortes do elenco (pedido de 15/11). Corrigido em seguida um bloco cortado no canto de cima do campo em chat novo: o brilho interno ficava por cima da faixa do projeto e era cortado na emenda (valia também para o Design).
 - [ ] 9.8 Elenco e papéis: Zig lidera (o laranja de óculos escuros, principal), Moss pesquisa as referências, Bun escreve o roteiro, Pip organiza o projeto, Cloud monta o vídeo no After Effects (o lilás) e Penny revisa cada quadro.
 - [ ] 9.9 Validação do dono do projeto no app instalado, com um vídeo de verdade.
@@ -200,6 +200,28 @@ Ideia do dono do projeto em 15/11: este checklist fica público porque pode vira
 - [ ] 15.2 Tela do roteiro com os componentes que o app já tem.
 - [ ] 15.3 Manter este arquivo sem dado privado, já que ele passa a aparecer para o cliente.
 
+## 16. Confiabilidade e desempenho
+
+Pedido de 15/11, depois de um trabalho longo de vídeo em que o sistema ficou sem memória e o agente caiu: mapear os cenários de falha, tratar cada um e deixar o app leve.
+
+- [x] 16.1 O feixe em volta do campo de texto (Design e Motion) anima só transformação e opacidade. Antes animava um valor de estilo a cada quadro: com o chat parado, a tela passava de 6 GB em dois minutos e usava um núcleo inteiro de CPU; agora fica em cerca de 240 MB, com o mesmo visual. Para com a janela oculta. Falta medir com placa de vídeo real no app instalado.
+- [x] 16.2 Processo do provedor que morre: aviso em português com o motivo (falta de memória, encerrado, erro do provedor ou desconhecido), o que foi preservado e o botão Continuar; o código bruto fica numa linha de detalhes.
+- [x] 16.3 Fechar o app com chats trabalhando pergunta antes; na saída normal os turnos param como no botão Stop. Depois de qualquer reinício, o chat interrompido avisa e oferece Continuar; nada continua sozinho.
+- [x] 16.4 Aviso de memória baixa do sistema, uma vez por episódio, citando os maiores consumidores (Windows).
+- [x] 16.5 O chat sempre mostra que há trabalho: ajudante, ferramenta e comando com tempo próprio e o que estão fazendo agora; faixa de status acima do campo de texto; "última atividade há…" quando nada chega, e uma linha calma depois de dois minutos; turno interrompido não aparece como concluído.
+- [ ] 16.6 Impedir o computador de dormir enquanto um turno roda.
+- [ ] 16.7 Queda do servidor do app: guardar o motivo e dar mensagem útil (porta ocupada, banco) em vez de sugerir reinstalar.
+- [ ] 16.8 Falha de escrita no meio de um turno (disco cheio, banco travado) não derruba o servidor.
+- [ ] 16.9 Cópia de segurança rotativa do banco de conversas e recuperação quando ele não abre.
+- [ ] 16.10 Descarregar a tela quando a janela fica escondida na bandeja sem chat rodando.
+- [ ] 16.11 Encerrar processos órfãos de provedores na partida.
+- [ ] 16.12 Recuperação da tela depois de queda por falta de memória (hoje recarrega uma vez e nunca mais).
+- [ ] 16.13 Teto para mensagem do usuário, plano e raciocínio, e tratar evento grande demais para o canal.
+- [ ] 16.14 Reconhecer login vencido no meio do turno e mostrar o aviso com atalho para a conta.
+- [ ] 16.15 Brilhos de texto que redesenham a cada quadro (botão Design focado, rótulo de atividade): medir no app e decidir.
+- [ ] 16.16 Abrir a porta do servidor antes de refazer índices grandes.
+- [ ] 16.17 Validação do dono do projeto no app instalado: memória e CPU com um chat Motion aberto por uma hora.
+
 ## Ondas de trabalho
 
 Cada frente roda num worktree próprio em `C:/Dev/tuift-wt/<frente>`, numa branch `tuift/<frente>`, e volta para a `main` por merge depois de conferida.
@@ -225,3 +247,4 @@ Cada frente roda num worktree próprio em `C:/Dev/tuift-wt/<frente>`, numa branc
 | 5    | `motion-read`, `motion-session`, `bulk-count`, `pdf-viewer`, `output-caps`                           | 9.3b, 9.3c, 9.4b, 9.4c, 4.5, 5.8, 8.7 | na `main` (15/11), testada |
 | 6    | `motion-stage-tool`, `motion-stage-ui`                                                               | 9.5a, 9.5b, 9.5c                      | na `main` (15/11), testada |
 | 7    | `motion-ae`, `motion-ae-ui`, `ae-bundle`                                                             | 9.6, 11.1 a 11.4                      | na `main` (15/11), testada |
+| 8    | `motion-react`, `chat-feedback`, `crash-recovery`, `memory-images`, `beam-compositor`                | 9.7, 8.5, 16.1 a 16.5                 | na `main` (15/11), testada |
