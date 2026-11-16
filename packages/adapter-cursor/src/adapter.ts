@@ -1,7 +1,14 @@
 import { EventEmitter } from 'node:events'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import path from 'node:path'
-import type { ApprovalMode, Capabilities, DomainEvent, Model, Thread } from '@harness/contracts'
+import type {
+  ApprovalMode,
+  Capabilities,
+  DomainEvent,
+  Model,
+  Thread,
+  ThreadErrorReason,
+} from '@harness/contracts'
 import {
   argumentPromptLimit,
   killTree,
@@ -284,7 +291,17 @@ export class CursorAdapter extends EventEmitter<Events> {
     child.on('close', (code) => {
       if (this.#child === child) this.#child = undefined
       const reason = code === 0 ? undefined : exitReason.text()
-      this.#fail(turnId, reason ?? `cursor-agent exited with code ${code ?? 'unknown'}`)
+      // The CLI's own "Authentication required" (fixtures/cursor-expired-sign-in-2026-10-14.json)
+      // before it runs anything: the notice offers to sign in. Only its refusal text is read.
+      const refused =
+        reason !== undefined && cursorNeedsSignIn({ code, stdout: '', stderr: reason })
+      this.#fail(
+        turnId,
+        refused
+          ? 'Cursor did not accept the login. Sign in again to continue.'
+          : (reason ?? `cursor-agent exited with code ${code ?? 'unknown'}`),
+        refused ? { code: 'auth_failed', message: reason.slice(0, 500) } : undefined,
+      )
     })
     return turnId
   }
@@ -341,10 +358,15 @@ export class CursorAdapter extends EventEmitter<Events> {
 
   /** No-op unless `turnId` is still the live turn — late exits from a
    *  finished or replaced turn must not fail whatever runs now. */
-  #fail(turnId: string, message: string): void {
+  #fail(turnId: string, message: string, reason?: ThreadErrorReason): void {
     if (this.#turnId !== turnId) return
     for (const event of this.#mapper?.finish() ?? []) this.emit('event', event)
-    this.emit('event', { type: 'thread.error', threadId: this.#threadId!, message })
+    this.emit('event', {
+      type: 'thread.error',
+      threadId: this.#threadId!,
+      message,
+      ...(reason ? { reason } : {}),
+    })
     this.emit('event', { type: 'turn.completed', turnId, status: 'failed' })
     this.#turnId = undefined
     this.#mapper = undefined

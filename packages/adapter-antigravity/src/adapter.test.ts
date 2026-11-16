@@ -255,6 +255,60 @@ describe('Antigravity turn invocation', () => {
     )
   })
 
+  /** One turn whose agy prints `stderr` and `stdout`, then exits with `code` and no result. */
+  async function exitWithout(code: number, output: { stderr?: string; stdout?: string }) {
+    const child = new FakeChild()
+    const adapter = new AntigravityAdapter({ spawn: fakeSpawn({}, child) })
+    const events: DomainEvent[] = []
+    adapter.on('event', (event) => events.push(event))
+    const thread = await adapter.startThread('C:\\repo')
+    await adapter.sendTurn(thread.id, 'Hello')
+    if (output.stderr) child.stderr.write(output.stderr)
+    child.stdout.end(output.stdout ?? '')
+    await new Promise((resolve) => setImmediate(resolve))
+    child.emit('close', code)
+    await new Promise((resolve) => setImmediate(resolve))
+    return events.filter((event) => event.type === 'thread.error')
+  }
+
+  // The sentence is from the agy 1.4.9 binary, not captured from a run.
+  const NOT_LOGGED_IN = 'Print mode: not logged in and no controlling terminal'
+
+  it.each([
+    ['stderr', { stderr: `${NOT_LOGGED_IN}\n` }],
+    ['stdout', { stdout: `${NOT_LOGGED_IN}\n` }],
+  ])('says the login was refused when agy exits with it on %s', async (_stream, output) => {
+    expect(await exitWithout(1, output)).toEqual([
+      {
+        type: 'thread.error',
+        threadId: expect.any(String),
+        message: 'Antigravity did not accept the login. Sign in again to continue.',
+        reason: { code: 'auth_failed', message: expect.stringContaining(NOT_LOGGED_IN) },
+      },
+    ])
+  })
+
+  it.each([
+    ['a rate limit', 1, { stderr: 'RESOURCE_EXHAUSTED (code 429): quota exceeded\n' }],
+    ['an exit with no words', 3, {}],
+    ['a clean exit that printed the phrase', 0, { stderr: `${NOT_LOGGED_IN}\n` }],
+    // A step's output is JSON inside a frame, never agy's own line.
+    [
+      'a tool output that says unauthorized',
+      1,
+      {
+        stdout: `${JSON.stringify({ event: 'step_update', step_update: { state: 'DONE', step_type: 'run_command', text_delta: '401 Unauthorized: not logged in' } })}\n`,
+      },
+    ],
+  ] as Array<[string, number, { stderr?: string; stdout?: string }]>)(
+    'does not call it a login problem: %s',
+    async (_name, code, output) => {
+      const errors = await exitWithout(code, output)
+      expect(errors).toHaveLength(1)
+      expect(errors[0]).not.toHaveProperty('reason')
+    },
+  )
+
   it('completes a stopped turn as interrupted and closes its open message', async () => {
     const child = new FakeChild()
     const adapter = new AntigravityAdapter({ spawn: fakeSpawn({}, child) })
