@@ -87,6 +87,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
 - [x] 5.8 PDF abre no painel lateral com o leitor que já vem no motor do app, numa área isolada (sem acesso à internet, sem navegar a janela, links abrem no navegador do sistema) e sem biblioteca nova (15/11). Falta ver na tela do app instalado.
 - [ ] 5.9 Próximos pontos em que o app manda o cliente para fora: link externo nas respostas (abrir na aba Browser do painel), links de pull request, links do terminal, login de provedores e de MCP, "abrir no editor" (não existe).
 - [ ] 5.10 Validar no app instalado: clique real, vídeo, áudio e "Open in Explorer".
+- [x] 5.11 Arquivo entregue aparece dentro do chat (16/11): quando a resposta cita um vídeo, imagem, áudio ou PDF pelo caminho, um cartão aparece abaixo da mensagem (player, miniatura ou cartão que abre no painel), com menu do botão direito: Copiar, Salvar como, Anexar como contexto, Copiar caminho, Copiar nome, Abrir no painel e Mostrar no Explorer. O caminho é conferido do lado do app e só vale dentro do projeto do chat. O agente Motion é instruído a entregar assim. Falta ver com um vídeo real no app instalado.
 
 ## 6. Campo de texto do chat
 
@@ -204,11 +205,12 @@ Ideia do dono do projeto em 15/11: este checklist fica público porque pode vira
 
 Pedido de 15/11, depois de um trabalho longo de vídeo em que o sistema ficou sem memória e o agente caiu: mapear os cenários de falha, tratar cada um e deixar o app leve.
 
-- [x] 16.1 O feixe em volta do campo de texto (Design e Motion) anima só transformação e opacidade. Antes animava um valor de estilo a cada quadro: com o chat parado, a tela passava de 6 GB em dois minutos e usava um núcleo inteiro de CPU; agora fica em cerca de 240 MB, com o mesmo visual. Para com a janela oculta. Falta medir com placa de vídeo real no app instalado.
+- [x] 16.1 O feixe em volta do campo de texto (Design e Motion) anima só transformação e opacidade. Antes animava um valor de estilo a cada quadro: com o chat parado, a tela passava de 6 GB em dois minutos e usava um núcleo inteiro de CPU; agora fica em cerca de 240 MB, com o mesmo visual. Para com a janela oculta. Falta medir com placa de vídeo real no app instalado. Em 16/11, medido com placa de vídeo real: num monitor de 360 Hz qualquer animação contínua desenhava 360 quadros por segundo. O feixe agora dá algumas voltas (ao ligar o modo, ao começar um turno, ao focar o campo) e descansa; spinner, pulso e respiração dos bonecos andam em passos; o brilho do texto varre poucas vezes. Chat Motion parado: de 32% e 135% de um núcleo (tela e processo de vídeo) para cerca de 1% e 0,2%.
 - [x] 16.2 Processo do provedor que morre: aviso em português com o motivo (falta de memória, encerrado, erro do provedor ou desconhecido), o que foi preservado e o botão Continuar; o código bruto fica numa linha de detalhes.
 - [x] 16.3 Fechar o app com chats trabalhando pergunta antes; na saída normal os turnos param como no botão Stop. Depois de qualquer reinício, o chat interrompido avisa e oferece Continuar; nada continua sozinho.
 - [x] 16.4 Aviso de memória baixa do sistema, uma vez por episódio, citando os maiores consumidores (Windows).
-- [x] 16.5 O chat sempre mostra que há trabalho: ajudante, ferramenta e comando com tempo próprio e o que estão fazendo agora; faixa de status acima do campo de texto; "última atividade há…" quando nada chega, e uma linha calma depois de dois minutos; turno interrompido não aparece como concluído.
+- [x] 16.5 O chat sempre mostra que há trabalho: ajudante, ferramenta e comando com tempo próprio e o que estão fazendo agora; faixa de status acima do campo de texto; "última atividade há…" quando nada chega, e uma linha calma depois de dois minutos; turno interrompido não aparece como concluído. Em 16/11 os bonecos do Motion passaram a morar nessa faixa (parado: os seis rostos e a etapa; trabalhando: o rosto de quem trabalha no lugar do ponto), e a faixa de bonecos acima da conversa saiu.
+- [x] 16.5b Ao enviar uma mensagem, o prompt fica ancorado no topo mesmo quando a área da conversa muda de altura logo depois (16/11). O caso exato relatado pelo dono do projeto não foi reproduzido em bancada; falta a confirmação dele no app.
 - [ ] 16.6 Impedir o computador de dormir enquanto um turno roda.
 - [ ] 16.7 Queda do servidor do app: guardar o motivo e dar mensagem útil (porta ocupada, banco) em vez de sugerir reinstalar.
 - [ ] 16.8 Falha de escrita no meio de um turno (disco cheio, banco travado) não derruba o servidor.
@@ -218,7 +220,7 @@ Pedido de 15/11, depois de um trabalho longo de vídeo em que o sistema ficou se
 - [ ] 16.12 Recuperação da tela depois de queda por falta de memória (hoje recarrega uma vez e nunca mais).
 - [ ] 16.13 Teto para mensagem do usuário, plano e raciocínio, e tratar evento grande demais para o canal.
 - [ ] 16.14 Reconhecer login vencido no meio do turno e mostrar o aviso com atalho para a conta.
-- [ ] 16.15 Brilhos de texto que redesenham a cada quadro (botão Design focado, rótulo de atividade): medir no app e decidir.
+- [x] 16.15 Brilhos de texto que redesenhavam a cada quadro: agora varrem poucas vezes e param (16/11). Um teste lista toda animação contínua e falha quando aparece uma que não seja barata.
 - [ ] 16.16 Abrir a porta do servidor antes de refazer índices grandes.
 - [ ] 16.17 Validação do dono do projeto no app instalado: memória e CPU com um chat Motion aberto por uma hora.
 
@@ -248,3 +250,4 @@ Cada frente roda num worktree próprio em `C:/Dev/tuift-wt/<frente>`, numa branc
 | 6    | `motion-stage-tool`, `motion-stage-ui`                                                               | 9.5a, 9.5b, 9.5c                      | na `main` (15/11), testada |
 | 7    | `motion-ae`, `motion-ae-ui`, `ae-bundle`                                                             | 9.6, 11.1 a 11.4                      | na `main` (15/11), testada |
 | 8    | `motion-react`, `chat-feedback`, `crash-recovery`, `memory-images`, `beam-compositor`                | 9.7, 8.5, 16.1 a 16.5                 | na `main` (15/11), testada |
+| 9    | `strip-cast`, `perf-gpu`, `media-delivery`                                                           | 5.11, 16.1, 16.5, 16.5b, 16.15        | na `main` (16/11), testada |
