@@ -121,6 +121,7 @@ export const en = {
   'dialog.pickFolder.title': 'Choose a project folder',
   'dialog.pickSkillFolder.title': 'Choose an Agent Skill folder',
   'dialog.pickFiles.title': 'Attach files',
+  'dialog.saveDeliveredFile.title': 'Save file',
 } as const
 
 export type MessageKey = keyof typeof en
@@ -225,6 +226,7 @@ export const ptBR = {
   'dialog.pickFolder.title': 'Escolher uma pasta de projeto',
   'dialog.pickSkillFolder.title': 'Escolher uma pasta de Agent Skill',
   'dialog.pickFiles.title': 'Anexar arquivos',
+  'dialog.saveDeliveredFile.title': 'Salvar arquivo',
 } as const satisfies Record<MessageKey, string>
 
 type Catalog = Readonly<Record<string, string | undefined>>

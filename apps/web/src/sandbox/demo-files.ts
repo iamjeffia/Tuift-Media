@@ -120,3 +120,58 @@ export const FILE_LINK_DEMO_CHAT: DemoChat = {
     },
   ],
 }
+
+/**
+ * A video job that ends the way the owner wants: the reply names the files by path and the chat
+ * shows them. `media/clip.mp4`, `media/frame.png`, `media/voice.wav` and `docs/brief.pdf` exist in
+ * the demo project; `render/gone.mp4` does not, so it stays plain text.
+ */
+export const MEDIA_DELIVERY_DEMO_CHAT: DemoChat = {
+  id: 'demo-media-delivery',
+  title: 'Render the 15 second presentation',
+  provider: 'claude-code',
+  model: 'claude-opus-5-5',
+  effort: 'high',
+  approval: 'auto',
+  turns: [
+    {
+      prompt: 'Render the 15 second presentation and send it here.',
+      agoMs: 20 * 60_000,
+      durationMs: 52_000,
+      items: [
+        {
+          type: 'message',
+          role: 'assistant',
+          phase: 'final_answer',
+          text: 'The 15 second presentation is rendered. It is below, so you can watch it without leaving the app.\n\nmedia/clip.mp4',
+        },
+      ],
+    },
+    {
+      prompt: 'Add the cover image, the voice-over and the one-page brief.',
+      agoMs: 10 * 60_000,
+      durationMs: 31_000,
+      items: [
+        {
+          type: 'message',
+          role: 'assistant',
+          phase: 'final_answer',
+          text: 'Here are the three files:\n\n- Cover: `media/frame.png`\n- Voice-over: [voice.wav](media/voice.wav)\n- Brief: docs/brief.pdf',
+        },
+      ],
+    },
+    {
+      prompt: 'Where did the alternative cut go?',
+      agoMs: 4 * 60_000,
+      durationMs: 9_000,
+      items: [
+        {
+          type: 'message',
+          role: 'assistant',
+          phase: 'final_answer',
+          text: 'I did not keep it: `render/gone.mp4` was a draft and the render folder was cleaned.',
+        },
+      ],
+    },
+  ],
+}

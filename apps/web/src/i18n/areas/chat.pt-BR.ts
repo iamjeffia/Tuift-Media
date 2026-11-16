@@ -214,6 +214,24 @@ export const chatPt = {
   'chat.browserComment.oneElement': '1 elemento',
   'chat.fileOptions': 'Opções do arquivo',
 
+  // A video, image, sound or PDF a reply names by path, shown as a card under the reply
+  'chat.delivered.files': 'Arquivos desta mensagem',
+  'chat.delivered.capped': 'Mostrando os primeiros {shown} de {total} arquivos desta mensagem',
+  'chat.delivered.openImage': 'Abrir {name}',
+  'chat.delivered.openPdf': 'Abrir {name} no painel lateral',
+  'chat.delivered.unavailable': 'Não foi possível carregar {name}',
+  'chat.delivered.pdf': 'PDF',
+  'chat.delivered.copyImage': 'Copiar imagem',
+  'chat.delivered.copyFile': 'Copiar arquivo',
+  'chat.delivered.saveAs': 'Salvar como…',
+  'chat.delivered.attach': 'Anexar como contexto',
+  'chat.delivered.copyName': 'Copiar nome do arquivo',
+  'chat.delivered.showInExplorer': 'Mostrar no Explorer',
+  'chat.delivered.showInFinder': 'Mostrar no Finder',
+  'chat.delivered.copyFailed': 'Não foi possível copiar o arquivo',
+  'chat.delivered.saveFailed': 'Não foi possível salvar o arquivo',
+  'chat.delivered.attachFailed': 'Não foi possível anexar o arquivo',
+
   // Titles a chat has before it is named (stored in English, mapped when shown)
   'chat.title.newSession': 'Novo chat',
   'chat.title.newChat': 'Novo chat',

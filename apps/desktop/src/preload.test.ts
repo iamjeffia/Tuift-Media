@@ -56,3 +56,24 @@ describe('preload dropped files', () => {
     )
   })
 })
+
+describe('preload delivered files', () => {
+  beforeEach(() => {
+    invoke.mockReset()
+    send.mockReset()
+  })
+
+  it('asks main to resolve, copy, save and attach by path, and grants nothing itself', async () => {
+    await api.resolveDeliveredFiles(['render/a.mp4'], ['C:\\site'])
+    await api.copyDeliveredFile('C:\\site\\a.png', ['C:\\site'])
+    await api.saveDeliveredFile('C:\\site\\a.mp4', ['C:\\site'])
+    await api.attachDeliveredFile('C:\\site\\a.mp4', ['C:\\site'])
+    expect(invoke.mock.calls).toEqual([
+      ['harness:resolveDeliveredFiles', ['render/a.mp4'], ['C:\\site']],
+      ['harness:copyDeliveredFile', 'C:\\site\\a.png', ['C:\\site']],
+      ['harness:saveDeliveredFile', 'C:\\site\\a.mp4', ['C:\\site']],
+      ['harness:attachDeliveredFile', 'C:\\site\\a.mp4', ['C:\\site']],
+    ])
+    expect(send).not.toHaveBeenCalled()
+  })
+})

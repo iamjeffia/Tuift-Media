@@ -41,6 +41,10 @@ type Bridge = {
     path: string,
     projectPath: string,
   ) => Promise<{ url: string; mediaType: ProjectFileMediaType } | undefined>
+  resolveDeliveredFiles?: (candidates: string[], roots: string[]) => Promise<unknown>
+  copyDeliveredFile?: (path: string, roots: string[]) => Promise<void>
+  saveDeliveredFile?: (path: string, roots: string[]) => Promise<boolean>
+  attachDeliveredFile?: (path: string, roots: string[]) => Promise<PickedAttachment>
   savePastedFile: (file: {
     name: string
     type: string
@@ -298,6 +302,61 @@ export function previewProjectFile(
   projectPath: string,
 ): Promise<{ url: string; mediaType: ProjectFileMediaType } | undefined> {
   return bridge?.previewProjectFile?.(path, projectPath) ?? Promise.resolve(undefined)
+}
+
+/** A media file a reply named that the desktop resolved inside the chat's project. */
+export type DeliveredFile = {
+  path: string
+  name: string
+  size: number
+  mediaType: ProjectFileMediaType
+  url: string
+  /** Whether Copy can put it on the clipboard here. */
+  copyable: boolean
+}
+
+const DELIVERED_MEDIA: readonly string[] = ['image', 'video', 'audio', 'pdf']
+
+function deliveredFile(value: unknown): DeliveredFile | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const file = value as Record<string, unknown>
+  if (
+    typeof file['path'] !== 'string' ||
+    typeof file['name'] !== 'string' ||
+    typeof file['size'] !== 'number' ||
+    typeof file['url'] !== 'string' ||
+    typeof file['copyable'] !== 'boolean' ||
+    typeof file['mediaType'] !== 'string' ||
+    !DELIVERED_MEDIA.includes(file['mediaType'])
+  ) {
+    return undefined
+  }
+  return file as DeliveredFile
+}
+
+/**
+ * The desktop checks each path a reply names against `roots` and answers with the files that exist
+ * there. Without the desktop nothing resolves, and the paths stay plain text.
+ */
+export async function resolveDeliveredFiles(
+  candidates: string[],
+  roots: string[],
+): Promise<DeliveredFile[]> {
+  const answer = await bridge?.resolveDeliveredFiles?.(candidates, roots)
+  return Array.isArray(answer) ? answer.flatMap((value) => deliveredFile(value) ?? []) : []
+}
+
+export function copyDeliveredFile(path: string, roots: string[]): Promise<void> {
+  return bridge?.copyDeliveredFile?.(path, roots) ?? Promise.reject(new Error('No desktop'))
+}
+
+/** Resolves true once the file is saved, false when the person cancels the dialog. */
+export function saveDeliveredFile(path: string, roots: string[]): Promise<boolean> {
+  return bridge?.saveDeliveredFile?.(path, roots) ?? Promise.reject(new Error('No desktop'))
+}
+
+export function attachDeliveredFile(path: string, roots: string[]): Promise<PickedAttachment> {
+  return bridge?.attachDeliveredFile?.(path, roots) ?? Promise.reject(new Error('No desktop'))
 }
 
 /**

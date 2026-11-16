@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { attachToComposer, canAttachToComposer } from '../composer-attach.js'
 import { rememberedChipTokens, resetRememberedChipTokens } from '../composer-chip-memory.js'
 import { emptyThread, reduce } from '../thread-store.js'
 import type { Transport } from '../transport.js'
@@ -1054,6 +1055,35 @@ describe('Composer attachment source switching', () => {
     expect(screen.getByRole('alert').textContent).toBe(
       'Remove attachments or switch to a source that supports them.',
     )
+  })
+})
+
+describe('Composer attach from a file shown in the chat', () => {
+  const picked = {
+    path: '/work/dot.png',
+    name: 'dot.png',
+    mediaType: 'image' as const,
+    previewUrl: 'tastecode-attachment://preview/dot',
+  }
+
+  it('takes the file in through the same intake a picked file takes', async () => {
+    renderComposer(vi.fn())
+    expect(canAttachToComposer()).toBe(true)
+    act(() => void attachToComposer([picked]))
+    expect(await screen.findByRole('button', { name: 'Open dot.png' })).toBeTruthy()
+  })
+
+  it('says so when the source cannot take attachments, as a drop would', async () => {
+    renderComposer(vi.fn(), { attachmentsSupported: false })
+    act(() => void attachToComposer([picked]))
+    expect(await screen.findByText(/aren’t supported/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Open dot.png' })).toBeNull()
+  })
+
+  it('stops offering to attach once the composer is gone', () => {
+    const view = renderComposer(vi.fn())
+    view.unmount()
+    expect(canAttachToComposer()).toBe(false)
   })
 })
 

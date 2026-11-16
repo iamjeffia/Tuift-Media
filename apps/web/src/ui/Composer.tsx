@@ -44,6 +44,7 @@ import {
   type PickedAttachment,
 } from '../bridge.js'
 import { appCommands, parseAppActionCommand, type AppScreen } from '../app-commands.js'
+import { registerComposerAttacher } from '../composer-attach.js'
 import { rememberChipTokens, rememberedChipTokens } from '../composer-chip-memory.js'
 import { parseFeedbackCommand } from '../feedback-command.js'
 import { DEFAULT_KEYBINDINGS, shortcutAria, type Keybindings } from '../shortcuts.js'
@@ -1396,6 +1397,10 @@ function ComposerComponent(props: {
     setAttachmentError(undefined)
     addFiles(files)
   }
+  // "Attach as context" on a file shown in the chat comes in through the same intake as a drop.
+  const attachFilesRef = useRef(attachFiles)
+  attachFilesRef.current = attachFiles
+  useEffect(() => registerComposerAttacher((files) => attachFilesRef.current(files)), [])
 
   const addPastedFiles = (files: File[], source: 'paste' | 'drop') => {
     const owner = draftRequestRef.current?.request
