@@ -228,7 +228,7 @@ describe('the skills of the motion stage by what can run', () => {
     expect(names('not-installed', 'references')).toEqual(
       [...MOTION_STAGE_SKILLS.references]
         .filter((name) => motionPack.skills.includes(name))
-        .concat(MOTION_STAGE_BASE_SKILLS.references ?? []),
+        .concat(MOTION_STAGE_BASE_SKILLS.references),
     )
   })
 })

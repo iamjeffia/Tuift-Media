@@ -48,11 +48,18 @@ export const MOTION_STAGE_SKILLS = {
  * reference or the render, `ouvir` to hear a soundtrack or the final mix. They are named
  * after the pack's skills; the test checks every name against the base bundle.
  */
-export const MOTION_STAGE_BASE_SKILLS: Partial<Record<MotionStage, readonly string[]>> = {
+export const MOTION_STAGE_BASE_SKILLS = {
+  idea: [],
+  script: [],
+  narration: [],
+  audioApproval: [],
   references: ['watch'],
+  identity: [],
   soundtrack: ['ouvir'],
+  motion: [],
   review: ['watch', 'ouvir'],
-}
+  delivery: [],
+} as const satisfies Record<MotionStage, readonly string[]>
 
 /**
  * The `motion` stage without After Effects: the HyperFrames skills, which run
@@ -144,7 +151,7 @@ function describeStage(
       .sort((a, b) => rank(a) - rank(b))
       .map((folder) => named(folder, pack && path.join(pack.pluginDir, 'skills'))),
     // The base bundle is the folder that holds `packs/<name>`; it ships with every pack.
-    ...(MOTION_STAGE_BASE_SKILLS[stage] ?? []).map((folder) =>
+    ...MOTION_STAGE_BASE_SKILLS[stage].map((folder) =>
       named(folder, pack && path.join(pack.pluginDir, '..', '..', 'skills')),
     ),
   ]
