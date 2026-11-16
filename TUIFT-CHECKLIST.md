@@ -234,6 +234,7 @@ Pedido de 15/11, depois de um trabalho longo de vídeo em que o sistema ficou se
 - [ ] 16.20 Validação do dono do projeto no app instalado dos itens 16.6 a 16.16: nenhum foi visto com sono real, bandeja real, queda real, disco cheio ou banco danificado de verdade.
 - [ ] 16.21 O Swift do aviso no celular não foi compilado (não há Mac nesta máquina): falta gerar o app do iPhone e ver o alerta. O app do celular segue o idioma do aparelho, não o escolhido no computador.
 - [ ] 16.22 Login vencido ainda cru: Pi (sem mensagem de erro documentada e sem o programa instalado para capturar) e, em todos os quatro, conta sem acesso. Um processo que um comando do terminal separou do grupo sobrevive a uma queda e o registro não o alcança.
+- [ ] 16.23 Saída limpa na troca de versão: o instalador pede ao app para encerrar de verdade antes de trocar os arquivos (e espera os turnos, o servidor e os processos de provedor fecharem), em vez de depender de encerrar os processos à força. Hoje fechar a janela só manda o app para a bandeja, e nas instalações de 16/11 os cinco processos tiveram de ser encerrados à força, sempre sem turno rodando. Vale também para a atualização automática.
 
 ## 17. Conexão com o Clube do Motion
 
