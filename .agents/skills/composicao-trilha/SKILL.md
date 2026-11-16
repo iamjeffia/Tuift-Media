@@ -26,7 +26,7 @@ Uma terceira categoria entre o efeito comum e a música. O efeito comum (whoosh,
 9. **O silêncio faz parte.** Respiro antes do impacto e nas frases fortes; a volta é puxada por uma transição, nunca "do nada".
 10. **Ninguém percebe a emenda.** Cauda de reverb, textura que atravessa, volta pela EQ, rampa de velocidade; nada soa como volume caindo. Música real não recomeça no meio da fala: toca uma vez, na ordem dela, e a trilha passa aos poucos para tonais no mesmo tom.
 11. **Menos, e cada camada com função.** Sob a fala, no máximo cama, loop e um tonal pontual. A voz manda.
-12. **O ouvido final é do usuário.** Você mede e envia a prévia com som; um modelo de áudio só dá segunda opinião estrutural.
+12. **O ouvido final é do usuário.** Você mede e envia a prévia com som; um modelo de áudio só dá segunda opinião estrutural. Para medir e conferir (volume, pico, onde cada som começa, tom, andamento) use a skill `ouvir`.
 
 ## Fluxo em 8 etapas
 
