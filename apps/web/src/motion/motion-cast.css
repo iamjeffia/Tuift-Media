@@ -262,9 +262,14 @@
   will-change: transform, opacity;
 }
 
-/* Behind Settings nothing is looking at it, so the breath stops. */
-.shell__body[data-covered] .motion-cast__head::before {
-  animation-play-state: paused;
+/* Behind Settings nothing is looking at it, so the breath stops. The selectors
+   repeat the two that loop above: covered-shell.test.ts matches them exactly. */
+.shell__body[data-covered]
+  .motion-cast[data-running]
+  .motion-cast__member[data-current]
+  .motion-cast__head::before,
+.shell__body[data-covered] .motion-cast__member[data-working] .motion-cast__head::before {
+  animation-play-state: paused !important;
 }
 
 @keyframes motion-cast-breathe {
