@@ -1,0 +1,82 @@
+[
+  {
+    "width": 1440,
+    "height": 1000,
+    "domAudit": {
+      "h1Count": 1,
+      "interactiveTargetViolations": [],
+      "coverage": "complete"
+    },
+    "documentHeight": 1002,
+    "capturedHeight": 1002,
+    "measures": {
+      "documentWidth": 1441,
+      "documentHeight": 1002,
+      "bodyFontSize": 16,
+      "emptyRegions": [],
+      "headings": [
+        {
+          "selector": "body > div.shell > main > h1",
+          "tag": "h1",
+          "text": "Notificações",
+          "fontSize": 28,
+          "lines": 1,
+          "inFooter": false,
+          "top": 32
+        }
+      ],
+      "duplicateCtas": [],
+      "clippedText": [],
+      "overlappingText": [],
+      "imagesMissingAlt": {
+        "count": 0,
+        "examples": []
+      },
+      "lowContrast": {
+        "count": 0,
+        "worst": []
+      },
+      "coverage": "complete"
+    }
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "domAudit": {
+      "h1Count": 1,
+      "interactiveTargetViolations": [],
+      "coverage": "complete"
+    },
+    "documentHeight": 846,
+    "capturedHeight": 846,
+    "measures": {
+      "documentWidth": 390,
+      "documentHeight": 846,
+      "bodyFontSize": 16,
+      "emptyRegions": [],
+      "headings": [
+        {
+          "selector": "body > div.shell > main > h1",
+          "tag": "h1",
+          "text": "Notificações",
+          "fontSize": 28,
+          "lines": 1,
+          "inFooter": false,
+          "top": 364
+        }
+      ],
+      "duplicateCtas": [],
+      "clippedText": [],
+      "overlappingText": [],
+      "imagesMissingAlt": {
+        "count": 0,
+        "examples": []
+      },
+      "lowContrast": {
+        "count": 0,
+        "worst": []
+      },
+      "coverage": "complete"
+    }
+  }
+]

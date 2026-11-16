@@ -1,0 +1,165 @@
+[
+  {
+    "width": 1440,
+    "height": 1000,
+    "domAudit": {
+      "h1Count": 1,
+      "interactiveTargetViolations": [],
+      "coverage": "complete"
+    },
+    "documentHeight": 1002,
+    "capturedHeight": 1002,
+    "measures": {
+      "documentWidth": 1441,
+      "documentHeight": 1002,
+      "bodyFontSize": 16,
+      "emptyRegions": [],
+      "headings": [
+        {
+          "selector": "html > body > h1",
+          "tag": "h1",
+          "text": "Pães todos os dias",
+          "fontSize": 80,
+          "lines": 2,
+          "inFooter": false,
+          "top": 86
+        }
+      ],
+      "duplicateCtas": [],
+      "clippedText": [],
+      "overlappingText": [],
+      "imagesMissingAlt": {
+        "count": 0,
+        "examples": []
+      },
+      "lowContrast": {
+        "count": 0,
+        "worst": []
+      },
+      "coverage": "complete"
+    },
+    "motion": {
+      "moments": [
+        {
+          "atMs": 1,
+          "path": "moment-1.jpg"
+        },
+        {
+          "atMs": 456,
+          "path": "moment-2.jpg"
+        },
+        {
+          "atMs": 1205,
+          "path": "moment-3.jpg"
+        }
+      ],
+      "animations": [
+        {
+          "name": "rise",
+          "target": "html > body > h1",
+          "durationMs": 900,
+          "iterations": 1
+        }
+      ],
+      "animationCount": 1,
+      "reducedMotionAnimationCount": 0,
+      "hovers": [
+        {
+          "selector": "header > nav > a",
+          "label": "Início",
+          "changes": [
+            {
+              "property": "transform",
+              "before": "none",
+              "after": "matrix(1, 0, 0, 1, 0, -3)"
+            },
+            {
+              "property": "backgroundColor",
+              "before": "rgba(0, 0, 0, 0)",
+              "after": "rgb(242, 201, 160)"
+            }
+          ],
+          "beforePath": "hover-1-before.jpg",
+          "afterPath": "hover-1-after.jpg"
+        },
+        {
+          "selector": "header > nav > a",
+          "label": "Cardápio",
+          "changes": [
+            {
+              "property": "transform",
+              "before": "none",
+              "after": "matrix(1, 0, 0, 1, 0, -3)"
+            },
+            {
+              "property": "backgroundColor",
+              "before": "rgba(0, 0, 0, 0)",
+              "after": "rgb(242, 201, 160)"
+            }
+          ],
+          "beforePath": "hover-2-before.jpg",
+          "afterPath": "hover-2-after.jpg"
+        },
+        {
+          "selector": "header > nav > a",
+          "label": "Contato",
+          "changes": [
+            {
+              "property": "transform",
+              "before": "none",
+              "after": "matrix(1, 0, 0, 1, 0, -3)"
+            },
+            {
+              "property": "backgroundColor",
+              "before": "rgba(0, 0, 0, 0)",
+              "after": "rgb(242, 201, 160)"
+            }
+          ],
+          "beforePath": "hover-3-before.jpg",
+          "afterPath": "hover-3-after.jpg"
+        }
+      ],
+      "limits": ["script_animation", "click_not_captured"]
+    }
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "domAudit": {
+      "h1Count": 1,
+      "interactiveTargetViolations": [],
+      "coverage": "complete"
+    },
+    "documentHeight": 846,
+    "capturedHeight": 846,
+    "measures": {
+      "documentWidth": 390,
+      "documentHeight": 846,
+      "bodyFontSize": 16,
+      "emptyRegions": [],
+      "headings": [
+        {
+          "selector": "html > body > h1",
+          "tag": "h1",
+          "text": "Pães todos os dias",
+          "fontSize": 80,
+          "lines": 5,
+          "inFooter": false,
+          "top": 178
+        }
+      ],
+      "duplicateCtas": [],
+      "clippedText": [],
+      "overlappingText": [],
+      "imagesMissingAlt": {
+        "count": 0,
+        "examples": []
+      },
+      "lowContrast": {
+        "count": 0,
+        "worst": []
+      },
+      "coverage": "complete"
+    }
+  }
+]

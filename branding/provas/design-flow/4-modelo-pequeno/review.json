@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "verdict": "repair",
+  "summary": "/: Os problemas de contraste, alvos de toque e espaçamento da nota foram resolvidos, e a seção Sobre não aparece mais como vazio no desktop. A auditoria ainda registra duas faixas vazias: uma abaixo do hero no desktop e outra no celular, onde as molduras de cor sem conteúdo ocupam a área. O mapa esquemático agora é uma linha única dentro de uma moldura grande, o que lê como traço solto e não como mapa.",
+  "findings": [
+    {
+      "id": "hero_empty_band_desktop",
+      "severity": "blocking",
+      "area": "1440, hero_intro até about_bakery",
+      "evidenceType": "automated",
+      "confidence": "high",
+      "evidence": "A auditoria registra uma região vazia de 632 px, de 631 a 1263 px, logo abaixo do texto do hero. A moldura de cor do lado direito ocupa a altura da seção, mas a coluna de texto termina cerca de 350 px antes do fim da seção, deixando área sem conteúdo abaixo dos botões.",
+      "repair": "Reduzir a altura mínima do hero de 70vh para cerca de 560 px no desktop, para que a moldura acompanhe o bloco de texto. Manter a composição de duas colunas e a centralização vertical do texto."
+    },
+    {
+      "id": "mobile_empty_band_frames",
+      "severity": "blocking",
+      "area": "390, hero_intro e about_bakery",
+      "evidenceType": "automated",
+      "confidence": "high",
+      "evidence": "A auditoria registra uma região vazia de 954 px, de 373 a 1327 px, entre o texto do hero e o título de Sobre. Nessa faixa há duas molduras de cor sem texto nem forma interna, ocupando cerca de 268 px cada, o que a auditoria conta como vazio.",
+      "repair": "No celular, reduzir a moldura do hero para 16:9 ou cerca de 220 px de altura, e a moldura de Sobre para 16:9 também. Se a equipe quiser manter as molduras grandes, acrescentar nelas o nome do item de destaque, como pede o briefing para os cards de destaque."
+    },
+    {
+      "id": "hours_map_reads_as_stray_line",
+      "severity": "major",
+      "area": "1440 e 390, seção hours_location",
+      "evidenceType": "visual_inspection",
+      "confidence": "high",
+      "evidence": "A moldura de cor de 4:5 contém apenas uma linha preta horizontal no centro. Sem legenda, sem vias de referência e sem contexto, o traço solto parece um erro de desenho e não um esquema de Campinas.",
+      "repair": "Remover o traço da moldura até que o esquema aprovado chegue, ou manter a moldura sem traços e registrar o recurso schematic_map_campinas como pendente. Não manter uma linha isolada como substituto do mapa."
+    },
+    {
+      "id": "empty_region",
+      "severity": "blocking",
+      "area": "1440px, 631px to 1263px of the page below \"Pães de fermentação longa, doces e salgados feitos na casa, \"; 390px, 373px to 1327px of the page below \"Pães de fermentação longa, doces e salgados feitos na casa, \"",
+      "evidenceType": "automated",
+      "confidence": "high",
+      "evidence": "1440px: a band 632px tall (63% of the window) from 631px to 1263px has no text, image or control below \"Pães de fermentação longa, doces e salgados feitos na casa, \". 390px: a band 954px tall (113% of the window) from 373px to 1327px has no text, image or control below \"Pães de fermentação longa, doces e salgados feitos na casa, \"",
+      "repair": "Make the section as tall as its content needs: remove the fixed or full-window height and the large padding, or bring the content into the empty band, or fill it with the real content the section is for.",
+      "message": {
+        "code": "review.finding.empty_region",
+        "params": {
+          "viewport": "1440px",
+          "near": "Pães de fermentação longa, doces e salgados feitos na casa, ",
+          "height": 632,
+          "percent": 63,
+          "top": 631,
+          "bottom": 1263
+        }
+      }
+    }
+  ]
+}

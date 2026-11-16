@@ -134,6 +134,13 @@ export type ProviderNotice = z.infer<typeof ProviderNoticeSchema>
 export const NoticeSchema = z.discriminatedUnion('kind', [ProviderNoticeSchema])
 export type Notice = z.infer<typeof NoticeSchema>
 
+export const MessagePartSchema = z.object({
+  code: z.string().min(1).max(80).optional(),
+  params: z.record(z.string(), z.union([z.string().max(8_000), z.number()])).optional(),
+  text: z.string().max(40_000),
+})
+export type MessagePart = z.infer<typeof MessagePartSchema>
+
 export const ItemSchema = z.object({
   /**
    * Stable identity for exactly one started -> deltas -> completed lifecycle.
@@ -183,6 +190,14 @@ export const ItemSchema = z.object({
   subagent: SubagentSchema.optional(),
   /** Present on `notice`: what happened, for the renderer to word and mark. */
   notice: NoticeSchema.optional(),
+  /**
+   * Present on a message the server itself wrote (the Design pipeline's progress and results):
+   * the same text as `text`, in pieces. A piece with a `code` names a message of the app's own
+   * catalog and the values its placeholders take, so the page can say it in the reader's
+   * language; `text` is that piece in English, for a client that does not know the code. A piece
+   * with no code is text a model wrote for the person and is shown as it is.
+   */
+  parts: z.array(MessagePartSchema).max(600).optional(),
   createdAt: z.number(),
 })
 export type Item = z.infer<typeof ItemSchema>

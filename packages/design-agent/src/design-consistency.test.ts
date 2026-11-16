@@ -345,6 +345,11 @@ describe('design consistency review findings', () => {
       repair: expect.stringMatching(
         /^Replace Playfair Display, Space Mono with the approved brand fonts Inter, Fraunces, and remove their loading/,
       ),
+      // The chat says it in the reader's language from this code and its values.
+      message: {
+        code: 'review.finding.font_family_drift',
+        params: { list: 'Playfair Display, Space Mono' },
+      },
     })
   })
 

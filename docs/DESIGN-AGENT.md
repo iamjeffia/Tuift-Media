@@ -196,6 +196,39 @@ prompt explicitly ends the briefing restrictions. Its answer and tool events str
 internal prompts stay hidden, and queued requests wait until this response finishes. An interrupted
 or failed classification does not start the continuation.
 
+## Request kinds: how much of the pipeline a request runs
+
+Qualification answers two questions in the same briefing turn: is this a design task, and what
+kind of work is it. The kinds, and what each runs:
+
+| Kind       | A request such as                         | Runs                                                                                            |
+| ---------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `build`    | a new site, page or app screen            | every phase: Brief, Brand, Page, Assets, Build, Preview, Review, Repair                         |
+| `redesign` | new design for pages that already exist   | the same, and every page of the site is captured and reviewed                                   |
+| `change`   | an animation, a hover, one section, a fix | Change (with the Design pack's skills), Preview, Review, Repair; no brief, brand, page, assets  |
+| `review`   | an audit, "what is wrong with this page"  | Preview and Review only; no phase writes a file, `.taste` included; the findings are the answer |
+
+How a request is classified. The briefing model returns `kind` (`workflow.ts`). The words of the
+request are classified again with no model (`request-kind.ts`: verbs of review, change, redesign
+and build in Portuguese, English and Spanish, and an explicit "do not change anything"). The two
+are reconciled by `resolveRequestKind`: the lighter kind wins a disagreement (review before
+change, change before redesign, redesign before build), because a wrong heavy build costs a whole
+run and a light answer costs one more message. When the words name nothing, the model's answer
+stands; with neither, a folder that already holds a page gets a change, and the chat says so
+(`note.kindLighter`). A change or a redesign asked of a folder with no page is a build, and says
+so (`note.noProjectChange`); a review of such a folder answers that there is nothing to review.
+"Review and fix" is a change. "Fix what the review found" is a change.
+
+A review changes no file: the folder is fingerprinted before the first turn and compared at the
+end, and the answer names any file that changed although the agent was told not to. A change is
+checked by the same Preview, capture and Review, bounded by the same two repairs. When the request
+asks for something that moves, the capture also records the first screen at three moments after
+load, the CSS animations, transitions and Web Animations running (`document.getAnimations()`),
+the same load with `prefers-reduced-motion: reduce` emulated, and the style each of the first
+controls changes on hover, with before and after images; the answer says what was verified that
+way and what was not (script-driven animation is not in the animation list, and clicks are not
+tried).
+
 ## Briefing contract
 
 The brief is not a complete brand system. It captures user intent, known evidence, constraints,
@@ -504,6 +537,18 @@ The latest visual review contains:
 - concrete evidence;
 - a bounded repair instruction.
 
+Findings can also be measured instead of judged (`page-measures.ts`). From the numbers the capture
+took in the page itself, TUIFT Code adds findings with these ids, replacing any a model reported
+under the same id: `empty_region` (a full-width band at least 45% of the window and 360 px tall with
+no text, image or control), `heading_out_of_scale` (a footer heading above 28 px, a non-title
+heading of three lines or more at 40 px or more, a long sentence or an address set as a heading),
+`duplicate_cta`, `horizontal_overflow`, `text_clipped`, `text_overlap`, `image_alt_missing` and
+`low_contrast`. A model that approved such a page cannot keep its pass: the verdict becomes
+`repair`. The measures cannot see what is wrong but unmeasurable (taste, hierarchy, a photograph
+that does not fit); a page whose measures are clean can still be bad, and the model's own review
+stays the judge of that. Each measured finding carries a `message` (a code and its values) so the
+chat says it in the reader's language.
+
 A passing review cannot contain findings. A repair verdict must contain at least one finding in
 practice, and TasteCode stops after at most two Repair attempts. The final artifact is the latest
 review, not a history of every review iteration.
@@ -522,6 +567,59 @@ This phase deliberately makes only claims supported by screenshots and attached 
 does not infer factual accuracy, working interactions, conversion, user comprehension, loading
 performance, or provenance. Those require source, runtime, user, analytics, or performance
 evidence outside the visual-review artifact.
+
+## Every page of a site
+
+A run reviews every page it can find, up to a ceiling of six (`MAX_REVIEW_PAGES`): each page costs
+a capture (about ten seconds at two widths) and a review turn (about twenty), so six pages is about
+three minutes of looking, and a site of forty pages would run for the better part of an hour. A
+change looks at three at most, preferring the pages whose files it changed. The pages are found
+three ways (`page-discovery.ts`, `design-pages.ts`): the HTML files of a static project up to two
+folders deep, the same-origin links between pages from the entry up to two clicks (each page is
+fetched from the running preview), and the project's `sitemap.xml`. Not found: pages that only a
+script or a login reaches, routes with parameters, and files that nothing links to on a dev server.
+The answer says how many pages were found and names those the ceiling left out.
+
+Each page is captured and reviewed in its own turn: the entry page against the full plan, the
+others against the request and the site's own design language. The findings of the round are
+merged (ids and areas carry the page), one repair covers them all, and only the pages that had
+findings are captured and reviewed again. The closing message reports each page ("no problems" or
+how many remain), and never calls the work finished while findings remain: it says "Not finished:
+N problems remain" and lists them, most important first.
+
+## Models that cannot satisfy a validation
+
+A phase output that fails its validation is first completed by the server where the fix is
+mechanical (`repairs.ts`), then retried once or three times as before, and when the retries run out
+the server writes the answer itself where it can, so no model size ends the run in a dead end:
+
+| Phase                 | The failure                                                                                                                 | What the server does                                                                                                                                                                                                                                                                |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Brief                 | fields missing or empty                                                                                                     | fills them from the request; unreadable twice, builds the brief from it                                                                                                                                                                                                             |
+| Brand                 | a typeface the run was not dealt, missing text, a blocked palette                                                           | the dealt family of its category, plain defaults, a safe palette recipe                                                                                                                                                                                                             |
+| Page                  | a reference of another family, duplicate ids, bad dependencies or motion, a missing family, copy that trips the error rules | the reference of the right family, or the family of the reference the model chose when the deck has none of that family; unique ids; clamped values; cleaned copy; a section that cannot be made valid is left out; as a last resort a plan built from the brief's required content |
+| Preview               | a plan the parser rejects                                                                                                   | the project's own: a static plan, or the dev script of a known framework                                                                                                                                                                                                            |
+| Build, Repair, Change | no readable report                                                                                                          | a report of "no report"; the checks on the folder itself still run                                                                                                                                                                                                                  |
+| Review                | a pass with findings, a repair with none, missing fields                                                                    | made consistent; unreadable twice, the measures of the page judge it alone                                                                                                                                                                                                          |
+
+Kept exactly as they are, because they protect the person's files and the safety of the preview
+command: the workspace and exact-deliverable checks, the source-quality gate, asset acquisition (real
+files, provenance, resolution), the approved-artifact snapshots, and every preview command rule. An
+agent that reports `"status":"failed"` has failed, and the run says so. A run that needed any repair
+says so in its closing message, in plain words, with the model it ran on and what the server
+completed.
+
+## Messages in the person's language
+
+Every message the pipeline writes into the chat itself (progress notes, the final answer, the
+findings, the notices) is built from codes (`packages/contracts/src/design-messages.ts`,
+`apps/server/src/design-final.ts`). The server sends the English text and the pieces beside it
+(`Item.parts`: a code and its values, or text a model wrote and that is shown as it is); the page
+translates each code from its own catalog (`design.msg.<code>`, `areas/design.*.ts`, pt-BR first),
+and a client that does not know a code shows the English. A count has a `_one` and an `_other`
+code, and the server picks. What a model writes for the person (a finding's evidence and repair, a
+summary, a build report) is asked for in the language of the request, in the notice and reminder
+that wrap every phase prompt.
 
 ## Runtime state and recovery
 
@@ -616,12 +714,17 @@ folder for Claude Code, the pack's catalog as text for the other providers. Turn
 the middle of a chat takes effect on the next turn, with the same restart rules as Motion, and a chat has
 one mode, so it never carries both packs.
 
-The pipeline runs its phase turns in that same session, so the role and the pack reach them. That is
-harmless by construction: every phase prompt already says not to invoke external design skills, the
-role says a message with its own phase instructions or a JSON-only answer comes first, and the pipeline
-sends its prompts exactly as written, wrapped only by the app's own progress-update lines
-(`orchestrator.design-mode.test.ts` proves the briefing prompt reaches the provider word for word and
-its JSON verdict is read as before). Follow-up turns after the run
+The pipeline runs its phase turns in that same session, so the role and the pack reach them, and each
+phase says what it may do with the pack. The phases that must answer strict JSON (Brief, Brand, Page,
+Assets, Preview, Review) tell the model not to invoke skills, so a skill's own output format never
+replaces the phase's answer. The phases that write or change the interface (Build, Repair, Change)
+say the opposite (`DESIGN_PACK_NOTE`): use the skill that fits the work, never above the approved
+artifacts, the reference geometry or the JSON answer format. The role says a message with its own phase
+instructions or a JSON-only answer comes first, and the pipeline sends its prompts exactly as written,
+wrapped only by the app's own progress-update lines (`orchestrator.design-mode.test.ts` proves the
+briefing prompt reaches the provider word for word and its JSON verdict is read as before;
+`light-phases.test.ts` proves which prompts forbid skills and which allow them, and that each phase's
+JSON still parses). Follow-up turns after the run
 are ordinary turns and use the pack.
 
 ## Direct API sessions
@@ -661,7 +764,14 @@ windows, confines navigation and redirects to the preview origin, and verifies t
 scrolls through the document to activate lazy content, then waits, within a 30-second deadline, for
 bounded animation settlement, fonts, image load and decode, and two final animation frames. It
 audits interaction targets across the whole document and captures a whole-page image for each
-requested viewport, bounded to 12,000 CSS pixels in height. It writes private temporary PNGs,
+requested viewport, bounded to 12,000 CSS pixels in height. A page taller than about a screen and a
+quarter is also cut into pieces of about 1,100 CSS pixels (at most eight, covering the page top to
+bottom), because a model that is given one very tall image sees it shrunk and loses the small print;
+the review is given the pieces, and the one-file image stays for the Browser tab. In the same window
+the capture runs a measuring script in the page (`preview-measures.ts`): empty bands, every heading
+with its size and line count, the same call to action repeated within one screen, content wider than
+the window, text clipped or overlapping, images without alt text, and text below WCAG contrast. When
+the request asks for motion it also runs the motion pass (`preview-motion.ts`). It writes private temporary PNGs,
 destroys the window, clears its session storage and HTTP cache, removes failed captures, and sweeps
 capture directories older than one day. Cleanup finishes before the next serialized capture starts.
 

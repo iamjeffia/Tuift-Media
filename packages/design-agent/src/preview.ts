@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
 import { boundedInteger, optionalString, record, string, stringsAllowEmpty } from './parse.js'
 import { parsePhaseJson } from './phase-json.js'
 interface PreviewPlanBase {
@@ -176,4 +178,97 @@ function dimension(value: unknown, minimum: number, maximum: number, field: stri
     throw new Error(`${field} must be an integer between ${minimum} and ${maximum}`)
   }
   return result
+}
+
+const REVIEW_VIEWPORTS = [
+  { name: 'desktop', width: 1440, height: 1000 },
+  { name: 'mobile', width: 390, height: 844 },
+]
+
+function packageScripts(
+  workspacePath: string,
+): { scripts: Record<string, string>; deps: string[] } | undefined {
+  try {
+    const manifest = JSON.parse(readFileSync(path.join(workspacePath, 'package.json'), 'utf8')) as {
+      scripts?: Record<string, string>
+      dependencies?: Record<string, string>
+      devDependencies?: Record<string, string>
+    }
+    return {
+      scripts: manifest.scripts ?? {},
+      deps: [
+        ...Object.keys(manifest.dependencies ?? {}),
+        ...Object.keys(manifest.devDependencies ?? {}),
+      ],
+    }
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The plan for a plain static project (an index.html and no dev script), which needs no model:
+ * the entry is the root's index.html. A project with its own dev script is left to the Preview
+ * phase, which reads it.
+ */
+export function staticPreviewPlan(workspacePath: string): PreviewPlan | undefined {
+  if (!existsSync(path.join(workspacePath, 'index.html'))) return undefined
+  const manifest = packageScripts(workspacePath)
+  if (manifest && (manifest.scripts.dev || manifest.scripts.start || manifest.scripts.preview)) {
+    return undefined
+  }
+  return {
+    version: 1,
+    kind: 'static',
+    entry: 'index.html',
+    cwd: '.',
+    url: 'http://127.0.0.1:4173/',
+    viewports: REVIEW_VIEWPORTS.map((viewport) => ({ ...viewport })),
+  }
+}
+
+/**
+ * The plan to use when a model could not write one the parser accepts: the static plan, or the
+ * project's own dev script for the frameworks whose host and port options are known. Anything
+ * else has no safe guess, and the run says so.
+ */
+export function fallbackPreviewPlan(workspacePath: string): PreviewPlan | undefined {
+  const statically = staticPreviewPlan(workspacePath)
+  if (statically) return statically
+  const manifest = packageScripts(workspacePath)
+  const script = manifest?.scripts.dev ? 'dev' : manifest?.scripts.start ? 'start' : undefined
+  if (!manifest || !script) return undefined
+  const has = (name: string) => manifest.deps.includes(name)
+  let port: number
+  let options: string[]
+  if (has('vite') || has('astro')) {
+    port = 5173
+    options = ['--host', '127.0.0.1', '--port', String(port)]
+  } else if (has('next')) {
+    port = 3000
+    options = ['--hostname', '127.0.0.1', '--port', String(port)]
+  } else return undefined
+  const lock = (name: string) => existsSync(path.join(workspacePath, name))
+  const manager = lock('pnpm-lock.yaml')
+    ? 'pnpm'
+    : lock('yarn.lock')
+      ? 'yarn'
+      : lock('bun.lock') || lock('bun.lockb')
+        ? 'bun'
+        : 'npm'
+  const args =
+    manager === 'npm'
+      ? ['run', script, '--', ...options]
+      : manager === 'yarn'
+        ? [script, ...options]
+        : ['run', script, ...options]
+  return {
+    version: 1,
+    kind: 'command',
+    command: manager,
+    args: manager === 'pnpm' ? [script, ...options] : args,
+    cwd: '.',
+    url: `http://127.0.0.1:${port}`,
+    viewports: REVIEW_VIEWPORTS.map((viewport) => ({ ...viewport })),
+  }
 }

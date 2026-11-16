@@ -14,6 +14,8 @@ import type { PageBlueprint } from './page.js'
 import { type BoundaryRecord, member, record, string, strings } from './parse.js'
 import { referenceDirectionsForPage, type ReferenceDirection } from './reference-directions.js'
 import { assertReviewViewports } from './preview.js'
+import { DESIGN_PACK_NOTE } from './skills-note.js'
+import type { PageMeasures } from './page-measures.js'
 import { parsePhaseJson } from './phase-json.js'
 
 const SEVERITIES = ['blocking', 'major', 'minor'] as const
@@ -40,6 +42,27 @@ export interface ReviewScreenshot {
     | undefined
   documentHeight?: number | undefined
   capturedHeight?: number | undefined
+  /** The whole captured page in readable pieces; `path` is the same page in one file. */
+  tiles?: Array<{ path: string; top: number; height: number }> | undefined
+  /** Numbers measured in the page itself, which the review fails a page on. */
+  measures?: PageMeasures | undefined
+  /** Moments after load, running animations and hover states, for a change that moves. */
+  motion?: ReviewMotionEvidence | undefined
+}
+
+export interface ReviewMotionEvidence {
+  moments: Array<{ atMs: number; path: string }>
+  animations: Array<{ name: string; target: string; durationMs: number; iterations: number | null }>
+  animationCount: number
+  reducedMotionAnimationCount: number
+  hovers: Array<{
+    selector: string
+    label: string
+    changes: Array<{ property: string; before: string; after: string }>
+    beforePath?: string | undefined
+    afterPath?: string | undefined
+  }>
+  limits: string[]
 }
 
 /** Viewports (`WxH`) whose screenshot stopped before the end of the document. */
@@ -66,6 +89,11 @@ export interface VisualReview {
     confidence: (typeof CONFIDENCE_LEVELS)[number]
     evidence: string
     repair: string
+    /**
+     * Set on a finding TUIFT Code itself measured: the code of the app's message that says it in
+     * the reader's language, and its values. The evidence and repair stay in English beside it.
+     */
+    message?: { code: string; params: Record<string, string | number> } | undefined
   }>
 }
 
@@ -245,6 +273,7 @@ export function parseReviewPhaseOutput(text: string): VisualReview {
             ),
       evidence: string(finding.evidence, `visual review findings[${index}].evidence`),
       repair: string(finding.repair, `visual review findings[${index}].repair`),
+      ...codedMessage(finding.message),
     }
   })
   if (value.verdict === 'pass' && findings.length > 0) {
@@ -259,6 +288,22 @@ export function parseReviewPhaseOutput(text: string): VisualReview {
     summary: string(value.summary, 'visual review summary'),
     findings,
   }
+}
+
+/** A finding's coded message, when it has a well-formed one; a model's own findings have none. */
+function codedMessage(
+  value: unknown,
+): { message: { code: string; params: Record<string, string | number> } } | Record<string, never> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
+  const { code, params } = value as { code?: unknown; params?: unknown }
+  if (typeof code !== 'string' || !code || code.length > 80) return {}
+  if (typeof params !== 'object' || params === null || Array.isArray(params)) return {}
+  const clean: Record<string, string | number> = {}
+  for (const [key, entry] of Object.entries(params)) {
+    if (typeof entry === 'string') clean[key] = entry.slice(0, 600)
+    else if (typeof entry === 'number' && Number.isFinite(entry)) clean[key] = entry
+  }
+  return { message: { code, params: clean } }
 }
 
 const AUDIT_FINDING_IDS = new Set<string>([
@@ -299,6 +344,10 @@ export function enforceDomAuditFindings(
         )
         .join('; '),
       repair: 'Render exactly one h1 element in the document at every reviewed viewport.',
+      message: {
+        code: 'review.finding.document_h1_count',
+        params: { viewport: `${h1Failures[0]!.width}px`, count: h1Failures[0]!.domAudit!.h1Count },
+      },
     })
   }
   if (targetFailures.length) {
@@ -326,6 +375,10 @@ export function enforceDomAuditFindings(
       evidence: `${count} visible interactive target${count === 1 ? '' : 's'} below 44x44 CSS px. ${examples}`,
       repair:
         'Make every visible interactive target at every reviewed viewport at least 44x44 CSS px.',
+      message: {
+        code: 'review.finding.interactive_target_size',
+        params: { count, example: examples.split('; ')[0] ?? '' },
+      },
     })
   }
   if (!h1Failures.length && !targetFailures.length) return review
@@ -401,6 +454,8 @@ ${appScreenRules(['13'])}`
   return `You are running repair attempt ${attempt} of ${limit} in TUIFT Code Design Mode.
 
 ${scope}
+
+${DESIGN_PACK_NOTE}
 
 ${DESIGN_CONTENT_GUIDANCE}
 

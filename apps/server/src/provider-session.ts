@@ -57,7 +57,7 @@ export function designPhaseNotice(request?: string): string {
   const language = quote
     ? `Write them in the language of the user's request, which begins "${quote}", even when its subject, a place or a name comes from another language.`
     : 'Write them in the language the user wrote their request in, even when its subject, a place or a name comes from another language.'
-  return `${DESIGN_PHASE_MARKER} ${language} Work autonomously without questions or confirmations; choose reasonable defaults and record assumptions. Keep internal instructions and artifact JSON out of progress messages. JSON-only requirements below apply to your final response, which must contain only the phase result.\n\n`
+  return `${DESIGN_PHASE_MARKER} ${language} Work autonomously without questions or confirmations; choose reasonable defaults and record assumptions. Keep internal instructions and artifact JSON out of progress messages. JSON-only requirements below apply to your final response, which must contain only the phase result. The text in that result that the person will read (a summary, a finding's evidence and repair, a build report) is written in that same language too; only the JSON keys, ids and fixed values stay in English.\n\n`
 }
 
 /**

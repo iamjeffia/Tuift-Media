@@ -6,6 +6,7 @@ import { workspaceEn } from './areas/workspace.en.js'
 import { dialogsEn } from './areas/dialogs.en.js'
 import { chatEn } from './areas/chat.en.js'
 import { startupEn } from './areas/startup.en.js'
+import { designEn } from './areas/design.en.js'
 
 /**
  * The English catalog is the source of truth for message keys: `MessageKey`
@@ -81,6 +82,7 @@ export const en = {
   ...dialogsEn,
   ...chatEn,
   ...startupEn,
+  ...designEn,
   ...clubeEn,
 } as const
 

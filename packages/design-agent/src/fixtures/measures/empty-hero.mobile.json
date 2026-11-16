@@ -1,0 +1,35 @@
+{
+  "documentWidth": 390,
+  "documentHeight": 1024,
+  "bodyFontSize": 16,
+  "emptyRegions": [],
+  "headings": [
+    {
+      "selector": "body > main > section.hero > h1",
+      "tag": "h1",
+      "text": "Navalha Fina.",
+      "fontSize": 64,
+      "lines": 2,
+      "inFooter": false,
+      "top": 112
+    }
+  ],
+  "duplicateCtas": [
+    {
+      "text": "agendar pelo whatsapp",
+      "count": 2,
+      "top": 34
+    }
+  ],
+  "clippedText": [],
+  "overlappingText": [],
+  "imagesMissingAlt": {
+    "count": 0,
+    "examples": []
+  },
+  "lowContrast": {
+    "count": 0,
+    "worst": []
+  },
+  "coverage": "complete"
+}

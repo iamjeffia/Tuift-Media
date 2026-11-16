@@ -1,0 +1,84 @@
+[commentary] Vou olhar os arquivos atuais do site para levantar textos, endereço e estilo existente.
+
+---
+
+[commentary+code] Brief locked in. Starting the design.
+
+---
+
+[commentary] Vou conferir os arquivos da fonte que já estão no projeto antes de registrá-la.
+
+---
+
+[commentary] O registro da fonte precisa apontar para o arquivo da fonte em si. Vou conferir os bytes do woff2.
+
+---
+
+[commentary] Vou reescrever a folha de estilo e as três páginas com o novo desenho, mantendo os textos como estão.
+
+---
+
+[commentary] Páginas escritas. Agora confiro no Chrome sem janela, em desktop e em celular.
+
+---
+
+[commentary] O Chrome sem janela não desce de 500 px de largura, então vou enquadrar as páginas em 390 px para ver o celular de verdade.
+
+---
+
+[commentary] Quase lá: só estou conferindo um detalhe no canto da seção do balcão antes de fechar.
+
+---
+
+[commentary+code] Found 3 pages to check: /, /cardapio.html, /contato.html.
+
+---
+
+[commentary+code] Reviewing / (1 of 3).
+
+---
+
+[commentary+code] Reviewing /cardapio.html (2 of 3).
+
+---
+
+[commentary+code] Reviewing /contato.html (3 of 3).
+
+---
+
+[commentary] Vou aplicar as correções na folha de estilo: entrelinha e traço do rodapé, alturas pelo conteúdo, margem das etiquetas, fundo real atrás do cabeçalho e os ajustes do celular.
+
+---
+
+[commentary] Uma das substituições falhou e nada foi gravado. Corrijo o ponto e aplico de novo.
+
+---
+
+[commentary+code] Reviewing / (1 of 3).
+
+---
+
+[commentary+code] Reviewing /cardapio.html (2 of 3).
+
+---
+
+[commentary+code] Reviewing /contato.html (3 of 3).
+
+---
+
+[commentary] Aplico os dois ajustes: entrelinha do título do balcão no celular e o campo escuro do contato de volta à tela inteira, com os cartões na base.
+
+---
+
+[commentary+code] Reviewing / (1 of 2).
+
+---
+
+[commentary+code] Reviewing /contato.html (2 of 2).
+
+---
+
+[final_answer] Website built. Preview ready at http://127.0.0.1:4173/. Visual review passed after 2 repair attempts. Checked 3 pages:
+- /: no problems.
+- /cardapio.html: no problems.
+- /contato.html: no problems.

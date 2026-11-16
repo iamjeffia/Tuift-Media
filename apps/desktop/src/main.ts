@@ -313,6 +313,14 @@ const previewCaptures = new PreviewCaptureOwner({
     const { PreviewDomAuditSchema } = await import('@harness/contracts')
     return PreviewDomAuditSchema.parse(value)
   },
+  parseMeasures: async (value) => {
+    const { PreviewMeasuresSchema } = await import('@harness/contracts')
+    return PreviewMeasuresSchema.parse(value)
+  },
+  parseMotion: async (value) => {
+    const { PreviewMotionEvidenceSchema } = await import('@harness/contracts')
+    return PreviewMotionEvidenceSchema.parse(value)
+  },
 })
 // Windows' native occlusion tracker can wrongly decide the window is fully
 // covered and stick there: the page keeps running with visibilityState

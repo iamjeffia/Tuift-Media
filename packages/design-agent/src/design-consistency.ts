@@ -110,6 +110,7 @@ export function designConsistencyFindings(
     const families = audit.fonts.map(({ family }) => family)
     findings.push({
       id: 'font_family_drift',
+      message: { code: 'review.finding.font_family_drift', params: { list: listed(families) } },
       severity: 'major',
       area: 'Typography across the page',
       evidenceType: 'automated',
@@ -127,6 +128,10 @@ export function designConsistencyFindings(
     const outside = new Set(audit.radiiOutsideTokens)
     findings.push({
       id: 'radius_scale_drift',
+      message: {
+        code: 'review.finding.radius_scale_drift',
+        params: { list: listed(audit.radiiOutsideTokens) },
+      },
       severity: 'minor',
       area: 'Corner radii across the page',
       evidenceType: 'automated',
@@ -141,6 +146,15 @@ export function designConsistencyFindings(
   } else if (!audit.radiusTokens && audit.radii.length > DESIGN_RADIUS_VALUE_LIMIT) {
     findings.push({
       id: 'radius_scale_drift',
+      message: {
+        code: 'review.finding.radius_scale_drift',
+        params: {
+          list: listed(
+            audit.radii.map(({ value }) => value),
+            12,
+          ),
+        },
+      },
       severity: 'minor',
       area: 'Corner radii across the page',
       evidenceType: 'automated',

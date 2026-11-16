@@ -6,8 +6,10 @@ import type {
   BriefingQuestion,
   DesignBrief,
   DesignFileSnapshot,
+  DesignRequestKind,
   PageBlueprint,
   PreviewPlan,
+  RepairNote,
   ReviewScreenshot,
   ReferenceDirection,
   TypographyCandidates,
@@ -18,8 +20,12 @@ import {
   DEFAULT_ACCOUNT_ID,
   isCutDiff,
   JsonValueSchema,
+  designMessagePart,
+  joinMessageParts,
+  modelTextPart,
   PreviewDomAuditSchema,
   ProviderIdSchema,
+  type MessagePart,
 } from '@harness/contracts'
 import { z } from 'zod'
 import {
@@ -218,6 +224,14 @@ import {
   type BackgroundModelSourceLoader,
 } from './background-model.js'
 import { designAttachedBeforeNote, designAttachmentKey } from './design-attachments.js'
+import {
+  designNote,
+  finalMessageParts,
+  type DesignFinding,
+  type FinalInput,
+  type PageFinding,
+} from './design-final.js'
+import { discoverReviewPages } from './design-pages.js'
 import { closestReasoningEffort } from './reasoning-effort.js'
 import { VoiceService, type VoiceTranscriber } from './voice.js'
 import {
@@ -377,6 +391,7 @@ type DesignFlowPhase =
   | 'page'
   | 'assets'
   | 'build'
+  | 'change'
   | 'preview'
   | 'review'
   | 'repair'
@@ -388,6 +403,7 @@ const DesignFlowPhaseSchema = z.enum([
   'page',
   'assets',
   'build',
+  'change',
   'preview',
   'review',
   'repair',
@@ -402,6 +418,52 @@ const MAX_ASSET_ACQUISITION_CORRECTIONS = 6
 const DesignFileSnapshotSchema = z
   .array(z.object({ path: z.string(), sha256: z.string().regex(/^[a-f0-9]{64}$/) }))
   .max(256)
+/** A page's screenshot as the run keeps it: the capture's own fields, with its pieces and measures. */
+const StoredScreenshotSchema = z.object({
+  path: z.string(),
+  width: z.number().int(),
+  height: z.number().int(),
+  domAudit: PreviewDomAuditSchema.optional(),
+  documentHeight: z.number().int().positive().optional(),
+  capturedHeight: z.number().int().positive().optional(),
+  tiles: z.array(z.object({ path: z.string(), top: z.number(), height: z.number() })).optional(),
+  measures: JsonValueSchema.optional(),
+  motion: JsonValueSchema.optional(),
+})
+const StoredFindingSchema = z.object({
+  id: z.string(),
+  severity: z.enum(['blocking', 'major', 'minor']),
+  area: z.string(),
+  evidenceType: z.enum(['automated', 'visual_inspection']),
+  confidence: z.enum(['high', 'medium', 'low', 'unknown']),
+  evidence: z.string(),
+  repair: z.string(),
+  message: z
+    .object({ code: z.string(), params: z.record(z.string(), z.union([z.string(), z.number()])) })
+    .optional(),
+})
+const StoredRepairNoteSchema = z.object({
+  code: z.string(),
+  params: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+})
+const StoredMessagePartSchema = z.object({
+  code: z.string().optional(),
+  params: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+  text: z.string(),
+})
+const StoredPageResultSchema = z.object({
+  route: z.string(),
+  summary: z.string(),
+  findings: z.array(StoredFindingSchema),
+  screenshots: z.array(StoredScreenshotSchema),
+})
+/** What one page of a review round found, and the screenshots it was judged from. */
+type PageResult = {
+  route: string
+  summary: string
+  findings: DesignFinding[]
+  screenshots: ReviewScreenshot[]
+}
 const StoredDesignFlowSchema = z.object({
   originalRequest: z.string(),
   referenceAttachments: z.array(z.string()).max(64).optional().default([]),
@@ -434,19 +496,21 @@ const StoredDesignFlowSchema = z.object({
   continueNormally: z.boolean().optional(),
   completion: z.string().optional(),
   previewPlan: JsonValueSchema.optional(),
-  screenshots: z
-    .array(
-      z.object({
-        path: z.string(),
-        width: z.number().int(),
-        height: z.number().int(),
-        domAudit: PreviewDomAuditSchema.optional(),
-        documentHeight: z.number().int().positive().optional(),
-        capturedHeight: z.number().int().positive().optional(),
-      }),
-    )
-    .optional(),
+  screenshots: z.array(StoredScreenshotSchema).optional(),
   review: JsonValueSchema.optional(),
+  kind: z.enum(['build', 'redesign', 'review', 'change']).optional(),
+  hasProject: z.boolean().optional(),
+  changeSummary: z.string().optional(),
+  repairNotes: z.array(StoredRepairNoteSchema).max(60).optional(),
+  completionParts: z.array(StoredMessagePartSchema).max(600).optional(),
+  reviewRoutes: z.array(z.string()).max(24).optional(),
+  reviewIndex: z.number().int().nonnegative().optional(),
+  pageResults: z.array(StoredPageResultSchema).max(24).optional(),
+  pageOrder: z.array(z.string()).max(24).optional(),
+  pageOpen: z.record(z.string(), z.number().int().nonnegative()).optional(),
+  pagesFound: z.number().int().nonnegative().optional(),
+  pagesCut: z.array(z.string()).max(500).optional(),
+  pageSummaries: z.record(z.string(), z.string()).optional(),
   approvedBrief: JsonValueSchema.optional(),
   approvedBrand: JsonValueSchema.optional(),
   approvedPage: JsonValueSchema.optional(),
@@ -487,6 +551,33 @@ type DesignFlow = {
   previewUrl?: string
   screenshots?: ReviewScreenshot[]
   review?: VisualReview
+  /**
+   * What the request asks for (see request-kind.ts). A build or a redesign runs every phase; a
+   * review or a change runs no brief, brand, page or asset phase. Absent on runs saved before
+   * kinds existed, which are builds.
+   */
+  kind?: DesignRequestKind
+  /** The folder already held a page when the run started. */
+  hasProject?: boolean
+  /** What the change agent reported, in the person's language. */
+  changeSummary?: string
+  /** What the server completed itself because a model could not (see repairs.ts). */
+  repairNotes?: RepairNote[]
+  /** The closing message, in pieces, once the run has one. */
+  completionParts?: MessagePart[]
+  /** The routes this round reviews, in order; `reviewRoutes[reviewIndex]` is the page now loaded. */
+  reviewRoutes?: string[]
+  reviewIndex?: number
+  /** The pages of this round already reviewed. */
+  pageResults?: PageResult[]
+  /** Every page reviewed in this run, in the order found, and the findings still open on each. */
+  pageOrder?: string[]
+  pageOpen?: Record<string, number>
+  /** What each page's review said about what the screenshots could and could not show. */
+  pageSummaries?: Record<string, string>
+  /** How many pages the run found, and the ones its ceiling left out. */
+  pagesFound?: number
+  pagesCut?: string[]
   approvedBrief?: DesignBrief
   approvedBrand?: BrandSystem
   approvedPage?: PageBlueprint
@@ -588,7 +679,7 @@ function parseStoredDesignFlow(value: unknown, workspacePath: string): DesignFlo
   } catch {
     return undefined
   }
-  const screenshots: ReviewScreenshot[] | undefined = stored.screenshots
+  const screenshots = stored.screenshots as ReviewScreenshot[] | undefined
   const phase = stored.phase
   if (
     ((phase === 'review' || phase === 'repair') && !previewPlan) ||
@@ -631,6 +722,19 @@ function parseStoredDesignFlow(value: unknown, workspacePath: string): DesignFlo
     ...(approvedBrand ? { approvedBrand } : {}),
     ...(approvedPage ? { approvedPage } : {}),
     ...(approvedAssets ? { approvedAssets } : {}),
+    ...(stored.kind ? { kind: stored.kind } : {}),
+    ...(stored.hasProject !== undefined ? { hasProject: stored.hasProject } : {}),
+    ...(stored.changeSummary ? { changeSummary: stored.changeSummary } : {}),
+    ...(stored.repairNotes ? { repairNotes: stored.repairNotes } : {}),
+    ...(stored.completionParts ? { completionParts: stored.completionParts } : {}),
+    ...(stored.reviewRoutes ? { reviewRoutes: stored.reviewRoutes } : {}),
+    ...(stored.reviewIndex !== undefined ? { reviewIndex: stored.reviewIndex } : {}),
+    ...(stored.pageResults ? { pageResults: stored.pageResults as PageResult[] } : {}),
+    ...(stored.pageOrder ? { pageOrder: stored.pageOrder } : {}),
+    ...(stored.pageOpen ? { pageOpen: stored.pageOpen } : {}),
+    ...(stored.pageSummaries ? { pageSummaries: stored.pageSummaries } : {}),
+    ...(stored.pagesFound !== undefined ? { pagesFound: stored.pagesFound } : {}),
+    ...(stored.pagesCut ? { pagesCut: stored.pagesCut } : {}),
     ...(stored.buildSummary ? { buildSummary: stored.buildSummary } : {}),
     ...(stored.buildFiles ? { buildFiles: stored.buildFiles } : {}),
     ...(stored.buildFileBaseline ? { buildFileBaseline: stored.buildFileBaseline } : {}),
@@ -771,17 +875,21 @@ const PANIC_STOP_TIMEOUT_MS = 5_000
 const STOP_SETTLE_TIMEOUT_MS = 30_000
 const IDLE_RUNTIME_PRUNE_RETRY_MS = 30_000
 const DESIGN_START_TIMEOUT_MS = 30_000
-/** Why a Design run finishes with no visual review when no desktop window can take screenshots. */
-const NO_CAPTURE_WINDOW = 'no TUIFT Code window was open to take the screenshots'
-/** The findings a stopped review left open, so the person reads them in the chat and not only in review.json. */
-function openFindingsNote(findings: ReadonlyArray<{ area: string; evidence: string }>): string {
-  if (findings.length === 0) return ''
-  const shown = findings
-    .slice(0, 8)
-    .map(({ area, evidence }, index) => `(${index + 1}) ${area}: ${evidence.slice(0, 240)}`)
-  const more = findings.length > shown.length ? ` and ${findings.length - shown.length} more` : ''
-  return ` Still open: ${shown.join(' ')}${more}. The full list is in .taste/review.json.`
+/** Whether a phase answer is a report that the agent failed (`"status": "failed"`). */
+function declaredFailure(text: string): boolean {
+  try {
+    const value: unknown = JSON.parse(text.trim().replace(/^```(?:json)?\s*|\s*```$/gi, ''))
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      (value as { status?: unknown }).status === 'failed'
+    )
+  } catch {
+    return false
+  }
 }
+/** A change is checked on the pages it touched, and on three at most. */
+const DESIGN_CHANGE_REVIEW_PAGES = 3
 const DESIGN_REPAIR_LIMIT = 2
 const UNSUPPORTED_MCP_CAPABILITIES: McpCapabilities = {
   inventory: false,
@@ -936,8 +1044,12 @@ export class Orchestrator {
   #designStartingThreads = new Set<string>()
   #designStartWaiters = new Map<string, (turnId: string) => void>()
   #designMessageItems = new Set<string>()
+  /** The files of the folder when a review began, to show at its end that none changed. */
+  #reviewFingerprints = new WeakMap<DesignFlow, Map<string, string>>()
   #acceptedDesignOutputs = new Set<string>()
   #designOutputErrors = new Map<string, unknown>()
+  /** What a phase's failed answer said, so the server can finish it when the retries run out. */
+  #designOutputTexts = new Map<string, string>()
   #designActivityItems = new Map<string, Item>()
   #designPreviews = new Map<string, RunningPreview>()
   #designPreviewTasks = new Map<string, Set<Promise<void>>>()
@@ -1026,6 +1138,7 @@ export class Orchestrator {
         viewports: Array<{ width: number; height: number }>,
         signal?: AbortSignal,
         threadId?: string,
+        options?: { motion?: boolean },
       ) => Promise<ReviewScreenshot[] | undefined>)
     | undefined
   #reservedPreviewPorts: ReadonlySet<number>
@@ -1127,6 +1240,7 @@ export class Orchestrator {
         viewports: Array<{ width: number; height: number }>,
         signal?: AbortSignal,
         threadId?: string,
+        options?: { motion?: boolean },
       ) => Promise<ReviewScreenshot[] | undefined>
       /** Ports a Design preview must never serve on: the app's own. */
       reservedPreviewPorts?: ReadonlySet<number>
@@ -3692,6 +3806,7 @@ export class Orchestrator {
         // The flow keeps the user's own options for every phase (see #designTurnOptions).
         const flow: DesignFlow = {
           workspacePath,
+          hasProject: designAgent().workspaceHasPage(workspacePath),
           originalRequest: text,
           referenceAttachments,
           referenceSnapshot,
@@ -6850,7 +6965,10 @@ export class Orchestrator {
     // Saved Review/Repair evidence outlives its preview server, and the desktop's
     // startup sweep can delete the screenshots. Recapture instead of sending a
     // stale URL or a missing file to the provider.
-    const missingEvidence = flow.screenshots?.some(({ path: file }) => !existsSync(file)) ?? false
+    const missingEvidence = [
+      ...(flow.screenshots ?? []),
+      ...(flow.pageResults ?? []).flatMap((result) => result.screenshots),
+    ].some(({ path: file }) => !existsSync(file))
     if (
       flow.phase === 'review'
         ? missingEvidence || !this.#designPreviews.has(threadId)
@@ -6954,6 +7072,7 @@ ${JSON.stringify(deck, null, 2)}
 
   #designPhasePrompt(flow: DesignFlow): string {
     if (flow.phase === 'brief') return designAgent().designBriefingPrompt(flow.originalRequest)
+    if (this.#isLight(flow)) return this.#lightPhasePrompt(flow)
     this.#validateApprovedDesignArtifacts(flow)
     const brief = flow.approvedBrief!
     if (flow.phase === 'brand')
@@ -6995,6 +7114,23 @@ ${JSON.stringify(deck, null, 2)}
       )
     }
     if (flow.phase === 'preview') return designAgent().designPreviewPrompt(flow.buildFiles)
+    // The entry page is judged against the full plan; the site's other pages, against the request.
+    const reviewing = flow.reviewRoutes?.[flow.reviewIndex ?? 0]
+    if (
+      flow.phase === 'review' &&
+      flow.screenshots &&
+      reviewing !== undefined &&
+      reviewing !== flow.pageOrder?.[0]
+    ) {
+      return designAgent().designAuditPrompt({
+        request: flow.originalRequest,
+        purpose: 'built_page',
+        page: flow.reviewRoutes?.[flow.reviewIndex ?? 0] ?? '/',
+        pageNumber: (flow.reviewIndex ?? 0) + 1,
+        pageCount: flow.reviewRoutes?.length ?? 1,
+        screenshots: flow.screenshots,
+      })
+    }
     if (flow.phase === 'review' && flow.screenshots) {
       return designAgent().designReviewPrompt(
         brief,
@@ -7017,15 +7153,50 @@ ${JSON.stringify(deck, null, 2)}
         page,
         flow.approvedAssets!,
         flow.referenceAttachments,
-        flow.screenshots ?? [],
+        this.#repairScreenshots(flow),
         flow.appDirection,
       )
     }
     throw new Error(`cannot resume design phase ${flow.phase}`)
   }
 
+  /** The prompts of a review and of a change: no artifacts, the page as it is. */
+  #lightPhasePrompt(flow: DesignFlow): string {
+    if (flow.phase === 'change') {
+      return designAgent().designChangePrompt({
+        request: flow.originalRequest,
+        motion: designAgent().requestInvolvesMotion(flow.originalRequest),
+      })
+    }
+    if (flow.phase === 'preview') return designAgent().designPreviewPrompt(flow.buildFiles)
+    if (flow.phase === 'review' && flow.screenshots) {
+      const page = {
+        page: flow.reviewRoutes?.[flow.reviewIndex ?? 0] ?? '/',
+        pageNumber: (flow.reviewIndex ?? 0) + 1,
+        pageCount: flow.reviewRoutes?.length ?? 1,
+        screenshots: flow.screenshots,
+      }
+      return flow.kind === 'review'
+        ? designAgent().designAuditPrompt({ request: flow.originalRequest, ...page })
+        : designAgent().designChangeReviewPrompt({
+            request: flow.originalRequest,
+            changeSummary: flow.changeSummary ?? '',
+            ...page,
+          })
+    }
+    if (flow.phase === 'repair' && flow.review) {
+      return designAgent().designChangeRepairPrompt(
+        flow.review,
+        flow.repairAttempt,
+        DESIGN_REPAIR_LIMIT,
+        flow.originalRequest,
+      )
+    }
+    throw new Error(`cannot resume design phase ${flow.phase}`)
+  }
+
   #validateApprovedDesignArtifacts(flow: DesignFlow): void {
-    if (flow.continueNormally || flow.phase === 'response') return
+    if (flow.continueNormally || flow.phase === 'response' || this.#isLight(flow)) return
     if (
       flow.referenceDeck?.length &&
       !isDeepStrictEqual(
@@ -7209,7 +7380,7 @@ ${JSON.stringify(deck, null, 2)}
    * blamed.
    */
   #enforceDesignConsistency(flow: DesignFlow, review: VisualReview): VisualReview {
-    if (!flow.designConsistencyBaseline) return review
+    if (!flow.designConsistencyBaseline || this.#isLight(flow)) return review
     try {
       return designAgent().enforceDesignConsistencyFindings(
         review,
@@ -7227,9 +7398,18 @@ ${JSON.stringify(deck, null, 2)}
   }
 
   #designAttachmentsFor(flow: DesignFlow): string[] {
-    return flow.phase === 'review' || flow.phase === 'repair'
-      ? (flow.screenshots?.map(({ path }) => path) ?? [])
-      : []
+    if (flow.phase === 'review') return designAgent().reviewAttachments(flow.screenshots ?? [])
+    if (flow.phase === 'repair')
+      return designAgent().reviewAttachments(this.#repairScreenshots(flow))
+    return []
+  }
+
+  /** The screenshots a repair looks at: those of every page that still has a finding. */
+  #repairScreenshots(flow: DesignFlow): ReviewScreenshot[] {
+    const withFindings = (flow.pageResults ?? []).filter((result) => result.findings.length > 0)
+    return withFindings.length > 0
+      ? withFindings.flatMap((result) => result.screenshots)
+      : (flow.screenshots ?? [])
   }
 
   /**
@@ -7631,6 +7811,7 @@ ${JSON.stringify(deck, null, 2)}
       } catch (error) {
         if (prose) this.#recordDesignProse(threadId, event, prose)
         this.#designOutputErrors.set(turnId, error)
+        this.#designOutputTexts.set(turnId, text)
       }
       return
     }
@@ -7640,6 +7821,8 @@ ${JSON.stringify(deck, null, 2)}
         this.#designOutputErrors.get(turnId) ??
         (!acceptedOutput ? new Error('Design phase returned no final JSON result') : undefined)
       this.#designOutputErrors.delete(turnId)
+      const failedText = this.#designOutputTexts.get(turnId)
+      this.#designOutputTexts.delete(turnId)
       this.#completeDesignActivity(
         threadId,
         turnId,
@@ -7656,9 +7839,15 @@ ${JSON.stringify(deck, null, 2)}
       let flow = this.#designFlows.get(threadId)
       if (!acceptedOutput && outputError && flow) {
         if (!this.#queueDesignCorrection(threadId, flow, outputError)) {
-          this.#record(threadId, { ...event, status: 'failed' })
-          this.#failDesignFlow(threadId, outputError)
-          return
+          // The retries are used up: the server completes what it can before the run gives up.
+          if (failedText !== undefined) this.#designOutputTexts.set(turnId, failedText)
+          const completed = this.#completedByServer(threadId, turnId, flow, outputError)
+          this.#designOutputTexts.delete(turnId)
+          if (!completed) {
+            this.#record(threadId, { ...event, status: 'failed' })
+            this.#failDesignFlow(threadId, outputError)
+            return
+          }
         }
         flow = this.#designFlows.get(threadId)
       }
@@ -7708,7 +7897,25 @@ ${JSON.stringify(deck, null, 2)}
       this.#completeDesignPhase(threadId, turnId, flow, text)
       return
     }
-    const output = designAgent().parseBriefingOutput(text)
+    let output: ReturnType<DesignAgentModule['parseBriefingOutput']>
+    try {
+      output = designAgent().parseBriefingOutput(text)
+    } catch (error) {
+      // A brief a model left half empty is completed from the request. One it could not write at
+      // all gets its retry, and after it is completed from the request alone (#completedByServer).
+      const repaired = this.#repairedBriefing(flow, text)
+      if (!repaired) throw error
+      output = repaired
+    }
+    this.#acceptBriefing(threadId, turnId, flow, output)
+  }
+
+  #acceptBriefing(
+    threadId: string,
+    turnId: string,
+    flow: DesignFlow,
+    output: ReturnType<DesignAgentModule['parseBriefingOutput']>,
+  ): void {
     if (output.status === 'questions') {
       throw new Error(
         'Design briefing is autonomous. Choose reasonable defaults, record assumptions, and return status complete with the full brief and an empty questions array. Never ask the user questions or call a user-input tool.',
@@ -7719,36 +7926,209 @@ ${JSON.stringify(deck, null, 2)}
       flow.pendingPrompt = this.#designPromptFor(flow)
       flow.correcting = false
       this.#saveDesignFlow(threadId)
-      this.#record(threadId, {
-        type: 'item.completed',
-        item: {
-          id: `design-not-applicable-${crypto.randomUUID()}`,
-          turnId,
-          type: 'message',
-          role: 'assistant',
-          phase: 'commentary',
-          status: 'completed',
-          text: 'Design mode was turned off because this request is not a website design task.',
-          createdAt: Date.now(),
-        },
-      })
+      this.#recordDesignNote(
+        threadId,
+        turnId,
+        designNote('note.notDesign'),
+        'design-not-applicable-',
+      )
       return
     }
-    const brief = DesignBriefInputSchema.parse(output.brief)
-    this.#completeDesignBrief(threadId, turnId, brief)
+    // What kind of request this is decides how much of the pipeline runs (request-kind.ts).
+    const hasProject = flow.hasProject ?? true
+    const words = designAgent().classifyDesignRequest(flow.originalRequest, { hasProject })
+    const resolved = designAgent().resolveRequestKind(words, output.kind, { hasProject })
+    flow.kind = resolved.kind
+    if (designAgent().isLightRequestKind(resolved.kind)) {
+      this.#startLightRun(threadId, turnId, flow, resolved.source)
+      return
+    }
+    if (
+      !hasProject &&
+      [output.kind, words.confidence === 'clear' ? words.kind : undefined].some(
+        (kind) => kind === 'change' || kind === 'redesign',
+      )
+    ) {
+      this.#recordDesignNote(threadId, turnId, designNote('note.noProjectChange'))
+    }
+    let brief = output.brief
+    if (!brief) {
+      const fixed = designAgent().repairBriefInput({}, flow.originalRequest)
+      if (!fixed) throw new Error('completed briefing output must contain a brief')
+      brief = fixed.brief
+      this.#noteRepairs(flow, fixed.notes)
+    }
+    this.#completeDesignBrief(threadId, turnId, DesignBriefInputSchema.parse(brief))
   }
 
-  #recordDesignNote(threadId: string, turnId: string, text: string): void {
+  /** A completed briefing whose brief the model left incomplete, finished from the request itself. */
+  #repairedBriefing(
+    flow: DesignFlow,
+    text: string,
+  ): ReturnType<DesignAgentModule['parseBriefingOutput']> | undefined {
+    let value: unknown
+    try {
+      value = designAgent().parsePhaseJson(text)
+    } catch {
+      return undefined
+    }
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+    const answer = value as Record<string, unknown>
+    if (answer['status'] !== 'complete') return undefined
+    const given = answer['brief']
+    const fixed = designAgent().repairBriefInput(
+      typeof given === 'object' && given !== null && !Array.isArray(given)
+        ? (given as Record<string, unknown>)
+        : {},
+      flow.originalRequest,
+    )
+    if (!fixed) return undefined
+    this.#noteRepairs(flow, fixed.notes)
+    const kind = designAgent().isDesignRequestKind(answer['kind']) ? answer['kind'] : undefined
+    return {
+      status: 'complete',
+      message: 'Brief complete.',
+      questions: [],
+      brief: fixed.brief,
+      ...(kind ? { kind } : {}),
+    }
+  }
+
+  #isLight(flow: DesignFlow): boolean {
+    return flow.kind === 'review' || flow.kind === 'change'
+  }
+
+  /** What the server finished itself because a model could not: kept for the closing message. */
+  #noteRepairs(flow: DesignFlow, notes: readonly RepairNote[]): void {
+    if (notes.length === 0) return
+    flow.repairNotes = [...(flow.repairNotes ?? []), ...notes].slice(0, 60)
+    this.#onLog(`[design] completed for the model: ${notes.map(({ code }) => code).join(', ')}`)
+  }
+
+  #setCompletionParts(flow: DesignFlow, parts: MessagePart[]): void {
+    flow.completionParts = parts
+    flow.completion = joinMessageParts(parts)
+  }
+
+  /** A review or a change: no brief, brand, page or asset phase. Says so, then does its work. */
+  #startLightRun(
+    threadId: string,
+    turnId: string,
+    flow: DesignFlow,
+    source: 'agreed' | 'lighter_of_both' | 'model' | 'words' | 'default_light',
+  ): void {
+    const review = flow.kind === 'review'
+    flow.correcting = false
+    delete flow.correctionErrors
+    this.#recordDesignNote(
+      threadId,
+      turnId,
+      designNote(
+        review
+          ? 'note.kindReview'
+          : source === 'default_light'
+            ? 'note.kindLighter'
+            : 'note.kindChange',
+      ),
+    )
+    if (review) {
+      if (flow.hasProject === false) {
+        flow.phase = 'complete'
+        this.#setCompletionParts(flow, [designMessagePart('final.nothingToReview')])
+        this.#saveDesignFlow(threadId)
+        return
+      }
+      // A review changes no file: the folder is fingerprinted now and compared at the end.
+      try {
+        this.#reviewFingerprints.set(flow, designAgent().workspaceFingerprint(flow.workspacePath))
+      } catch (error) {
+        this.#onLog(
+          `[design] could not fingerprint the folder for the review: ${errorMessage(error)}`,
+        )
+      }
+      this.#advanceToPreview(threadId, turnId, flow)
+      return
+    }
+    flow.phase = 'change'
+    this.#queueDesignPhase(threadId, flow, this.#designPromptFor(flow))
+  }
+
+  /** Sends the next phase's prompt when the turn in progress ends, or now when none is running. */
+  #queueDesignPhase(threadId: string, flow: DesignFlow, prompt: string): void {
+    flow.correcting = false
+    if (this.#activeTurns.has(threadId)) {
+      flow.pendingPrompt = prompt
+      this.#saveDesignFlow(threadId)
+      return
+    }
+    this.#saveDesignFlow(threadId)
+    void this.#sendDesignTurn(threadId, prompt, [], this.#designTurnOptions(threadId, flow)).catch(
+      (error: unknown) => this.#failOwnedDesignFlow(threadId, flow, error),
+    )
+  }
+
+  /**
+   * To the preview. A plain static project needs no model to start; anything with its own dev
+   * script is left to the Preview phase, which reads the scripts.
+   */
+  #advanceToPreview(threadId: string, turnId: string, flow: DesignFlow): void {
+    const plan = designAgent().staticPreviewPlan(flow.workspacePath)
+    flow.phase = 'preview'
+    flow.correcting = false
+    if (plan) {
+      this.#saveDesignFlow(threadId)
+      this.#startPreviewTask(threadId, turnId, flow, plan)
+      return
+    }
+    this.#queueDesignPhase(threadId, flow, designAgent().designPreviewPrompt(flow.buildFiles ?? []))
+  }
+
+  #startPreviewTask(
+    threadId: string,
+    turnId: string,
+    flow: DesignFlow,
+    plan: ReturnType<DesignAgentModule['parsePreviewPhaseOutput']>,
+  ): void {
+    const task = this.#holdDesignCheckout(threadId, flow, () =>
+      this.#startDesignPreview(threadId, turnId, flow, plan),
+    ).catch((error: unknown) => {
+      if (this.#designFlows.get(threadId) !== flow) return
+      if (isRecoverablePreviewError(error) && this.#queueDesignCorrection(threadId, flow, error)) {
+        if (this.#activeTurns.has(threadId)) return
+        const prompt = flow.pendingPrompt!
+        delete flow.pendingPrompt
+        this.#saveDesignFlow(threadId)
+        void this.#sendDesignTurn(
+          threadId,
+          prompt,
+          this.#designAttachmentsFor(flow),
+          this.#designTurnOptions(threadId, flow),
+        ).catch((sendError: unknown) => this.#failOwnedDesignFlow(threadId, flow, sendError))
+        return
+      }
+      this.#failDesignFlow(threadId, error, isRecoverablePreviewError(error))
+    })
+    this.#trackDesignPreviewTask(threadId, task)
+  }
+
+  /** A note in the chat: one message of the app's catalog, with its values. */
+  #recordDesignNote(
+    threadId: string,
+    turnId: string,
+    note: { text: string; parts: MessagePart[] },
+    idPrefix = 'design-note-',
+  ): void {
     this.#record(threadId, {
       type: 'item.completed',
       item: {
-        id: `design-note-${crypto.randomUUID()}`,
+        id: `${idPrefix}${crypto.randomUUID()}`,
         turnId,
         type: 'message',
         role: 'assistant',
         phase: 'commentary',
         status: 'completed',
-        text,
+        text: note.text,
+        parts: note.parts,
         createdAt: Date.now(),
       },
     })
@@ -7777,7 +8157,7 @@ ${JSON.stringify(deck, null, 2)}
       flow.appDirection = appDirection
       designAgent().writeAppScreenKit(flow.workspacePath)
     } else delete flow.appDirection
-    this.#recordDesignNote(threadId, turnId, 'Brief locked in. Starting the design.')
+    this.#recordDesignNote(threadId, turnId, designNote('note.briefLocked'))
     flow.phase = 'brand'
     const prompt = this.#designPromptFor(flow)
     flow.correcting = false
@@ -7793,16 +8173,115 @@ ${JSON.stringify(deck, null, 2)}
   }
 
   #completeDesignPhase(threadId: string, turnId: string, flow: DesignFlow, text: string): void {
+    this.#completeDesignPhaseOnce(threadId, turnId, flow, text)
+  }
+
+  /**
+   * What the server does when a model's answer failed its validation and its retries are used
+   * up: write the answer itself, where it can (repairs.ts), so the run never ends in a dead end.
+   * Returns whether it did. Validations that protect the person's files and the preview commands
+   * are not repaired here: they stay as they are, and a run they stop is stopped.
+   */
+  #completedByServer(threadId: string, turnId: string, flow: DesignFlow, error: unknown): boolean {
+    const text = this.#designOutputTexts.get(turnId) ?? ''
+    const before = flow.repairNotes
+    try {
+      if (flow.phase === 'brief') {
+        const output = this.#repairedBriefing(flow, '{"status":"complete"}')
+        if (!output) return false
+        this.#acceptBriefing(threadId, turnId, flow, output)
+        return true
+      }
+      const fallback = this.#exhaustedFallback(flow, text)
+      if (!fallback) return false
+      this.#noteRepairs(flow, fallback.notes)
+      this.#completeDesignPhaseOnce(threadId, turnId, flow, fallback.text)
+      return true
+    } catch (fallbackError) {
+      // What the server wrote did not pass either: nothing was completed for the model.
+      if (before) flow.repairNotes = before
+      else delete flow.repairNotes
+      this.#onLog(
+        `[design] no fallback for ${flow.phase} after "${errorMessage(error)}": ${errorMessage(fallbackError)}`,
+      )
+      return false
+    }
+  }
+
+  /** The answer the server writes itself for a phase, where it can. */
+  #exhaustedFallback(
+    flow: DesignFlow,
+    text: string,
+  ): { text: string; notes: RepairNote[] } | undefined {
+    const brief = flow.approvedBrief
+    if (flow.phase === 'brand' && brief) {
+      return designAgent().repairBrandOutput('{}', {
+        brief,
+        candidates: flow.typographyCandidates,
+        appDirection: flow.appDirection,
+      })
+    }
+    if (flow.phase === 'page' && brief) {
+      return designAgent().fallbackPageOutput(brief, {
+        deck:
+          flow.referenceDeck ??
+          designAgent().selectReferenceDirectionDeck(brief, flow.approvedBrand!),
+        suppliedReferenceIds: flow.referenceAttachments.map(
+          (_, index) => `user-reference-${index + 1}`,
+        ),
+        referenceDriven: flow.referenceDeck !== undefined,
+        appDirection: flow.appDirection,
+      })
+    }
+    if (flow.phase === 'build' || flow.phase === 'repair' || flow.phase === 'change') {
+      // An agent that says it failed has failed: only a report that did not parse is replaced.
+      if (declaredFailure(text)) return undefined
+      // The workspace checks that follow still run on the folder itself.
+      return {
+        text: JSON.stringify({
+          status: 'complete',
+          summary: 'The agent did not return its report.',
+          files: [],
+          checks: [],
+        }),
+        notes: [{ code: 'repair.build.report' }],
+      }
+    }
+    if (flow.phase === 'review') {
+      // The measures of the page itself, and the DOM audit, judge it alone.
+      const { review, notes } = designAgent().repairReviewOutput(text)
+      return { text: JSON.stringify(review), notes }
+    }
+    return undefined
+  }
+
+  #completeDesignPhaseOnce(threadId: string, turnId: string, flow: DesignFlow, text: string): void {
     this.#validateApprovedDesignArtifacts(flow)
     if (flow.phase === 'brand') {
-      const output = designAgent().parseBrandPhaseOutput(text)
-      if (flow.typographyCandidates)
-        designAgent().validateTypographySelection(
-          flow.approvedBrief!,
-          output,
-          flow.typographyCandidates,
-          flow.appDirection,
-        )
+      const check = (candidate: string) => {
+        const parsed = designAgent().parseBrandPhaseOutput(candidate)
+        if (flow.typographyCandidates)
+          designAgent().validateTypographySelection(
+            flow.approvedBrief!,
+            parsed,
+            flow.typographyCandidates,
+            flow.appDirection,
+          )
+        return parsed
+      }
+      let output: ReturnType<typeof check>
+      try {
+        output = check(text)
+      } catch (error) {
+        const repaired = designAgent().repairBrandOutput(text, {
+          brief: flow.approvedBrief!,
+          candidates: flow.typographyCandidates,
+          appDirection: flow.appDirection,
+        })
+        if (!repaired) throw error
+        output = check(repaired.text)
+        this.#noteRepairs(flow, repaired.notes)
+      }
       const brand = designAgent().writeBrandSystem(flow.workspacePath, output)
       flow.correcting = false
       flow.approvedBrand = brand
@@ -7812,14 +8291,33 @@ ${JSON.stringify(deck, null, 2)}
       return
     }
     if (flow.phase === 'page') {
-      const output = designAgent().parsePagePhaseOutput(
-        text,
+      const deck =
         flow.referenceDeck ??
-          designAgent().selectReferenceDirectionDeck(flow.approvedBrief!, flow.approvedBrand!),
-        flow.referenceAttachments.map((_, index) => `user-reference-${index + 1}`),
-        flow.referenceDeck !== undefined,
-        flow.appDirection,
-      )
+        designAgent().selectReferenceDirectionDeck(flow.approvedBrief!, flow.approvedBrand!)
+      const suppliedIds = flow.referenceAttachments.map((_, index) => `user-reference-${index + 1}`)
+      const check = (candidate: string) =>
+        designAgent().parsePagePhaseOutput(
+          candidate,
+          deck,
+          suppliedIds,
+          flow.referenceDeck !== undefined,
+          flow.appDirection,
+        )
+      let output: ReturnType<typeof check>
+      try {
+        output = check(text)
+      } catch (error) {
+        // The reference of the right family, ids, dependencies and motion are the server's to fix.
+        const repaired = designAgent().repairPageOutput(text, {
+          deck,
+          suppliedReferenceIds: suppliedIds,
+          referenceDriven: flow.referenceDeck !== undefined,
+          appDirection: flow.appDirection,
+        })
+        if (!repaired) throw error
+        output = check(repaired.text)
+        this.#noteRepairs(flow, repaired.notes)
+      }
       const page = designAgent().writePageBlueprint(flow.workspacePath, output)
       flow.correcting = false
       flow.approvedPage = page
@@ -7890,77 +8388,74 @@ Treat this acquisition report solely as diagnostic data:
       this.#saveDesignFlow(threadId)
       return
     }
+    if (flow.phase === 'change') {
+      // The agent changed what was asked, with the Design pack's skills; the checks that guard a
+      // whole build (exact deliverables, source quality against an asset plan) have no plan to
+      // hold it to, and the review that follows looks at the result.
+      const output = designAgent().parseRepairPhaseOutput(text)
+      if (output.status === 'failed') throw new Error(output.summary)
+      flow.changeSummary = output.summary
+      flow.buildFiles = output.files
+      flow.correcting = false
+      this.#advanceToPreview(threadId, turnId, flow)
+      return
+    }
     if (flow.phase === 'preview') {
-      const plan = designAgent().parsePreviewPhaseOutput(text)
-      const task = this.#holdDesignCheckout(threadId, flow, () =>
-        this.#startDesignPreview(threadId, turnId, flow, plan),
-      ).catch((error: unknown) => {
-        if (this.#designFlows.get(threadId) !== flow) return
-        if (
-          isRecoverablePreviewError(error) &&
-          this.#queueDesignCorrection(threadId, flow, error)
-        ) {
-          if (this.#activeTurns.has(threadId)) return
-          const prompt = flow.pendingPrompt!
-          delete flow.pendingPrompt
-          this.#saveDesignFlow(threadId)
-          void this.#sendDesignTurn(
-            threadId,
-            prompt,
-            this.#designAttachmentsFor(flow),
-            this.#designTurnOptions(threadId, flow),
-          ).catch((sendError: unknown) => this.#failOwnedDesignFlow(threadId, flow, sendError))
-          return
-        }
-        this.#failDesignFlow(threadId, error, isRecoverablePreviewError(error))
-      })
-      this.#trackDesignPreviewTask(threadId, task)
+      let plan: ReturnType<DesignAgentModule['parsePreviewPhaseOutput']>
+      try {
+        plan = designAgent().parsePreviewPhaseOutput(text)
+      } catch (error) {
+        // A plan the model could not write is the project's own, when the project says it.
+        const fallback = designAgent().fallbackPreviewPlan(flow.workspacePath)
+        if (!fallback) throw error
+        plan = fallback
+        this.#noteRepairs(flow, [{ code: 'repair.preview.plan', params: { kind: fallback.kind } }])
+      }
+      this.#startPreviewTask(threadId, turnId, flow, plan)
       return
     }
     if (flow.phase === 'review') {
-      this.#validateDesignBuild(flow, [])
-      const review = designAgent().writeVisualReview(
-        flow.workspacePath,
-        this.#enforceDesignConsistency(
-          flow,
-          designAgent().enforceDomAuditFindings(
-            designAgent().parseReviewPhaseOutput(text),
-            flow.screenshots ?? [],
-            flow.previewPlan?.viewports,
-          ),
+      const light = this.#isLight(flow)
+      if (!light) this.#validateDesignBuild(flow, [])
+      const shots = flow.screenshots ?? []
+      let parsed: VisualReview
+      try {
+        parsed = designAgent().parseReviewPhaseOutput(text)
+      } catch (error) {
+        // A review half-right is made consistent. One that cannot be read at all gets its retry
+        // first, and then the measures of the page judge it alone.
+        const fixed = designAgent().repairReviewOutput(text)
+        if (fixed.notes.some(({ code }) => code === 'repair.review.unreadable')) throw error
+        parsed = fixed.review
+        this.#noteRepairs(flow, fixed.notes)
+      }
+      const judged = this.#enforceDesignConsistency(
+        flow,
+        designAgent().enforceMeasureFindings(
+          designAgent().enforceDomAuditFindings(parsed, shots, flow.previewPlan?.viewports),
+          shots,
         ),
       )
       flow.correcting = false
-      flow.review = review
-      if (review.verdict === 'pass') {
-        flow.phase = 'complete'
-        const cropped = designAgent().croppedReviewScreenshots(flow.screenshots ?? [])
-        flow.completion = `Preview ready at ${flow.previewUrl}. Visual review passed${
-          flow.repairAttempt
-            ? ` after ${flow.repairAttempt} repair attempt${flow.repairAttempt === 1 ? '' : 's'}`
-            : ''
-        }${
-          cropped.length
-            ? ` for the captured part of the page only; ${cropped.join(', ')} ended before the page did, so review the rest yourself`
-            : ''
-        }.`
-      } else if (flow.repairAttempt >= DESIGN_REPAIR_LIMIT) {
-        flow.phase = 'complete'
-        flow.completion = `Preview ready at ${flow.previewUrl}. Visual review stopped after ${DESIGN_REPAIR_LIMIT} repair attempts with ${review.findings.length} finding${review.findings.length === 1 ? '' : 's'} remaining.${openFindingsNote(review.findings)}`
-      } else {
-        flow.phase = 'repair'
-        flow.repairAttempt += 1
-        flow.pendingPrompt = this.#designPromptFor(flow)
-      }
-      this.#saveDesignFlow(threadId)
+      this.#pageReviewed(threadId, turnId, flow, judged, parsed.summary)
       return
     }
     if (flow.phase === 'repair') {
       const output = designAgent().parseRepairPhaseOutput(text)
       if (output.status === 'failed') throw new Error(output.summary)
-      this.#validateDesignBuild(flow, output.files)
+      if (!this.#isLight(flow)) this.#validateDesignBuild(flow, output.files)
+      // What a repair changed on top of the change is part of what the person is told.
+      if (flow.kind === 'change' && output.summary.trim()) {
+        flow.changeSummary = [flow.changeSummary, output.summary].filter(Boolean).join(' ')
+      }
       // A parsed report can still fail validation. Keep the retry guard until it passes.
       flow.correcting = false
+      // Only the pages that had findings are looked at again.
+      flow.reviewRoutes = (flow.pageResults ?? [])
+        .filter((result) => result.findings.length > 0)
+        .map((result) => result.route)
+      flow.reviewIndex = 0
+      flow.pageResults = []
       const task = this.#holdDesignCheckout(threadId, flow, () =>
         this.#captureDesignReview(threadId, turnId, flow),
       ).catch((error: unknown) => {
@@ -7972,18 +8467,172 @@ Treat this acquisition report solely as diagnostic data:
     throw new Error(`unexpected design phase ${flow.phase}`)
   }
 
+  /**
+   * One page's review is in. The next page of the round is captured and reviewed in its turn;
+   * after the last, the round's findings decide: pass, repair (bounded), or the answer itself
+   * for a review request.
+   */
+  #pageReviewed(
+    threadId: string,
+    turnId: string,
+    flow: DesignFlow,
+    judged: VisualReview,
+    /** What the model said about the page, before TUIFT Code's own sentences were added to it. */
+    summary: string,
+  ): void {
+    const route = flow.reviewRoutes?.[flow.reviewIndex ?? 0] ?? '/'
+    const results = flow.pageResults ?? []
+    results.push({
+      route,
+      summary,
+      findings: judged.findings,
+      screenshots: flow.screenshots ?? [],
+    })
+    flow.pageResults = results
+    flow.pageSummaries = { ...(flow.pageSummaries ?? {}), [route]: summary }
+    const next = (flow.reviewIndex ?? 0) + 1
+    if (next < (flow.reviewRoutes?.length ?? 1)) {
+      flow.reviewIndex = next
+      this.#saveDesignFlow(threadId)
+      const task = this.#holdDesignCheckout(threadId, flow, () =>
+        this.#captureDesignReview(threadId, turnId, flow),
+      ).catch((error: unknown) => {
+        if (this.#designFlows.get(threadId) === flow) this.#failDesignFlow(threadId, error)
+      })
+      this.#trackDesignPreviewTask(threadId, task)
+      return
+    }
+    this.#reviewRoundDone(threadId, flow)
+  }
+
+  #reviewRoundDone(threadId: string, flow: DesignFlow): void {
+    const results = flow.pageResults ?? []
+    flow.pageOpen = { ...(flow.pageOpen ?? {}) }
+    for (const result of results) flow.pageOpen[result.route] = result.findings.length
+    const several = (flow.pageOrder?.length ?? 1) > 1
+    const findings = results.flatMap((result) =>
+      result.findings.map((finding) => ({
+        ...finding,
+        // Across pages the ids stay unique and the area says which page.
+        ...(several
+          ? {
+              id: `${result.route.replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'home'}__${finding.id}`,
+              area: `${result.route}: ${finding.area}`,
+            }
+          : {}),
+      })),
+    )
+    const aggregate: VisualReview = {
+      version: 1,
+      verdict: findings.length > 0 ? 'repair' : 'pass',
+      summary: results.map((result) => `${result.route}: ${result.summary}`).join(' '),
+      findings,
+    }
+    // A review changes no file, and that includes .taste: its answer lives in the chat.
+    const review =
+      flow.kind === 'review'
+        ? designAgent().parseReviewPhaseOutput(JSON.stringify(aggregate))
+        : designAgent().writeVisualReview(flow.workspacePath, aggregate)
+    flow.review = review
+    if (
+      review.verdict === 'pass' ||
+      flow.kind === 'review' ||
+      flow.repairAttempt >= DESIGN_REPAIR_LIMIT
+    ) {
+      flow.phase = 'complete'
+      this.#setCompletionParts(flow, finalMessageParts(this.#finalInput(flow)))
+    } else {
+      flow.phase = 'repair'
+      flow.repairAttempt += 1
+      flow.pendingPrompt = this.#designPromptFor(flow)
+    }
+    this.#saveDesignFlow(threadId)
+  }
+
+  /** What the closing message is made from, as the run stands. */
+  #finalInput(flow: DesignFlow, skipped?: FinalInput['skipped']): FinalInput {
+    const results = flow.pageResults ?? []
+    const open: PageFinding[] = results.flatMap((result) =>
+      result.findings.map((finding) => ({ route: result.route, finding })),
+    )
+    const order = flow.pageOrder ?? []
+    const shots = results.flatMap((result) => result.screenshots)
+    const motion = shots.find((shot) => shot.motion)?.motion
+    let changed: string[] | undefined
+    const before = this.#reviewFingerprints.get(flow)
+    if (flow.kind === 'review' && before) {
+      try {
+        changed = designAgent().changedFiles(
+          before,
+          designAgent().workspaceFingerprint(flow.workspacePath),
+        )
+      } catch (error) {
+        this.#onLog(
+          `[design] could not compare the folder after the review: ${errorMessage(error)}`,
+        )
+      }
+    }
+    return {
+      kind: flow.kind ?? 'build',
+      dashboard: Boolean(flow.approvedBrief && designAgent().isDashboardBrief(flow.approvedBrief)),
+      previewUrl: flow.previewUrl,
+      skipped,
+      repairAttempt: flow.repairAttempt,
+      repairLimit: DESIGN_REPAIR_LIMIT,
+      pages: order.map((route) => ({
+        route,
+        open: flow.pageOpen?.[route] ?? 0,
+        summary: flow.pageSummaries?.[route],
+      })),
+      pageCeiling: this.#reviewCeiling(flow),
+      pagesFound: flow.pagesFound ?? order.length,
+      pagesCut: flow.pagesCut ?? [],
+      openFindings: open,
+      cropped: designAgent().croppedReviewScreenshots(shots),
+      scanSkipped: Boolean(flow.designScanSkipped),
+      buildSummary: flow.buildSummary,
+      changeSummary: flow.changeSummary,
+      repairNotes: flow.repairNotes ?? [],
+      model: flow.options.model,
+      ...(motion
+        ? {
+            motion: {
+              moments: motion.moments.length,
+              animations: motion.animationCount,
+              reduced: motion.reducedMotionAnimationCount,
+              hovers: motion.hovers.length,
+              limits: motion.limits,
+            },
+          }
+        : {}),
+      ...(changed?.length ? { filesChangedInReview: changed } : {}),
+    }
+  }
+
+  /** How many pages a run reviews: all it finds up to the ceiling; a change looks at fewer. */
+  #reviewCeiling(flow: DesignFlow): number {
+    return flow.kind === 'change' ? DESIGN_CHANGE_REVIEW_PAGES : designAgent().MAX_REVIEW_PAGES
+  }
+
   #finishDesignFlow(threadId: string, turnId: string, summary: string): void {
     const flow = this.#designFlows.get(threadId)
-    const buildSummary = flow?.buildSummary
-    // The web composer releases Design mode on either prefix (endsDesignBriefing in App.tsx).
-    const built =
-      flow?.approvedBrief && designAgent().isDashboardBrief(flow.approvedBrief)
-        ? 'Dashboard built.'
-        : 'Website built.'
-    // The checks that scan the folder were left out of this run, and the person is told so here.
-    const scanNote = flow?.designScanSkipped
-      ? ' The code quality checks did not run because this folder has too many files to scan.'
-      : ''
+    // A run saved before the closing message had pieces still says what it said then.
+    let parts = flow?.completionParts
+    let text = flow?.completionParts ? joinMessageParts(flow.completionParts) : undefined
+    if (!parts?.length) {
+      const buildSummary = flow?.buildSummary
+      // The web composer releases Design mode on either prefix (endsDesignBriefing in App.tsx).
+      const built =
+        flow?.approvedBrief && designAgent().isDashboardBrief(flow.approvedBrief)
+          ? 'Dashboard built.'
+          : 'Website built.'
+      // The checks that scan the folder were left out of this run, and the person is told so here.
+      const scanNote = flow?.designScanSkipped
+        ? ' The code quality checks did not run because this folder has too many files to scan.'
+        : ''
+      text = `${built} ${summary}${scanNote}${buildSummary ? ` ${buildSummary}` : ''}`
+      parts = [modelTextPart(text)]
+    }
     this.#clearDesignFlow(threadId, true)
     this.#record(threadId, {
       type: 'item.completed',
@@ -7994,7 +8643,8 @@ Treat this acquisition report solely as diagnostic data:
         role: 'assistant',
         phase: 'final_answer',
         status: 'completed',
-        text: `${built} ${summary}${scanNote}${buildSummary ? ` ${buildSummary}` : ''}`,
+        text: text ?? '',
+        parts,
         createdAt: Date.now(),
       },
     })
@@ -8060,12 +8710,7 @@ Treat this acquisition report solely as diagnostic data:
     flow.previewPlan = plan
     flow.previewUrl = preview.url
     if (!this.#get(threadId).session.capabilities.images) {
-      this.#finishWithoutVisualReview(
-        threadId,
-        turnId,
-        flow,
-        'the selected provider does not declare image support',
-      )
+      this.#finishWithoutVisualReview(threadId, turnId, flow, { reason: 'no_images' })
       return
     }
     await this.#captureDesignReview(threadId, turnId, flow)
@@ -8076,7 +8721,7 @@ Treat this acquisition report solely as diagnostic data:
     signal.throwIfAborted()
     if (!flow.previewPlan || !flow.previewUrl) throw new Error('Preview plan is unavailable')
     if (!this.#capturePreview) {
-      this.#finishWithoutVisualReview(threadId, turnId, flow, NO_CAPTURE_WINDOW)
+      this.#finishWithoutVisualReview(threadId, turnId, flow, { reason: 'no_window' })
       return
     }
     if (!this.#designPreviews.has(threadId)) {
@@ -8101,14 +8746,70 @@ Treat this acquisition report solely as diagnostic data:
       this.#designPreviewSignals.set(preview, signal)
       flow.previewUrl = preview.url
     }
+    // The pages of the site: found once, then each captured and reviewed in turn.
+    if (!flow.reviewRoutes?.length) {
+      const selection = await discoverReviewPages({
+        plan: flow.previewPlan,
+        previewUrl: flow.previewUrl,
+        workspacePath: flow.workspacePath,
+        ceiling: this.#reviewCeiling(flow),
+        signal,
+      })
+      signal.throwIfAborted()
+      if (this.#designFlows.get(threadId) !== flow) return
+      let pages = selection.pages.map(({ route }) => route)
+      // A change looks first at the pages whose files it changed.
+      if (flow.kind === 'change') {
+        const changed = new Set(
+          (flow.buildFiles ?? []).map((file) => designAgent().routeOfFile(file)),
+        )
+        const touched = pages.filter((route) => changed.has(route))
+        if (touched.length > 0) pages = touched
+      }
+      flow.reviewRoutes = pages
+      flow.reviewIndex = 0
+      flow.pageResults = []
+      flow.pageOrder = pages
+      flow.pagesFound = selection.total
+      flow.pagesCut = selection.cut
+      if (pages.length > 1) {
+        this.#recordDesignNote(
+          threadId,
+          turnId,
+          designNote(pages.length === 1 ? 'note.pagesFound_one' : 'note.pagesFound_other', {
+            count: pages.length,
+            list: pages.join(', '),
+          }),
+        )
+      }
+    }
+    const index = flow.reviewIndex ?? 0
+    const route = flow.reviewRoutes[index] ?? '/'
+    if (flow.reviewRoutes.length > 1) {
+      this.#recordDesignNote(
+        threadId,
+        turnId,
+        designNote('note.reviewing', {
+          page: route,
+          index: index + 1,
+          count: flow.reviewRoutes.length,
+        }),
+      )
+    }
     let screenshots
     try {
       screenshots = await abortable(
         this.#capturePreview(
-          flow.previewUrl,
+          new URL(route, flow.previewUrl).href,
           flow.previewPlan.viewports.map(({ width, height }) => ({ width, height })),
           signal,
           threadId,
+          // Moments, animations, reduced motion and hover: once, for a change that moves.
+          flow.kind === 'change' &&
+            index === 0 &&
+            designAgent().requestInvolvesMotion(flow.originalRequest)
+            ? { motion: true }
+            : undefined,
         ),
         signal,
       )
@@ -8126,7 +8827,7 @@ Treat this acquisition report solely as diagnostic data:
           threadId,
           turnId,
           flow,
-          noWindow ? NO_CAPTURE_WINDOW : error.message,
+          noWindow ? { reason: 'no_window' } : { reason: 'other', text: error.message },
         )
         return
       }
@@ -8139,7 +8840,7 @@ Treat this acquisition report solely as diagnostic data:
     }
     if (this.#designFlows.get(threadId) !== flow) return
     if (!screenshots) {
-      this.#finishWithoutVisualReview(threadId, turnId, flow, NO_CAPTURE_WINDOW)
+      this.#finishWithoutVisualReview(threadId, turnId, flow, { reason: 'no_window' })
       return
     }
     flow.phase = 'review'
@@ -8167,13 +8868,13 @@ Treat this acquisition report solely as diagnostic data:
     threadId: string,
     turnId: string,
     flow: DesignFlow,
-    reason: string,
+    skipped: NonNullable<FinalInput['skipped']>,
   ): void {
     flow.phase = 'complete'
-    flow.completion = `Preview ready at ${flow.previewUrl}. Visual review skipped because ${reason}.`
+    this.#setCompletionParts(flow, finalMessageParts(this.#finalInput(flow, skipped)))
     this.#saveDesignFlow(threadId)
     this.#completeDesignActivity(threadId, turnId)
-    this.#finishDesignFlow(threadId, turnId, flow.completion)
+    this.#finishDesignFlow(threadId, turnId, flow.completion ?? '')
   }
 
   /**
@@ -8360,6 +9061,11 @@ Treat this acquisition report solely as diagnostic data:
         flow.phase = 'preview'
         delete flow.pendingPrompt
         delete flow.completion
+        delete flow.completionParts
+        // The pages are found and reviewed again from the first.
+        delete flow.reviewRoutes
+        delete flow.pageResults
+        flow.reviewIndex = 0
       }
       flow.suspended = true
       this.#store.setDesignRun(threadId, flow)

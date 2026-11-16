@@ -96,6 +96,7 @@ import type { StoredSubagentRun } from './subagent-runs.js'
 import * as checkpoint from './checkpoint.js'
 import { beginOptimisticTurn, emptyThread, reduceEventLog } from '../../web/src/thread-store.js'
 import { projectThreadItems } from '../../web/src/ui/turns.js'
+import { setLanguage } from '../../web/src/i18n/index.js'
 
 /** Counts stops, so tests can prove the dev server does not outlive its flow. */
 const previewStops = vi.hoisted(() => ({
@@ -4921,7 +4922,7 @@ describe('provider-neutral design briefing', () => {
     }
   })
 
-  it('fails after one correction when the agent repeats a malformed brief', async () => {
+  it('completes a malformed brief from the request itself and says so', async () => {
     const workspace = mkdtempSync(path.join(os.tmpdir(), 'harness-design-malformed-brief-'))
     const { orchestrator, sessions, received } = harness()
     try {
@@ -4935,19 +4936,11 @@ describe('provider-neutral design briefing', () => {
       })
       sessions[0]?.emit(message(malformed, 's1-turn'))
       sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+      // No second try: the fields the model left out are filled from the request, and Brand starts.
       await vi.waitFor(() => expect(sessions[0]?.sent).toHaveLength(2))
-
-      sessions[0]?.emit(message(malformed, 's1-turn'))
-      sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
-      await vi.waitFor(() =>
-        expect(
-          received.some(
-            ({ event }) =>
-              event.type === 'thread.error' && event.message.startsWith('Design mode failed'),
-          ),
-        ).toBe(true),
-      )
-      expect(sessions[0]?.sent).toHaveLength(2)
+      expect(sessions[0]?.sent[1]).toContain('Brand phase')
+      expect(received.some(({ event }) => event.type === 'thread.error')).toBe(false)
+      expect(JSON.stringify(received.map(({ event }) => event))).not.toContain('Design mode failed')
     } finally {
       await orchestrator.disposeAll()
       rmSync(workspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
@@ -7466,6 +7459,250 @@ describe('provider-neutral design briefing', () => {
     }
   })
 
+  const staticPlan = JSON.stringify({
+    version: 1,
+    kind: 'static',
+    entry: 'index.html',
+    cwd: '.',
+    url: 'http://127.0.0.1:4173/',
+    viewports: [
+      { name: 'desktop', width: 1440, height: 1000 },
+      { name: 'mobile', width: 390, height: 844 },
+    ],
+  })
+  const verdict = (pass: boolean, area = 'about, 1440px') =>
+    JSON.stringify({
+      version: 1,
+      verdict: pass ? 'pass' : 'repair',
+      summary: pass ? 'Tudo certo.' : 'Falta ritmo.',
+      findings: pass
+        ? []
+        : [
+            {
+              id: 'spacing_rhythm',
+              severity: 'major',
+              area,
+              evidenceType: 'visual_inspection',
+              confidence: 'high',
+              evidence: 'Os espaços entre as seções variam.',
+              repair: 'Usar uma escala só.',
+            },
+          ],
+    })
+
+  it('captures and reviews every page, repairs where the finding is, and reports per page', async () => {
+    const shots = mkdtempSync(path.join(os.tmpdir(), 'harness-design-pages-'))
+    const result = await previewRecoveryHarness(undefined, 'preview', [], (workspace) => {
+      for (const file of ['index.html', 'cardapio.html', 'contato.html'])
+        writeFileSync(path.join(workspace, file), `<h1>${file}</h1>`)
+      mkdirSync(path.join(workspace, 'src'))
+      writeFileSync(path.join(workspace, 'src', 'page.css'), 'body { font-family: Arial }')
+      return { kind: 'redesign', hasProject: true }
+    })
+    const { orchestrator, sessions, received, capturePreview, store, workspace } = result
+    const seen: string[] = []
+    capturePreview.mockReset().mockImplementation(async (url, viewports) => {
+      seen.push(new URL(url).pathname)
+      return viewports.map((viewport) => {
+        const file = path.join(shots, `${seen.length}-${viewport.width}.png`)
+        writeFileSync(file, 'png')
+        return { path: file, ...viewport }
+      })
+    })
+    const session = sessions[0]!
+    const answer = (text: string) => {
+      session.emit(message(text, 's1-turn'))
+      session.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+    }
+    try {
+      answer(staticPlan)
+      // Page 1 against the full plan, the other pages against the request.
+      await vi.waitFor(() => expect(session.sent).toHaveLength(2))
+      expect(session.sent[1]).toContain('visual Review phase')
+      answer(verdict(true))
+      await vi.waitFor(() => expect(session.sent).toHaveLength(3))
+      expect(session.sent[2]).toContain('another page of the site this run just built')
+      expect(session.sent[2]).toContain('page 2 of 3: /cardapio.html')
+      answer(verdict(true))
+      await vi.waitFor(() => expect(session.sent).toHaveLength(4))
+      expect(session.sent[3]).toContain('page 3 of 3: /contato.html')
+      // The finding is on the last page.
+      answer(verdict(false, 'footer, 390px'))
+      await vi.waitFor(() => expect(session.sent).toHaveLength(5))
+      expect(session.sent[4]).toContain('repair attempt 1 of 2')
+      expect(session.sent[4]).toContain('/contato.html: footer, 390px')
+      expect(session.sent[4]).toContain('contato_html__spacing_rhythm')
+      answer(
+        JSON.stringify({
+          status: 'complete',
+          summary: 'Ajustado.',
+          files: ['src/page.css'],
+          checks: [],
+        }),
+      )
+      // Only the page with the finding is captured and reviewed again.
+      await vi.waitFor(() => expect(session.sent).toHaveLength(6))
+      expect(seen).toEqual(['/', '/cardapio.html', '/contato.html', '/contato.html'])
+      answer(verdict(true))
+      await vi.waitFor(() =>
+        expect(
+          received.some(
+            ({ event }) => event.type === 'item.completed' && event.item.phase === 'final_answer',
+          ),
+        ).toBe(true),
+      )
+      const final = received
+        .map(({ event }) => event)
+        .find((event) => event.type === 'item.completed' && event.item.phase === 'final_answer')
+      const text = final?.type === 'item.completed' ? (final.item.text ?? '') : ''
+      expect(text).toContain('Website built. Preview ready at')
+      expect(text).toContain('Visual review passed after 1 repair attempt.')
+      expect(text).toContain('Checked 3 pages:')
+      expect(text).toContain('\n- /: no problems.')
+      expect(text).toContain('\n- /contato.html: no problems.')
+      expect(text).not.toContain('Not finished')
+      expect(store.designRun('preview-recovery')).toBeUndefined()
+    } finally {
+      await orchestrator.disposeAll()
+      store.close()
+      rmSync(workspace, { recursive: true, force: true, maxRetries: 3, retryDelay: 20 })
+      rmSync(shots, { recursive: true, force: true, maxRetries: 3, retryDelay: 20 })
+    }
+  })
+
+  it('finishes the page plan the smallest model got wrong, with no retry, and remembers it for the closing message', async () => {
+    const workspace = mkdtempSync(path.join(os.tmpdir(), 'harness-design-small-model-'))
+    const { orchestrator, sessions, received, store } = harness()
+    try {
+      const thread = await orchestrator.startThread('codex', workspace)
+      await orchestrator.sendTurn(
+        thread.id,
+        'Crie um site para a padaria Pão de Lenha, com cardápio e contato.',
+        [DESIGN_BRIEF_ATTACHMENT],
+        { model: 'small-model', effort: 'low' },
+      )
+      sessions[0]?.emit(
+        message(
+          JSON.stringify({
+            status: 'complete',
+            kind: 'build',
+            message: 'ok',
+            questions: [],
+            brief: {
+              originalRequest: 'x',
+              subject: 'Padaria Pão de Lenha',
+              pageType: 'landing_page',
+              scope: 'One page',
+              primaryGoal: 'Get orders',
+              audience: 'Neighbours',
+              offer: 'Bread',
+              primaryAction: 'Order',
+              requiredContent: ['Cardápio'],
+              constraints: [],
+              brandInputs: [],
+              creativeControl: 'Agent decides',
+              assumptions: [],
+              unresolved: [],
+            },
+          }),
+          's1-turn',
+        ),
+      )
+      sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+      await vi.waitFor(() => expect(sessions[0]?.sent).toHaveLength(2))
+      expect(sessions[0]?.sent[1]).toContain('Brand phase')
+
+      // A brand the small model left empty and that names a typeface it was not dealt.
+      sessions[0]?.emit(
+        message(JSON.stringify({ version: 1, typefaces: [{ family: 'Inter' }] }), 's1-turn'),
+      )
+      sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+      await vi.waitFor(() => expect(sessions[0]?.sent).toHaveLength(3))
+      expect(sessions[0]?.sent[2]).toContain('Page Blueprint phase')
+      expect(store.designRun(thread.id)).toMatchObject({ phase: 'page', correcting: false })
+
+      // The page plan of the diagnosis: a contact section that names a reference of another family.
+      const prompt = sessions[0]!.sent[2]!
+      const deck = JSON.parse(
+        /<reference-direction-deck>\s*([\s\S]*?)\s*<\/reference-direction-deck>/u.exec(prompt)![1]!,
+      ) as Array<{ id: string; family: string }>
+      const direction = (family: string) => deck.find((entry) => entry.family === family)!.id
+      const section = (id: string, family: string, reference: string) => ({
+        id,
+        layoutFamily: family,
+        referenceDirectionId: reference,
+        purpose: `The ${id} section.`,
+        userQuestion: 'Where?',
+        stage: 'explain',
+        dependencies: [],
+        evidence: [],
+        copy: { heading: `Titulo ${id}`, body: ['Texto simples.'], callsToAction: [] },
+        layout: 'Split.',
+        componentNeeds: [],
+        assetNeeds: [],
+        transformation: { compact: 'a', medium: 'b', expanded: 'c' },
+      })
+      sessions[0]?.emit(
+        message(
+          JSON.stringify({
+            version: 1,
+            page: { title: 'Padaria', route: '/', description: 'Paes todos os dias.' },
+            architecture: {
+              contract: 'Neighbours order bread.',
+              mode: 'persuade_convert',
+              novelty: 'low',
+              grid: '12 columns',
+              signatureRule: 'One loaf',
+              rhythm: 'Even',
+            },
+            navigation: [],
+            navigationDesign: {
+              layoutCase: 'reference-navigation',
+              layout: 'Logo left.',
+              behavior: [],
+              transformation: { compact: 'a', medium: 'b', expanded: 'c' },
+            },
+            sections: [
+              section('hero', 'hero', direction('hero')),
+              section('about', 'about', direction('about')),
+              section('menu', 'feature', direction('feature')),
+              section('contact', 'contact', direction('cta')),
+              section('footer', 'footer', direction('footer')),
+            ],
+            responsive: [],
+            interactions: [],
+            acceptanceCriteria: [],
+          }),
+          's1-turn',
+        ),
+      )
+      sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+      // Not a correction prompt and not a failure: the run moves on to the next phase.
+      await vi.waitFor(() => expect(sessions[0]?.sent).toHaveLength(4))
+      expect(sessions[0]?.sent[3]).toContain('Asset phase')
+      expect(received.some(({ event }) => event.type === 'thread.error')).toBe(false)
+      const saved = store.designRun(thread.id) as {
+        phase: string
+        options: { model: string }
+        repairNotes: Array<{ code: string; params?: Record<string, unknown> }>
+        approvedPage: { sections: Array<{ referenceDirectionId: string }> }
+      }
+      expect(saved.phase).toBe('assets')
+      expect(saved.options.model).toBe('small-model')
+      // The deck of this run held no contact reference, so the family follows the chosen one.
+      expect(saved.repairNotes).toContainEqual({
+        code: 'repair.page.layout',
+        params: { what: 'layoutFamily', section: 4, family: 'cta' },
+      })
+      expect(saved.repairNotes.map(({ code }) => code)).toContain('repair.brand.typeface')
+      expect(saved.approvedPage.sections[3]!.referenceDirectionId).toBe(direction('cta'))
+    } finally {
+      await orchestrator.disposeAll()
+      store.close()
+      rmSync(workspace, { recursive: true, force: true, maxRetries: 3, retryDelay: 20 })
+    }
+  })
+
   it('recaptures a restored Repair whose saved screenshots were deleted', async () => {
     const missing = path.join(os.tmpdir(), `harness-missing-${crypto.randomUUID()}.png`)
     const result = await previewRecoveryHarness(undefined, 'repair', [
@@ -7554,12 +7791,17 @@ describe('provider-neutral design briefing', () => {
       session.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
       await vi.waitFor(() =>
         expect(designCompletion(received)).toContain(
-          'Visual review stopped after 2 repair attempts with 2 findings remaining.',
+          'Visual review stopped after 2 repair attempts with 2 problems remaining.',
         ),
       )
+      // A page is never called finished while findings remain: the count comes first.
+      expect(designCompletion(received)).toContain(
+        'Website built. Not finished: 2 problems remain.',
+      )
       // The findings the review left open reach the chat, not only review.json.
-      expect(designCompletion(received)).toContain('Still open: (1) ')
-      expect(designCompletion(received)).toContain('(2) ')
+      expect(designCompletion(received)).toContain('Still open:')
+      expect(designCompletion(received)).toContain('\n1. ')
+      expect(designCompletion(received)).toContain('\n2. ')
       expect(session.sent).toHaveLength(5)
       expect(store.designRun('preview-recovery')).toBeUndefined()
       expect(received.some(({ event }) => event.type === 'thread.error')).toBe(false)
@@ -7655,6 +7897,7 @@ describe('provider-neutral design briefing', () => {
       expect(shown).not.toContain('verdict')
       // The prose before the JSON is still the agent's own progress.
       if ('prose' in shape) expect(shown).toContain(shape.prose)
+      setLanguage('en', { persist: false })
       const { presentations } = projectThreadItems(
         reduceEventLog(emptyThread, store.history('preview-recovery')).items,
       )
@@ -7786,7 +8029,7 @@ describe('provider-neutral design briefing', () => {
     }
   })
 
-  it('stops after a second malformed response', async () => {
+  it('completes the brief from the request when a second answer cannot be read either', async () => {
     const workspace = mkdtempSync(path.join(os.tmpdir(), 'harness-design-correction-'))
     const { orchestrator, sessions, received, store } = harness()
     try {
@@ -7798,13 +8041,17 @@ describe('provider-neutral design briefing', () => {
       sessions[0]?.emit(message('still not json', 's1-turn'))
       sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
 
-      expect(store.designRun(thread.id)).toBeUndefined()
-      expect(
-        received.some(
-          ({ event }) =>
-            event.type === 'thread.error' && event.message.includes('Design mode failed'),
-        ),
-      ).toBe(true)
+      // The model could not answer twice: the run goes on with a brief made from the request,
+      // and the closing message will say the model needed that.
+      await vi.waitFor(() => expect(sessions[0]?.sent).toHaveLength(3))
+      expect(sessions[0]?.sent[2]).toContain('Brand phase')
+      expect(store.designRun(thread.id)).toMatchObject({ phase: 'brand' })
+      expect(store.designRun(thread.id)).toMatchObject({
+        repairNotes: expect.arrayContaining([
+          { code: 'repair.brief.filled', params: { field: 'subject' } },
+        ]),
+      })
+      expect(received.some(({ event }) => event.type === 'thread.error')).toBe(false)
     } finally {
       await orchestrator.disposeAll()
       rmSync(workspace, { recursive: true, force: true, maxRetries: 3, retryDelay: 20 })
@@ -13462,5 +13709,311 @@ describe('Motion mode session start', () => {
     await expect(orchestrator.modeChanged('missing')).resolves.toBeUndefined()
     expect(logs).toEqual([])
     await orchestrator.disposeAll()
+  })
+})
+
+describe('design request kinds', { timeout: 60_000 }, () => {
+  const measuresOf = (name: string) =>
+    JSON.parse(
+      readFileSync(
+        new URL(
+          `../../../packages/design-agent/src/fixtures/measures/${name}.json`,
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    ) as Record<string, unknown>
+  const emptyHero = measuresOf('empty-hero.desktop')
+  const appScreen = measuresOf('app-screen.desktop')
+
+  const directories: string[] = []
+  const folder = (files: Record<string, string>) => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'harness-design-kind-'))
+    directories.push(dir)
+    for (const [name, content] of Object.entries(files)) {
+      mkdirSync(path.dirname(path.join(dir, name)), { recursive: true })
+      writeFileSync(path.join(dir, name), content)
+    }
+    return dir
+  }
+  // The preview here is a mock: the page search must not reach a real server on the plan's port.
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('not found', { status: 404 })),
+    )
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    for (const dir of directories.splice(0))
+      rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 20 })
+  })
+
+  /** Captures land outside the project, as the real capture's do. */
+  const capturing = (
+    measures: (route: string) => Record<string, unknown> | undefined,
+    motion?: unknown,
+  ) => {
+    const shots = mkdtempSync(path.join(os.tmpdir(), 'harness-design-shots-'))
+    directories.push(shots)
+    return async (
+      url: string,
+      viewports: Array<{ width: number; height: number }>,
+      _signal?: AbortSignal,
+      _threadId?: string,
+      _options?: { motion?: boolean },
+    ) => {
+      const route = new URL(url).pathname
+      return viewports.map((viewport, index) => {
+        const file = path.join(shots, `${route.replace(/\W+/g, '_')}-${viewport.width}.png`)
+        writeFileSync(file, 'png')
+        const found = viewport.width >= 1024 ? measures(route) : undefined
+        return {
+          path: file,
+          ...viewport,
+          ...(found ? { measures: found } : {}),
+          ...(motion && index === 0 ? { motion } : {}),
+        }
+      })
+    }
+  }
+
+  const finalAnswer = (received: Array<{ event: DomainEvent }>) => {
+    const found = received.find(
+      ({ event }) => event.type === 'item.completed' && event.item.phase === 'final_answer',
+    )?.event
+    return found?.type === 'item.completed' ? found.item : undefined
+  }
+
+  const briefing = (kind: string) =>
+    JSON.stringify({ status: 'complete', kind, message: 'ok', questions: [], brief: null })
+  const verdict = (pass: boolean, summary = 'Looks fine.') =>
+    JSON.stringify({
+      version: 1,
+      verdict: pass ? 'pass' : 'repair',
+      summary,
+      findings: pass
+        ? []
+        : [
+            {
+              id: 'spacing_rhythm',
+              severity: 'major',
+              area: 'about, 1440px',
+              evidenceType: 'visual_inspection',
+              confidence: 'high',
+              evidence: 'Gaps between sections vary.',
+              repair: 'Use one spacing scale.',
+            },
+          ],
+    })
+
+  it('answers a review with findings, runs no brief, brand, page or asset phase, and changes no file', async () => {
+    const workspace = folder({
+      'index.html': '<h1>Navalha Fina</h1>',
+      'cardapio.html': '<h1>Cardapio</h1>',
+      'contato.html': '<h1>Contato</h1>',
+    })
+    const before = readdirSync(workspace).sort()
+    const { orchestrator, sessions, received, capturePreview } = harness()
+    // The hero the first review approved: its measures fail it.
+    capturePreview.mockImplementation(capturing((route) => (route === '/' ? emptyHero : appScreen)))
+    try {
+      const thread = await orchestrator.startThread('codex', workspace)
+      await orchestrator.sendTurn(
+        thread.id,
+        'Revise esta página e me diga o que está errado. Não altere nenhum arquivo.',
+        [DESIGN_BRIEF_ATTACHMENT],
+      )
+      sessions[0]?.emit(message(briefing('review'), 's1-turn'))
+      sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+
+      for (let page = 1; page <= 3; page += 1) {
+        await vi.waitFor(() => expect(sessions[0]?.sent).toHaveLength(page + 1))
+        expect(sessions[0]?.sent[page]).toContain(`page ${page} of 3`)
+        expect(sessions[0]?.sent[page]).toContain('Nothing in the project may change')
+        // The model approves every page, the first included.
+        sessions[0]?.emit(message(verdict(true, `Resumo da pagina ${page}.`), 's1-turn'))
+        sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+      }
+      await vi.waitFor(() => expect(finalAnswer(received)).toBeDefined(), { timeout: 10_000 })
+
+      // One qualification turn and one review turn per page; nothing else ran.
+      expect(sessions[0]?.sent).toHaveLength(4)
+      const prompts = sessions[0]!.sent.join('\n')
+      for (const phase of ['Brand phase', 'Page Blueprint phase', 'Asset phase', 'Build phase']) {
+        expect(prompts).not.toContain(phase)
+      }
+      const answer = finalAnswer(received)!
+      expect(answer.text).toMatch(/^Review finished\. Nothing in the project was changed\./)
+      // The model approved the empty hero; the measures of the page itself failed it.
+      expect(answer.text).toContain('found 2 problems, most important first')
+      expect(answer.text).toContain('a band 568px tall')
+      // Most important first: the empty region (major) before the repeated action (minor).
+      expect(answer.text.indexOf('Major:')).toBeLessThan(answer.text.indexOf('Minor:'))
+      // What the model said about each page stays as it wrote it.
+      expect(answer.text).toContain('\n- /: Resumo da pagina 1.\n')
+      expect(answer.parts?.some((part) => part.code === 'review.finding.empty_region')).toBe(true)
+      expect(answer.parts?.[0]).toMatchObject({ code: 'final.reviewDone' })
+      // No file was written in the project, and no .taste folder.
+      expect(readdirSync(workspace).sort()).toEqual(before)
+      expect(existsSync(path.join(workspace, '.taste'))).toBe(false)
+      expect(received.some(({ event }) => event.type === 'thread.error')).toBe(false)
+    } finally {
+      await orchestrator.disposeAll()
+    }
+  })
+
+  it('says a review changed files when the agent wrote one although it was told not to', async () => {
+    const workspace = folder({ 'index.html': '<h1>Navalha Fina</h1>' })
+    const { orchestrator, sessions, received, capturePreview } = harness()
+    capturePreview.mockImplementation(capturing(() => undefined))
+    try {
+      const thread = await orchestrator.startThread('codex', workspace)
+      await orchestrator.sendTurn(thread.id, 'Revise esta página.', [DESIGN_BRIEF_ATTACHMENT])
+      sessions[0]?.emit(message(briefing('review'), 's1-turn'))
+      sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+      await vi.waitFor(() => expect(sessions[0]?.sent).toHaveLength(2))
+      writeFileSync(path.join(workspace, 'index.html'), '<h1>Changed by the reviewer</h1>')
+      sessions[0]?.emit(message(verdict(true), 's1-turn'))
+      sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+      await vi.waitFor(() => expect(finalAnswer(received)).toBeDefined(), { timeout: 10_000 })
+      expect(finalAnswer(received)!.text).toContain(
+        'changed files during this review although it was told not to: index.html',
+      )
+    } finally {
+      await orchestrator.disposeAll()
+    }
+  })
+
+  it('makes a change without brief, brand, page or assets, and checks it by moments, hover and reduced motion', async () => {
+    const workspace = folder({ 'index.html': '<h1>Navalha Fina</h1>', 'styles.css': 'h1{}' })
+    const { orchestrator, sessions, received, capturePreview } = harness()
+    const moment = path.join(os.tmpdir(), `harness-moment-${crypto.randomUUID()}.png`)
+    writeFileSync(moment, 'png')
+    const motion = {
+      moments: [{ atMs: 0, path: moment }],
+      animations: [{ name: 'fade-in', target: 'h1', durationMs: 600, iterations: 1 }],
+      animationCount: 1,
+      reducedMotionAnimationCount: 0,
+      hovers: [],
+      limits: ['script_animation', 'click_not_captured'],
+    }
+    capturePreview.mockImplementation(capturing(() => appScreen, motion))
+    try {
+      const thread = await orchestrator.startThread('codex', workspace)
+      await orchestrator.sendTurn(
+        thread.id,
+        'Acrescente uma animação de entrada no título e um hover nos links do menu.',
+        [DESIGN_BRIEF_ATTACHMENT],
+      )
+      sessions[0]?.emit(message(briefing('change'), 's1-turn'))
+      sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+
+      await vi.waitFor(() => expect(sessions[0]?.sent).toHaveLength(2))
+      expect(sessions[0]?.sent[1]).toContain('running the Change phase')
+      // The phase that changes the interface may use the Design pack's skills.
+      expect(sessions[0]?.sent[1]).toContain("This chat's Design skill pack is available")
+      sessions[0]?.emit(
+        message(
+          JSON.stringify({
+            status: 'complete',
+            summary: 'Adicionei a entrada do título e o hover.',
+            files: ['styles.css'],
+            checks: [],
+          }),
+          's1-turn',
+        ),
+      )
+      sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+
+      await vi.waitFor(() => expect(sessions[0]?.sent).toHaveLength(3))
+      // The capture asked for moments, animations, reduced motion and hover.
+      expect(capturePreview.mock.calls[0]?.[4]).toEqual({ motion: true })
+      expect(sessions[0]?.sent[2]).toContain('<motion-evidence>')
+      sessions[0]?.emit(message(verdict(true, 'A entrada aparece nos tres momentos.'), 's1-turn'))
+      sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+      await vi.waitFor(() => expect(finalAnswer(received)).toBeDefined(), { timeout: 10_000 })
+
+      expect(sessions[0]?.sent).toHaveLength(3)
+      const answer = finalAnswer(received)!
+      expect(answer.text).toContain('Change made.')
+      expect(answer.text).toContain('captured 1 moments of the first screen')
+      expect(answer.text).toContain('Not verified: animation driven by script')
+      expect(answer.text).toContain('Adicionei a entrada do título e o hover.')
+      expect(answer.parts?.at(-1)).toEqual({ text: 'Adicionei a entrada do título e o hover.' })
+    } finally {
+      await orchestrator.disposeAll()
+      rmSync(moment, { force: true })
+    }
+  })
+
+  it('takes the lighter path and says so when the words of the request name no kind', async () => {
+    const workspace = folder({ 'index.html': '<h1>x</h1>' })
+    const { orchestrator, sessions, received } = harness()
+    try {
+      const thread = await orchestrator.startThread('codex', workspace)
+      await orchestrator.sendTurn(thread.id, 'Quero algo mais bonito', [DESIGN_BRIEF_ATTACHMENT])
+      // The model says nothing about the kind either.
+      sessions[0]?.emit(
+        message(
+          JSON.stringify({ status: 'complete', message: 'ok', questions: [], brief: null }),
+          's1-turn',
+        ),
+      )
+      sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+      await vi.waitFor(() => expect(sessions[0]?.sent).toHaveLength(2))
+      expect(sessions[0]?.sent[1]).toContain('running the Change phase')
+      expect(
+        received.some(
+          ({ event }) =>
+            event.type === 'item.completed' &&
+            event.item.parts?.some((part) => part.code === 'note.kindLighter') === true,
+        ),
+      ).toBe(true)
+    } finally {
+      await orchestrator.disposeAll()
+    }
+  })
+
+  it('builds when the folder has no page to change, and says so', async () => {
+    const workspace = folder({ 'README.md': 'nothing here' })
+    const { orchestrator, sessions, received } = harness()
+    try {
+      const thread = await orchestrator.startThread('codex', workspace)
+      await orchestrator.sendTurn(thread.id, 'Acrescente uma animação no título.', [
+        DESIGN_BRIEF_ATTACHMENT,
+      ])
+      sessions[0]?.emit(message(briefing('change'), 's1-turn'))
+      sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+      // The brief is completed from the request and the full pipeline starts at Brand.
+      await vi.waitFor(() => expect(sessions[0]?.sent).toHaveLength(2))
+      expect(sessions[0]?.sent[1]).toContain('Brand phase')
+      expect(
+        received.some(
+          ({ event }) =>
+            event.type === 'item.completed' &&
+            event.item.parts?.some((part) => part.code === 'note.noProjectChange') === true,
+        ),
+      ).toBe(true)
+    } finally {
+      await orchestrator.disposeAll()
+    }
+  })
+
+  it('has nothing to review in a folder with no page, and says so without a preview', async () => {
+    const workspace = folder({ 'README.md': 'nothing here' })
+    const { orchestrator, sessions, received, capturePreview } = harness()
+    try {
+      const thread = await orchestrator.startThread('codex', workspace)
+      await orchestrator.sendTurn(thread.id, 'Revise esta página.', [DESIGN_BRIEF_ATTACHMENT])
+      sessions[0]?.emit(message(briefing('review'), 's1-turn'))
+      sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+      await vi.waitFor(() => expect(finalAnswer(received)).toBeDefined(), { timeout: 10_000 })
+      expect(finalAnswer(received)!.text).toBe('There is no page in this folder to review.')
+      expect(capturePreview).not.toHaveBeenCalled()
+      expect(sessions[0]?.sent).toHaveLength(1)
+    } finally {
+      await orchestrator.disposeAll()
+    }
   })
 })

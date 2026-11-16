@@ -1,0 +1,14 @@
+.taste/assets.json
+.taste/brand.json
+.taste/brief.json
+.taste/page.json
+.taste/review.json
+assets/fonts/commissioner/commissioner-400-latin-ext.woff2
+assets/fonts/commissioner/commissioner-400-latin.woff2
+assets/fonts/commissioner/commissioner.css
+assets/fonts/commissioner/OFL.txt
+cardapio.html
+contato.html
+index.html
+script.js
+styles.css

@@ -5,10 +5,15 @@ import type {
   PreviewCaptureRequest,
   PreviewCaptureResult,
   PreviewDomAudit,
+  PreviewMeasures,
+  PreviewMotionEvidence,
   PreviewScreenshot,
+  PreviewTile,
 } from '@harness/contracts'
 import { clearPreviewSession } from './preview-session.js'
 import { PREVIEW_DOM_AUDIT_SCRIPT } from './preview-dom-audit.js'
+import { PREVIEW_MEASURES_SCRIPT } from './preview-measures.js'
+import { captureMotion } from './preview-motion.js'
 import { allowsPreviewNavigation } from './preview-navigation.js'
 import {
   PREVIEW_PAGE_HEIGHT_SCRIPT,
@@ -17,6 +22,11 @@ import {
 } from './preview-settle.js'
 
 const CAPTURE_TIMEOUT_MS = 30_000
+/** The motion pass loads the page three more times and waits for animations, hovers and moments. */
+const MOTION_CAPTURE_TIMEOUT_MS = 75_000
+/** A page is cut into pieces about this tall (in CSS pixels, or the window height when taller). */
+const TILE_TARGET_HEIGHT = 1_100
+const MAX_TILES = 8
 const CLEANUP_TIMEOUT_MS = 2_000
 const MAX_PENDING_CAPTURES = 8
 const MAX_EARLY_CANCELLATIONS = 32
@@ -40,6 +50,9 @@ type Dependencies = {
   releaseWindow: (window: BrowserWindow) => void
   directory: (requestId: string) => string
   parseAudit: (value: unknown) => Promise<PreviewDomAudit>
+  /** Reads what the page measured about itself; absent, a capture carries no measures. */
+  parseMeasures?: (value: unknown) => Promise<PreviewMeasures>
+  parseMotion?: (value: unknown) => Promise<PreviewMotionEvidence>
   files?: { mkdir: typeof mkdir; rm: typeof rm; writeFile: typeof writeFile }
   timeoutMs?: number
   cleanupTimeoutMs?: number
@@ -115,7 +128,12 @@ export class PreviewCaptureOwner {
       throw error
     }
     const epoch = this.#cancellationEpoch
-    const deadline = Date.now() + (this.dependencies.timeoutMs ?? CAPTURE_TIMEOUT_MS)
+    const deadlineMs =
+      this.dependencies.timeoutMs ??
+      (typeof value === 'object' && value !== null && 'motion' in value && value.motion === true
+        ? MOTION_CAPTURE_TIMEOUT_MS
+        : CAPTURE_TIMEOUT_MS)
+    const deadline = Date.now() + deadlineMs
     const controller = new AbortController()
     const registration = { controller, value, requestId }
     // The loader returns a parser, so a stalled import never closes over the
@@ -148,7 +166,11 @@ export class PreviewCaptureOwner {
   }
 
   capture(request: PreviewCaptureRequest): Promise<PreviewCaptureResult> {
-    return this.#capture(request, this.dependencies.timeoutMs ?? CAPTURE_TIMEOUT_MS)
+    return this.#capture(
+      request,
+      this.dependencies.timeoutMs ??
+        (request.motion ? MOTION_CAPTURE_TIMEOUT_MS : CAPTURE_TIMEOUT_MS),
+    )
   }
 
   #capture(request: PreviewCaptureRequest, timeoutMs: number): Promise<PreviewCaptureResult> {
@@ -262,6 +284,7 @@ export class PreviewCaptureOwner {
       preview.webContents.debugger.attach('1.3')
       const screenshots: PreviewScreenshot[] = []
       const captured = new Map<string, PreviewScreenshot>()
+      let motionDone = false
       for (const viewport of request.viewports) {
         const key = `${viewport.width}x${viewport.height}`
         const previous = captured.get(key)
@@ -298,21 +321,90 @@ export class PreviewCaptureOwner {
           signal,
         )
         const destination = path.join(directory, `${key}.jpg`)
-        await whileActive(
-          () =>
-            files.writeFile(destination, Buffer.from(image.data, 'base64'), {
-              flag: 'wx',
-              mode: 0o600,
+        const write = (file: string, base64: string) =>
+          whileActive(
+            () =>
+              files.writeFile(file, Buffer.from(base64, 'base64'), {
+                flag: 'wx',
+                mode: 0o600,
+                signal,
+              }),
+            signal,
+          )
+        await write(destination, image.data)
+        // The page in readable pieces: a tall image is shrunk when a model reads it, and the
+        // small print goes. Each piece is one more capture of the same settled page.
+        const tiles: PreviewTile[] = []
+        const tileTarget = Math.max(TILE_TARGET_HEIGHT, viewport.height)
+        if (height > tileTarget * 1.25) {
+          const count = Math.min(MAX_TILES, Math.ceil(height / tileTarget))
+          const tileHeight = Math.ceil(height / count)
+          for (let index = 0; index < count; index += 1) {
+            const top = index * tileHeight
+            const pieceHeight = Math.min(tileHeight, height - top)
+            if (pieceHeight <= 0) break
+            const piece: { data: string } = await whileActive(
+              () =>
+                preview!.webContents.debugger.sendCommand('Page.captureScreenshot', {
+                  format: 'jpeg',
+                  quality: SCREENSHOT_JPEG_QUALITY,
+                  captureBeyondViewport: true,
+                  fromSurface: true,
+                  clip: { x: 0, y: top, width: viewport.width, height: pieceHeight, scale: 1 },
+                }),
               signal,
-            }),
-          signal,
-        )
+            )
+            const pieceFile = path.join(
+              directory,
+              `${key}-${String(index + 1).padStart(2, '0')}.jpg`,
+            )
+            await write(pieceFile, piece.data)
+            tiles.push({ path: pieceFile, top, height: pieceHeight })
+          }
+        }
+        // What the page says about itself, as numbers. A page that breaks the script still
+        // gets its screenshots.
+        let measures: PreviewMeasures | undefined
+        if (this.dependencies.parseMeasures) {
+          try {
+            const raw = await evaluate(PREVIEW_MEASURES_SCRIPT)
+            measures = await whileActive(() => this.dependencies.parseMeasures!(raw), signal)
+          } catch (error) {
+            signal.throwIfAborted()
+            void error
+          }
+        }
+        // Moments, animations, reduced motion and hover: once, at the first desktop viewport.
+        let motion: PreviewMotionEvidence | undefined
+        if (
+          request.motion &&
+          !motionDone &&
+          viewport.width >= 1_024 &&
+          this.dependencies.parseMotion
+        ) {
+          motionDone = true
+          try {
+            const raw = await captureMotion(
+              motionIo(preview, viewport, directory, write, signal),
+              viewport,
+            )
+            motion = await whileActive(() => this.dependencies.parseMotion!(raw), signal)
+            // Back to the settled page for the next viewport.
+            await whileActive(() => preview!.loadURL(request.url), signal)
+          } catch (error) {
+            signal.throwIfAborted()
+            void error
+          }
+        }
         const screenshot = {
           path: destination,
           ...viewport,
           domAudit,
           documentHeight,
           capturedHeight: height,
+          ...(tiles.length ? { tiles } : {}),
+          ...(measures ? { measures } : {}),
+          ...(motion ? { motion } : {}),
         }
         screenshots.push(screenshot)
         captured.set(key, screenshot)
@@ -352,5 +444,42 @@ export class PreviewCaptureOwner {
       }
     }
     return result
+  }
+}
+
+/** The debugger and window of one capture, shaped for the motion pass. */
+function motionIo(
+  preview: BrowserWindow,
+  viewport: { width: number; height: number },
+  directory: string,
+  write: (file: string, base64: string) => Promise<void>,
+  signal: AbortSignal,
+) {
+  return {
+    reload: async () => {
+      await whileActive(() => preview.webContents.loadURL(preview.webContents.getURL()), signal)
+      preview.setContentSize(viewport.width, viewport.height)
+    },
+    evaluate: (code: string) =>
+      whileActive(
+        () => preview.webContents.executeJavaScriptInIsolatedWorld(ISOLATED_WORLD, [{ code }]),
+        signal,
+      ),
+    send: (method: string, params?: Record<string, unknown>) =>
+      whileActive(
+        () =>
+          preview.webContents.debugger.sendCommand(method, params) as Promise<
+            { data?: string } | undefined
+          >,
+        signal,
+      ),
+    write: async (name: string, base64: string) => {
+      const file = path.join(directory, name)
+      await write(file, base64)
+      return file
+    },
+    sleep: (ms: number) =>
+      whileActive(() => new Promise<void>((resolve) => setTimeout(resolve, ms)), signal),
+    now: () => Date.now(),
   }
 }

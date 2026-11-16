@@ -1,0 +1,5 @@
+.taste/review.json
+cardapio.html
+contato.html
+index.html
+styles.css

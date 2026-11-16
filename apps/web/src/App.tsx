@@ -8826,6 +8826,9 @@ function providerName(id: ProviderId, sourceName?: string): string {
 function endsDesignBriefing(event: DomainEvent): boolean {
   if (event.type === 'thread.error') return event.message.startsWith('Design mode failed')
   if (event.type !== 'item.completed' || event.item.role !== 'assistant') return false
+  // The pipeline's own messages carry a code; its closing ones are `final.*` and `note.notDesign`.
+  const first = event.item.parts?.[0]?.code
+  if (first?.startsWith('final.') || first === 'note.notDesign') return true
   const text = event.item.text ?? ''
   return (
     text.trim() ===

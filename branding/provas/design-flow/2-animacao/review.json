@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "verdict": "pass",
+  "summary": "/: O pedido está atendido e nada na página quebrou. Entrada do título: a lista de animações mostra 'titulo-entrada' no h1 com 700ms e uma repetição; o primeiro momento capturado mostra o título esmaecido e mais baixo, e os dois seguintes já no lugar e com cor cheia. Com movimento reduzido, nenhuma animação continua rodando. Hover do menu: os três links mudam de cor (de rgb(26,18,11) para rgb(106,92,80)) e as imagens de antes e depois mostram o sublinhado marrom sob cada um. Não foi possível verificar animação por JavaScript (a página não tem scripts), cliques nem o foco pelo teclado. Olhei a página inteira em 1440 e 390 px: as medidas não acusam faixa vazia, rolagem lateral, alvo de toque pequeno, texto cortado nem contraste baixo. No celular, o menu agora fica na linha abaixo do nome da padaria, sem encostar nele.",
+  "findings": []
+}

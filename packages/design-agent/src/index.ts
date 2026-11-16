@@ -132,6 +132,7 @@ export {
   validateReviewScreenshots,
   writeVisualReview,
   type RepairPhaseOutput,
+  type ReviewMotionEvidence,
   type ReviewScreenshot,
   type ReviewSeverity,
   type VisualReview,
@@ -148,10 +149,57 @@ export {
 } from './design-consistency.js'
 export {
   designPreviewPrompt,
+  fallbackPreviewPlan,
   parsePreviewPhaseOutput,
   parsePreviewPlan,
+  staticPreviewPlan,
   type PreviewPlan,
 } from './preview.js'
+export {
+  classifyDesignRequest,
+  DESIGN_REQUEST_KINDS,
+  isDesignRequestKind,
+  isLightRequestKind,
+  requestInvolvesMotion,
+  resolveRequestKind,
+  type DesignRequestKind,
+  type RequestClassification,
+  type ResolvedRequestKind,
+} from './request-kind.js'
+export {
+  enforceMeasureFindings,
+  MEASURE_FINDING_IDS,
+  measureFindings,
+  type PageMeasures,
+} from './page-measures.js'
+export {
+  designAuditPrompt,
+  designChangePrompt,
+  designChangeRepairPrompt,
+  designChangeReviewPrompt,
+  reviewAttachments,
+} from './light-phases.js'
+export {
+  repairBrandOutput,
+  repairBriefInput,
+  fallbackPageOutput,
+  repairPageOutput,
+  repairReviewOutput,
+  type RepairNote,
+  type RepairResult,
+} from './repairs.js'
+export {
+  linkedRoutes,
+  MAX_REVIEW_PAGES,
+  routeOfFile,
+  selectReviewPages,
+  sitemapRoutes,
+  staticPageRoutes,
+  workspaceHasPage,
+  type DiscoveredPage,
+  type PageSelection,
+} from './page-discovery.js'
+export { DESIGN_PACK_NOTE } from './skills-note.js'
 export {
   DESIGN_BRIEF_ATTACHMENT,
   designBriefingContinuation,
@@ -170,3 +218,5 @@ export {
 } from './reference-library.js'
 export { selectTypographyCandidates, validateTypographySelection } from './typography.js'
 export type { TypographyCandidates } from './typography.js'
+export { changedFiles, workspaceFingerprint } from './review-guard.js'
+export { parsePhaseJson } from './phase-json.js'

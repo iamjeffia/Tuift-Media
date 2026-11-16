@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Padaria Doce Trigo</title>
+    <!-- A page for the motion capture: a title that fades in on load, links that lift and change color on hover, and the reduced-motion rule that removes both. -->
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        background: #fff3e8;
+        color: #1a120b;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        padding: 20px 80px;
+      }
+      header nav a {
+        display: inline-block;
+        margin-left: 16px;
+        padding: 14px 18px;
+        color: #1a120b;
+        text-decoration: none;
+        border-radius: 8px;
+        transition:
+          transform 200ms ease,
+          background-color 200ms ease;
+      }
+      header nav a:hover {
+        transform: translateY(-3px);
+        background-color: #f2c9a0;
+      }
+      h1 {
+        font-size: 80px;
+        padding: 40px 80px;
+        animation: rise 900ms ease-out both;
+      }
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(28px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      p {
+        padding: 0 80px 80px;
+        max-width: 700px;
+        line-height: 1.6;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        h1 {
+          animation: none;
+        }
+        header nav a {
+          transition: none;
+        }
+        header nav a:hover {
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>Padaria Doce Trigo</strong>
+      <nav>
+        <a href="#inicio">Início</a><a href="#cardapio">Cardápio</a><a href="#contato">Contato</a>
+      </nav>
+    </header>
+    <h1>Pães todos os dias</h1>
+    <p>
+      Fazemos pães, bolos e salgados todos os dias, com ingredientes simples, na Rua das Flores.
+    </p>
+  </body>
+</html>
