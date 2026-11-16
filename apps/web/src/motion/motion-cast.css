@@ -236,7 +236,7 @@
    leaves `data-running` off then). */
 .motion-cast[data-running] .motion-cast__member[data-current] .motion-cast__head::before,
 .motion-cast__member[data-working] .motion-cast__head::before {
-  animation: motion-cast-breathe 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation: motion-cast-breathe 1.6s steps(6) infinite;
   will-change: transform, opacity;
 }
 
