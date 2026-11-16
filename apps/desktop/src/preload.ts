@@ -158,6 +158,35 @@ const api = {
   },
   /** The chats that are not at rest; the shell decides what to notify. */
   reportChatAttention: (report: unknown): void => ipcRenderer.send('harness:chatAttention', report),
+  /** The chat this window shows, so a window the shell rebuilds can land on it. */
+  reportActiveChat: (chatId: string | undefined): void =>
+    ipcRenderer.send('harness:activeChat', chatId),
+  /**
+   * The shell asks, before it unloads a window hidden in the tray, whether anything this page
+   * holds would be lost. `isSafe` answers; a page that cannot answer is never unloaded.
+   */
+  onUnloadProbe: (isSafe: () => boolean): (() => void) => {
+    const handler = (_event: IpcRendererEvent, id: unknown) => {
+      if (typeof id !== 'number') return
+      let safe = false
+      try {
+        safe = isSafe() === true
+      } catch {
+        // An answer that fails is "not safe".
+      }
+      ipcRenderer.send('harness:unloadProbeAnswer', id, safe)
+    }
+    ipcRenderer.on('harness:unloadProbe', handler)
+    return () => ipcRenderer.removeListener('harness:unloadProbe', handler)
+  },
+  /** A line the shell wants shown, already translated (a recovery it did on its own). */
+  onShellNotice: (listener: (text: string) => void): (() => void) => {
+    const handler = (_event: IpcRendererEvent, text: unknown) => {
+      if (typeof text === 'string' && text.length > 0 && text.length <= 500) listener(text)
+    }
+    ipcRenderer.on('harness:shellNotice', handler)
+    return () => ipcRenderer.removeListener('harness:shellNotice', handler)
+  },
   /** A chat notification was clicked: open that chat. */
   onOpenChat: (listener: (chatId: string) => void): (() => void) => {
     const handler = (_event: IpcRendererEvent, chatId: unknown) => {

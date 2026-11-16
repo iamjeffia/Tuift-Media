@@ -103,6 +103,9 @@ export const en = {
   'badge.chatsNeedYou_one': '{count} chat needs you',
   'badge.chatsNeedYou_other': '{count} chats need you',
 
+  // Desk lifecycle: what the page says after the window recovered on its own.
+  'lifecycle.chatNotReopenedOom': 'The chat was not reopened because the window ran out of memory.',
+
   'dialog.serverCrashed.message': 'The core server keeps crashing.',
   'dialog.serverCrashed.detail':
     'Restart the server to try again. If this keeps happening, reinstall the app.',
@@ -207,6 +210,8 @@ export const ptBR = {
   'notice.finished': 'Concluído',
   'badge.chatsNeedYou_one': '{count} chat precisa de você',
   'badge.chatsNeedYou_other': '{count} chats precisam de você',
+
+  'lifecycle.chatNotReopenedOom': 'Chat não reaberto: a janela ficou sem memória.',
 
   'dialog.serverCrashed.message': 'O servidor principal continua falhando.',
   'dialog.serverCrashed.detail':

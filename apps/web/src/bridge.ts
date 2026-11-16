@@ -88,6 +88,9 @@ type Bridge = {
   onZoomChange: (listener: (factor: number) => void) => () => void
   reportChatAttention?: (report: ChatAttentionReport) => void
   onOpenChat?: (listener: (chatId: string) => void) => () => void
+  reportActiveChat?: (chatId: string | undefined) => void
+  onUnloadProbe?: (isSafe: () => boolean) => () => void
+  onShellNotice?: (listener: (text: string) => void) => () => void
   reportStartupMilestone?: (name: RendererStartupMilestone) => void
   edition?: unknown
   ownServerToken?: unknown
@@ -475,6 +478,21 @@ export const canNotifyChats = bridge?.reportChatAttention !== undefined
 /** The chats that are not at rest; the desktop shell decides what to notify. */
 export function reportChatAttention(report: ChatAttentionReport): void {
   bridge?.reportChatAttention?.(report)
+}
+
+/** The chat this window shows, so the shell can land a rebuilt window on it. */
+export function reportActiveChat(chatId: string | undefined): void {
+  bridge?.reportActiveChat?.(chatId)
+}
+
+/** The shell asks whether unloading this hidden window would lose anything. */
+export function onUnloadProbe(isSafe: () => boolean): () => void {
+  return bridge?.onUnloadProbe?.(isSafe) ?? (() => undefined)
+}
+
+/** A translated line from the shell, for a recovery it did on its own. */
+export function onShellNotice(listener: (text: string) => void): () => void {
+  return bridge?.onShellNotice?.(listener) ?? (() => undefined)
 }
 
 /** A chat notification was clicked. */

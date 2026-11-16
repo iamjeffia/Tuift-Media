@@ -191,9 +191,13 @@ protocol. Closing or restarting the Electron window does not stop active agents.
 stays a thin client and never owns orchestration, persistence, provider processes, the PTY, or
 credentials. Quitting asks the server to shut down over IPC (`{ type: 'harness:shutdown' }`),
 so it flushes streamed text and closes the store; the desktop force-stops it only after three
-seconds. A crashed renderer reloads once on its own and then offers a Reload dialog instead of
-looping. The packaged server takes its port from the renderer's compiled CSP, so a stray
-`HARNESS_PORT` cannot split the two.
+seconds. A crashed renderer reloads on its own up to three times in a row (the count starts over
+after five healthy minutes) and then offers a Reload dialog instead of looping; after running
+out of memory the new page opens without the chat that was open and says so. A window hidden
+in the tray for five minutes with no chat working and nothing unsaved is destroyed and built
+again when shown, on the chat it had open. While a turn runs, the desktop keeps the computer
+awake (the display may still turn off). The packaged server takes its port from the
+renderer's compiled CSP, so a stray `HARNESS_PORT` cannot split the two.
 
 Durable user data never lives in the OS temp folder, which the system may clean at any time.
 Pasted attachments are written under the app's data folder, because chat history keeps their

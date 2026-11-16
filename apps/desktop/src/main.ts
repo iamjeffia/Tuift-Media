@@ -17,6 +17,7 @@ import {
   nativeTheme,
   Notification,
   powerMonitor,
+  powerSaveBlocker,
   protocol,
   screen,
   session,
@@ -111,11 +112,17 @@ import {
 } from './project-file-preview.js'
 import { PDF_PARTITION } from './pdf-guest.js'
 import { PreviewCaptureOwner } from './preview-capture.js'
-import { configureRendererLifecycle } from './renderer-lifecycle.js'
+import { HiddenWindowUnloader, parseActiveChatId, UnloadProbe } from './hidden-window-unload.js'
+import {
+  configureRendererLifecycle,
+  MAX_RECENT_RELOADS,
+  type RendererLifecycle,
+} from './renderer-lifecycle.js'
 import { ServerSupervisor, type SupervisedServerProcess } from './server-supervisor.js'
 import { createQuitRequest } from './quit-request.js'
 import { startupSettleDelay, summarizeAppMetrics } from './startup-metrics.js'
 import { StartupIdleGate } from './startup-idle.js'
+import { TurnPowerGuard } from './turn-power.js'
 import { restoreMainWindowPresence } from './window-presence.js'
 import { startVisibilityWatchdog } from './window-visibility-watchdog.js'
 import {
@@ -351,6 +358,44 @@ let diagnostics: LocalDiagnostics | undefined
 let appUpdater: AppUpdateController | undefined
 /** Chats with a running turn, as the main window's page last reported them. */
 let runningAgents = 0
+/** Keeps the computer awake while a turn runs (the display may still turn off). */
+const turnPower = new TurnPowerGuard({
+  start: () => powerSaveBlocker.start('prevent-app-suspension'),
+  stop: (id) => powerSaveBlocker.stop(id),
+})
+/** The chat the main window's page shows, so a new page can land on it. */
+let activeChatId: string | undefined
+/** A line the next page shows once it listens, translated here. */
+let shellNotice: string | undefined
+const unloadProbe = new UnloadProbe()
+/** A window hidden in the tray for a while is destroyed, so its renderer stops costing memory. */
+const hiddenWindowUnloader = new HiddenWindowUnloader({
+  mayUnload: () => {
+    const window = mainWindow
+    return (
+      window !== undefined &&
+      !window.isDestroyed() &&
+      !window.isVisible() &&
+      !appIsQuitting &&
+      runningAgents === 0 &&
+      !window.webContents.isLoading() &&
+      !window.webContents.isCrashed()
+    )
+  },
+  pageIsSafe: async () => {
+    const contents = mainWindow?.webContents
+    if (!contents || contents.isDestroyed()) return false
+    return unloadProbe.ask((id) => contents.send('harness:unloadProbe', id))
+  },
+  unload: () => {
+    const window = mainWindow
+    if (!window || window.isDestroyed()) return
+    // The next window opens on the chat this one showed, unless a click already chose one.
+    chatToOpen ??= activeChatId
+    mainWindowStatePersistence?.saveAndStop()
+    window.destroy()
+  },
+})
 let waitingForUpdateCleanup = false
 let waitingForServerShutdown = false
 /** The person agreed to quit while chats work, or the update install already asked. */
@@ -784,12 +829,18 @@ function createWindow(): void {
   })
   window.on('closed', () => {
     if (mainWindow === window) mainWindow = undefined
+    hiddenWindowUnloader.shown()
+    turnPower.pageGone()
   })
+  window.on('hide', () => hiddenWindowUnloader.hidden())
   window.on('focus', () => {
     restoreMainWindowPresence(process.platform, app, window)
     chatNotifier.windowFocused()
   })
-  window.on('show', () => restoreMainWindowPresence(process.platform, app, window))
+  window.on('show', () => {
+    restoreMainWindowPresence(process.platform, app, window)
+    hiddenWindowUnloader.shown()
+  })
   window.on('unresponsive', () => {
     console.error('[desktop] main window renderer became unresponsive')
     void diagnostics?.record('renderer', 'Main window became unresponsive')
@@ -802,11 +853,22 @@ function createWindow(): void {
       `[desktop] main window renderer exited: ${details.reason} (code ${details.exitCode})`,
     )
     void diagnostics?.record('renderer crash', `${details.reason} (code ${details.exitCode})`)
+    turnPower.pageGone()
   })
   let recoveryPromptOpen = false
-  configureRendererLifecycle(window.webContents, {
+  const rendererLifecycle: RendererLifecycle = configureRendererLifecycle(window.webContents, {
     cancelCaptures: () => previewCaptures.cancelAll(),
+    onReload: ({ reason, attempt, resumeChat }) => {
+      void diagnostics?.record(
+        'renderer recovery',
+        `reload ${attempt} of ${MAX_RECENT_RELOADS} after ${reason}${resumeChat ? '' : '; chat not reopened'}`,
+      )
+      if (!activeChatId) return
+      if (resumeChat) chatToOpen ??= activeChatId
+      else if (reason === 'oom') shellNotice = t('lifecycle.chatNotReopenedOom')
+    },
     onPageReplaced: () => {
+      turnPower.pageGone()
       nativeMenuDispatch.reset(window.webContents)
       chatNotifier.pageReplaced()
       // A reload during shortcut recording must not leave accelerators off.
@@ -814,6 +876,7 @@ function createWindow(): void {
     },
     isQuitting: () => appIsQuitting,
     onRepeatedCrash: () => {
+      void diagnostics?.record('renderer recovery', `gave up after ${MAX_RECENT_RELOADS} reloads`)
       if (recoveryPromptOpen) return
       recoveryPromptOpen = true
       void dialog
@@ -826,7 +889,9 @@ function createWindow(): void {
           cancelId: 1,
         })
         .then(({ response }) => {
-          if (response === 0 && !appIsQuitting && !window.isDestroyed()) window.webContents.reload()
+          if (response !== 0 || appIsQuitting || window.isDestroyed()) return
+          rendererLifecycle.resetBudget()
+          window.webContents.reload()
         })
         .catch(() => {})
         .finally(() => {
@@ -985,6 +1050,10 @@ ipcMain.on('harness:chatAttention', (event, report: unknown) => {
     event.sender.send('harness:openChat', chatToOpen)
     chatToOpen = undefined
   }
+  if (shellNotice) {
+    event.sender.send('harness:shellNotice', shellNotice)
+    shellNotice = undefined
+  }
 })
 
 ipcMain.on('harness:suspendMenuShortcuts', (event, suspended: unknown) => {
@@ -1110,7 +1179,20 @@ ipcMain.on('harness:answerQuit', (event, quit: unknown) => {
 ipcMain.on('harness:runningAgents', (event, value: unknown) => {
   if (!isOwnRenderer(event.sender) || event.sender !== mainWindow?.webContents) return
   const count = parseRunningAgents(value)
-  if (count !== undefined) runningAgents = count
+  if (count === undefined) return
+  runningAgents = count
+  turnPower.report(count)
+  hiddenWindowUnloader.agentsChanged(count)
+})
+
+// The chat the page shows, and its answer to "would an unload lose anything?".
+ipcMain.on('harness:activeChat', (event, value: unknown) => {
+  if (isOwnRenderer(event.sender) && event.sender === mainWindow?.webContents)
+    activeChatId = parseActiveChatId(value)
+})
+ipcMain.on('harness:unloadProbeAnswer', (event, id: unknown, safe: unknown) => {
+  if (isOwnRenderer(event.sender) && event.sender === mainWindow?.webContents)
+    unloadProbe.answer(id, safe)
 })
 
 ipcMain.handle('harness:setTheme', (event, preference: unknown) => {
@@ -1542,6 +1624,8 @@ if (ownsSingleInstance) {
   app.on('will-quit', () => {
     // A notification left in the notification centre would reopen a chat of a closed app.
     chatNotifier.dispose()
+    turnPower.dispose()
+    hiddenWindowUnloader.dispose()
     appUpdater?.dispose()
     appUpdater = undefined
     macOSHaptics.stop()
