@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { Item } from '@harness/contracts'
+import { ItemSchema, type Item } from '@harness/contracts'
 import { act, cleanup, render } from '@testing-library/react'
 import { Profiler, memo } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -45,6 +45,13 @@ describe('castIdOfName', () => {
     expect(castIdOfName('Moss: references')).toBe('moss')
     expect(castIdOfName('zig - audio')).toBe('zig')
     expect(castIdOfName('Cloud/render')).toBe('cloud')
+    // The cast name as the last segment: a plugin agent's type, or a path.
+    expect(castIdOfName('tuift-media:moss')).toBe('moss')
+    expect(castIdOfName('tuift-media:cloud')).toBe('cloud')
+    expect(castIdOfName('TUIFT-Media:Penny')).toBe('penny')
+    expect(castIdOfName('team/cloud')).toBe('cloud')
+    expect(castIdOfName('a:b/zig')).toBe('zig')
+    expect(castIdOfName('tuift-media : pip ')).toBe('pip')
     expect(castIdOfName('Bun (script)')).toBe('bun')
     expect(castIdOfName('Pip · folders')).toBe('pip')
   })
@@ -56,6 +63,12 @@ describe('castIdOfName', () => {
       'Pipeline',
       'Bunny',
       'Cloud deploy',
+      'tuift-media:mossy',
+      'tuift-media:cloud deploy',
+      'x:moss:team',
+      'cloud-team:explorer',
+      'tuift-media:',
+      'tuift-media',
       'Penny2',
       'The Moss',
       'Zigzag',
@@ -96,6 +109,45 @@ describe('workingCast', () => {
         { ...helper('f', 'Penny'), subagent: undefined },
       ]),
     ).toEqual([])
+  })
+})
+
+describe('a provider own sub-agent', () => {
+  // Claude Code reports a plugin agent by its type: the adapter copies the Agent tool's
+  // `subagent_type` into `subagent.name`, and the transcript row shows that same field
+  // ("Running tuift-media:cloud · Montagem AE e render"). The derivation reads `name`.
+  const claudeCodeAgent = (type: string, state: 'running' | 'completed' = 'running'): Item =>
+    ItemSchema.parse({
+      id: `toolu_${type}:call`,
+      turnId: 'turn-1',
+      type: 'tool_call',
+      status: state === 'running' ? 'started' : 'completed',
+      text: 'Agent',
+      createdAt: 1,
+      subagent: {
+        id: `toolu_${type}`,
+        name: type,
+        description: 'Montagem AE e render',
+        state,
+        background: true,
+        transcriptId: 'task-1',
+        toolUses: 3,
+        lastTool: 'mcp__after-effects__ae_do',
+      },
+    })
+
+  it('lights the character named by the plugin agent type', () => {
+    expect(workingCast([claudeCodeAgent('tuift-media:cloud')])).toEqual(['cloud'])
+    expect(
+      workingCast([claudeCodeAgent('tuift-media:moss'), claudeCodeAgent('tuift-media:penny')]),
+    ).toEqual(['moss', 'penny'])
+    expect(workingCast([claudeCodeAgent('Explore'), claudeCodeAgent('general-purpose')])).toEqual(
+      [],
+    )
+  })
+
+  it('goes back to rest when it finishes', () => {
+    expect(workingCast([claudeCodeAgent('tuift-media:cloud', 'completed')])).toEqual([])
   })
 })
 

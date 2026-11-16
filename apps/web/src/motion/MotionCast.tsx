@@ -1,4 +1,4 @@
-import { IconAlertTriangle, IconMessageDots } from '@tabler/icons-react'
+import { IconAlertTriangle, IconDots } from '@tabler/icons-react'
 import { memo, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useI18n } from '../i18n/index.js'
 import { Menu, MenuItem } from '../ui/Menu.js'
@@ -175,7 +175,7 @@ function Member(props: {
         ) : null}
         {waiting ? (
           <span className="motion-cast__wait" aria-hidden>
-            <IconMessageDots size={11} stroke={2.25} />
+            <IconDots size={11} stroke={3} />
           </span>
         ) : null}
       </span>
