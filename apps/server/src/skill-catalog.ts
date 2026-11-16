@@ -14,6 +14,7 @@ import {
   installedSkillDir,
   readInstalledRecord,
   writeInstalledRecord,
+  type InstalledEntry,
 } from './installed-skills.js'
 import {
   DEFAULT_DOWNLOAD_POLICY,
@@ -192,7 +193,9 @@ export class SkillCatalog {
     const skills: AvailableSkill[] = []
     for (const entry of this.#options.entries()) {
       if (bundled?.has(entry.id)) continue
-      const own = record.skills[entry.id]
+      const recorded = record.skills[entry.id]
+      // An id the Clube's library also uses is that skill's, not this entry's.
+      const own = recorded?.origin === 'clube' ? undefined : recorded
       const installedHere =
         own !== undefined &&
         (await folderState(installedSkillDir(this.#options.root, own.category, entry.id))) ===
@@ -217,12 +220,78 @@ export class SkillCatalog {
             : installedHere && installed && installed.commit !== entry.source.commit
               ? 'update-available'
               : 'installed',
-        ...(installed ? { installedCommit: installed.commit } : {}),
+        ...(installed?.commit ? { installedCommit: installed.commit } : {}),
         ...(installedHere ? { installedFor: 'app' as const } : {}),
         ...(earlier ? { installedFor: 'project' as const } : {}),
       })
     }
+    // The skills the person installed from the Clube's library: no manifest entry, one record each.
+    const listed = new Set(skills.map((skill) => skill.id))
+    for (const [id, own] of Object.entries(record.skills)) {
+      if (own.origin !== 'clube' || listed.has(id)) continue
+      if (
+        (await folderState(installedSkillDir(this.#options.root, own.category, id))) !== 'folder'
+      ) {
+        continue
+      }
+      skills.push({
+        id,
+        name: own.title ?? id,
+        summary: { en: own.summary ?? own.title ?? id, 'pt-BR': own.summary ?? own.title ?? id },
+        author: 'Clube do Motion',
+        category: own.category,
+        license: null,
+        sourceUrl: own.page ?? 'https://clubedomotion.com',
+        commit: own.installedAt,
+        state: 'installed',
+        installedFor: 'app',
+        origin: 'clube',
+      })
+    }
     return skills
+  }
+
+  /**
+   * Installs a skill that did not come from the manifest (one from the Clube's library): `stage`
+   * writes the skill's files into the new folder it is given, and from there the move into the
+   * app's data folder, the record and the rollback are the same as for a skill from an author.
+   * Refuses an id the manifest or the bundle already uses.
+   */
+  installStaged(
+    provider: ProviderId,
+    projectPath: string,
+    skill: {
+      id: string
+      category: AvailableSkillCategory
+      title: string
+      summary: string
+      page?: string
+    },
+    stage: (folder: string) => Promise<void>,
+  ): Promise<void> {
+    const run = this.#queue.then(async () => {
+      const taken =
+        this.#options.bundled?.().has(skill.id) ||
+        this.#options.entries().some((entry) => entry.id === skill.id)
+      const before = readInstalledRecord(this.#options.root).skills[skill.id]
+      if (taken || (before && before.origin !== 'clube')) {
+        throw new Error('This skill id is already used by a skill TUIFT Code lists')
+      }
+      await this.#place(
+        skill.id,
+        skill.category,
+        {
+          origin: 'clube',
+          title: skill.title,
+          summary: skill.summary,
+          ...(skill.page ? { page: skill.page } : {}),
+        },
+        stage,
+      )
+      this.#options.onChanged(provider, projectPath)
+    })
+    this.#queue = run.catch(() => undefined)
+    return run
   }
 
   /**
@@ -315,6 +384,7 @@ export class SkillCatalog {
   async #current(entry: CatalogEntry): Promise<boolean> {
     const own = readInstalledRecord(this.#options.root).skills[entry.id]
     return (
+      own?.origin !== 'clube' &&
       own?.commit === entry.source.commit &&
       own.category === entry.category &&
       (await folderState(installedSkillDir(this.#options.root, own.category, entry.id))) ===
@@ -323,15 +393,33 @@ export class SkillCatalog {
   }
 
   async #installOne(entry: CatalogEntry, archive: Buffer): Promise<void> {
+    await this.#place(
+      entry.id,
+      entry.category,
+      {
+        commit: entry.source.commit,
+        ...(entry.set ? { set: entry.set } : {}),
+      },
+      (folder) => unpackSkill(archive, entry.source.path, folder).then(() => undefined),
+    )
+  }
+
+  /** Stages the skill's folder, moves it into place and records it; a failure leaves what was there. */
+  async #place(
+    id: string,
+    category: AvailableSkillCategory,
+    extra: Pick<InstalledEntry, 'commit' | 'origin' | 'title' | 'summary' | 'page' | 'set'>,
+    stage: (folder: string) => Promise<void>,
+  ): Promise<void> {
     const root = this.#options.root
     await mkdir(root, { recursive: true })
     // Inside the data folder, so the final move is a rename on the same volume.
     const staging = await mkdtemp(path.join(root, '.staging-'))
-    const destination = installedSkillDir(root, entry.category, entry.id)
+    const destination = installedSkillDir(root, category, id)
     try {
-      const folder = path.join(staging, entry.id)
-      await unpackSkill(archive, entry.source.path, folder)
-      await ensureCategoryPlugin(root, entry.category)
+      const folder = path.join(staging, id)
+      await stage(folder)
+      await ensureCategoryPlugin(root, category)
       await mkdir(path.dirname(destination), { recursive: true })
       // An update, or what a crash left: moved aside, so a failure can put it back.
       const aside =
@@ -340,17 +428,16 @@ export class SkillCatalog {
       try {
         await rename(folder, destination)
         const record = readInstalledRecord(root)
-        const before = record.skills[entry.id]
-        record.skills[entry.id] = {
-          commit: entry.source.commit,
-          category: entry.category,
-          ...(entry.set ? { set: entry.set } : {}),
+        const before = record.skills[id]
+        record.skills[id] = {
+          ...extra,
+          category,
           installedAt: new Date().toISOString(),
         }
         await writeInstalledRecord(root, record)
         // The manifest moved the skill to another category: its old folder goes.
-        if (before && before.category !== entry.category) {
-          await rm(installedSkillDir(root, before.category, entry.id), {
+        if (before && before.category !== category) {
+          await rm(installedSkillDir(root, before.category, id), {
             recursive: true,
             force: true,
           })

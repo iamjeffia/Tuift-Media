@@ -28,6 +28,7 @@ import { Orchestrator, resolveWorkspacePath, type LifecycleScheduleHint } from '
 import { bundledSkillFolders, defaultSkillsRoot } from './default-skills.js'
 import { installedSkillsRoot, loadInstalledSkills } from './installed-skills.js'
 import { ClubeAccount } from './clube-account.js'
+import { ClubeLibrary } from './clube-library.js'
 import { SoundLibrary } from './sound-library.js'
 import { SkillCatalog, readCatalogFile, thirdPartySkillsFile } from './skill-catalog.js'
 import { afterEffectsSource } from './motion-after-effects.js'
@@ -446,6 +447,13 @@ export function startServer(
     bundled: () => bundledSkillFolders(defaultSkillsRoot()),
     onChanged: (provider, projectPath) =>
       push.broadcast('skills.changed', { provider, projectPath }),
+  })
+  // The Clube's library for the Clube tab; a skill of the Clube is installed by the same catalog that installs the others.
+  const clubeLibrary = new ClubeLibrary({
+    clube,
+    log: (line) => console.log(line),
+    installSkill: (skill, stage, where) =>
+      skillCatalog.installStaged(where.provider, where.projectPath, skill, stage),
   })
   let providerStatuses: readonly ProviderStatus[] = []
   const feedback = new FeedbackService({
@@ -1253,6 +1261,63 @@ export function startServer(
       case 'clube.disconnect':
         await clube.disconnect()
         return clube.status()
+
+      case 'clube.library.search':
+        return clubeLibrary.search(parseParams(method, params))
+
+      case 'clube.library.item': {
+        const p = parseParams(method, params)
+        const stored = p.threadId ? store.thread(p.threadId) : undefined
+        return clubeLibrary.item(
+          p.id,
+          stored ? resolveWorkspacePath(stored.projectPath) : undefined,
+        )
+      }
+
+      case 'clube.library.media':
+        return clubeLibrary.media(parseParams(method, params).url)
+
+      case 'clube.library.limits':
+        return clubeLibrary.limits()
+
+      case 'clube.library.signal': {
+        const p = parseParams(method, params)
+        return clubeLibrary.signal(p.id, p.signal)
+      }
+
+      case 'clube.library.download': {
+        const p = parseParams(method, params)
+        const stored = store.thread(p.threadId)
+        return stored
+          ? clubeLibrary.download(resolveWorkspacePath(stored.projectPath), p.id, p.parts)
+          : { ok: false as const, reason: 'no-project' as const }
+      }
+
+      case 'clube.library.job':
+        return clubeLibrary.job(parseParams(method, params).jobId)
+
+      case 'clube.library.cancel':
+        clubeLibrary.cancel(parseParams(method, params).jobId)
+        return {}
+
+      case 'clube.library.exportText': {
+        const p = parseParams(method, params)
+        const stored = store.thread(p.threadId)
+        return stored
+          ? clubeLibrary.exportText(resolveWorkspacePath(stored.projectPath), p.id)
+          : { ok: false as const, reason: 'no-project' as const }
+      }
+
+      case 'clube.library.installSkill': {
+        const p = parseParams(method, params)
+        const stored = store.thread(p.threadId)
+        return stored
+          ? clubeLibrary.installSkill(p.id, {
+              provider: stored.provider,
+              projectPath: stored.projectPath,
+            })
+          : { ok: false as const, reason: 'no-project' as const }
+      }
 
       case 'sounds.settings':
         return sounds.settings()

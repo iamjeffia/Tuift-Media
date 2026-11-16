@@ -139,7 +139,7 @@ function listOf(body: unknown, names: readonly string[]): unknown[] {
   return []
 }
 
-function objectOf(value: unknown): Record<string, unknown> {
+export function objectOf(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {}
@@ -213,7 +213,7 @@ const fail = (
 const isFailure = (value: unknown): value is SoundFailure =>
   typeof value === 'object' && value !== null && (value as { ok?: unknown }).ok === false
 
-const sanitizeName = (name: string): string => {
+export const sanitizeName = (name: string): string => {
   const cleaned = Array.from(name.normalize('NFC'))
     .map((character) =>
       character.charCodeAt(0) < 32 || '<>:"/\\|?*'.includes(character) ? ' ' : character,
@@ -862,7 +862,7 @@ const positive = (value: string | null): number | undefined => {
 }
 
 /** An answer's JSON, bounded; anything else is undefined. */
-async function readJson(response: Response): Promise<unknown> {
+export async function readJson(response: Response): Promise<unknown> {
   const bytes = await readCapped(response, MAX_JSON_BYTES)
   if (!bytes) return undefined
   try {
@@ -873,7 +873,7 @@ async function readJson(response: Response): Promise<unknown> {
 }
 
 /** A whole answer, or undefined when it is longer than `limit` or breaks off. */
-async function readCapped(response: Response, limit: number): Promise<Buffer | undefined> {
+export async function readCapped(response: Response, limit: number): Promise<Buffer | undefined> {
   const declared = Number(response.headers.get('content-length'))
   if (Number.isFinite(declared) && declared > limit) {
     await response.body?.cancel().catch(() => undefined)
