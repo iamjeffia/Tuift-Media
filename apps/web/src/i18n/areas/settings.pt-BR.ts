@@ -922,7 +922,7 @@ export const settingsPt = {
   'settings.skills.showMoreAbout': 'Mostrar mais sobre {name}',
   'settings.skills.catalog.title': 'Disponíveis para instalar',
   'settings.skills.catalog.note':
-    'Estas skills vêm dos próprios autores e não fazem parte do TUIFT Code. Ao instalar, cada uma é baixada do repositório do autor.',
+    'Estas skills vêm dos próprios autores e não fazem parte do TUIFT Code. Instalar baixa cada uma do repositório do autor, uma vez para o app inteiro. As de Design carregam em chats de Design e as de Motion, em chats de Motion.',
   'settings.skills.catalog.installAll': 'Instalar todas',
   'settings.skills.catalog.install': 'Instalar',
   'settings.skills.catalog.update': 'Atualizar',
@@ -935,6 +935,19 @@ export const settingsPt = {
   'settings.skills.catalog.meta': 'Por {author} · Licença: {license}',
   'settings.skills.catalog.metaNoLicense': 'Por {author} · O autor não declarou licença',
   'settings.skills.catalog.openSource': 'Abrir o código-fonte de {name}',
+  'settings.skills.catalog.scopeApp.design':
+    'Instalada para o app inteiro · Carrega em chats de Design',
+  'settings.skills.catalog.scopeApp.motion':
+    'Instalada para o app inteiro · Carrega em chats de Motion',
+  'settings.skills.catalog.scopeApp.general':
+    'Instalada para o app inteiro · Carrega em todos os chats',
+  'settings.skills.catalog.scopeProject':
+    'Instalada neste projeto por uma versão anterior. Continua aqui e não vale para outros projetos.',
+  'settings.skills.catalog.remove': 'Remover',
+  'settings.skills.catalog.removeFor': 'Remover {name}',
+  'settings.skills.catalog.removing': 'Removendo…',
+  'settings.skills.catalog.confirmRemove':
+    'Remover {name} do app inteiro? Ela deixa de carregar em qualquer chat.',
   // MCP servers
   'settings.mcp.provider': 'Provedor',
   'settings.mcp.providerLabel': 'Provedor do MCP',

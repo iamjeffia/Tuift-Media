@@ -99,6 +99,11 @@ import {
   type DefaultSkills,
 } from './default-skills.js'
 import {
+  installedCategories,
+  type InstalledSkills,
+  type InstalledSkillsLoader,
+} from './installed-skills.js'
+import {
   AFTER_EFFECTS_SERVER_ID,
   currentAfterEffectsState,
   decideAfterEffects,
@@ -973,6 +978,7 @@ export class Orchestrator {
   #recordedTurnDiffs = new Map<string, { turnId: string; diff: string }>()
   #worktreeRoot: string
   readonly #defaultSkillsRoot: string | undefined
+  readonly #installedSkills: InstalledSkillsLoader | undefined
   #defaultSkills: DefaultSkills | undefined
   #skillPacks = new Map<string, DefaultSkillPack | undefined>()
   /** Where After Effects and its server are; absent, Motion chats say nothing about it. */
@@ -1148,6 +1154,11 @@ export class Orchestrator {
       worktreeRoot?: string
       /** The folder of the skills that ship with TUIFT Code; absent, sessions get none. */
       defaultSkillsRoot?: string
+      /**
+       * The skills installed from their authors that a chat of these categories receives
+       * (`general`, plus its mode's), minus those a chat already has from the bundle.
+       */
+      installedSkills?: InstalledSkillsLoader
       /** Attaches the After Effects server to Motion chats; absent, Motion chats never mention it. */
       afterEffects?: AfterEffectsSource
       /** Watches memory while turns run, and says whether a dead process died on a starved system. */
@@ -1169,6 +1180,7 @@ export class Orchestrator {
       handlers.worktreeRoot ??
       (process.env['HARNESS_WORKTREE_DIR'] || path.join(path.dirname(storeLocation()), 'trees'))
     this.#defaultSkillsRoot = handlers.defaultSkillsRoot
+    this.#installedSkills = handlers.installedSkills
     this.#afterEffectsSource = handlers.afterEffects
     this.#onThreadSettings = (threadId) => handlers.onThreadSettings?.(threadId)
     this.#onEvent = handlers.onEvent
@@ -1969,13 +1981,44 @@ export class Orchestrator {
           afterEffects?.state,
         )
       : undefined
+    const installed = skills ? this.#installedFor(mode, bundled) : undefined
+    const packPlugins = [
+      ...(modeStart?.plugins ?? []),
+      ...(native ? (installed?.pluginDirs ?? []) : []),
+    ]
     return {
       instructions: composeInstructions(
-        [catalog, modeStart?.instructions, instructions?.trim()].filter(Boolean).join('\n\n'),
+        [
+          catalog,
+          modeStart?.instructions,
+          native ? installed?.loaded : installed?.catalog,
+          instructions?.trim(),
+        ]
+          .filter(Boolean)
+          .join('\n\n'),
       ),
       ...(bundled?.skills.length && native ? { skillPlugin: bundled.root } : {}),
-      ...(modeStart?.plugins.length ? { packPlugins: modeStart.plugins } : {}),
+      ...(packPlugins.length ? { packPlugins } : {}),
     }
+  }
+
+  /**
+   * The skills installed from their authors that a chat in `mode` receives: the
+   * `general` ones always, the `design` or `motion` ones with that mode on. What
+   * the chat already has from the bundle is left out.
+   */
+  #installedFor(
+    mode: ThreadMode | undefined,
+    bundled: DefaultSkills | undefined,
+  ): InstalledSkills | undefined {
+    if (!this.#installedSkills) return undefined
+    // A mode's pack is named after the mode (motion-session.ts).
+    const have = new Set(mode ? this.#bundledPack(mode)?.skills : undefined)
+    for (const skill of bundled?.skills ?? []) {
+      have.add(skill.name)
+      if (skill.source.type === 'folder') have.add(path.basename(skill.source.path))
+    }
+    return this.#installedSkills(installedCategories(mode), have)
   }
 
   /** Read once per server, like the base bundle; none when no bundle was given. */

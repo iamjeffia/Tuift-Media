@@ -144,6 +144,25 @@ export function isDefaultSkillId(id: string): boolean {
   return id.startsWith(DEFAULT_SKILL_ID_PREFIX)
 }
 
+/**
+ * The folder names of every skill the bundle declares, base and packs, whether or
+ * not its files are on disk. A skill from its author with one of these names is
+ * already shipped, so it is not offered and not loaded a second time.
+ */
+export function bundledSkillFolders(root = defaultSkillsRoot()): Set<string> {
+  try {
+    const manifest = JSON.parse(readFileSync(path.join(root, 'skills.json'), 'utf8')) as {
+      skills?: unknown
+    }
+    const entries = Array.isArray(manifest.skills) ? (manifest.skills as BundledEntry[]) : []
+    return new Set(
+      entries.flatMap((entry) => (typeof entry.folder === 'string' ? [entry.folder] : [])),
+    )
+  } catch {
+    return new Set()
+  }
+}
+
 /** A catalog of a pack stays within about 450 tokens, whatever its install path. */
 export const PACK_CATALOG_MAX_CHARS = 1800
 
@@ -211,10 +230,16 @@ export function loadDefaultSkillPack(
  * agent is told to list the folder. A pack is large, and every session of its
  * mode pays for these tokens.
  */
-function packCatalogText(directory: string, folders: string[], lines: string[]): string {
-  let text = `Skills for this kind of work, one folder each in ${directory}. Read a skill's SKILL.md only when the step calls for it:`
+export function packCatalogText(
+  directory: string,
+  folders: string[],
+  lines: string[],
+  head = `Skills for this kind of work, one folder each in ${directory}. Read a skill's SKILL.md only when the step calls for it:`,
+  max = PACK_CATALOG_MAX_CHARS,
+): string {
+  let text = head
   // Room kept for the line that names the rest.
-  const budget = PACK_CATALOG_MAX_CHARS - 220
+  const budget = max - 220
   let shown = 0
   while (shown < lines.length && text.length + 1 + lines[shown]!.length <= budget)
     text += `\n${lines[shown++]}`
@@ -222,10 +247,9 @@ function packCatalogText(directory: string, folders: string[], lines: string[]):
   if (!rest.length) return text
   const prefix = '\nMore, by name: '
   const names = rest.join(', ')
-  if (text.length + prefix.length + names.length <= PACK_CATALOG_MAX_CHARS)
-    return text + prefix + names
+  if (text.length + prefix.length + names.length <= max) return text + prefix + names
   const pointer = ', and others (list the folder above)'
-  const room = PACK_CATALOG_MAX_CHARS - text.length - prefix.length - pointer.length
+  const room = max - text.length - prefix.length - pointer.length
   const fit = names.slice(0, Math.max(room, 0))
   return text + prefix + fit.slice(0, Math.max(fit.lastIndexOf(', '), 0)) + pointer
 }

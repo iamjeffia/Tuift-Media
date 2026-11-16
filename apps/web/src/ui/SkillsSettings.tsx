@@ -43,6 +43,8 @@ export function SkillsSettings(props: {
   const [catalogFailures, setCatalogFailures] = useState<ReadonlyMap<string, string>>(
     () => new Map(),
   )
+  const [removing, setRemoving] = useState<ReadonlySet<string>>(() => new Set())
+  const [removeFailures, setRemoveFailures] = useState<ReadonlyMap<string, string>>(() => new Map())
   const availableGeneration = useRef(0)
   const refreshAvailable = useRef<() => Promise<void>>(async () => {})
   const inventoryGeneration = useRef(0)
@@ -130,13 +132,15 @@ export function SkillsSettings(props: {
     }
   }, [props.transport, props.provider, props.projectPath, reload])
 
-  const canInstall = Boolean(props.projectPath) && inventory?.capabilities.install === true
+  // The install no longer depends on the provider: it lands in the app's own data folder.
   useEffect(() => {
     setAvailable(undefined)
     setAvailableError(undefined)
     setCatalogBusy(new Set())
     setCatalogFailures(new Map())
-    if (!props.projectPath || !canInstall) return
+    setRemoving(new Set())
+    setRemoveFailures(new Map())
+    if (!props.projectPath) return
     let active = true
     // Ordered like the inventory's load: a push may overlap the first read.
     const load = async () => {
@@ -164,7 +168,7 @@ export function SkillsSettings(props: {
       refreshAvailable.current = async () => {}
       off()
     }
-  }, [props.transport, props.provider, props.projectPath, canInstall])
+  }, [props.transport, props.provider, props.projectPath])
 
   /**
    * Installs skills from their authors. The server reports each one that lands
@@ -199,6 +203,34 @@ export function SkillsSettings(props: {
       for (const id of ids) next.delete(id)
       return next
     })
+    await refreshAvailable.current()
+  }
+
+  /** Removes a skill installed for the whole app, after the person confirms. */
+  async function removeFromApp(skill: AvailableSkill): Promise<void> {
+    if (
+      !props.projectPath ||
+      !window.confirm(t('settings.skills.catalog.confirmRemove', { name: skill.name }))
+    )
+      return
+    setRemoving((current) => new Set([...current, skill.id]))
+    setRemoveFailures((current) => {
+      const next = new Map(current)
+      next.delete(skill.id)
+      return next
+    })
+    try {
+      await props.transport.request('skills.removeAvailable', {
+        provider: props.provider,
+        projectPath: props.projectPath,
+        id: skill.id,
+      })
+    } catch (cause) {
+      if (isCurrentContext())
+        setRemoveFailures((current) => new Map([...current, [skill.id, message(cause)]]))
+    }
+    if (!isCurrentContext()) return
+    setRemoving(without(skill.id))
     await refreshAvailable.current()
   }
 
@@ -346,7 +378,7 @@ export function SkillsSettings(props: {
       ) : (
         <SettingsEmpty title={t('settings.skills.project.empty')} />
       )}
-      {props.projectPath && canInstall && (available?.length || availableError) ? (
+      {props.projectPath && (available?.length || availableError) ? (
         <SettingsSection
           title={t('settings.skills.catalog.title')}
           note={t('settings.skills.catalog.note')}
@@ -385,7 +417,10 @@ export function SkillsSettings(props: {
               skill={skill}
               installing={catalogBusy.has(skill.id)}
               failure={catalogFailures.get(skill.id)}
+              removing={removing.has(skill.id)}
+              removeFailure={removeFailures.get(skill.id)}
               onInstall={() => void installFromAuthors([skill.id])}
+              onRemove={() => void removeFromApp(skill)}
             />
           ))}
         </SettingsSection>
@@ -520,22 +555,27 @@ function AvailableSkillRow(props: {
   skill: AvailableSkill
   installing: boolean
   failure: string | undefined
+  removing: boolean
+  removeFailure: string | undefined
   onInstall: () => void
+  onRemove: () => void
 }) {
   const { t, language } = useI18n()
   const { skill } = props
   // Installed wins over a request still in flight: an update that landed is done.
   const installing = props.installing && skill.state !== 'installed'
   const failed = !installing && props.failure !== undefined && skill.state !== 'installed'
-  const status = installing
-    ? t('settings.skills.installing')
-    : failed
-      ? t('settings.skills.catalog.failed')
-      : skill.state === 'installed'
-        ? t('settings.skills.catalog.installed')
-        : skill.state === 'update-available'
-          ? t('settings.skills.catalog.updateAvailable')
-          : undefined
+  const status = props.removing
+    ? t('settings.skills.catalog.removing')
+    : installing
+      ? t('settings.skills.installing')
+      : failed
+        ? t('settings.skills.catalog.failed')
+        : skill.state === 'installed'
+          ? t('settings.skills.catalog.installed')
+          : skill.state === 'update-available'
+            ? t('settings.skills.catalog.updateAvailable')
+            : undefined
   const [action, actionFor] = failed
     ? ([
         t('settings.skills.retry'),
@@ -564,13 +604,24 @@ function AvailableSkillRow(props: {
           <button
             className="set-button"
             type="button"
-            disabled={installing}
+            disabled={installing || props.removing}
             aria-label={actionFor}
             onClick={props.onInstall}
           >
             {action}
           </button>
         )}
+        {skill.installedFor === 'app' ? (
+          <button
+            className="set-button set-button--danger"
+            type="button"
+            disabled={installing || props.removing}
+            aria-label={t('settings.skills.catalog.removeFor', { name: skill.name })}
+            onClick={props.onRemove}
+          >
+            {t('settings.skills.catalog.remove')}
+          </button>
+        ) : null}
         <a
           className="set-button set-button--quiet set-button--icon"
           href={skill.sourceUrl}
@@ -592,10 +643,23 @@ function AvailableSkillRow(props: {
             ? t('settings.skills.catalog.metaNoLicense', { author: skill.author })
             : t('settings.skills.catalog.meta', { author: skill.author, license: skill.license })}
         </p>
+        {skill.installedFor === 'app' ? (
+          <p className="set-entity__detail">
+            {t(`settings.skills.catalog.scopeApp.${skill.category}`)}
+          </p>
+        ) : skill.installedFor === 'project' ? (
+          <p className="set-entity__detail">{t('settings.skills.catalog.scopeProject')}</p>
+        ) : null}
         {failed ? (
           <p className="set-entity__detail set-entity__detail--error">
             <AlertTriangle size={13} aria-hidden />
             <span>{props.failure}</span>
+          </p>
+        ) : null}
+        {props.removeFailure ? (
+          <p className="set-entity__detail set-entity__detail--error">
+            <AlertTriangle size={13} aria-hidden />
+            <span>{props.removeFailure}</span>
           </p>
         ) : null}
       </div>

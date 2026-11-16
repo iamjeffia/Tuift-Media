@@ -12,10 +12,13 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+/** The skills from their authors are offered for every provider, so the page always asks for them: none here. */
 function client(request: (method: string, params: unknown) => Promise<unknown>): Transport {
   return {
     state: 'open',
-    request: vi.fn(request),
+    request: vi.fn((method: string, params: unknown) =>
+      method === 'skills.available' ? Promise.resolve({ skills: [] }) : request(method, params),
+    ),
     on: vi.fn(() => () => {}),
     onState: vi.fn(() => () => {}),
   } as unknown as Transport
@@ -248,7 +251,11 @@ describe('Agent Skills settings', () => {
     expect(screen.getByText('Codex · Project')).toBeTruthy()
     expect(screen.queryByText('Discovering skills…')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
-    await waitFor(() => expect(transport.request).toHaveBeenCalledTimes(2))
+    await waitFor(() =>
+      expect(
+        vi.mocked(transport.request).mock.calls.filter(([method]) => method === 'skills.list'),
+      ).toHaveLength(2),
+    )
   })
 
   it('reports a rejected folder picker without starting an install', async () => {
@@ -297,16 +304,18 @@ describe('Agent Skills settings', () => {
 
   it('recovers inventory after the connection reopens', async () => {
     let onState: ((state: 'open' | 'reconnecting') => void) | undefined
+    let lists = 0
     const transport = {
       state: 'open',
-      request: vi
-        .fn()
-        .mockRejectedValueOnce(new Error('Connection to the server was lost.'))
-        .mockResolvedValueOnce({
+      request: vi.fn(async (method: string) => {
+        if (method === 'skills.available') return { skills: [] }
+        if (lists++ === 0) throw new Error('Connection to the server was lost.')
+        return {
           capabilities: { inventory: true, configure: false, install: false },
           skills: [],
           errors: [],
-        }),
+        }
+      }),
       on: vi.fn(() => () => {}),
       onState: vi.fn((listener: typeof onState) => {
         onState = listener
@@ -355,6 +364,7 @@ describe('Agent Skills settings', () => {
         }
       }
       if (method === 'skills.setEnabled') return toggle
+      if (method === 'skills.available') return { skills: [] }
       throw new Error(`unexpected ${method}`)
     })
     const view = render(
@@ -409,6 +419,7 @@ describe('Agent Skills settings', () => {
           ),
         )
       }
+      if (method === 'skills.available') return { skills: [] }
       throw new Error(`unexpected ${method}`)
     })
     render(
@@ -456,6 +467,7 @@ describe('Agent Skills settings', () => {
       request: vi.fn(async (method: string) => {
         if (method === 'skills.list') return lists++ === 0 ? inventory : staleRefresh
         if (method === 'skills.setEnabled') return { enabled: false }
+        if (method === 'skills.available') return { skills: [] }
         throw new Error(`unexpected ${method}`)
       }),
       on: vi.fn((channel: string, listener: (value: never) => void) => {

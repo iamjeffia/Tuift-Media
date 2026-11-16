@@ -25,7 +25,8 @@ import {
 import { stopModelListings } from './runtime-loader.js'
 import { readWorkspaceDiff, StaleDiffSnapshotError } from './diff-review.js'
 import { Orchestrator, resolveWorkspacePath, type LifecycleScheduleHint } from './orchestrator.js'
-import { defaultSkillsRoot } from './default-skills.js'
+import { bundledSkillFolders, defaultSkillsRoot } from './default-skills.js'
+import { installedSkillsRoot, loadInstalledSkills } from './installed-skills.js'
 import { ClubeAccount } from './clube-account.js'
 import { SkillCatalog, readCatalogFile, thirdPartySkillsFile } from './skill-catalog.js'
 import { afterEffectsSource } from './motion-after-effects.js'
@@ -322,6 +323,22 @@ export function startServer(
     log: (line) => console.log(line),
     onChanged: () => push.broadcast('clube.changed', {}),
   })
+  // Skills installed from their authors live once, in the data folder (see installed-skills.ts).
+  const installedRoot = installedSkillsRoot(path.dirname(databasePath))
+  const thirdPartyEntries = () => readCatalogFile(thirdPartySkillsFile(defaultSkillsRoot()))
+  // Read once: the manifest is part of the install and does not change while the server runs.
+  let manifestSummaries: Map<string, string> | undefined
+  const manifestSummary = (id: string) => {
+    try {
+      manifestSummaries ??= new Map(
+        thirdPartyEntries().map((entry) => [entry.id, entry.summary.en]),
+      )
+    } catch {
+      // A lost manifest only shortens the catalog lines.
+      return undefined
+    }
+    return manifestSummaries.get(id)
+  }
   const orchestrator = new Orchestrator(store, {
     clube,
     memory: memoryWatch,
@@ -389,6 +406,8 @@ export function startServer(
     onLimitsChanged: (source) => push.broadcast('usage.limits', { source }),
     providerBinary: async (provider) => (await providerService).providerBinary(provider),
     defaultSkillsRoot: defaultSkillsRoot(),
+    installedSkills: (categories, exclude) =>
+      loadInstalledSkills(installedRoot, categories, { summary: manifestSummary, exclude }),
     afterEffects: afterEffectsSource(),
     onModelsChanged: (provider, agent, accountId) =>
       push.broadcast('models.changed', {
@@ -418,9 +437,9 @@ export function startServer(
   })
   reportStartupMilestone('server-orchestrator-ready')
   const skillCatalog = new SkillCatalog({
-    entries: () => readCatalogFile(thirdPartySkillsFile(defaultSkillsRoot())),
-    installFolder: (provider, projectPath, folderPath) =>
-      orchestrator.installSkillFromFolder(provider, projectPath, folderPath),
+    entries: thirdPartyEntries,
+    root: installedRoot,
+    bundled: () => bundledSkillFolders(defaultSkillsRoot()),
     onChanged: (provider, projectPath) =>
       push.broadcast('skills.changed', { provider, projectPath }),
   })
@@ -1269,6 +1288,12 @@ export function startServer(
       case 'skills.installAvailable': {
         const p = parseParams(method, params)
         return { results: await skillCatalog.install(p.provider, p.projectPath, p.ids) }
+      }
+
+      case 'skills.removeAvailable': {
+        const p = parseParams(method, params)
+        await skillCatalog.remove(p.provider, p.projectPath, p.id)
+        return {}
       }
 
       case 'auth.status': {

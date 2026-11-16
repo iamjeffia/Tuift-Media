@@ -1452,6 +1452,30 @@ describe('protocol envelopes', () => {
         ids: [],
       }),
     ).toThrow()
+    expect(
+      methods['skills.available'].result.parse({
+        skills: [{ ...available, state: 'installed', installedFor: 'project' }],
+      }).skills[0]?.installedFor,
+    ).toBe('project')
+    expect(() =>
+      methods['skills.available'].result.parse({
+        skills: [{ ...available, installedFor: 'home' }],
+      }),
+    ).toThrow()
+    expect(
+      methods['skills.removeAvailable'].params.parse({
+        provider: 'claude-code',
+        projectPath: 'D:\\project',
+        id: 'transitions-dev',
+      }).id,
+    ).toBe('transitions-dev')
+    expect(() =>
+      methods['skills.removeAvailable'].params.parse({
+        provider: 'claude-code',
+        projectPath: 'D:\\project',
+        id: '',
+      }),
+    ).toThrow()
   })
 
   it('validates provider-neutral Agent Skills inventory and mutations', () => {
