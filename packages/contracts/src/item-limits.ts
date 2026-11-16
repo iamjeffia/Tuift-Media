@@ -14,11 +14,28 @@ export const MAX_ITEM_OUTPUT_CHARS = 64 * 1024
 export const MAX_MESSAGE_CHARS = 1024 * 1024
 /** One diff: a file change item's patch, or a turn's patch. */
 export const MAX_DIFF_CHARS = 1024 * 1024
+/**
+ * The agent's plan, whether it is an item or the steps of a plan update. It is a document the
+ * person reads whole; 256 KiB is about 60,000 words.
+ */
+export const MAX_PLAN_CHARS = 256 * 1024
+/**
+ * The agent's reasoning in one item. It is drawn as Markdown behind a disclosure and nobody reads
+ * a megabyte of it, while every replay of the chat pays for each character.
+ */
+export const MAX_REASONING_CHARS = 256 * 1024
+/**
+ * What the person sends in one message, typed or pasted: about 64,000 tokens, more than anyone
+ * types and past what a model reads well in one message. Text above it belongs in a file the agent
+ * opens itself. Unlike the limits above this one never cuts: the prompt box refuses to send, and
+ * the server refuses the call (`userMessageTooLong`).
+ */
+export const MAX_USER_MESSAGE_CHARS = 256 * 1024
 
 export type ItemTextLimit = {
   max: number
   /** Names what was cut in the marker: `… output truncated …`. */
-  noun: 'output' | 'message' | 'diff'
+  noun: 'output' | 'message' | 'diff' | 'plan' | 'reasoning'
   /**
    * Keep the start and the end of what is over the limit, or the start only. A diff keeps only
    * its start, cut at a line: a tail would begin inside a file and be counted for another one.
@@ -29,10 +46,22 @@ export type ItemTextLimit = {
 const OUTPUT_LIMIT: ItemTextLimit = { max: MAX_ITEM_OUTPUT_CHARS, noun: 'output', keepEnd: true }
 const MESSAGE_LIMIT: ItemTextLimit = { max: MAX_MESSAGE_CHARS, noun: 'message', keepEnd: true }
 export const DIFF_LIMIT: ItemTextLimit = { max: MAX_DIFF_CHARS, noun: 'diff', keepEnd: false }
+export const PLAN_LIMIT: ItemTextLimit = { max: MAX_PLAN_CHARS, noun: 'plan', keepEnd: true }
+const REASONING_LIMIT: ItemTextLimit = {
+  max: MAX_REASONING_CHARS,
+  noun: 'reasoning',
+  keepEnd: true,
+}
+/** Only for a message already stored above the ceiling: a send above it is refused, not cut. */
+export const USER_MESSAGE_LIMIT: ItemTextLimit = {
+  max: MAX_USER_MESSAGE_CHARS,
+  noun: 'message',
+  keepEnd: true,
+}
 
 /**
- * The limit on an item's text, or undefined when it has none: what the user typed, the agent's
- * reasoning and plan, notices.
+ * The limit on an item's text that cuts it, or undefined when it has none: what the user typed
+ * (refused above `MAX_USER_MESSAGE_CHARS`, never cut), notices.
  */
 export function itemTextLimit(item: Pick<Item, 'type' | 'role'>): ItemTextLimit | undefined {
   switch (item.type) {
@@ -44,6 +73,10 @@ export function itemTextLimit(item: Pick<Item, 'type' | 'role'>): ItemTextLimit 
       return item.role === 'user' ? undefined : MESSAGE_LIMIT
     case 'file_change':
       return DIFF_LIMIT
+    case 'plan':
+      return PLAN_LIMIT
+    case 'reasoning':
+      return REASONING_LIMIT
     default:
       return undefined
   }
@@ -59,7 +92,9 @@ export function endsWithStreamCut(text: string): boolean {
   return (
     text.endsWith(streamCutMarker('output')) ||
     text.endsWith(streamCutMarker('message')) ||
-    text.endsWith(streamCutMarker('diff'))
+    text.endsWith(streamCutMarker('diff')) ||
+    text.endsWith(streamCutMarker('plan')) ||
+    text.endsWith(streamCutMarker('reasoning'))
   )
 }
 

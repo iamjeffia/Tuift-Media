@@ -6,6 +6,13 @@ export { applyDesktopPath, desktopPath } from './desktop-path.js'
 export type { DesktopPathOptions } from './desktop-path.js'
 export { holdsProcessGroup, killTree, spawnOwned } from './kill.js'
 export {
+  ChildRegistry,
+  closeChildRegistry,
+  openChildRegistry,
+  type ReapReport,
+  type RegisteredProcess,
+} from './child-registry.js'
+export {
   argumentPromptLimit,
   commandVersion,
   invalidateCommandCache,

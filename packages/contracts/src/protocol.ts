@@ -146,6 +146,13 @@ export const ResponseSchema = z.union([
       message: z.string(),
       /** Shown to the user verbatim when present, so keep it human-readable. */
       detail: z.string().optional(),
+      /**
+       * A message of the app's own catalog that says the same as `message` in the reader's
+       * language, with the values its placeholders take. `message` stays, in English, for logs and
+       * for a client that does not know the key.
+       */
+      key: z.string().optional(),
+      params: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
     }),
   }),
 ])

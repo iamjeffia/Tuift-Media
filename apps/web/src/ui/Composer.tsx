@@ -12,7 +12,13 @@ import {
   type DragEvent,
   type KeyboardEvent,
 } from 'react'
-import type { ApprovalMode, ProviderId, QueuedTurn, Usage } from '@harness/contracts'
+import {
+  MAX_USER_MESSAGE_CHARS,
+  type ApprovalMode,
+  type ProviderId,
+  type QueuedTurn,
+  type Usage,
+} from '@harness/contracts'
 import type { ModelChoice } from '../model-catalog.js'
 import {
   IconArrowUp as ArrowUp,
@@ -36,6 +42,7 @@ import {
 } from '@tabler/icons-react'
 import { APPROVAL_MODES } from './approval-modes.js'
 import {
+  canSavePastedFiles,
   isMacOS,
   pickFiles,
   previewViewedImage,
@@ -47,6 +54,7 @@ import { appCommands, parseAppActionCommand, type AppScreen } from '../app-comma
 import { registerComposerAttacher } from '../composer-attach.js'
 import { rememberChipTokens, rememberedChipTokens } from '../composer-chip-memory.js'
 import { parseFeedbackCommand } from '../feedback-command.js'
+import { userMessageTooLongText } from '../message-limit.js'
 import { DEFAULT_KEYBINDINGS, shortcutAria, type Keybindings } from '../shortcuts.js'
 import type { Transport } from '../transport.js'
 import { type VoiceRecording } from '../voice-capability.js'
@@ -704,6 +712,9 @@ function ComposerComponent(props: {
   // The textarea owns its full draft. React only needs the blank/nonblank
   // boundary, so ordinary typing does not rerender the complete composer.
   const [hasDraftText, setHasDraftText] = useState(false)
+  // The draft's length while it is over what one message may hold, otherwise 0. Typing under the
+  // ceiling never changes it, so it costs no render.
+  const [overSize, setOverSize] = useState(0)
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([])
   const [attachmentError, setAttachmentError] = useComposerError()
   const [viewingMedia, setViewingMedia] = useState<{
@@ -753,6 +764,7 @@ function ComposerComponent(props: {
   /** The prompt Arrow Up put back, until it is sent, cleared or replaced. */
   const recalledPrompt = useRef<string | undefined>(undefined)
   const hasDraftTextRef = useRef(false)
+  const overSizeRef = useRef(0)
   const attachmentsSupportedRef = useRef(props.attachmentsSupported)
   const previewUrls = useRef(new Set<string>())
   const resizeFrame = useRef<number | undefined>(undefined)
@@ -1233,6 +1245,11 @@ function ComposerComponent(props: {
       hasDraftTextRef.current = nextHasDraftText
       setHasDraftText(nextHasDraftText)
     }
+    const nextOverSize = value.length > MAX_USER_MESSAGE_CHARS ? value.length : 0
+    if (nextOverSize !== overSizeRef.current) {
+      overSizeRef.current = nextOverSize
+      setOverSize(nextOverSize)
+    }
     // Notifies the overlay only while chips are in the draft or just left it.
     chipStore.set(value)
     if (!chipsSeenRef.current && chipStore.get() !== '') {
@@ -1596,6 +1613,11 @@ function ComposerComponent(props: {
       (!props.attachmentsSupported && attachments.length > 0)
     )
       return false
+    if (trimmed.length > MAX_USER_MESSAGE_CHARS) {
+      // The draft stays as it is: a message over the ceiling is never cut, so there is nothing to send.
+      setAttachmentError(userMessageTooLongText(trimmed.length))
+      return false
+    }
     if (!props.projectPath) {
       props.onProjectRequired()
       return false
@@ -1721,10 +1743,54 @@ function ComposerComponent(props: {
   const submitLabel = props.running ? 'Queue' : 'Send'
   const sendDisabled =
     (!hasDraftText && attachments.length === 0) ||
+    overSize > 0 ||
     attachments.some((attachment) => !attachment.path) ||
     props.disabled ||
     props.sendAvailability !== 'ready' ||
     (!props.attachmentsSupported && attachments.length > 0)
+  /** The whole draft moves into a text file the agent opens itself; the draft stays until the file is saved. */
+  const attachTextAsFile = async () => {
+    const owner = draftRequestRef.current?.request
+    const file = new File(
+      [composerWireText(textRef.current, { images: props.attachmentsSupported })],
+      'pasted-text.txt',
+      {
+        type: 'text/plain',
+      },
+    )
+    const saved = await savePastedFile(file).catch(() => undefined)
+    if (!mounted.current || draftRequestRef.current?.request !== owner) return
+    if (!saved) {
+      setAttachmentError(t('chat.attach.failed', { name: file.name }))
+      return
+    }
+    attachFiles([saved])
+    updateText('')
+    requestAnimationFrame(() => {
+      area.current?.focus()
+      grow()
+    })
+  }
+  const attachTextAsFileRef = useRef(attachTextAsFile)
+  attachTextAsFileRef.current = attachTextAsFile
+  const tooLongIssue = useMemo<ComposerError | undefined>(
+    () =>
+      overSize > 0
+        ? {
+            id: 'message-too-long',
+            message: userMessageTooLongText(overSize),
+            ...(canSavePastedFiles && props.attachmentsSupported
+              ? {
+                  action: {
+                    label: t('chat.send.attachAsFile'),
+                    run: () => void attachTextAsFileRef.current(),
+                  },
+                }
+              : {}),
+          }
+        : undefined,
+    [overSize, props.attachmentsSupported, t],
+  )
   const unsupportedAttachmentIssue = useMemo<ComposerError | undefined>(
     () =>
       !props.attachmentsSupported && attachments.length > 0
@@ -1768,6 +1834,7 @@ function ComposerComponent(props: {
       (setupError
         ? { ...setupError, action: { ...setupError.action, run: props.onSetupProvider } }
         : undefined),
+    tooLongIssue,
     unsupportedAttachmentIssue ?? attachmentError,
     voiceError,
     queueError,

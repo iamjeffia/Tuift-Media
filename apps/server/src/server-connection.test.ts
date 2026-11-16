@@ -1408,6 +1408,27 @@ describe('unavailable provider history', () => {
   const opened = { result: { events: [], page: { olderCursor: null, snapshotSeq: 0 } } }
   const sent = { id: 'request', result: { queued: false, turnId: 'turn' } }
 
+  it('refuses a message over the ceiling with a named error, and keeps the socket and the draft', async () => {
+    const { port } = await listen()
+    const over = 'a'.repeat(256 * 1024 + 1)
+
+    expect(await request(port, 'thread.sendTurn', { threadId: 'local', text: over })).toMatchObject(
+      {
+        error: {
+          code: 'bad_request',
+          key: 'chat.send.tooLong',
+          params: { size: 256 * 1024 + 1, limit: 256 * 1024 },
+          message: expect.stringContaining('limit is 262144'),
+        },
+      },
+    )
+    // Nothing reached the chat, and the same connection still sends a message of the right size.
+    expect(state.historyLoads).not.toContain('local')
+    expect(
+      await request(port, 'thread.sendTurn', { threadId: 'local', text: 'a'.repeat(256 * 1024) }),
+    ).toEqual(sent)
+  })
+
   it('keeps every other chat working when one provider source cannot load', async () => {
     state.failGrokHistory = true
     state.historyPage.mockResolvedValue(opened.result)

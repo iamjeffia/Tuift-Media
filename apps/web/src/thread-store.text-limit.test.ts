@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   MAX_ITEM_OUTPUT_CHARS,
   MAX_MESSAGE_CHARS,
+  MAX_PLAN_CHARS,
+  MAX_REASONING_CHARS,
   streamCutMarker,
   type DomainEvent,
   type Item,
@@ -186,5 +188,51 @@ describe('an item that reached its text limit', () => {
 
     expect(threadItems(state)[0]!.text).toHaveLength(200_000)
     expect(performance.now() - begin).toBeLessThan(5_000)
+  })
+})
+
+describe('a plan and a reasoning that reached their text limit', () => {
+  const started = (id: string, type: 'plan' | 'reasoning'): DomainEvent => ({
+    type: 'item.started',
+    item: { id, turnId: 't1', type, status: 'started', createdAt: 2 },
+  })
+
+  it.each([
+    ['plan', MAX_PLAN_CHARS],
+    ['reasoning', MAX_REASONING_CHARS],
+  ] as const)('keeps a %s as the server cut it, whatever comes after', (type, max) => {
+    const first = 'a'.repeat(max - 10)
+    const last = `${'b'.repeat(10)}${streamCutMarker(type)}`
+    const events = [
+      turnStarted,
+      started('x', type),
+      delta('x', first),
+      delta('x', last),
+      delta('x', 'late'),
+    ]
+
+    const items = threadItems(events.reduce(reduce, emptyThread))
+    expect(items.map(({ id }) => id)).toEqual(['x'])
+    expect(items[0]!.text).toBe(first + last)
+  })
+
+  it('shows a saved chat the server read back cut, as a replay of its log', () => {
+    const cut = `${'a'.repeat(100)}
+… 999 characters omitted …
+${'z'.repeat(100)}`
+    const item: Item = {
+      id: 'thought',
+      turnId: 't1',
+      type: 'reasoning',
+      status: 'completed',
+      createdAt: 2,
+      text: cut,
+    }
+
+    const state = reduceEventLog(emptyThread, [
+      { seq: 1, event: turnStarted },
+      { seq: 2, event: { type: 'item.completed', item } },
+    ])
+    expect(threadItems(state)[0]!.text).toBe(cut)
   })
 })

@@ -177,6 +177,8 @@ export const chatPt = {
   'chat.attach.dropDesktopOnly': 'Soltar arquivos só funciona no app desktop.',
   'chat.attach.failed': 'Não foi possível anexar “{name}”. Use o seletor de arquivos.',
   'chat.attach.thatFile': 'esse arquivo',
+  'chat.send.tooLong': 'Esta mensagem tem {size} e o limite é {limit}. Anexe o texto como arquivo.',
+  'chat.send.attachAsFile': 'Anexar como arquivo',
   'chat.queue.removeFailed': 'Não foi possível remover o prompt da fila.',
   'chat.queue.removeFailedStarted':
     'Não foi possível remover o prompt da fila. Ele pode já ter começado; nenhuma cópia foi adicionada.',

@@ -13,6 +13,14 @@ import {
   MAX_DIFF_CHARS,
   MAX_ITEM_OUTPUT_CHARS,
   MAX_MESSAGE_CHARS,
+  MAX_PLAN_CHARS,
+  MAX_REASONING_CHARS,
+  MAX_USER_MESSAGE_CHARS,
+  boundOutputEvent,
+  boundStoredEvent,
+  elidePlanSteps,
+  fitEvent,
+  MAX_EVENT_BYTES,
 } from './item-output-bounds.js'
 import { Store } from './store.js'
 
@@ -97,14 +105,31 @@ describe('boundItemEvent', () => {
     )
   })
 
-  it.each(['reasoning', 'plan', 'notice', 'unknown'] as const)(
-    'leaves the text of a %s whole',
-    (type) => {
-      const event = completed({ type, text: big })
+  it.each([
+    ['reasoning', MAX_REASONING_CHARS],
+    ['plan', MAX_PLAN_CHARS],
+  ] as const)('bounds the text of a %s to its own ceiling, with the same marker', (type, max) => {
+    const text = `${'a'.repeat(max)}${'b'.repeat(max)}`
+    const event = boundItemEvent(completed({ type, text }))
+    const kept = event.type === 'item.completed' ? event.item.text! : ''
 
-      expect(boundItemEvent(event)).toBe(event)
-    },
-  )
+    expect(kept.length).toBeLessThan(max + 64)
+    expect(kept).toMatch(/\n… \d+ characters omitted …\n/)
+    expect(kept.startsWith('a')).toBe(true)
+    expect(kept.endsWith('b')).toBe(true)
+  })
+
+  it('leaves a plan or reasoning under its ceiling whole', () => {
+    const event = completed({ type: 'plan', text: 'p'.repeat(MAX_PLAN_CHARS) })
+
+    expect(boundItemEvent(event)).toBe(event)
+  })
+
+  it.each(['notice', 'unknown'] as const)('leaves the text of a %s whole', (type) => {
+    const event = completed({ type, text: big })
+
+    expect(boundItemEvent(event)).toBe(event)
+  })
 
   it('leaves what the user typed whole, however long', () => {
     const event = completed({ type: 'message', role: 'user', text: 'u'.repeat(3_000_000) })
@@ -218,18 +243,33 @@ describe('ItemOutputBounds', () => {
     expect(bounds.apply(THREAD, delta('reply', 'late'))).toBeUndefined()
   })
 
-  it('never cuts what the user typed, nor the reasoning', () => {
+  it('never cuts what the user typed', () => {
     const bounds = new ItemOutputBounds()
     bounds.apply(THREAD, started({ id: 'mine', type: 'message', role: 'user' }))
-    bounds.apply(THREAD, started({ id: 'thought', type: 'reasoning' }))
     const chunk = 'w'.repeat(MAX_MESSAGE_CHARS)
 
-    for (const id of ['mine', 'thought']) {
-      for (let index = 0; index < 3; index += 1) {
-        expect(textOf(bounds.apply(THREAD, delta(id, chunk)))).toBe(chunk)
-      }
+    for (let index = 0; index < 3; index += 1) {
+      expect(textOf(bounds.apply(THREAD, delta('mine', chunk)))).toBe(chunk)
     }
   })
+
+  it.each([
+    ['reasoning', MAX_REASONING_CHARS],
+    ['plan', MAX_PLAN_CHARS],
+  ] as const)(
+    'cuts a streamed %s once, at its ceiling, and drops what comes after',
+    (type, max) => {
+      const bounds = new ItemOutputBounds()
+      bounds.apply(THREAD, started({ id: 'x', type }))
+      const chunk = 'w'.repeat(max / 2)
+
+      expect(textOf(bounds.apply(THREAD, delta('x', chunk)))).toBe(chunk)
+      const last = textOf(bounds.apply(THREAD, delta('x', chunk + chunk)))!
+      expect(last.endsWith(`\n… ${type} truncated …\n`)).toBe(true)
+      expect(last.length).toBeLessThan(max / 2 + 64)
+      expect(bounds.apply(THREAD, delta('x', 'more'))).toBeUndefined()
+    },
+  )
 
   it('passes output of an item it never saw, for the renderer to place', () => {
     const bounds = new ItemOutputBounds()
@@ -571,5 +611,127 @@ describe('the whole patch of a turn diff the log holds cut', () => {
     store.addThread({ id: THREAD, projectPath: '/repo', provider: 'codex', title: 'Again' })
     expect(store.wholeTurnDiff(THREAD, 't1')).toBeUndefined()
     store.close()
+  })
+})
+
+describe('the plan, as steps', () => {
+  const steps = (text: string) => [
+    { text, status: 'done' as const },
+    { text: 'never kept', status: 'pending' as const },
+  ]
+
+  it('is bounded like the plan item: the steps that fit, the one the ceiling falls in, cut', () => {
+    const event: DomainEvent = {
+      type: 'plan.updated',
+      turnId: 't1',
+      steps: steps('s'.repeat(MAX_PLAN_CHARS * 2)),
+    }
+    const bounded = boundItemEvent(event)
+    const kept = bounded.type === 'plan.updated' ? bounded.steps : []
+
+    expect(kept).toHaveLength(1)
+    expect(kept[0]!.text.length).toBeLessThan(MAX_PLAN_CHARS + 64)
+    expect(kept[0]!.text.endsWith('\n… plan truncated …\n')).toBe(true)
+    expect(kept[0]!.status).toBe('done')
+    expect(boundOutputEvent(event)).toBe(event)
+  })
+
+  it('leaves a plan under the ceiling alone, and never splits a surrogate pair', () => {
+    const small: DomainEvent = { type: 'plan.updated', turnId: 't1', steps: steps('ok') }
+    expect(boundItemEvent(small)).toBe(small)
+    const cut = elidePlanSteps([{ text: `${'a'.repeat(9)}😀tail`, status: 'pending' }], 10)
+    expect(cut[0]!.text.startsWith(`${'a'.repeat(9)}\n`)).toBe(true)
+  })
+})
+
+describe('a chat stored before the ceilings', () => {
+  const huge = (type: Item['type'], role?: Item['role']) =>
+    completed({
+      type,
+      ...(role ? { role } : {}),
+      text: `H${'m'.repeat(MAX_USER_MESSAGE_CHARS * 2)}T`,
+    })
+
+  it.each([
+    ['a plan', huge('plan')],
+    ['a reasoning', huge('reasoning')],
+    ['a message of the user', huge('message', 'user')],
+  ])('opens with %s over its ceiling cut, and the original untouched', (_name, event) => {
+    const read = boundStoredEvent(event)
+
+    expect(read).not.toBe(event)
+    const text = read.type === 'item.completed' ? read.item.text! : ''
+    expect(text.length).toBeLessThan(MAX_USER_MESSAGE_CHARS + 64)
+    expect(text.startsWith('H')).toBe(true)
+    expect(text.endsWith('T')).toBe(true)
+    expect(text).toMatch(/\n… \d+ characters omitted …\n/)
+    expect(event.type === 'item.completed' && event.item.text!.length).toBeGreaterThan(
+      MAX_USER_MESSAGE_CHARS * 2,
+    )
+  })
+
+  it('reads the agent message and machine output as they were saved, as before', () => {
+    const message = completed({
+      type: 'message',
+      role: 'assistant',
+      text: 'a'.repeat(MAX_MESSAGE_CHARS * 2),
+    })
+    const output = completed({ type: 'command', text: 'o'.repeat(MAX_ITEM_OUTPUT_CHARS * 2) })
+
+    expect(boundStoredEvent(message)).toBe(message)
+    expect(boundStoredEvent(output)).toBe(output)
+  })
+
+  it('is never rewritten into the log by a sync of the provider history', () => {
+    const event = huge('reasoning')
+
+    // What the sync compares a saved row against: only machine output is brought to its cap.
+    expect(boundOutputEvent(event)).toBe(event)
+  })
+})
+
+describe('an event too heavy for a frame', () => {
+  it('is returned as it is when it fits', () => {
+    const event = completed({ type: 'error', text: 'small' })
+
+    expect(fitEvent(event)).toBe(event)
+  })
+
+  it('has its long texts cut, from both ends, until it fits, and still names its item', () => {
+    const event: DomainEvent = {
+      type: 'thread.error',
+      threadId: 'thread',
+      message: `start${'e'.repeat(MAX_EVENT_BYTES * 2)}end`,
+    }
+    const fitted = fitEvent(event)!
+
+    expect(fitted.type).toBe('thread.error')
+    expect(Buffer.byteLength(JSON.stringify(fitted))).toBeLessThanOrEqual(MAX_EVENT_BYTES)
+    const message = fitted.type === 'thread.error' ? fitted.message : ''
+    expect(message.startsWith('start')).toBe(true)
+    expect(message.endsWith('end')).toBe(true)
+    expect(message).toMatch(/characters omitted/)
+  })
+
+  it('is cut before it reaches the log, whatever its kind', () => {
+    const bounds = new ItemOutputBounds()
+    const event: DomainEvent = {
+      type: 'thread.error',
+      threadId: 'thread',
+      message: 'x'.repeat(MAX_EVENT_BYTES * 2),
+    }
+    const recorded = bounds.apply(THREAD, event)!
+
+    expect(Buffer.byteLength(JSON.stringify(recorded))).toBeLessThanOrEqual(MAX_EVENT_BYTES)
+  })
+
+  it('is undefined when only dropping it would make it fit', () => {
+    const event: DomainEvent = {
+      type: 'plan.updated',
+      turnId: 't',
+      steps: Array.from({ length: 700_000 }, () => ({ text: 'step', status: 'pending' as const })),
+    }
+
+    expect(fitEvent(event)).toBeUndefined()
   })
 })

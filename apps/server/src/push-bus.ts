@@ -1,5 +1,6 @@
 import type { WebSocket } from 'ws'
-import type { ChannelName, DataOf } from '@harness/contracts'
+import type { ChannelName, DataOf, DomainEvent } from '@harness/contracts'
+import { fitEvent } from './item-output-bounds.js'
 
 /** What the bus needs of a client connection: a `ws` socket or an encrypted phone link. */
 export type PushSocket = {
@@ -16,6 +17,27 @@ type PushSocketState = {
   pushBytes: number
   replyBytes: number
 }
+/**
+ * A frame that is over the limit all by itself closes the socket however often it is sent: the
+ * client reconnects, reads the log and meets it again. An event is sent cut to fit instead, with
+ * the same sequence and the same `seq`, so the client keeps the same place in the log. A frame
+ * that cannot be cut is left out, and the sequence it used is what tells the client to read again.
+ */
+function fitFrame(frame: string): string | undefined {
+  try {
+    const parsed = JSON.parse(frame) as { data?: { event?: DomainEvent } }
+    const event = parsed.data?.event
+    if (event === undefined) return undefined
+    const fitted = fitEvent(event, MAX_PUSH_BUFFER_BYTES / 2)
+    if (fitted === undefined) return undefined
+    parsed.data!.event = fitted
+    const smaller = JSON.stringify(parsed)
+    return Buffer.byteLength(smaller) <= MAX_PUSH_BUFFER_BYTES ? smaller : undefined
+  } catch {
+    return undefined
+  }
+}
+
 type RecordedEventChannel = 'thread.event' | 'sideChat.event'
 
 const framePrefixes: Partial<Record<ChannelName, string>> = Object.create(null) as Partial<
@@ -103,8 +125,17 @@ export class PushBus<Socket extends PushSocket = WebSocket> {
     frame: string,
     frameLimit = MAX_PUSH_BUFFER_BYTES,
   ): void {
-    const bytes = Buffer.byteLength(frame)
+    let bytes = Buffer.byteLength(frame)
     const reply = frameLimit === MAX_REPLY_FRAME_BYTES
+    if (!reply && bytes > MAX_PUSH_BUFFER_BYTES) {
+      const smaller = fitFrame(frame)
+      if (smaller === undefined) {
+        console.warn(`[push] left out a ${bytes}-byte frame that cannot be cut to fit`)
+        return
+      }
+      frame = smaller
+      bytes = Buffer.byteLength(frame)
+    }
     const pendingBytes = reply ? state.replyBytes : state.pushBytes
     // A large history reply is allowed to drain while normal pushes continue.
     // ws already preserves write order; keep its reply and push budgets separate.
