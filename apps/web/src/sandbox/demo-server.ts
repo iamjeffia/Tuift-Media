@@ -928,7 +928,11 @@ export class DemoServer {
         })
       }
     }
-    return { results: results.slice(0, params.limit ?? 50), nextCursor: null }
+    // `?indexing=1` shows the note the server adds while it rebuilds its search index.
+    const indexing = globalThis.location?.search.includes('indexing=1')
+      ? { indexing: true as const }
+      : {}
+    return { results: results.slice(0, params.limit ?? 50), nextCursor: null, ...indexing }
   }
 
   #usageHistory(range: UsageHistoryRange): UsageHistoryResult {
@@ -1048,6 +1052,7 @@ export class DemoServer {
         platform: this.platform,
       }),
       'system.updateCheck': () => ({ upToDate: true }),
+      'startup.dismissNotice': () => ({}),
       'system.panicStop': () => {
         const sessions = [...this.#runs.keys()].map((threadId) => {
           this.#interrupt(threadId)

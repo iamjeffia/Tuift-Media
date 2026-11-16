@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, realpathSync } from 'node:fs'
 import path from 'node:path'
+import { StartupFailure } from './exit-codes.js'
 import { DatabaseSync } from './sqlite.js'
 
 /** Resolve directory and file aliases before choosing a database's lock. */
@@ -23,7 +24,8 @@ export function acquireDataLease(database: string): () => void {
   } catch (error) {
     lease.close()
     if (error instanceof Error && 'errcode' in error && error.errcode === 5) {
-      throw new Error(
+      throw new StartupFailure(
+        'dataFolderInUse',
         'Close TUIFT Code and its core server before running history maintenance or opening this data folder again.',
       )
     }

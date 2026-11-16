@@ -1,4 +1,5 @@
 import { takeFeedbackConfig } from './feedback-config.js'
+import { SERVER_EXIT, startupCause } from './exit-codes.js'
 import { installProcessGuards } from './process-guards.js'
 import { takeEdition } from './provider-edition.js'
 import { DEFAULT_PORT, startServer } from './server.js'
@@ -19,13 +20,26 @@ const instanceToken = process.env['HARNESS_INSTANCE_TOKEN']
 delete process.env['HARNESS_INSTANCE_TOKEN']
 
 const port = Number(process.env['HARNESS_PORT'] ?? DEFAULT_PORT)
-const server = startServer({
-  port,
-  host: process.env['HARNESS_HOST'] ?? '127.0.0.1',
-  accessToken: process.env['HARNESS_ACCESS_TOKEN'],
-  instanceToken,
-  feedback,
-})
+// A start that fails says why, in the log line and in the exit code, so the desktop can tell a
+// busy port or a locked database from a broken install instead of retrying them all alike.
+function start(): ReturnType<typeof startServer> {
+  try {
+    return startServer({
+      port,
+      host: process.env['HARNESS_HOST'] ?? '127.0.0.1',
+      accessToken: process.env['HARNESS_ACCESS_TOKEN'],
+      instanceToken,
+      feedback,
+    })
+  } catch (error) {
+    const cause = startupCause(error)
+    console.error(
+      `[server] cannot start${cause ? ` (${cause})` : ''}: ${error instanceof Error ? error.message : String(error)}`,
+    )
+    process.exit(cause ? SERVER_EXIT[cause] : 1)
+  }
+}
+const server = start()
 
 let shuttingDown = false
 function shutdown(): void {

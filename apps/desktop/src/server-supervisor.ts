@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { RETRIES_BY_CAUSE, serverExitCause, type ServerExitCause } from './server-exit-codes.js'
 
 /**
  * The packaged app owns its core server. In development tools/scripts/dev.js
@@ -26,11 +27,27 @@ export const SERVER_SHUTDOWN_TIMEOUT_MS = 3_000
 /** How long a forced stop may wait for the server's process tree to end. */
 export const SERVER_TREE_STOP_BUDGET_MS = 5_000
 const MAX_LOG_LINE = 64 * 1024
+/** The last lines the server printed, kept for the record of why it ended. */
+const TAIL_LINES = 20
+const TAIL_LINE_LENGTH = 300
+
+/** How a server run ended, with what it printed last. */
+export type ServerExit = {
+  code: number | null
+  signal: NodeJS.Signals | null
+  /** The named cause when the server exited with one of its own codes. */
+  cause: ServerExitCause | undefined
+  tail: string[]
+  /** False when the supervisor will not start the server again on its own. */
+  willRetry: boolean
+}
 
 type SupervisorCallbacks = {
   onLog: (line: string) => void
+  /** Called after every run that ended while the app wanted the server running. */
+  onExit?: ((exit: ServerExit) => void) | undefined
   /** Called once when the supervisor gives up, for a user-facing surface. */
-  onGaveUp?: (() => void) | undefined
+  onGaveUp?: ((failure: ServerExit) => void) | undefined
 }
 
 type CommandSupervisorOptions = {
@@ -93,6 +110,7 @@ export class ServerSupervisor {
   #restartTimer: NodeJS.Timeout | undefined
   #stopPromise: Promise<void> | undefined
   #gaveUp = false
+  #tail: string[] = []
 
   constructor(options: SupervisorOptions) {
     this.#options = options
@@ -115,6 +133,7 @@ export class ServerSupervisor {
   start(): void {
     if (this.#stopped || this.#child) return
     this.#startedAt = Date.now()
+    this.#tail = []
     const child =
       'launch' in this.#options
         ? this.#options.launch()
@@ -134,7 +153,10 @@ export class ServerSupervisor {
       if (!stream) return
       let pending = ''
       const emit = (line: string) => {
-        if (line.trim()) this.#options.onLog(line)
+        if (!line.trim()) return
+        this.#tail.push(line.slice(0, TAIL_LINE_LENGTH))
+        if (this.#tail.length > TAIL_LINES) this.#tail.shift()
+        this.#options.onLog(line)
       }
       stream.on('data', (chunk: string) => {
         const lines = (pending + chunk).split(/\r?\n/)
@@ -155,11 +177,11 @@ export class ServerSupervisor {
     forward(child.stderr)
     child.onError((error) => {
       this.#options.onLog(`server failed to start: ${String(error)}`)
-      this.#onExit(child)
+      this.#onExit(child, null, null)
     })
     child.onExit((code, signal) => {
       this.#options.onLog(`server exited (code ${code ?? 'null'}, signal ${signal ?? 'null'})`)
-      this.#onExit(child)
+      this.#onExit(child, code, signal)
     })
   }
 
@@ -219,16 +241,36 @@ export class ServerSupervisor {
     return this.#stopPromise
   }
 
-  #onExit(child: SupervisedServerProcess): void {
+  #onExit(
+    child: SupervisedServerProcess,
+    code: number | null,
+    signal: NodeJS.Signals | null,
+  ): void {
     if (this.#child !== child) return
     this.#child = undefined
     if (this.#stopped) return
     const healthy = Date.now() - this.#startedAt >= HEALTHY_RUN_MS
     this.#failures = healthy ? 1 : this.#failures + 1
-    if (this.#failures > MAX_CONSECUTIVE_FAILURES) {
-      this.#options.onLog('server keeps dying; giving up on restarts')
+    // A cause the server named is retried only as far as retrying can help; any other end
+    // keeps the long backoff of an unknown failure.
+    const cause = serverExitCause(code)
+    const limit = cause ? RETRIES_BY_CAUSE[cause] : MAX_CONSECUTIVE_FAILURES
+    const exit: ServerExit = {
+      code,
+      signal,
+      cause,
+      tail: [...this.#tail],
+      willRetry: this.#failures <= limit,
+    }
+    this.#options.onExit?.(exit)
+    if (!exit.willRetry) {
+      this.#options.onLog(
+        cause
+          ? `server cannot start (${cause}); not restarting`
+          : 'server keeps dying; giving up on restarts',
+      )
       this.#gaveUp = true
-      this.#options.onGaveUp?.()
+      this.#options.onGaveUp?.(exit)
       return
     }
     const delay = restartDelayMs(this.#failures)

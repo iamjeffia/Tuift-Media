@@ -166,6 +166,31 @@ describe('cross-session search', () => {
     ])
   })
 
+  it('says the index is still updating while the server rebuilds it, and stops once done', async () => {
+    vi.useFakeTimers()
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({ results: [RESULT], nextCursor: null, indexing: true })
+      .mockResolvedValueOnce({ results: [RESULT], nextCursor: null })
+    render(
+      <SessionSearch
+        transport={new TestTransport((method, params) => request(method, params))}
+        projects={PROJECTS}
+        onSelect={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+    const input = screen.getByLabelText('Search every chat')
+    fireEvent.change(input, { target: { value: 'regression' } })
+    await act(() => vi.advanceTimersByTimeAsync(80))
+    expect(screen.getByText(/Still updating the search index/)).toBeTruthy()
+    expect(screen.getByRole('option', { name: /Fix regression/ })).toBeTruthy()
+
+    fireEvent.change(input, { target: { value: 'regressions' } })
+    await act(() => vi.advanceTimersByTimeAsync(80))
+    expect(screen.queryByText(/Still updating the search index/)).toBeNull()
+  })
+
   it('does not keep old content results when the next query fails', async () => {
     vi.useFakeTimers()
     const request = vi

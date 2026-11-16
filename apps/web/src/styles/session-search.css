@@ -206,6 +206,11 @@
   font-size: var(--t-sm);
 }
 
+.session-search__state--info {
+  /* A note, not a failure: the same row as an error, in the quiet text colour. */
+  color: var(--text-3);
+}
+
 .session-search__more {
   display: block;
   margin: 5px auto;

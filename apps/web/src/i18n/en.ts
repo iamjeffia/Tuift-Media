@@ -4,6 +4,7 @@ import { onboardingEn } from './areas/onboarding.en.js'
 import { workspaceEn } from './areas/workspace.en.js'
 import { dialogsEn } from './areas/dialogs.en.js'
 import { chatEn } from './areas/chat.en.js'
+import { startupEn } from './areas/startup.en.js'
 
 /**
  * The English catalog is the source of truth for message keys: `MessageKey`
@@ -78,6 +79,7 @@ export const en = {
   ...workspaceEn,
   ...dialogsEn,
   ...chatEn,
+  ...startupEn,
 } as const
 
 export type MessageKey = keyof typeof en

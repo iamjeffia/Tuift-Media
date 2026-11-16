@@ -175,6 +175,7 @@ import { sameAccount } from './usage-summary-state.js'
 import { CONTINUE_PROMPT, UsageResetController, usageResetAt } from './usage-reset.js'
 import { isLoginFailure, threadErrorNotice } from './thread-error-reason.js'
 import { useMemoryNotice } from './use-memory-notice.js'
+import { useStartupNotice } from './use-startup-notice.js'
 import { poolsOf, recommendedAccounts } from './account-pool.js'
 import {
   AccountLabelContext,
@@ -1214,6 +1215,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   useEffect(() => usageResumes.start(), [usageResumes])
   const feedback = useFeedbackStatus(transport)
   const memoryNotice = useMemoryNotice(transport)
+  const startupNotice = useStartupNotice(transport)
   const refreshFeedback = feedback.refresh
   const [feedbackRequest, setFeedbackRequest] = useState<FeedbackRequest>()
   /** The chat the dialog describes, read when it opens. Kept in a ref so openers stay stable. */
@@ -7875,6 +7877,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         ]
       : []),
     ...(memoryNotice ? [memoryNotice] : []),
+    ...(startupNotice ? [startupNotice] : []),
     ...(offlineError ? [offlineError] : []),
     ...(askFirstBlock
       ? [{ id: `ask-first:${provider}`, role: 'alert' as const, message: askFirstBlock }]

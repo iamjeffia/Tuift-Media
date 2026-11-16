@@ -23,4 +23,4 @@ function loadSqlite(): typeof import('node:sqlite') {
   }
 }
 
-export const { DatabaseSync } = loadSqlite()
+export const { DatabaseSync, backup } = loadSqlite()
