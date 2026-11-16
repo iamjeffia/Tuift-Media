@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 import { describe, expect, it, vi } from 'vitest'
+import { createQuitWatchdog, QUIT_DEADLINES } from './quit-watchdog.js'
 
 // Exercise the registered handler without importing main.ts and starting Electron.
 const main = readFileSync(new URL('./main.ts', import.meta.url), 'utf8')
@@ -30,12 +31,16 @@ function fixture(
       state: () => ({ status }),
       dispose: vi.fn(dispose),
       prepareForQuit: vi.fn<(agentsRunning: boolean) => void>(),
+      install: vi.fn(() => true),
     },
     runningAgents,
     waitingForUpdateCleanup: false,
     waitingForServerShutdown: false,
     quitConfirmed,
     quitRequest: { request: vi.fn() },
+    quitWatchdog: createQuitWatchdog({ log: vi.fn(), exit: vi.fn() }),
+    QUIT_DEADLINES,
+    installUpdateAfterQuit: false,
     serverSupervisor,
     appIsQuitting: false,
     previewCaptures: { cancelAll: vi.fn() },
@@ -210,5 +215,74 @@ describe('quit while chats are running', () => {
     expect(events[0]!.preventDefault).toHaveBeenCalledOnce()
     expect(events.at(-1)!.preventDefault).not.toHaveBeenCalled()
     expect(context.appIsQuitting).toBe(true)
+  })
+})
+
+describe('quit deadlines and the installer hand-over', () => {
+  it('starts the clock for the whole quit once the quit is going ahead, not while it asks', () => {
+    const asking = fixture(() => {}, 'ready', { stop: vi.fn(async () => {}) }, 2)
+    asking.app.quit()
+    expect(asking.quitWatchdog.started).toBe(false)
+
+    const going = fixture(() => {}, 'idle', { stop: vi.fn(async () => {}) }, 0)
+    going.app.quit()
+    expect(going.quitWatchdog.started).toBe(true)
+  })
+
+  it('goes on without a server that does not stop, after its deadline', async () => {
+    vi.useFakeTimers()
+    try {
+      const stop = vi.fn(() => new Promise<void>(() => {}))
+      const { app, events, context } = fixture(() => {}, 'idle', { stop })
+      app.quit()
+      await vi.advanceTimersByTimeAsync(QUIT_DEADLINES.serverMs - 1)
+      expect(context.waitingForServerShutdown).toBe(true)
+      await vi.advanceTimersByTimeAsync(2)
+      expect(context.waitingForServerShutdown).toBe(false)
+      expect(events.at(-1)!.preventDefault).not.toHaveBeenCalled()
+      expect(context.appIsQuitting).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('goes on without an update cleanup that does not finish, after its deadline', async () => {
+    vi.useFakeTimers()
+    try {
+      const { app, context } = fixture(() => new Promise<void>(() => {}), 'preparing', {
+        stop: vi.fn(async () => {}),
+      })
+      app.quit()
+      await vi.advanceTimersByTimeAsync(QUIT_DEADLINES.updateCleanupMs + 1)
+      expect(context.waitingForUpdateCleanup).toBe(false)
+      expect(context.appIsQuitting).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('starts the installer only after the server stopped and the quit is allowed through', async () => {
+    const calls: string[] = []
+    const stop = vi.fn(async () => {
+      calls.push('server')
+    })
+    const { app, appUpdater, context, events } = fixture(() => {}, 'ready', { stop })
+    appUpdater.install.mockImplementation(() => {
+      calls.push('install')
+      return true
+    })
+    context.installUpdateAfterQuit = true
+    app.quit()
+    await flush()
+    expect(calls).toEqual(['server', 'install'])
+    expect(context.installUpdateAfterQuit).toBe(false)
+    expect(events.at(-1)!.preventDefault).not.toHaveBeenCalled()
+  })
+
+  it('does not start the installer for a quit that is not an update', async () => {
+    const { app, appUpdater } = fixture(() => {}, 'ready', { stop: vi.fn(async () => {}) })
+    app.quit()
+    await flush()
+    expect(appUpdater.install).not.toHaveBeenCalled()
   })
 })

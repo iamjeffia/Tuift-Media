@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { createReadStream, readFileSync } from 'node:fs'
+import { appendFileSync, createReadStream, readFileSync } from 'node:fs'
 import { mkdir, readdir, rm, stat } from 'node:fs/promises'
 import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
@@ -127,7 +127,21 @@ import {
   type ServerExit,
   type SupervisedServerProcess,
 } from './server-supervisor.js'
+import {
+  createInstallQuit,
+  INSTALL_QUIT_EXIT,
+  type InstallQuitChannel,
+  openInstallQuitChannel,
+  parseInstallQuitMode,
+  parseInstallQuitRequest,
+  processAlive,
+  readInstallQuitRequest,
+  readInstallQuitStatus,
+  runInstallQuitClient,
+  writeInstallQuitStatus,
+} from './install-quit.js'
 import { createQuitRequest } from './quit-request.js'
+import { createQuitWatchdog, QUIT_DEADLINES } from './quit-watchdog.js'
 import { startupSettleDelay, summarizeAppMetrics } from './startup-metrics.js'
 import { StartupIdleGate } from './startup-idle.js'
 import { TurnPowerGuard } from './turn-power.js'
@@ -339,7 +353,16 @@ if (process.env['HARNESS_DEBUG_PORT']) {
   app.commandLine.appendSwitch('remote-debugging-port', process.env['HARNESS_DEBUG_PORT'])
 }
 
-const ownsSingleInstance = app.requestSingleInstanceLock()
+// An installer asks the running app to quit by starting this executable with a switch (see
+// install-quit.ts). That copy is only a messenger: it sends its request through the lock, waits
+// for the answer and exits, and never starts the app.
+const installQuitMode = parseInstallQuitMode(process.argv)
+const installQuitRequest = installQuitMode
+  ? readInstallQuitRequest(productDataPath, installQuitMode)
+  : undefined
+const ownsSingleInstance = app.requestSingleInstanceLock(
+  installQuitRequest ? { quitForInstall: installQuitRequest } : undefined,
+)
 let mainWindow: BrowserWindow | undefined
 let tray: Tray | undefined
 let appIsQuitting = false
@@ -444,6 +467,8 @@ const hiddenWindowUnloader = new HiddenWindowUnloader({
 })
 let waitingForUpdateCleanup = false
 let waitingForServerShutdown = false
+/** Windows: the Update button quits in order first and starts the installer at the end. */
+let installUpdateAfterQuit = false
 /** The person agreed to quit while chats work, or the update install already asked. */
 let quitConfirmed = false
 const quitRequest = createQuitRequest({
@@ -459,26 +484,64 @@ const quitRequest = createQuitRequest({
     contents.send('harness:quitRequested', chats)
     return true
   },
-  askNatively: async (chats) => {
-    const window = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined
-    const options: Electron.MessageBoxOptions = {
-      type: 'question',
-      title: nativeAppName,
-      message: translatePlural(currentLanguage(), 'dialog.quitRunning.message', chats),
-      detail: t('dialog.quitRunning.detail'),
-      buttons: [t('dialog.quitRunning.quit'), t('dialog.quitRunning.keep')],
-      defaultId: 1,
-      cancelId: 1,
-    }
-    const { response } = await (window
-      ? dialog.showMessageBox(window, options)
-      : dialog.showMessageBox(options))
-    return response === 0
-  },
+  askNatively: (chats) => askQuitNatively(chats, false),
   confirm: () => {
     quitConfirmed = true
     app.quit()
   },
+})
+
+async function askQuitNatively(chats: number, forInstall: boolean): Promise<boolean> {
+  // An install asks from outside, with the window often hidden in the tray: a dialog parented to
+  // a hidden window would never show, so it stands alone then.
+  const window =
+    mainWindow && !mainWindow.isDestroyed() && (!forInstall || mainWindow.isVisible())
+      ? mainWindow
+      : undefined
+  const options: Electron.MessageBoxOptions = {
+    type: 'question',
+    title: nativeAppName,
+    message: translatePlural(currentLanguage(), 'dialog.quitRunning.message', chats),
+    detail: t(forInstall ? 'dialog.installQuit.detail' : 'dialog.quitRunning.detail'),
+    buttons: [
+      t(forInstall ? 'dialog.installQuit.quit' : 'dialog.quitRunning.quit'),
+      t('dialog.quitRunning.keep'),
+    ],
+    defaultId: 1,
+    cancelId: 1,
+  }
+  const { response } = await (window
+    ? dialog.showMessageBox(window, options)
+    : dialog.showMessageBox(options))
+  return response === 0
+}
+
+/** Every quit runs against these deadlines; a hung step is logged and left behind (quit-watchdog.ts). */
+const quitWatchdog = createQuitWatchdog({
+  log: (line) => console.warn(line),
+  forced: (notClosed) => {
+    void diagnostics?.record('quit', `ran out of time; still open: ${notClosed.join(', ')}`)
+    installQuitChannel?.dispose()
+    installQuit?.done(notClosed, true)
+  },
+  exit: (code) => app.exit(code),
+})
+/** The secret a request to quit for an install must carry; written to the data folder at start. */
+let installQuitChannel: InstallQuitChannel | undefined
+let installQuit: ReturnType<typeof createInstallQuit> | undefined
+/** The question an install asks when chats work: the quit question, with its own wording. */
+const installQuestion = createQuitRequest({
+  chats: () => runningAgents,
+  show: () => {},
+  // Always native: the page's notice says "quit", and an install has its own words.
+  ask: () => false,
+  askNatively: (chats) => askQuitNatively(chats, true),
+  confirm: () => {
+    installQuit?.answered(true)
+    quitConfirmed = true
+    app.quit()
+  },
+  declined: () => installQuit?.answered(false),
 })
 let mainWindowStatePersistence: MainWindowStatePersistence | undefined
 
@@ -621,7 +684,29 @@ protocol.registerSchemesAsPrivileged([
   },
 ])
 
-if (!ownsSingleInstance) {
+if (installQuitMode) {
+  void runInstallQuitClient({
+    ownsLock: ownsSingleInstance,
+    request: installQuitRequest,
+    status: () => readInstallQuitStatus(productDataPath),
+    alive: processAlive,
+    now: Date.now,
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    // The installer's script writes to the same file (installer/clean-exit.nsh).
+    log: (line) => {
+      console.log(line)
+      try {
+        appendFileSync(
+          path.join(os.tmpdir(), 'TUIFT-Code-install.log'),
+          `${new Date().toISOString()} ${line}${os.EOL}`,
+        )
+      } catch {}
+    },
+  }).then(
+    (code) => app.exit(code),
+    () => app.exit(INSTALL_QUIT_EXIT.noAnswer),
+  )
+} else if (!ownsSingleInstance) {
   console.error(`[desktop] another ${nativeAppName} instance owns the single-instance lock`)
   app.quit()
 }
@@ -1228,9 +1313,18 @@ ipcMain.handle('harness:checkForUpdates', (event) => {
 
 ipcMain.handle('harness:installUpdate', (event) => {
   requireOwnRenderer(event.sender)
+  if (appUpdater?.state().status !== 'ready') return false
   // The page asks about running chats before it installs, so this quit is already agreed.
   quitConfirmed = true
-  const installing = appUpdater?.install() ?? false
+  if (process.platform === 'win32') {
+    // The installer is a separate program that replaces this app's files. Started now, it would
+    // meet an app still shutting down, so the app shuts down in order first (before-quit) and
+    // starts the installer as its last step. Elsewhere the update is applied after the app exits.
+    installUpdateAfterQuit = true
+    app.quit()
+    return true
+  }
+  const installing = appUpdater.install()
   if (!installing) quitConfirmed = false
   return installing
 })
@@ -1636,8 +1730,12 @@ ipcMain.handle('harness:savePastedFile', async (event, payload: unknown) => {
   return pickedAttachment(destination, attachmentPreviewSecret)
 })
 
-if (ownsSingleInstance) {
-  app.on('second-instance', showMainWindow)
+if (ownsSingleInstance && !installQuitMode) {
+  app.on('second-instance', (_event, argv, _directory, additionalData) => {
+    // A request to quit for an install is not a launch: it shows nothing.
+    if (parseInstallQuitMode(argv)) installQuit?.handle(parseInstallQuitRequest(additionalData))
+    else showMainWindow()
+  })
   app.on('before-quit', (event) => {
     if (waitingForUpdateCleanup || waitingForServerShutdown) {
       event.preventDefault()
@@ -1649,6 +1747,8 @@ if (ownsSingleInstance) {
       quitRequest.request()
       return
     }
+    // From here the quit is going ahead: every step below has a deadline, and so has the whole.
+    quitWatchdog.start()
     // Decided on the first request, before the server stops the agents it ends.
     if (!appIsQuitting) appUpdater?.prepareForQuit(runningAgents > 0)
     const updater = appUpdater
@@ -1666,9 +1766,9 @@ if (ownsSingleInstance) {
         appIsQuitting = true
         app.quit()
       }
-      void Promise.resolve()
-        .then(() => updater.dispose())
-        .then(finishQuit, finishQuit)
+      void quitWatchdog
+        .step('update cleanup', QUIT_DEADLINES.updateCleanupMs, () => updater.dispose())
+        .then(finishQuit)
       return
     }
     if (serverSupervisor) {
@@ -1682,14 +1782,20 @@ if (ownsSingleInstance) {
         waitingForServerShutdown = false
         app.quit()
       }
-      void Promise.resolve()
-        .then(() => supervisor.stop())
-        .then(finishQuit, finishQuit)
+      void quitWatchdog
+        .step('server shutdown', QUIT_DEADLINES.serverMs, () => supervisor.stop())
+        .then(finishQuit)
       return
     }
     appIsQuitting = true
     previewCaptures.cancelAll()
     mainWindowStatePersistence?.saveAndStop()
+    // The ordered shutdown is done: only now does the installer start (see installUpdate).
+    if (installUpdateAfterQuit) {
+      installUpdateAfterQuit = false
+      if (!appUpdater?.install())
+        console.warn('[quit] the update did not start; it installs at the next quit')
+    }
   })
   app.on('will-quit', () => {
     // A notification left in the notification centre would reopen a chat of a closed app.
@@ -1704,11 +1810,29 @@ if (ownsSingleInstance) {
     serverSupervisor = undefined
     tray?.destroy()
     tray = undefined
+    installQuitChannel?.dispose()
+    const late = quitWatchdog.finish()
+    installQuit?.done(late, false)
+    if (late.length > 0) console.warn(`[quit] closed, but late: ${late.join(', ')}`)
   })
 
   void app.whenReady().then(async () => {
     logStartupMilestone('app-ready')
     await mkdir(productDataPath, { recursive: true, mode: 0o700 })
+    installQuitChannel = openInstallQuitChannel(productDataPath)
+    installQuit = createInstallQuit({
+      token: installQuitChannel.token,
+      pid: process.pid,
+      chats: () => runningAgents,
+      quitting: () => quitWatchdog.started,
+      quit: () => {
+        quitConfirmed = true
+        app.quit()
+      },
+      ask: () => installQuestion.request(),
+      status: (status) => writeInstallQuitStatus(productDataPath, status),
+      log: (line) => console.warn(line),
+    })
     diagnostics = new LocalDiagnostics(localDiagnosticsDirectory(app.getPath('userData')))
     process.on('uncaughtExceptionMonitor', (error) =>
       diagnostics?.recordSync('main crash', error.stack ?? String(error)),

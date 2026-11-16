@@ -125,6 +125,10 @@
         "to": "after-effects-mcp"
       },
       {
+        "from": "installer/clean-exit.txt",
+        "to": "clean-exit.txt"
+      },
+      {
         "from": "dist/feedback",
         "to": "feedback",
         "filter": [
@@ -159,6 +163,7 @@
       "perMachine": false,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": true,
+      "include": "installer/clean-exit.nsh",
       "deleteAppDataOnUninstall": false
     },
     "dmg": {

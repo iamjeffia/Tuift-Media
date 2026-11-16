@@ -141,6 +141,9 @@ export const en = {
     'Quitting stops them where they are. You can continue them when you open the app again.',
   'dialog.quitRunning.quit': 'Quit and stop',
   'dialog.quitRunning.keep': 'Keep working',
+  'dialog.installQuit.detail':
+    'A new version is ready to install. Installing stops them where they are. You can continue them when you open the app again.',
+  'dialog.installQuit.quit': 'Install and stop',
   'dialog.notNow': 'Not now',
   'dialog.pickFolder.title': 'Choose a project folder',
   'dialog.pickSkillFolder.title': 'Choose an Agent Skill folder',
@@ -270,6 +273,9 @@ export const ptBR = {
     'Sair interrompe o trabalho onde está. Você pode continuar quando abrir o app de novo.',
   'dialog.quitRunning.quit': 'Sair e parar',
   'dialog.quitRunning.keep': 'Continuar trabalhando',
+  'dialog.installQuit.detail':
+    'Uma nova versão está pronta para instalar. Instalar interrompe o trabalho onde está. Você pode continuar quando abrir o app de novo.',
+  'dialog.installQuit.quit': 'Instalar e parar',
   'dialog.notNow': 'Agora não',
   'dialog.pickFolder.title': 'Escolher uma pasta de projeto',
   'dialog.pickSkillFolder.title': 'Escolher uma pasta de Agent Skill',

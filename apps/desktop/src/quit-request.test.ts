@@ -87,3 +87,41 @@ describe('asking before a quit while chats work', () => {
     expect(deps.confirm).not.toHaveBeenCalled()
   })
 })
+
+describe('telling who is waiting that the person kept the chats working', () => {
+  it('calls declined once, only for a question that was open', () => {
+    vi.useFakeTimers()
+    const { deps } = fixture()
+    const declined = vi.fn()
+    const asking = createQuitRequest({ ...deps, declined })
+    asking.answer(false)
+    expect(declined).not.toHaveBeenCalled()
+    asking.request()
+    asking.shown()
+    asking.answer(false)
+    asking.answer(false)
+    expect(declined).toHaveBeenCalledOnce()
+    expect(deps.confirm).not.toHaveBeenCalled()
+  })
+
+  it('does not call declined when the person quits', () => {
+    vi.useFakeTimers()
+    const { deps } = fixture()
+    const declined = vi.fn()
+    const asking = createQuitRequest({ ...deps, declined })
+    asking.request()
+    asking.shown()
+    asking.answer(true)
+    expect(declined).not.toHaveBeenCalled()
+    expect(deps.confirm).toHaveBeenCalledOnce()
+  })
+
+  it('asks natively at once when the page cannot show the question, and reports a refusal', async () => {
+    const { deps } = fixture({ pageCanAsk: false, native: Promise.resolve(false) })
+    const declined = vi.fn()
+    createQuitRequest({ ...deps, declined }).request()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(declined).toHaveBeenCalledOnce()
+  })
+})
