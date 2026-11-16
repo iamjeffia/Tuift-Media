@@ -210,7 +210,7 @@ Pedido de 15/11, depois de um trabalho longo de vídeo em que o sistema ficou se
 - [x] 16.3 Fechar o app com chats trabalhando pergunta antes; na saída normal os turnos param como no botão Stop. Depois de qualquer reinício, o chat interrompido avisa e oferece Continuar; nada continua sozinho.
 - [x] 16.4 Aviso de memória baixa do sistema, uma vez por episódio, citando os maiores consumidores (Windows).
 - [x] 16.5 O chat sempre mostra que há trabalho: ajudante, ferramenta e comando com tempo próprio e o que estão fazendo agora; faixa de status acima do campo de texto; "última atividade há…" quando nada chega, e uma linha calma depois de dois minutos; turno interrompido não aparece como concluído. Em 16/11 os bonecos do Motion passaram a morar nessa faixa (parado: os seis rostos e a etapa; trabalhando: o rosto de quem trabalha no lugar do ponto), e a faixa de bonecos acima da conversa saiu.
-- [x] 16.5b Ao enviar uma mensagem, o prompt fica ancorado no topo mesmo quando a área da conversa muda de altura logo depois (16/11). O caso exato relatado pelo dono do projeto não foi reproduzido em bancada; falta a confirmação dele no app.
+- [x] 16.5b Ao enviar uma mensagem, o prompt fica ancorado no topo mesmo quando a área da conversa muda de altura logo depois (16/11). O caso exato relatado pelo dono do projeto não foi reproduzido em bancada; ele confirmou no app instalado, em 16/11, que o chat não sobe mais.
 - [ ] 16.6 Impedir o computador de dormir enquanto um turno roda.
 - [ ] 16.7 Queda do servidor do app: guardar o motivo e dar mensagem útil (porta ocupada, banco) em vez de sugerir reinstalar.
 - [ ] 16.8 Falha de escrita no meio de um turno (disco cheio, banco travado) não derruba o servidor.
