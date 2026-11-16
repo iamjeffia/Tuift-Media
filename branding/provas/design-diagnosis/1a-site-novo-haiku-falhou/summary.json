@@ -1,0 +1,9 @@
+{
+  "how": "error",
+  "threadId": "claude-9022896d-94a0-4c95-b6d0-47fb8c4aee23",
+  "turns": 5,
+  "turnSeconds": [19, 30, 27, 16, 20],
+  "wallSeconds": 116,
+  "phases": ["design:brief", "design:brand", "design:page", "design:page", "design:page"],
+  "errors": ["Design mode failed: sections[3].referenceDirectionId must belong to contact"]
+}

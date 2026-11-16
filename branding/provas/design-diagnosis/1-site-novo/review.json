@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "verdict": "repair",
+  "summary": "A página mantém uma só linguagem visual (Spline Sans, paleta creme e carvão, cartões, botões e pílulas consistentes), as oito fotos reais renderizam sem esticar e as composições de hero, cardápio, passos e rodapé seguem as referências. Restam vazios de composição em desktop (história, visita, encomenda, rodapé) e um problema no celular: o botão do hero duplica a barra fixa na primeira tela. Auditoria DOM sem violações de alvo de toque e sem overflow.",
+  "findings": [
+    {
+      "id": "story_text_column_gap",
+      "severity": "major",
+      "area": "1440 história",
+      "evidenceType": "visual_inspection",
+      "confidence": "medium",
+      "evidence": "Na coluna de texto, o título fica no topo e os dois parágrafos colam na base da foto, com cerca de 250px de creme vazio entre eles; os parágrafos são pequenos frente ao h2. A referência meridian-03 tem a mesma estrutura, mas o texto de apoio é mais largo e legível.",
+      "repair": "Aumentar o parágrafo para var(--text-body) com line-height 1.6 e largura de 52ch, e reduzir a altura da foto e da coluna para cerca de 520px para diminuir o espaço vazio."
+    },
+    {
+      "id": "visit_section_empty_bottom",
+      "severity": "minor",
+      "area": "1440 visita",
+      "evidenceType": "visual_inspection",
+      "confidence": "medium",
+      "evidence": "O nome Vila Madalena termina a cerca de 70% da seção e deixa uma faixa grande de carvão vazio embaixo, enquanto os valores de horário à direita ficam pequenos e distantes dos títulos.",
+      "repair": "Distribuir o conteúdo na altura da seção (justify-content space-between ou padding-bottom menor) e aproximar o valor de cada linha do título limitando a lista a cerca de 70% da largura do wrap."
+    },
+    {
+      "id": "order_cards_unbalanced",
+      "severity": "minor",
+      "area": "1440 encomenda",
+      "evidenceType": "visual_inspection",
+      "confidence": "medium",
+      "evidence": "Os três cartões terminam acima do fim da seção e deixam cerca de 170px de creme vazio abaixo; o texto e o botão à esquerda ficam pequenos e soltos no topo da coluna.",
+      "repair": "Alinhar a altura da coluna de cartões à altura da seção com mais padding vertical e align-self center no bloco de texto, mantendo as proporções da referência ritovex-06."
+    },
+    {
+      "id": "footer_wordmark_not_full_width",
+      "severity": "minor",
+      "area": "1440 rodapé",
+      "evidenceType": "visual_inspection",
+      "confidence": "medium",
+      "evidence": "O nome gigante Pão de Lenha ocupa cerca de 68% da largura do conteúdo e deixa uma faixa vazia à direita; a referência ritovex-11 estende o nome por toda a largura entre as margens.",
+      "repair": "Aumentar o font-size do wordmark com o passo display até o nome preencher a largura do wrap sem estourar (ajustar a escala em 1024 a 1439)."
+    },
+    {
+      "id": "mobile_duplicate_cta_first_screen",
+      "severity": "minor",
+      "area": "390 hero",
+      "evidenceType": "visual_inspection",
+      "confidence": "medium",
+      "evidence": "No celular o botão do hero e a barra fixa de encomenda mostram o mesmo texto e a mesma ação na primeira tela, com a foto cortada pelo fim da tela.",
+      "repair": "Esconder a barra fixa enquanto o botão do hero está visível (classe alternada por IntersectionObserver) ou manter só a barra fixa, para que a primeira tela tenha uma única ação."
+    },
+    {
+      "id": "unconfirmed_motion",
+      "severity": "minor",
+      "area": "hover, hero load, creative moment, reduced motion",
+      "evidenceType": "visual_inspection",
+      "confidence": "unknown",
+      "evidence": "As capturas estáticas mostram só os quadros finais; o nome do bairro aparece contornado, mas não há prova do hover, da abertura da foto do hero nem do estado sob reduced motion.",
+      "repair": "Sem mudança de código exigida; confirmar no navegador que as transições terminam no quadro final."
+    }
+  ]
+}

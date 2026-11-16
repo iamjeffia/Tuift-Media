@@ -23,6 +23,10 @@ const NUMERIC_CLAIM_PATTERNS = [
   /\b\d[\d,.]*\+?\s+(?:customers?|users?|teams?|companies|countries|years?|hours?|minutes?|days?|projects?|reviews?|downloads?|orders?)\b/iu,
 ]
 
+/** The label an operating screen carries on its example figures, in English or Portuguese. */
+const DEMO_DATA_LABEL =
+  /\b(?:demo|sample|illustrative|representative|fictional) data\b|\bdados (?:de exemplo|de demonstra[cç][aã]o|fict[ií]cios|ilustrativos)\b/iu
+
 const CLAIM_PATTERNS = [
   /\b(?:save[sd]?|saving|cuts?|reduce[sd]?|increase[sd]?|boost[sd]?|improve[sd]?)\b[^.!?]{0,60}\b\d/iu,
   /\b\d+(?:[.,]\d+)?\s*(?:%|x|×)\s+(?:faster|cheaper|more|less|accurate|accuracy|uptime|reliability|savings)\b/iu,
@@ -139,7 +143,7 @@ function collectCopy(page: PageBlueprint): CopySurface[] {
       const demoData =
         page.architecture?.mode === 'operate_monitor' &&
         section.layoutFamily === 'dashboard' &&
-        /\b(?:demo|sample|illustrative|representative|fictional) data\b/iu.test(
+        DEMO_DATA_LABEL.test(
           [section.copy.eyebrow, section.copy.heading, ...section.copy.body].join(' '),
         )
       return [

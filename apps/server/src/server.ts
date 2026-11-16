@@ -932,7 +932,11 @@ export function startServer(
     switch (method) {
       case 'client.capabilities': {
         const capabilities = parseParams(method, params)
-        previewCapture.setCapability(socket, capabilities.previewCapture)
+        previewCapture.setCapability(
+          socket,
+          capabilities.previewCapture,
+          capabilities.browserThreads,
+        )
         browserCommands.setCapability(
           socket,
           capabilities.browserTools,

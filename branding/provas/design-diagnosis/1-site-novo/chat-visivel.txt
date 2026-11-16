@@ -1,0 +1,61 @@
+[commentary] Brief locked in. Starting the design.
+
+---
+
+[commentary] Vou tentar gerar as 8 fotos de fato. Primeiro confiro se o Codex CLI está disponível.
+
+---
+
+[commentary] Codex logado. Gero as 8 fotos em paralelo, uma por chamada.
+
+---
+
+[commentary] Seis saíram; duas (brioche e fermentação natural) falharam. Tento de novo e confiro as dimensões.
+
+---
+
+[commentary] Dimensões batem com as proporções. Confiro o hero e a foto das mãos.
+
+---
+
+[commentary] Ambas boas. Aceito as oito e removo os logs temporários.
+
+---
+
+[commentary] Instalo as bibliotecas de ícones reais (simple-icons para o WhatsApp, lucide-static para os passos) para copiar os SVGs oficiais.
+
+---
+
+[commentary] Ícones reais instalados. Agora escrevo a página (HTML, CSS e um script curto).
+
+---
+
+[commentary] Agora verifico no navegador. Carrego as ferramentas do Playwright.
+
+---
+
+[commentary] Sirvo por HTTP temporário, só para esta checagem.
+
+---
+
+[commentary] Momento criativo funciona e termina completo. Agora o mobile.
+
+---
+
+[commentary] Os SVGs inline (ícones e o desenho do bairro) foram sinalizados. Troco os ícones por arquivos reais das bibliotecas com máscara CSS e refaço o momento com texto HTML contornado, sem SVG.
+
+---
+
+[commentary] Sem nenhum `<svg>` no HTML. Confiro no navegador o novo desenho do bairro e os ícones.
+
+---
+
+[commentary] Ícone do WhatsApp renderiza. Confiro o desktop.
+
+---
+
+[commentary] O texto saiu preenchido porque a regra de parágrafo sobrescreve a cor. Troco o elemento para `div`.
+
+---
+
+[final_answer] Website built. Preview ready at http://127.0.0.1:4173/. Visual review stopped after 2 repair attempts with 6 findings remaining. Verify before publishing: o número de WhatsApp (5511900000000), a Rua da Fornalha na Vila Madalena, os horários (terça a sábado 7h às 18h, domingo 7h às 13h, segunda fechado) e a antecedência de 2 dias são dados de exemplo. As descrições dos 6 itens do cardápio são conceito ilustrativo e não há preços. As oito fotos são geradas por IA e o rodapé diz isso. Correção deste passe: o HTML não tem mais nenhum SVG inline. Os ícones agora são arquivos reais em assets/icons (WhatsApp de simple-icons, passos de lucide, licenças em LICENSES.txt) aplicados por máscara CSS. O momento criativo agora é texto HTML contornado em CSS (-webkit-text-stroke) revelado da esquerda para a direita em 1200ms, em vez de um desenho SVG. Desvios do plano mantidos: min-height em vez de altura fixa, sem pontilhado lateral no cabeçalho, sem position sticky no momento, wordmark do rodapé com cerca de 1,5x o display. Privacidade e Termos ficaram de fora porque não existem páginas. O e-mail só aparece como link mailto, sem ser impresso.

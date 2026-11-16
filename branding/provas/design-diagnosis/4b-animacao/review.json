@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "verdict": "pass",
+  "summary": "Em 1440 e 390 a página segue igual à original (cabeçalho marrom, h2 marrom, parágrafos, rodapé cinza). Não há overflow, sobreposição, placeholder nem mudança de layout, e o menu ficou na mesma posição de antes. A auditoria de DOM agora não aponta mais links abaixo de 44x44. A animação de entrada e o hover do menu não aparecem em captura estática, então não há evidência visual de movimento nem de falha.",
+  "findings": []
+}

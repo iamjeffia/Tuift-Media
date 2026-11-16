@@ -671,8 +671,6 @@ Current preview risks that still need explicit work:
 - the preview command executes a script already declared by the opened project without a separate
   Design Mode approval; confirm this trust model is intended or route it through the normal command
   approval surface;
-- when several desktop clients are connected, the coordinator uses the first capable socket and the
-  capture request has no thread owner, so a concurrent run can open in the wrong visible workspace;
 - screenshot files are temporary evidence, not a durable iteration history.
 
 ## OriginKit
@@ -764,13 +762,16 @@ relies primarily on provider-reported checks and screenshots.
 
 ### Critical correctness gaps
 
-1. **Invalidate async Preview and Capture work on panic stop.** A panic can happen after the
-   provider turn has completed while preview startup or capture is awaiting. Those continuations
-   must not launch Review after an emergency stop.
+1. ~~Invalidate async Preview and Capture work on panic stop.~~ Closed: a continuation checks that
+   its flow is still the live one before it starts Review, and `#sendDesignTurn` refuses to
+   start any phase for a flow that ended while it waited (a font download, say). Tests cover
+   Stop all during preview start, during capture and during the Assets font download.
 2. **Prove preview-tree shutdown on macOS.** POSIX process-group termination and exit waiting are
    implemented, but the real package-manager descendant path still needs a macOS smoke run.
-3. **Route capture to its owning task and desktop client.** The current typed request has no
-   `threadId`; the first capable socket is correct only under the single-active-desktop assumption.
+3. ~~Route capture to its owning task and desktop client.~~ Closed: the request names its chat, and
+   the coordinator sends it to the client whose `browserThreads` list that chat, falling back to
+   any capable client. With none connected (window unloaded to the tray, app shut, phone only)
+   the run finishes with an explained "no TUIFT Code window was open" note instead of waiting.
 
 ### Missing internal judgment and tool work
 

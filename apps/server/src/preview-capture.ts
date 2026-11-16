@@ -22,7 +22,8 @@ function captureAborted(): Error {
 }
 
 export class PreviewCaptureCoordinator<Client extends object = WebSocket> {
-  #clients = new Set<Client>()
+  /** Each capable client and the chats it shows, so a capture can go to the window that owns it. */
+  #clients = new Map<Client, ReadonlySet<string>>()
   #pending = new Map<string, PendingCapture<Client>>()
   #queue: Array<QueuedCapture<Client>> = []
 
@@ -36,9 +37,9 @@ export class PreviewCaptureCoordinator<Client extends object = WebSocket> {
     return this.#clients.size > 0
   }
 
-  setCapability(socket: Client, available: boolean): void {
+  setCapability(socket: Client, available: boolean, threads: readonly string[] = []): void {
     if (available) {
-      this.#clients.add(socket)
+      this.#clients.set(socket, new Set(threads))
       this.#dispatchNext()
     } else this.remove(socket)
   }
@@ -119,11 +120,7 @@ export class PreviewCaptureCoordinator<Client extends object = WebSocket> {
   #dispatchNext(): void {
     const interrupted = this.#pending.values().next().value
     if (interrupted?.socket || (!interrupted && this.#queue.length === 0)) return
-    let socket: Client | undefined
-    for (const client of this.#clients) {
-      socket = client
-      break
-    }
+    const socket = this.#clientFor((interrupted ?? this.#queue[0]!).request.threadId)
     if (!socket) {
       if (interrupted) return
       for (const queued of this.#queue.splice(0)) {
@@ -155,6 +152,20 @@ export class PreviewCaptureCoordinator<Client extends object = WebSocket> {
     } catch {
       this.remove(socket)
     }
+  }
+
+  /**
+   * The client that shows the chat, so the preview opens where the person is looking. Any other
+   * capable client can still take the screenshots: they come from a private hidden window, and
+   * a chat no window shows yet (its panel loads on first use) must not wait for one.
+   */
+  #clientFor(threadId: string | undefined): Client | undefined {
+    let first: Client | undefined
+    for (const [client, shown] of this.#clients) {
+      if (threadId && shown.has(threadId)) return client
+      first ??= client
+    }
+    return first
   }
 
   // A pending entry is a copy of its queued entry and a reconnect can renew

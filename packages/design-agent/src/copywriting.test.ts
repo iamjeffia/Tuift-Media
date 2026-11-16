@@ -205,3 +205,26 @@ describe('page copy lint', () => {
     ).not.toThrow()
   })
 })
+
+describe('example data label', () => {
+  const figure = 'Taxa de erro de 0,28% depois do deploy.'
+  const dashboard = (body: string[]): PageBlueprint => ({
+    ...page,
+    architecture: { ...page.architecture!, mode: 'operate_monitor' },
+    sections: [
+      {
+        ...page.sections[0]!,
+        layoutFamily: 'dashboard',
+        copy: { heading: 'Produção', body, callsToAction: [] },
+      },
+    ],
+  })
+  it('treats a Portuguese example-data label like the English one', () => {
+    const severities = (body: string[]) =>
+      lintPageCopy(dashboard(body))
+        .filter(({ rule }) => rule === 'copy/objective-claim')
+        .map(({ severity }) => severity)
+    expect(severities(['Dados de exemplo', figure])).toEqual(['review'])
+    expect(severities([figure])).toEqual(['error'])
+  })
+})

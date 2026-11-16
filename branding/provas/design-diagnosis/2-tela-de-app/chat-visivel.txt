@@ -1,0 +1,25 @@
+[commentary] Brief locked in. Starting the design.
+
+---
+
+[commentary] Vou começar inspecionando a pasta do projeto, o kit e as fontes.
+
+---
+
+[commentary] Agora o HTML e o script principal.
+
+---
+
+[commentary] Código escrito. Agora rodo o teste no navegador headless para conferir rotas, estados e acessibilidade.
+
+---
+
+[commentary] Corrigindo uma regex que foi corrompida na substituição anterior.
+
+---
+
+[commentary] The CSS edits applied. I'll do the JS edits with the Edit tool.
+
+---
+
+[final_answer] Dashboard built. Preview ready at http://127.0.0.1:4173/. Visual review passed after 1 repair attempt. Verify before publishing: todos os dados são de exemplo. Perfil (Marina Duarte, e-mail, telefone, fusos e idiomas), 6 categorias com limites e valores usados, 5 alertas, moedas e formatos, e o valor de prévia R$ 1.234,56 ficam em data.js. A mensagem 'Sample data' está no index.html, e o nome 'Fio' está no app.js (marca) e no index.html (título). O 'Horário do resumo' (08:00) e o 'dia 1' do resumo mensal estão no app.js (alertDesc). Tela estática (index.html, app.css, data.js, app.js) com 5 visões por hash, Perfil como padrão. Estilo dealt: Accent ladder em plano aberto (open-plane), framboesa #b8336a. Rosto: ground #fbf7f8 e a prévia do valor como elemento assinatura, que formata os limites das categorias e a prévia de notificação pela mesma configuração. Pergunta de cada tela: Perfil, 'meus dados estão corretos?'; Notificações, 'quais avisos, por onde?'; Categorias, 'quais limites e quanto usei?'; Moeda, 'em que formato vejo meus números?'; Zona de perigo, 'como apago a conta sem acidente?'. Regras que quebrei: campos e selects têm 44px de altura (não os 32px do sheet), porque o preview exige alvo de 44px e input não aceita caixa interna; botões, interruptores e nav seguem 32px visíveis dentro de caixa de 44px. A lista aberta do select usa o popup nativo do navegador. Não há cor por categoria (o brand pede só ícones cinza). Não copiei charts.js porque a tela não tem gráfico. DM Sans: os dígitos têm a mesma largura com e sem tabular-nums, então já são tabulares. Estados de bloco acessíveis por URL: #/categorias?estado=erro, carregando ou vazio.
