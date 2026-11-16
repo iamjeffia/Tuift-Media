@@ -191,11 +191,13 @@ describe('motion_stage on the app tool channel', { timeout: 30_000 }, () => {
     const set = await callStage(started[0]!, { stage: 'soundtrack' })
     expect(set).toMatchObject({ stage: 'soundtrack', owner: 'cloud', next: 'motion' })
     // Only the skills of this install: the pack lacks hyperframes-audio, so it is not pointed at.
+    // `ouvir` is a base skill the stage also reads, named by its place in the base bundle.
     expect(set['skills']).toEqual([
       {
         name: 'composicao-trilha',
         path: path.join(root, 'packs', 'motion', 'skills', 'composicao-trilha', 'SKILL.md'),
       },
+      { name: 'ouvir', path: path.join(root, 'skills', 'ouvir', 'SKILL.md') },
     ])
     expect(store.threadSettings(chat.id)).toMatchObject({
       mode: 'motion',

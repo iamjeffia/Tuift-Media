@@ -21,8 +21,7 @@ import type { Store } from './store.js'
 /**
  * The Motion pack skills (folder names in `packages/default-skills/skills.json`) that
  * each stage reads. Stages with no skill are work the person and the agent do in
- * conversation, or lean on base skills every chat already has (`watch` for the review
- * stage, `ouvir` for the soundtrack); the test checks every name against the real pack.
+ * conversation; the test checks every name against the real pack.
  */
 export const MOTION_STAGE_SKILLS = {
   idea: [],
@@ -43,6 +42,17 @@ export const MOTION_STAGE_SKILLS = {
   review: [],
   delivery: ['hyperframes-cli'],
 } as const satisfies Record<MotionStage, readonly string[]>
+
+/**
+ * The base skills (in every chat, not in the pack) a stage also reads: `watch` to see a
+ * reference or the render, `ouvir` to hear a soundtrack or the final mix. They are named
+ * after the pack's skills; the test checks every name against the base bundle.
+ */
+export const MOTION_STAGE_BASE_SKILLS: Partial<Record<MotionStage, readonly string[]>> = {
+  references: ['watch'],
+  soundtrack: ['ouvir'],
+  review: ['watch', 'ouvir'],
+}
 
 /**
  * The `motion` stage without After Effects: the HyperFrames skills, which run
@@ -126,13 +136,18 @@ function describeStage(
         : WITHOUT_AFTER_EFFECTS_LAST.includes(folder)
           ? 1
           : 0
-  const skills = [...MOTION_STAGE_SKILLS[stage]]
-    .filter((folder) => !pack || pack.skills.includes(folder))
-    .sort((a, b) => rank(a) - rank(b))
-    .map((folder) => ({
-      name: folder,
-      ...(pack ? { path: path.join(pack.pluginDir, 'skills', folder, 'SKILL.md') } : {}),
-    }))
+  const named = (folder: string, skillsDir: string | undefined): { name: string; path?: string } =>
+    skillsDir ? { name: folder, path: path.join(skillsDir, folder, 'SKILL.md') } : { name: folder }
+  const skills = [
+    ...[...MOTION_STAGE_SKILLS[stage]]
+      .filter((folder) => !pack || pack.skills.includes(folder))
+      .sort((a, b) => rank(a) - rank(b))
+      .map((folder) => named(folder, pack && path.join(pack.pluginDir, 'skills'))),
+    // The base bundle is the folder that holds `packs/<name>`; it ships with every pack.
+    ...(MOTION_STAGE_BASE_SKILLS[stage] ?? []).map((folder) =>
+      named(folder, pack && path.join(pack.pluginDir, '..', '..', 'skills')),
+    ),
+  ]
   return {
     stage,
     owner: MOTION_STAGE_OWNERS[stage],

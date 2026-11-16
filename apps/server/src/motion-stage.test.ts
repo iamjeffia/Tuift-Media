@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -8,6 +9,7 @@ import {
 } from '@harness/contracts'
 import type { DefaultSkillPack } from './default-skills.js'
 import {
+  MOTION_STAGE_BASE_SKILLS,
   MOTION_STAGE_SKILLS,
   MOTION_STAGE_TOOL,
   MotionStageError,
@@ -32,6 +34,29 @@ describe('the stage to skills table', () => {
       .flat()
       .filter((name) => !pack.has(name))
     expect(unknown).toEqual([])
+    const base = new Set(
+      manifest.skills.filter((entry) => entry.pack === undefined).map((entry) => entry.folder),
+    )
+    const notBase = Object.values(MOTION_STAGE_BASE_SKILLS)
+      .flat()
+      .filter((name) => !base.has(name))
+    expect(notBase).toEqual([])
+  })
+
+  it('adds the base skills that see and hear to the stages that need them', () => {
+    const skills = (stage: MotionStage) =>
+      (
+        runMotionStage(fakeBroker(stage, pack).broker, 'chat-1', {}) as {
+          skills: Array<{ name: string; path?: string }>
+        }
+      ).skills
+    expect(skills('review').map((skill) => skill.name)).toEqual(['watch', 'ouvir'])
+    expect(skills('soundtrack').at(-1)?.name).toBe('ouvir')
+    expect(skills('references').at(-1)?.name).toBe('watch')
+    // Out of the pack's folder, in the base bundle beside it.
+    expect(skills('review')[0]?.path).toBe(
+      path.join(pack.pluginDir, '..', '..', 'skills', 'watch', 'SKILL.md'),
+    )
   })
 
   it('leaves the conversation stages without skills', () => {
@@ -84,6 +109,7 @@ describe('runMotionStage', () => {
       skills: [
         { name: 'composicao-trilha', path: expect.stringMatching(/composicao-trilha.SKILL\.md$/) },
         { name: 'hyperframes-audio', path: expect.stringMatching(/hyperframes-audio.SKILL\.md$/) },
+        { name: 'ouvir', path: expect.stringMatching(/ouvir.SKILL\.md$/) },
       ],
       reminder: expect.stringContaining('is theirs'),
     })
@@ -112,11 +138,11 @@ describe('runMotionStage', () => {
   it('leaves out a skill the install does not have, and names them without paths without the pack', () => {
     const { broker } = fakeBroker('idea', { ...pack, skills: ['composicao-trilha'] })
     expect(runMotionStage(broker, 'c', { stage: 'soundtrack' })).toMatchObject({
-      skills: [{ name: 'composicao-trilha' }],
+      skills: [{ name: 'composicao-trilha' }, { name: 'ouvir' }],
     })
     const none: MotionStageBroker = { ...broker, pack: () => undefined }
     expect(runMotionStage(none, 'c', { stage: 'soundtrack' })).toMatchObject({
-      skills: [{ name: 'composicao-trilha' }, { name: 'hyperframes-audio' }],
+      skills: [{ name: 'composicao-trilha' }, { name: 'hyperframes-audio' }, { name: 'ouvir' }],
     })
   })
 
@@ -198,7 +224,9 @@ describe('the skills of the motion stage by what can run', () => {
 
   it('leaves the other stages as they are', () => {
     expect(names('not-installed', 'references')).toEqual(
-      [...MOTION_STAGE_SKILLS.references].filter((name) => motionPack.skills.includes(name)),
+      [...MOTION_STAGE_SKILLS.references]
+        .filter((name) => motionPack.skills.includes(name))
+        .concat(MOTION_STAGE_BASE_SKILLS.references ?? []),
     )
   })
 })
