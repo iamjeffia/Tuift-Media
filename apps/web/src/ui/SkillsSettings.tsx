@@ -639,9 +639,11 @@ function AvailableSkillRow(props: {
           text={language === 'pt-BR' ? skill.summary['pt-BR'] : skill.summary.en}
         />
         <p className="set-entity__detail">
-          {skill.license === null
-            ? t('settings.skills.catalog.metaNoLicense', { author: skill.author })
-            : t('settings.skills.catalog.meta', { author: skill.author, license: skill.license })}
+          {skill.origin === 'clube'
+            ? t('settings.skills.catalog.metaClube')
+            : skill.license === null
+              ? t('settings.skills.catalog.metaNoLicense', { author: skill.author })
+              : t('settings.skills.catalog.meta', { author: skill.author, license: skill.license })}
         </p>
         {skill.installedFor === 'app' ? (
           <p className="set-entity__detail">

@@ -79,7 +79,12 @@ const ITEMS = [
     title: 'Referência de teste',
     page: 'http://clube.test/referencias/r1',
   }),
-  item('skill/s1', 'skill', { title: 'Ritmo de corte', format: undefined, durationS: undefined }),
+  item('skill/s1', 'skill', {
+    title: 'Ritmo de corte',
+    format: undefined,
+    durationS: undefined,
+    cover: undefined,
+  }),
   item('musica/m1', 'music', { title: 'Maré lenta', access: 'free', durationS: 120 }),
 ]
 
@@ -746,6 +751,21 @@ describe('a project: the parts and the download', () => {
 })
 
 describe('a skill', () => {
+  it('shows the SKILL.md without its front matter, and no empty frame where a cover would be', async () => {
+    open({
+      item: () => ({
+        ok: true,
+        record: record(ITEMS[3]!, {
+          analysis: '---\nname: ritmo\ndescription: x\n---\n\n# Ritmo\n\nCorpo.',
+        }),
+      }),
+    })
+    await openItem('Ritmo de corte')
+    const markdown = await screen.findByTestId('markdown')
+    expect(markdown.textContent).toBe('# Ritmo\n\nCorpo.')
+    expect(document.querySelector('.clube-record__media')).toBeNull()
+  })
+
   it('installs once, says where it loads, and keeps the installed state', async () => {
     const { transport } = open()
     await openItem('Ritmo de corte')

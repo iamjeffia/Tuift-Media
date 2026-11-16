@@ -18,6 +18,8 @@
   display: none;
 }
 
+/* The foot is the tab's own, under the list and under an item alike. */
+
 .workspace-clube__list {
   display: flex;
   flex: 1;
@@ -565,13 +567,13 @@
   height: 4px;
   overflow: hidden;
   appearance: none;
-  background: var(--chrome-recessed);
+  background: var(--line);
   border: 0;
   border-radius: var(--r-pill);
 }
 
 .clube-progress__bar::-webkit-progress-bar {
-  background: var(--chrome-recessed);
+  background: var(--line);
 }
 
 .clube-progress__bar::-webkit-progress-value {

@@ -43,6 +43,7 @@ import {
   KIND_WORDS,
   partsTotals,
   slugOf,
+  withoutFrontMatter,
   type ClubeMedia,
 } from '../../clube-library.js'
 import { attachToComposer } from '../../composer-attach.js'
@@ -245,7 +246,9 @@ export function ClubeRecordView(props: Props) {
               <div className="clube-record__markdown">
                 <Suspense fallback={null}>
                   <CompletedMarkdown
-                    text={record.analysis}
+                    text={
+                      item.kind === 'skill' ? withoutFrontMatter(record.analysis) : record.analysis
+                    }
                     projectPath={props.projectPath}
                     literalHtml
                   />
@@ -313,6 +316,8 @@ function Cover(props: { item: ClubeItem; media: ClubeMedia; i18n: I18n; icon: Re
     void media.load(item.preview).then((url) => setVideo(url ?? 'failed'))
   }
   const src = video !== 'idle' && video !== 'loading' && video !== 'failed' ? video : undefined
+  // An item with no cover (a skill, say) has nothing to show here: no empty frame.
+  if (!item.cover && !item.preview) return null
   return (
     <>
       <div className="clube-record__media">

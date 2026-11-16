@@ -67,6 +67,16 @@ export function clubeSearchParams(filters: ClubeFilters, cursor?: string): Clube
   }
 }
 
+/**
+ * A SKILL.md opens with a block of front matter (`---`, the skill's name and description, `---`).
+ * Rendered as Markdown it would read as a heading, and the title and summary above already say
+ * the same, so the record shows the file from its first line after the block.
+ */
+export function withoutFrontMatter(markdown: string): string {
+  const match = /^\uFEFF?---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/.exec(markdown)
+  return match ? markdown.slice(match[0].length).replace(/^\s+/, '') : markdown
+}
+
 /** The slug of an item id (`projeto/p1` is `p1`). */
 export const slugOf = (id: string): string => id.slice(id.indexOf('/') + 1)
 
@@ -146,7 +156,8 @@ export class ClubeMedia {
   readonly #waiting: Array<() => void> = []
   readonly #listeners = new Set<() => void>()
   #active = 0
-  #disposed = false
+  /** Bumped by `dispose`: a fetch that started before it drops its result. */
+  #generation = 0
 
   constructor(transport: Transport) {
     this.#transport = transport
@@ -169,19 +180,27 @@ export class ClubeMedia {
     if (this.#failed.has(link)) return Promise.resolve(null)
     const running = this.#pending.get(link)
     if (running) return running
+    const generation = this.#generation
     const task = new Promise<string | null>((resolve) => {
       const run = () => {
         this.#active += 1
         this.#transport
           .request('clube.library.media', { url: link })
           .then((result) => {
-            if (!result.ok || this.#disposed) return null
+            if (!result.ok) return null
             const bytes = Uint8Array.from(atob(result.data), (character) => character.charCodeAt(0))
             return URL.createObjectURL(new Blob([bytes], { type: result.mime }))
           })
           .catch(() => null)
           .then((url) => {
             this.#active -= 1
+            if (generation !== this.#generation) {
+              // The tab was torn down while this was on its way: nothing keeps the address.
+              if (url) URL.revokeObjectURL(url)
+              this.#waiting.shift()?.()
+              resolve(null)
+              return
+            }
             this.#pending.delete(link)
             if (url) {
               this.#urls.set(link, url)
@@ -207,10 +226,13 @@ export class ClubeMedia {
     return task
   }
 
+  /** Lets go of every address. The same object may be used again (a remount), starting empty. */
   dispose(): void {
-    this.#disposed = true
+    this.#generation += 1
     for (const url of this.#urls.values()) URL.revokeObjectURL(url)
     this.#urls.clear()
+    this.#failed.clear()
+    this.#pending.clear()
     this.#listeners.clear()
   }
 }

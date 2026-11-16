@@ -679,6 +679,50 @@ outside the project (the After Effects tools and the skills read files, so the p
 look) · naming files by id only (the name carries instrument, key and mode) · offering the tools to
 every chat.
 
+### The Clube's library tab
+
+The side panel has a Clube tab (`WorkspaceClube.tsx`) over `clube-library.ts` in the server: search over
+the five kinds of the Clube's library, a record opened **only when the person asks** (the Clube counts an
+opening as seen, and the first opening of a reference spends one of the account's credits, so a reference
+asks first and shows the credits after), and the actions of each kind. It is offered in Motion chats always
+and in other chats once an account is linked (one `clube.status` read, refreshed by `clube.changed`);
+a Motion chat does not ask at all. Like every `clube.*` and `sounds.*` method it is closed to a paired phone.
+
+Every byte goes through the server. The page's policy lets it load nothing from the Clube, so covers and
+previews come as `clube.library.media`: an address on the Clube's own origin and nothing else (another
+origin, a user in the address, a redirect: refused before or without a request), no token, a picture, a short
+video or an MP3 within its ceiling (4, 10 and 8 MB, which is what the socket's response budget can carry
+as base64). A signed link of a download is held to the same rule: only the Clube's origin, no account token,
+no redirect, and every link and every destination of the answer is checked before the first file is fetched.
+A download runs one at a time in the server and answers at once with a job the page polls (a request
+that waits would meet the transport's two-minute timeout, and a push would reach a paired phone). A file goes
+to disk as it arrives, to `<name>.<random>.part`, and gets its name only when whole; a zip is unpacked entry by
+entry into a staging folder (CRC-32 checked, every path confined to the item's folder, a drive letter, a
+backslash, `..` or a device name refuses the archive) and each file is moved into place only when all
+of them came out whole. A cancel or a failure leaves nothing under a final name that was not complete; a part
+that finished stays and is not fetched again (a `.clube-download.json` beside the files says which parts are
+whole, and a part whose file is gone or changed counts as missing). The ceilings are in `CLUBE_LIMITS`: a file
+may not pass what the Clube declared for it (`tamanho_mb`, plus 5% and 2 MB) nor 2 GiB; a download not 4 GiB;
+a zip not 5,000 entries, an entry not 2 GiB and the unpacked files not 6 GiB (the reader has no ZIP64, so
+4 GiB is the true edge); twice the download's size must be free on the disk; no bytes for 60 seconds or no
+answer in 30 seconds stops it. `sound-zip.ts` was not usable as it was (names flattened to file names, 64
+entries, each entry read whole into memory); it gained a streaming `writeTo` and the entry's real path,
+and its other behaviour is unchanged.
+
+A skill of the Clube is installed once into the app's folder of installed skills through the same catalog
+that installs the ones from authors (`SkillCatalog.installStaged`: same staging, same move, same record and
+rollback), with `origin: 'clube'` in `installed.json` instead of a commit. `motion` and `som` skills go to the
+`motion` category (Motion chats); `texto` and `processo` to `general`, which loads in every chat. It is listed
+on the Skills page with its origin and removed by the road the others use; an id that the manifest or the
+bundle already uses is refused. Disconnecting the account leaves the installed skills where they are.
+Nothing of the Clube's content is in the repository or the installer.
+
+_Rejected:_ loading covers by widening the page's `img-src`/`media-src` to the Clube (every page of the
+app would then load from it) · the page holding signed links and downloading (the page must not hold a link
+that works without a token) · a push for progress (it would reach a phone) · reusing `sound-zip.ts` as it was
+(it flattens paths and reads each entry whole) · a second installer for skills (two writers of one record) ·
+sending `usado` from the page after every download (the server does it, once per item per run).
+
 ---
 
 ## Storage
@@ -1212,3 +1256,4 @@ registry entry, which is deliberately a good first outside contribution.
 | 2026-11-16 | Linked the app to a Clube do Motion account (OAuth 2.1 public client, tokens in the credential store) and offered the Clube's MCP server to every chat through the app's own endpoint.                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | 2026-11-16 | Added the Clube's sound library to Motion chats: agent tools to search and use one sound or track at a time into the project's `audio/clube/`, a line about it in the Motion session start, two Settings rows and a Sounds tab in the side panel.                                                                                                                                                                                                                                                                                                                                                                         |
 | 2026-11-16 | An installer asks the running app to quit (`--quit-for-install`, through the single-instance lock) and waits for an ordered quit with deadlines before replacing files, instead of ending its processes by force; a silent install never interrupts a working chat (exit code 10); the Windows Update button starts the installer after the app has shut down.                                                                                                                                                                                                                                                            |
+| 2026-11-16 | Added the Clube's library tab to the side panel: search, records opened only on request, project and animation downloads confined to the chat's project with a job the page polls, Clube skills installed once through the skill catalog, covers and previews fetched by the server from the Clube's origin only.                                                                                                                                                                                                                                                                                                         |

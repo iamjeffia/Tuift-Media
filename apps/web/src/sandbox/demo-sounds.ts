@@ -279,7 +279,7 @@ export class DemoSounds {
 }
 
 /** Half a second of a 440 Hz sine as a mono 8-bit WAV, base64: enough for the player to play. */
-function sineWave(): string {
+export function sineWave(): string {
   const rate = 8_000
   const samples = rate / 2
   const bytes = new Uint8Array(44 + samples)

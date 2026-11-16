@@ -332,14 +332,6 @@ export function WorkspaceClube(props: {
             <span>{t('clubePanel.noChat')}</span>
           </div>
         ) : null}
-        {results.state === 'ready' || limits ? (
-          <footer className="workspace-clube__foot">
-            <span>
-              {results.state === 'ready' ? i18n.tp('clubePanel.results', results.total) : ''}
-            </span>
-            {limits ? <LimitsLine limits={limits} i18n={i18n} /> : null}
-          </footer>
-        ) : null}
       </div>
 
       {open ? (
@@ -357,6 +349,14 @@ export function WorkspaceClube(props: {
           }}
           onSpent={onSpent}
         />
+      ) : null}
+      {results.state === 'ready' || limits ? (
+        <footer className="workspace-clube__foot">
+          <span>
+            {results.state === 'ready' && !open ? i18n.tp('clubePanel.results', results.total) : ''}
+          </span>
+          {limits ? <LimitsLine limits={limits} i18n={i18n} /> : null}
+        </footer>
       ) : null}
     </div>
   )

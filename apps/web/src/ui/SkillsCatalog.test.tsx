@@ -468,3 +468,55 @@ describe('skills from their authors, in Portuguese', () => {
     await waitFor(() => expect(within(row('Skill fresh')).getByText('Instalando…')).toBeTruthy())
   })
 })
+
+describe('a skill installed from the Clube library', () => {
+  const clubeSkill = available('ritmo', {
+    name: 'Ritmo de corte',
+    author: 'Clube do Motion',
+    category: 'motion',
+    license: null,
+    sourceUrl: 'https://clube.example.test/skills/ritmo',
+    state: 'installed',
+    installedFor: 'app',
+    origin: 'clube',
+  })
+
+  it('is listed with its origin instead of an author and a licence, and can be removed like the others', async () => {
+    Object.defineProperty(window, 'confirm', { configurable: true, value: () => true })
+    const removed: string[] = []
+    const ctl = catalogTransport({
+      skills: [clubeSkill, available('fresh')],
+      removeAvailable: async (id) => {
+        removed.push(id)
+        return {}
+      },
+    })
+    page(ctl.transport)
+    await screen.findByRole('heading', { name: 'Available to install' })
+    const mine = row('Ritmo de corte')
+    expect(within(mine).getByText('Installed from the Clube do Motion library')).toBeTruthy()
+    expect(within(mine).queryByText(/License/)).toBeNull()
+    expect(within(mine).queryByText(/declares no license/)).toBeNull()
+    expect(
+      within(mine).getByText('Installed for the whole app · Loads in Motion chats'),
+    ).toBeTruthy()
+    expect(
+      within(mine)
+        .getByRole('link', { name: 'Open the source of Ritmo de corte' })
+        .getAttribute('href'),
+    ).toBe('https://clube.example.test/skills/ritmo')
+    // "Install all" counts only what is not installed: the Clube skill is not offered again.
+    fireEvent.click(within(mine).getByRole('button', { name: 'Remove Ritmo de corte' }))
+    await waitFor(() => expect(removed).toEqual(['ritmo']))
+  })
+
+  it('says where it comes from in Portuguese', async () => {
+    setLanguage('pt-BR', { persist: false })
+    const ctl = catalogTransport({ skills: [clubeSkill] })
+    page(ctl.transport)
+    await screen.findByRole('heading', { name: 'Disponíveis para instalar' })
+    expect(
+      within(row('Ritmo de corte')).getByText('Instalada da biblioteca do Clube do Motion'),
+    ).toBeTruthy()
+  })
+})
