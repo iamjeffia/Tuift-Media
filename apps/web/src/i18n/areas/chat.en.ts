@@ -243,4 +243,29 @@ export const chatEn = {
   'chat.motion.stage.motion': 'Motion',
   'chat.motion.stage.review': 'Review',
   'chat.motion.stage.delivery': 'Delivery',
+
+  // A turn cut short: a provider process that died, or the app closing while the chat worked
+  'chat.crash.memoryCertain':
+    '{provider} was ended because the system ran out of memory. The chat and the files already written are kept.',
+  'chat.crash.memoryLikely':
+    '{provider} was ended, most likely because the system ran out of memory. The chat and the files already written are kept.',
+  'chat.crash.signal':
+    '{provider} was stopped before it finished. The chat and the files already written are kept.',
+  'chat.crash.providerError':
+    '{provider} stopped with an error. The chat and the files already written are kept.',
+  'chat.crash.unknown':
+    '{provider} ended unexpectedly and the reason is not known. The chat and the files already written are kept.',
+  'chat.crash.appClosed':
+    'TUIFT Code was closed while this chat was working. The chat and the files already written are kept.',
+  'chat.crash.continue': 'Continue',
+  'chat.crash.details': 'Technical details: {details}',
+  'chat.crash.exitCode': 'exit code {code}',
+  'chat.crash.signalName': 'signal {signal}',
+
+  // The computer is close to running out of memory while a chat works
+  'chat.memory.low':
+    'The computer is close to running out of memory. Close something heavy before the system starts ending programs.',
+  'chat.memory.lowNamed':
+    'The computer is close to running out of memory. Using the most: {programs}. Close something heavy before the system starts ending programs.',
+  'chat.memory.consumer': '{name} ({size} GB)',
 } as const

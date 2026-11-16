@@ -205,4 +205,10 @@ export const dialogsEn = {
   'dialogs.app.empty.failed': 'Projects could not be loaded.',
   'dialogs.app.empty.noProjects': 'Add a project to start building.',
   'dialogs.app.empty.addProject': 'Add project',
+
+  // Quitting from inside the app while chats are still working
+  'dialogs.quit.message': '{chats} still running. Quit anyway?',
+  'dialogs.quit.confirm': 'Quit and stop',
+  'dialogs.quit.keep': 'Keep working',
+  'dialogs.quit.cancel': 'Cancel quit',
 } as const

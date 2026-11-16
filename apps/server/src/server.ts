@@ -72,6 +72,7 @@ import { createT3CodeReader } from './chat-import-t3.js'
 import { ProviderHistory } from './provider-history.js'
 import { HistoryRefreshSchedule } from './history-refresh-schedule.js'
 import { STREAM_QUIET_BACKGROUND_WAIT_MS, StreamQuiet } from './stream-quiet.js'
+import { MemoryWatch } from './memory-watch.js'
 
 const SERVER_VERSION = '0.0.0'
 const DEFAULT_RENDERER_ORIGIN = 'http://127.0.0.1:5183'
@@ -294,7 +295,11 @@ export function startServer(
     }))
   const streamQuiet = new StreamQuiet()
   cliProbe.waitBeforeReads(() => streamQuiet.whenQuiet(STREAM_QUIET_BACKGROUND_WAIT_MS))
+  const memoryWatch = new MemoryWatch({
+    onChange: (notice) => push.broadcast('system.memory', notice),
+  })
   const orchestrator = new Orchestrator(store, {
+    memory: memoryWatch,
     onEvent: (threadId, event, seq, serializedEvent) => {
       if (event.type === 'item.delta') streamQuiet.noteDelta()
       else if (event.type === 'turn.completed') {
@@ -1983,6 +1988,10 @@ export function startServer(
   return {
     port,
     close: async () => {
+      // First, while the provider processes still answer: the turns stop the way a person
+      // stops them and each chat is marked, before anything below takes the server apart.
+      await orchestrator.stopTurnsForShutdown().catch(() => undefined)
+      memoryWatch.dispose()
       historyClosing = true
       clearTimeout(backgroundTimer)
       historySchedule.stop()

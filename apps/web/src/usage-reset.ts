@@ -15,6 +15,9 @@ export function usageResetAt(limits: readonly ProviderLimit[], now: number): num
   return Math.max(...exhausted.map((limit) => limit.resetsAt!))
 }
 
+/** What the app sends to carry on a chat whose turn was cut short; the provider reads it. */
+export const CONTINUE_PROMPT = 'Continue from where you stopped and finish my previous request.'
+
 const ResumeSchema = z.object({
   threadId: z.string().min(1),
   provider: ProviderIdSchema,
@@ -235,7 +238,7 @@ export class UsageResetController {
     try {
       await this.transport.request('thread.sendTurn', {
         threadId: entry.threadId,
-        text: 'Continue from where you stopped and finish my previous request.',
+        text: CONTINUE_PROMPT,
         clientSubmissionId: crypto.randomUUID(),
         model: entry.model,
       })

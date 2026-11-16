@@ -69,6 +69,7 @@ import { useWorkingCast, waitingForPerson } from './motion/cast-activity.js'
 import { LazyMotionCast } from './motion/LazyMotionCast.js'
 import { useChatMotion, useThreadMotion, type LegacyMotionFlag } from './motion/thread-motion.js'
 import { AppUpdateToast } from './ui/AppUpdateToast.js'
+import { QuitConfirmNotice } from './ui/QuitConfirmNotice.js'
 import { NoticeBody } from './ui/Notice.js'
 import { IndeterminateRequestError, Transport, type MissingServer } from './transport.js'
 import { OptimisticMutations } from './optimistic-mutations.js'
@@ -169,7 +170,9 @@ import { sourceSupportsAttachments } from './attachment-capability.js'
 import { canCaptureVoice, type VoiceRecording } from './voice-capability.js'
 import { pollUsageLimits, UsageLimitsController, type LimitTarget } from './usage-limits-state.js'
 import { sameAccount } from './usage-summary-state.js'
-import { UsageResetController, usageResetAt } from './usage-reset.js'
+import { CONTINUE_PROMPT, UsageResetController, usageResetAt } from './usage-reset.js'
+import { threadErrorNotice } from './thread-error-reason.js'
+import { useMemoryNotice } from './use-memory-notice.js'
 import { poolsOf, recommendedAccounts } from './account-pool.js'
 import {
   AccountLabelContext,
@@ -1208,6 +1211,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   const scheduledResumes = useSyncExternalStore(usageResumes.subscribe, usageResumes.snapshot)
   useEffect(() => usageResumes.start(), [usageResumes])
   const feedback = useFeedbackStatus(transport)
+  const memoryNotice = useMemoryNotice(transport)
   const refreshFeedback = feedback.refresh
   const [feedbackRequest, setFeedbackRequest] = useState<FeedbackRequest>()
   /** The chat the dialog describes, read when it opens. Kept in a ref so openers stay stable. */
@@ -7706,7 +7710,10 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
           ...error,
           report: () =>
             openFeedback('error_report', {
-              error: { kind, message: error.message.slice(0, 4000) },
+              error: {
+                kind,
+                message: [error.message, error.detail].filter(Boolean).join(' ').slice(0, 4000),
+              },
             }),
         }
       : error
@@ -7785,9 +7792,18 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
       ? [
           reportable(
             {
-              ...thread.error,
               id: `chat:${activeId}:${thread.error.id}`,
-              ...continueOffer,
+              message: thread.error.message,
+              ...(thread.error.reason && activeSession && !thread.running
+                ? {
+                    ...threadErrorNotice(thread.error.reason, providerName(activeSession.provider)),
+                    // The person decides: nothing carries on by itself.
+                    action: {
+                      label: t('chat.crash.continue'),
+                      run: () => void send(CONTINUE_PROMPT),
+                    },
+                  }
+                : continueOffer),
               usageReset,
               ...(scheduledResume ? { dismiss: () => usageResumes.cancel(activeId) } : {}),
             },
@@ -7839,6 +7855,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
           ),
         ]
       : []),
+    ...(memoryNotice ? [memoryNotice] : []),
     ...(offlineError ? [offlineError] : []),
     ...(askFirstBlock
       ? [{ id: `ask-first:${provider}`, role: 'alert' as const, message: askFirstBlock }]
@@ -8542,6 +8559,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
         onUpdated={refreshCatalog}
         suppressed={offline || Boolean(notice) || Boolean(actionError)}
       />
+      <QuitConfirmNotice />
       {isDesktop ? (
         <AppUpdateToast
           hidden={settingsOpen}

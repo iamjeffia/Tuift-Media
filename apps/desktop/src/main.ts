@@ -63,6 +63,7 @@ import {
   parseLanguage,
   saveLanguage,
   translate,
+  translatePlural,
   type Language,
   type MessageKey,
   type MessageVars,
@@ -105,6 +106,7 @@ import { PDF_PARTITION } from './pdf-guest.js'
 import { PreviewCaptureOwner } from './preview-capture.js'
 import { configureRendererLifecycle } from './renderer-lifecycle.js'
 import { ServerSupervisor, type SupervisedServerProcess } from './server-supervisor.js'
+import { createQuitRequest } from './quit-request.js'
 import { startupSettleDelay, summarizeAppMetrics } from './startup-metrics.js'
 import { StartupIdleGate } from './startup-idle.js'
 import { restoreMainWindowPresence } from './window-presence.js'
@@ -344,6 +346,38 @@ let appUpdater: AppUpdateController | undefined
 let runningAgents = 0
 let waitingForUpdateCleanup = false
 let waitingForServerShutdown = false
+/** The person agreed to quit while chats work, or the update install already asked. */
+let quitConfirmed = false
+const quitRequest = createQuitRequest({
+  chats: () => runningAgents,
+  show: showMainWindow,
+  ask: (chats) => {
+    const contents = mainWindow?.webContents
+    if (!contents || contents.isDestroyed() || contents.isCrashed()) return false
+    contents.send('harness:quitRequested', chats)
+    return true
+  },
+  askNatively: async (chats) => {
+    const window = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined
+    const options: Electron.MessageBoxOptions = {
+      type: 'question',
+      title: nativeAppName,
+      message: translatePlural(currentLanguage(), 'dialog.quitRunning.message', chats),
+      detail: t('dialog.quitRunning.detail'),
+      buttons: [t('dialog.quitRunning.quit'), t('dialog.quitRunning.keep')],
+      defaultId: 1,
+      cancelId: 1,
+    }
+    const { response } = await (window
+      ? dialog.showMessageBox(window, options)
+      : dialog.showMessageBox(options))
+    return response === 0
+  },
+  confirm: () => {
+    quitConfirmed = true
+    app.quit()
+  },
+})
 let mainWindowStatePersistence: MainWindowStatePersistence | undefined
 
 /** OS notifications and the badge for chats that need the user while the window is away. */
@@ -1048,7 +1082,20 @@ ipcMain.handle('harness:checkForUpdates', (event) => {
 
 ipcMain.handle('harness:installUpdate', (event) => {
   requireOwnRenderer(event.sender)
-  return appUpdater?.install() ?? false
+  // The page asks about running chats before it installs, so this quit is already agreed.
+  quitConfirmed = true
+  const installing = appUpdater?.install() ?? false
+  if (!installing) quitConfirmed = false
+  return installing
+})
+
+// The page shows the question a quit with running chats asks, and answers it.
+ipcMain.on('harness:quitRequestShown', (event) => {
+  if (isOwnRenderer(event.sender) && event.sender === mainWindow?.webContents) quitRequest.shown()
+})
+ipcMain.on('harness:answerQuit', (event, quit: unknown) => {
+  if (isOwnRenderer(event.sender) && event.sender === mainWindow?.webContents)
+    quitRequest.answer(quit === true)
 })
 
 // Sent after every sidebar status change. Only the main window's page reports;
@@ -1378,6 +1425,12 @@ if (ownsSingleInstance) {
   app.on('before-quit', (event) => {
     if (waitingForUpdateCleanup || waitingForServerShutdown) {
       event.preventDefault()
+      return
+    }
+    // Quitting from inside the app while chats work asks first; declining keeps them running.
+    if (!appIsQuitting && !quitConfirmed && runningAgents > 0) {
+      event.preventDefault()
+      quitRequest.request()
       return
     }
     // Decided on the first request, before the server stops the agents it ends.

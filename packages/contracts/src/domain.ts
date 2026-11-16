@@ -312,6 +312,36 @@ export const UsageSchema = z.object({
 })
 export type Usage = z.infer<typeof UsageSchema>
 
+/**
+ * Why a turn ended in an error the renderer can explain in plain words. The server decides;
+ * the event keeps its English `message` for logs and the transcript, and the renderer words
+ * the notice from `code`, so it reads in the person's language with a way forward.
+ *
+ * - `process_memory`: the provider's process was ended while the system ran out of memory.
+ *   `certain` when the exit code or the provider's own text says so, `likely` when the exit
+ *   is a crash or a kill and the system was low on memory just before it.
+ * - `process_signal`: ended by a signal or a console interrupt: the person, or the system.
+ * - `process_provider_error`: the process ended with an error the provider described.
+ * - `process_unknown`: the process ended and nothing says why; `exitCode` is the lead.
+ * - `app_closed`: TUIFT Code closed, or went away, while this chat's turn was running.
+ */
+export const ThreadErrorReasonSchema = z.object({
+  code: z.enum([
+    'process_memory',
+    'process_signal',
+    'process_provider_error',
+    'process_unknown',
+    'app_closed',
+  ]),
+  certainty: z.enum(['certain', 'likely']).optional(),
+  /** The process exit code, as the platform reported it (unsigned on Windows). */
+  exitCode: z.number().int().optional(),
+  signal: z.string().max(32).optional(),
+  /** The provider's own words for `process_provider_error`, cut short. */
+  message: z.string().max(500).optional(),
+})
+export type ThreadErrorReason = z.infer<typeof ThreadErrorReasonSchema>
+
 export const DomainEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('thread.started'), thread: ThreadSchema }),
   z.object({ type: z.literal('turn.started'), turn: TurnSchema }),
@@ -330,7 +360,13 @@ export const DomainEventSchema = z.discriminatedUnion('type', [
     /** Server receipt time. Optional so histories written before this field still replay. */
     completedAt: z.number().optional(),
   }),
-  z.object({ type: z.literal('thread.error'), threadId: z.string(), message: z.string() }),
+  z.object({
+    type: z.literal('thread.error'),
+    threadId: z.string(),
+    message: z.string(),
+    /** Set by the server when it can say why; absent on errors the provider worded itself. */
+    reason: ThreadErrorReasonSchema.optional(),
+  }),
   /** The agent's plan for this turn, replaced wholesale each time it changes. */
   z.object({
     type: z.literal('plan.updated'),

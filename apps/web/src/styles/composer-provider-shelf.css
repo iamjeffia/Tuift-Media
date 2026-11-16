@@ -30,6 +30,13 @@
   text-wrap: pretty;
 }
 
+/* A line under the message in the quieter ink, as the usage reset notice sets its details. */
+.composer__provider-detail {
+  display: block;
+  color: var(--text-2);
+  font-size: var(--t-xs);
+}
+
 /* The same action when it opens a menu: the shared trigger resets buttons. */
 .composer__error-row > .menuwrap {
   flex: none;

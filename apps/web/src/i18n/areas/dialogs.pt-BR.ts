@@ -219,4 +219,10 @@ export const dialogsPt = {
   'dialogs.app.empty.failed': 'Não foi possível carregar os projetos.',
   'dialogs.app.empty.noProjects': 'Adicione um projeto para começar a criar.',
   'dialogs.app.empty.addProject': 'Adicionar projeto',
+
+  // Quitting from inside the app while chats are still working
+  'dialogs.quit.message': '{chats} ainda em execução. Sair mesmo assim?',
+  'dialogs.quit.confirm': 'Sair e parar',
+  'dialogs.quit.keep': 'Continuar trabalhando',
+  'dialogs.quit.cancel': 'Cancelar saída',
 } satisfies Record<keyof typeof dialogsEn, string>

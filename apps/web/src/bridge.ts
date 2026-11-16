@@ -69,6 +69,9 @@ type Bridge = {
   checkForUpdates?: () => Promise<AppUpdateState>
   installUpdate?: () => Promise<boolean>
   reportRunningAgents?: (count: number) => void
+  /** The shell wants to quit while chats work; the page asks the person and answers. */
+  onQuitRequested?: (listener: (chats: number) => void) => () => void
+  answerQuit?: (quit: boolean) => void
   setMenuShortcuts?: (shortcuts: NativeMenuShortcuts) => void
   onMenuAction?: (
     listener: (action: NativeMenuAction, source: NativeMenuActionSource) => void,
@@ -586,6 +589,16 @@ export function reportRunningAgents(count: number): void {
   if (count === reportedRunningAgents) return
   reportedRunningAgents = count
   bridge?.reportRunningAgents?.(count)
+}
+
+/** A quit that began while chats work, as the shell asks for it; `chats` is how many. */
+export function onQuitRequested(listener: (chats: number) => void): () => void {
+  return bridge?.onQuitRequested?.(listener) ?? (() => undefined)
+}
+
+/** The answer to a quit request: quit and stop the chats, or keep working. */
+export function answerQuit(quit: boolean): void {
+  bridge?.answerQuit?.(quit)
 }
 
 export function onAppUpdateState(listener: (state: AppUpdateState) => void): () => void {

@@ -103,4 +103,27 @@ describe('ComposerErrors', () => {
     expect(row(note.message).classList.contains('composer__error-row--info')).toBe(true)
     expect(row('Request failed').classList.contains('composer__error-row--info')).toBe(false)
   })
+
+  it('puts a quieter details line under the message and keeps the action', () => {
+    const run = vi.fn()
+    render(
+      <ComposerErrors
+        errors={[
+          {
+            id: 'chat:1',
+            message: 'Codex was ended unexpectedly.',
+            detail: 'Technical details: exit code 0xC0000409',
+            action: { label: 'Continue', run },
+          },
+        ]}
+      />,
+    )
+    const message = screen.getByRole('alert')
+    expect(message.textContent).toContain('Codex was ended unexpectedly.')
+    expect(message.querySelector('.composer__provider-detail')?.textContent).toBe(
+      'Technical details: exit code 0xC0000409',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(run).toHaveBeenCalledOnce()
+  })
 })

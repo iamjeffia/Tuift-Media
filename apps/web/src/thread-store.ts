@@ -3,6 +3,7 @@ import {
   itemTextLimit,
   type DomainEvent,
   type Item,
+  type ThreadErrorReason,
   type Usage,
 } from '@harness/contracts'
 import {
@@ -284,10 +285,18 @@ function createThreadErrorItem(message: string): Item {
   }
 }
 
-function settleThreadError(state: ThreadState, items: Item[]): ThreadState {
+function settleThreadError(
+  state: ThreadState,
+  items: Item[],
+  reason?: ThreadErrorReason,
+): ThreadState {
   return {
     ...state,
-    error: { id: `thread-error:${items.length}`, message: items.at(-1)?.text ?? 'Chat failed' },
+    error: {
+      id: `thread-error:${items.length}`,
+      message: items.at(-1)?.text ?? 'Chat failed',
+      ...(reason ? { reason } : {}),
+    },
     running: false,
     activeTurn: undefined,
     approvals: [],
@@ -454,7 +463,7 @@ export function reduce(state: ThreadState, event: DomainEvent): ThreadState {
       const error = createThreadErrorItem(event.message)
       items.push(error)
       recordAppendedItem(items, error)
-      return settleThreadError({ ...state, liveItems: EMPTY_LIVE_ITEMS }, items)
+      return settleThreadError({ ...state, liveItems: EMPTY_LIVE_ITEMS }, items, event.reason)
     }
 
     default:
@@ -881,7 +890,7 @@ export function reduceEventLog(
     if (event.type === 'thread.error') {
       const items = mutableItems()
       items.append(createThreadErrorItem(event.message))
-      next = settleThreadError(next, items.items)
+      next = settleThreadError(next, items.items, event.reason)
       ownsNext = true
       continue
     }

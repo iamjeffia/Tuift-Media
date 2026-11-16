@@ -257,4 +257,29 @@ export const chatPt = {
   'chat.motion.stage.motion': 'Motion',
   'chat.motion.stage.review': 'Revisão',
   'chat.motion.stage.delivery': 'Entrega',
+
+  // A turn cut short: a provider process that died, or the app closing while the chat worked
+  'chat.crash.memoryCertain':
+    '{provider} foi encerrado porque o sistema ficou sem memória. O chat e os arquivos já gravados foram mantidos.',
+  'chat.crash.memoryLikely':
+    '{provider} foi encerrado, muito provavelmente porque o sistema ficou sem memória. O chat e os arquivos já gravados foram mantidos.',
+  'chat.crash.signal':
+    '{provider} foi interrompido antes de terminar. O chat e os arquivos já gravados foram mantidos.',
+  'chat.crash.providerError':
+    '{provider} parou com um erro. O chat e os arquivos já gravados foram mantidos.',
+  'chat.crash.unknown':
+    '{provider} foi encerrado de forma inesperada e não deu para saber o motivo. O chat e os arquivos já gravados foram mantidos.',
+  'chat.crash.appClosed':
+    'O app foi fechado enquanto este chat trabalhava. O chat e os arquivos já gravados foram mantidos.',
+  'chat.crash.continue': 'Continuar',
+  'chat.crash.details': 'Detalhes técnicos: {details}',
+  'chat.crash.exitCode': 'código de saída {code}',
+  'chat.crash.signalName': 'sinal {signal}',
+
+  // The computer is close to running out of memory while a chat works
+  'chat.memory.low':
+    'O computador está quase sem memória. Feche algo pesado antes que o sistema comece a encerrar programas.',
+  'chat.memory.lowNamed':
+    'O computador está quase sem memória. Quem mais usa: {programs}. Feche algo pesado antes que o sistema comece a encerrar programas.',
+  'chat.memory.consumer': '{name} ({size} GB)',
 } satisfies Record<keyof typeof chatEn, string>
