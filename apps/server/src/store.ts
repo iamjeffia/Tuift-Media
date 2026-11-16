@@ -23,6 +23,7 @@ import {
   ProviderIdSchema,
   ProviderRuntimeSettingsSchema,
   SidebarSettingsSchema,
+  SoundSettingsSchema,
   ThreadModeSchema,
 } from '@harness/contracts'
 import type {
@@ -39,6 +40,7 @@ import type {
   ProviderRuntimeSettings,
   SidebarSettings,
   SessionSearchResult,
+  SoundSettings,
   SubagentSettings,
   MotionStage,
   ThreadLifecycle,
@@ -82,6 +84,8 @@ const PHONE_ACCESS_SETTING = 'phone-access'
 const HIDDEN_MODELS_SETTING = 'hidden-models'
 const PROVIDER_ROSTER_SETTING = 'provider-roster'
 const SUBAGENT_OTHER_PROVIDERS_SETTING = 'subagent-other-providers'
+const SOUND_LIBRARY_SETTING = 'sound-library'
+const SOUND_QUOTA_SETTING = 'sound-library-quota'
 const LIMIT_SNAPSHOT_SETTING = 'limit-snapshot'
 const AUTOMATIC_BACKGROUND_MODEL_PREFERENCE: BackgroundModelPreference = Object.freeze({
   mode: 'automatic',
@@ -2780,6 +2784,32 @@ export class Store {
   setSubagentOtherProviders(allowed: boolean): SubagentSettings {
     this.#writeAppSetting.run(SUBAGENT_OTHER_PROVIDERS_SETTING, String(allowed))
     return { otherProviders: allowed }
+  }
+
+  /** The sound library's settings: on unless turned off, and the person's own sounds folder. */
+  soundSettings(): SoundSettings {
+    const value = sqliteRow<StringValueRow>(this.#readAppSetting, SOUND_LIBRARY_SETTING)?.value
+    const parsed = SoundSettingsSchema.partial().safeParse(jsonOrUndefined(value))
+    const saved = parsed.success ? parsed.data : {}
+    return {
+      enabled: saved.enabled !== false,
+      ...(saved.ownFolder ? { ownFolder: saved.ownFolder } : {}),
+    }
+  }
+
+  setSoundSettings(settings: SoundSettings): void {
+    this.#writeAppSetting.run(SOUND_LIBRARY_SETTING, JSON.stringify(settings))
+  }
+
+  /** What the app counted of the sound library's daily files, as the sound library wrote it. */
+  soundQuota(): unknown {
+    return jsonOrUndefined(
+      sqliteRow<StringValueRow>(this.#readAppSetting, SOUND_QUOTA_SETTING)?.value,
+    )
+  }
+
+  setSoundQuota(quota: unknown): void {
+    this.#writeAppSetting.run(SOUND_QUOTA_SETTING, JSON.stringify(quota))
   }
 
   /** The desktop's provider roster; null until a desktop saved one. */
@@ -6200,6 +6230,14 @@ function toThread(row: ThreadRow): StoredThread | undefined {
     ...(row.continued_changes === 'carried' || row.continued_changes === 'kept'
       ? { continuedChanges: row.continued_changes }
       : {}),
+  }
+}
+
+function jsonOrUndefined(value: string | undefined): unknown {
+  try {
+    return value === undefined ? undefined : JSON.parse(value)
+  } catch {
+    return undefined
   }
 }
 

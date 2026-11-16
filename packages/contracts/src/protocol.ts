@@ -30,6 +30,15 @@ import {
   UsageSchema,
 } from './domain.js'
 import { ClubeStatusSchema } from './clube.js'
+import {
+  SoundFacetsResultSchema,
+  SoundPreviewResultSchema,
+  SoundSearchParamsSchema,
+  SoundSearchResultSchema,
+  SoundSettingsSchema,
+  SoundShelfSchema,
+  SoundUseResultSchema,
+} from './sounds.js'
 import { AfterEffectsStateSchema, MotionStageSchema, ThreadModeSchema } from './motion.js'
 import { PhoneAccessStatusSchema, PhonePairingSchema, ProjectBrowseResultSchema } from './phone.js'
 import {
@@ -2615,6 +2624,41 @@ export const methods = {
   'clube.disconnect': {
     params: z.object({}),
     result: ClubeStatusSchema,
+  },
+  // The Clube's sound library. Never offered to a paired phone.
+  'sounds.settings': {
+    params: z.object({}),
+    result: SoundSettingsSchema,
+  },
+  /** `ownFolder: null` forgets the folder; a path that is not a folder is refused. */
+  'sounds.updateSettings': {
+    params: z.object({
+      enabled: z.boolean().optional(),
+      ownFolder: z.string().max(1024).nullable().optional(),
+    }),
+    result: SoundSettingsSchema,
+  },
+  'sounds.search': {
+    params: SoundSearchParamsSchema,
+    result: SoundSearchResultSchema,
+  },
+  'sounds.facets': {
+    params: z.object({}),
+    result: SoundFacetsResultSchema,
+  },
+  /** The preview is fetched here with the account's token; the page only plays what comes back. */
+  'sounds.preview': {
+    params: z.object({ shelf: SoundShelfSchema, id: z.string().min(1).max(100) }),
+    result: SoundPreviewResultSchema,
+  },
+  /** Fetches one sound (or track) into the chat's project, or finds it already there. */
+  'sounds.use': {
+    params: z.object({
+      threadId: z.string().min(1),
+      shelf: SoundShelfSchema,
+      id: z.string().min(1).max(100),
+    }),
+    result: SoundUseResultSchema,
   },
 } as const
 

@@ -57,6 +57,13 @@ describe('confineDeliveredFile', () => {
     )
   })
 
+  it('accepts a FLAC sound the library fetched into the project', async () => {
+    const sound = path.join(project, 'audio', 'clube', 'Cello Drone A minor.flac')
+    await mkdir(path.dirname(sound), { recursive: true })
+    await writeFile(sound, 'flac')
+    await expect(confineDeliveredFile(sound, [project], scope)).resolves.toBe(sound)
+  })
+
   it('refuses a path outside the project, however it is written', async () => {
     const outside = path.join(base, 'secret.mp4')
     for (const candidate of [

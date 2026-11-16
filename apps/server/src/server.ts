@@ -27,6 +27,7 @@ import { readWorkspaceDiff, StaleDiffSnapshotError } from './diff-review.js'
 import { Orchestrator, resolveWorkspacePath, type LifecycleScheduleHint } from './orchestrator.js'
 import { defaultSkillsRoot } from './default-skills.js'
 import { ClubeAccount } from './clube-account.js'
+import { SoundLibrary } from './sound-library.js'
 import { SkillCatalog, readCatalogFile, thirdPartySkillsFile } from './skill-catalog.js'
 import { afterEffectsSource } from './motion-after-effects.js'
 import { checkForUpdates } from './update-check.js'
@@ -322,8 +323,11 @@ export function startServer(
     log: (line) => console.log(line),
     onChanged: () => push.broadcast('clube.changed', {}),
   })
+  // The Clube's sound library, on the same link: searches, previews, and one file at a time on use.
+  const sounds = new SoundLibrary({ clube, store, log: (line) => console.log(line) })
   const orchestrator = new Orchestrator(store, {
     clube,
+    sounds,
     memory: memoryWatch,
     onChatStatus: (threadId) => chatActivity?.changed(threadId),
     onEvent: (threadId, event, seq, serializedEvent) => {
@@ -1226,6 +1230,36 @@ export function startServer(
       case 'clube.disconnect':
         await clube.disconnect()
         return clube.status()
+
+      case 'sounds.settings':
+        return sounds.settings()
+
+      case 'sounds.updateSettings': {
+        const p = parseParams(method, params)
+        return sounds.updateSettings({
+          ...(p.enabled === undefined ? {} : { enabled: p.enabled }),
+          ...(p.ownFolder === undefined ? {} : { ownFolder: p.ownFolder }),
+        })
+      }
+
+      case 'sounds.search':
+        return sounds.search(parseParams(method, params))
+
+      case 'sounds.facets':
+        return sounds.facets()
+
+      case 'sounds.preview': {
+        const p = parseParams(method, params)
+        return sounds.preview(p.shelf, p.id)
+      }
+
+      case 'sounds.use': {
+        const p = parseParams(method, params)
+        const stored = store.thread(p.threadId)
+        return stored
+          ? sounds.use(resolveWorkspacePath(stored.projectPath), p.shelf, p.id)
+          : { ok: false as const, reason: 'no-project' as const }
+      }
 
       case 'mcp.startOAuth': {
         const p = parseParams(method, params)

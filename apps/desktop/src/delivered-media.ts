@@ -26,6 +26,7 @@ const DELIVERED_EXTENSIONS: ReadonlySet<string> = new Set([
   '.apng',
   '.mp3',
   '.wav',
+  '.flac',
   '.m4a',
   '.ogg',
   '.pdf',

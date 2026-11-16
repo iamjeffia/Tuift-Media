@@ -10,6 +10,7 @@ import {
   runMotionStage,
   type MotionStageBroker,
 } from './motion-stage.js'
+import { isSoundTool, runSoundTool, SOUND_TOOLS, type SoundToolsHost } from './sound-tools.js'
 import { SUBAGENT_LIMITS } from './subagent-limits.js'
 
 /**
@@ -302,21 +303,26 @@ export class AgentToolsEndpoint {
   #motion: MotionStageBroker | undefined
   /** The Clube do Motion's MCP server, forwarded at `<route>/clube` with a token the endpoint never shows. */
   #clube: ClubeMcpSource | undefined
+  /** The sound library's tools, offered with `motion_stage` to Motion chats only. */
+  #sounds: SoundToolsHost | undefined
 
   /**
    * Without a browser broker the browser tools are not offered at all, and without
-   * a motion broker neither is `motion_stage`, which only Motion chats see.
+   * a motion broker neither is `motion_stage`, which only Motion chats see; the
+   * sound library's tools need both the motion broker and the library.
    */
   constructor(
     broker: AgentToolsBroker,
     browser?: BrowserToolsBroker,
     motion?: MotionStageBroker,
     clube?: ClubeMcpSource,
+    sounds?: SoundToolsHost,
   ) {
     this.#broker = broker
     this.#browser = browser
     this.#motion = motion
     this.#clube = clube
+    this.#sounds = sounds
   }
 
   /** The Clube's stand-in on this endpoint: the same listener and the same per-chat credential. */
@@ -506,7 +512,7 @@ export class AgentToolsEndpoint {
     }
   }
 
-  /** What this caller is offered; `motion_stage` only when its chat is in Motion mode. */
+  /** What this caller is offered; `motion_stage` and the sounds only when its chat is in Motion mode. */
   #tools(caller: AgentToolsCaller | StartingCaller) {
     const tools: readonly object[] = this.#browser ? [...TOOLS, ...BROWSER_TOOLS] : TOOLS
     const motion = this.#motion
@@ -515,7 +521,8 @@ export class AgentToolsEndpoint {
       caller.threadId === undefined
         ? caller.startsInMotion
         : motion.mode(caller.threadId) === 'motion'
-    return inMotion ? [...tools, MOTION_STAGE_TOOL] : tools
+    if (!inMotion) return tools
+    return [...tools, MOTION_STAGE_TOOL, ...(this.#sounds ? SOUND_TOOLS : [])]
   }
 
   async #call(
@@ -527,6 +534,9 @@ export class AgentToolsEndpoint {
     const input = request.params?.['arguments'] ?? {}
     if (name === MOTION_STAGE_TOOL.name && this.#motion)
       return this.#setStage(this.#motion, caller, input)
+    if (isSoundTool(name) && this.#sounds && this.#motion) {
+      return this.#sound(this.#sounds, this.#motion, name, caller, input)
+    }
     const browserTool = this.#browser && BROWSER_TOOLS.find((entry) => entry.name === name)
     if (browserTool && this.#browser) {
       if (caller.threadId === undefined)
@@ -579,6 +589,32 @@ export class AgentToolsEndpoint {
     } catch (error) {
       if (error instanceof MotionStageError) return toolError(error.message)
       return toolError('The tool failed. Try again, or continue without it.')
+    }
+  }
+
+  async #sound(
+    sounds: SoundToolsHost,
+    motion: MotionStageBroker,
+    name: Parameters<typeof runSoundTool>[2],
+    caller: AgentToolsCaller | StartingCaller,
+    input: unknown,
+  ): Promise<ToolResult> {
+    // The token names the chat; no argument can name another.
+    if (caller.threadId === undefined)
+      return toolError('This chat is still starting. Try again shortly.')
+    if (motion.mode(caller.threadId) !== 'motion') {
+      return toolError(
+        `${name} is only available in Motion chats, and this chat is not in Motion mode.`,
+      )
+    }
+    try {
+      const answer = await runSoundTool(sounds, caller.threadId, name, input)
+      return {
+        content: [{ type: 'text', text: answer.text }],
+        ...(answer.isError ? { isError: true } : {}),
+      }
+    } catch {
+      return toolError('The sound library tool failed. Try again, or continue without it.')
     }
   }
 

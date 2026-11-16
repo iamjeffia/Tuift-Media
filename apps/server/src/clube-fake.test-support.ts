@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto'
+import { deflateRawSync } from 'node:zlib'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { ClubeStore } from './clube-account.js'
 
@@ -34,6 +35,25 @@ export class FakeClube {
   /** The `Authorization` header of every call to the API or the MCP endpoint, in order. */
   readonly seen: Array<{ path: string; authorization: string | undefined; session?: string }> = []
   readonly mcpCalls: unknown[] = []
+
+  /** The sound library: what `/api/v1/sons` and `/api/v1/musicas` answer from. */
+  sons: FakeSom[] = defaultSons()
+  musicas: FakeMusica[] = defaultMusicas()
+  /** Ids asked of `/sons/arquivo`, of `/sons/previa`, and of the track zips, in order. */
+  readonly fileCalls: string[] = []
+  readonly previewCalls: string[] = []
+  readonly zipCalls: string[] = []
+  /** Every call to `/sons` and `/musicas` answers 429 with this `Retry-After` (the per-minute limit). */
+  soundsRetryAfter: number | undefined
+  /** Files a day per shelf; past them the Clube answers `limite` with the reason of the shelf. */
+  dailySounds = 200
+  dailyMusic = 60
+  /** `/sons/arquivo` sends this checksum instead of the real one, or none when `null`. */
+  fileHash: string | null | undefined
+  /** The `Retry-After` the daily-limit answer carries. */
+  dailyRetryAfter: number | undefined
+  #filesToday = 0
+  #zipsToday = 0
 
   #server: Server | undefined
   #codes = new Map<string, Code>()
@@ -182,6 +202,18 @@ export class FakeClube {
       if (!bearer() || !this.#access.has(bearer()!)) return json(401, { error: 'invalid_token' })
       return json(200, { ...FAKE_ACCOUNT, plano: this.plan })
     }
+    if (url.pathname.startsWith('/api/v1/sons') || url.pathname.startsWith('/api/v1/musicas')) {
+      return this.#library(url, request, response, json, bearer)
+    }
+    if (url.pathname.startsWith('/zips/')) {
+      const id = url.pathname.slice('/zips/'.length).replace(/\.zip$/, '')
+      const track = this.musicas.find((entry) => entry.id === id)
+      if (!track) return void response.writeHead(404).end()
+      this.zipCalls.push(id)
+      return void response
+        .writeHead(200, { 'content-type': 'application/zip' })
+        .end(zip(track.versions ?? defaultVersions(track.nome)))
+    }
     if (url.pathname === '/mcp') {
       this.seen.push({
         path: url.pathname,
@@ -228,6 +260,137 @@ export class FakeClube {
     response.writeHead(404).end()
   }
 
+  /** `/api/v1/sons*` and `/api/v1/musicas*`: the sound library, from the contract. */
+  async #library(
+    url: URL,
+    request: IncomingMessage,
+    response: ServerResponse,
+    json: (status: number, value: unknown, headers?: Record<string, string>) => void,
+    bearer: () => string | undefined,
+  ): Promise<void> {
+    this.seen.push({ path: url.pathname, authorization: request.headers.authorization })
+    if (!bearer() || !this.#access.has(bearer()!)) return json(401, { error: 'invalid_token' })
+    if (this.plan === 'grátis' || this.plan === 'teste')
+      return json(403, { error: 'so_assinantes' })
+    const query = url.searchParams
+    const rest = url.pathname.slice('/api/v1'.length)
+    if (this.soundsRetryAfter !== undefined && rest !== '/sons/previa') {
+      return json(429, { error: 'rate_limited' }, { 'retry-after': String(this.soundsRetryAfter) })
+    }
+    const has = (haystack: Array<string | undefined>, q: string) =>
+      !q || haystack.join(' ').toLowerCase().includes(q)
+    if (rest === '/sons/facetas') {
+      const categorias = new Map<string, number>()
+      for (const som of this.sons) {
+        const key = `${som.tipo}|${som.categoria ?? ''}`
+        categorias.set(key, (categorias.get(key) ?? 0) + 1)
+      }
+      return json(200, {
+        total: this.sons.length,
+        tipos: [...new Set(this.sons.map((som) => som.tipo))],
+        categorias: [...categorias].map(([key, total]) => {
+          const [tipo, categoria] = key.split('|')
+          return { tipo, categoria, total }
+        }),
+        notas: [...new Set(this.sons.flatMap((som) => (som.nota ? [som.nota] : [])))],
+      })
+    }
+    if (rest === '/sons') {
+      const q = (query.get('q') ?? '').toLowerCase()
+      const found = this.sons.filter(
+        (som) =>
+          has([som.nome, som.familia, som.categoria, som.papel], q) &&
+          (!query.get('tipo') || som.tipo === query.get('tipo')) &&
+          (!query.get('categoria') || som.categoria === query.get('categoria')) &&
+          (!query.get('nota') || som.nota === query.get('nota')) &&
+          (!query.get('modo') || som.modo === query.get('modo')) &&
+          inRange(som.bpm, query),
+      )
+      const inicio = Number(query.get('inicio') ?? 0)
+      const limite = Math.min(50, Number(query.get('limite') ?? 20))
+      return json(200, {
+        total: found.length,
+        inicio,
+        sons: found
+          .slice(inicio, inicio + limite)
+          .map(({ bytes: _bytes, fmt: _fmt, ...som }) => som),
+      })
+    }
+    if (rest === '/sons/previa') {
+      this.previewCalls.push(query.get('id') ?? '')
+      if (!this.sons.some((som) => som.id === query.get('id'))) {
+        return json(404, { error: 'nao_encontrado' })
+      }
+      return void response
+        .writeHead(200, { 'content-type': 'audio/ogg' })
+        .end(Buffer.from('OggS-preview'))
+    }
+    if (rest === '/sons/arquivo') {
+      const id = query.get('id') ?? ''
+      const som = this.sons.find((entry) => entry.id === id)
+      if (!som) return json(404, { error: 'nao_encontrado' })
+      if (this.#filesToday >= this.dailySounds) {
+        return json(
+          429,
+          { error: 'limite', motivo: 'sons_dia' },
+          this.dailyRetryAfter === undefined ? {} : { 'retry-after': String(this.dailyRetryAfter) },
+        )
+      }
+      this.#filesToday += 1
+      this.fileCalls.push(id)
+      const bytes = som.bytes ?? Buffer.from(`audio:${som.id}:${som.nome}`)
+      const fmt = som.fmt ?? 'flac'
+      const headers = {
+        'content-type': fmt === 'mp3' ? 'audio/mpeg' : 'audio/flac',
+        'x-som-fmt': fmt,
+        'x-som-duracao': String(som.duracao_s),
+        ...(som.lufs === undefined ? {} : { 'x-som-lufs': String(som.lufs) }),
+        ...(this.fileHash === null
+          ? {}
+          : { 'x-som-sha256': this.fileHash ?? createHash('sha256').update(bytes).digest('hex') }),
+      }
+      return void response.writeHead(200, headers).end(bytes)
+    }
+    if (rest === '/musicas') {
+      const q = (query.get('q') ?? '').toLowerCase()
+      const found = this.musicas.filter(
+        (track) =>
+          has([track.nome, track.genero, track.clima, track.artista], q) &&
+          (!query.get('genero') || track.genero === query.get('genero')) &&
+          (!query.get('clima') || track.clima === query.get('clima')) &&
+          (!query.get('artista') || track.artista === query.get('artista')) &&
+          (!query.get('tom') || track.tom === query.get('tom')) &&
+          inRange(track.bpm, query),
+      )
+      const limite = Math.min(50, Number(query.get('limite') ?? 20))
+      return json(200, {
+        total: found.length,
+        musicas: found.slice(0, limite).map(({ versions: _versions, ...track }) => track),
+      })
+    }
+    const detail = /^\/musicas\/([^/]+)(?:\/previa\/(\d))?$/.exec(rest)
+    if (detail) {
+      const track = this.musicas.find((entry) => entry.id === detail[1])
+      if (!track) return json(404, { error: 'nao_encontrado' })
+      if (detail[2]) {
+        return void response
+          .writeHead(200, { 'content-type': 'audio/mpeg' })
+          .end(Buffer.from('ID3-preview'))
+      }
+      if (this.#zipsToday >= this.dailyMusic) {
+        return json(429, { error: 'limite', motivo: 'musicas_dia' })
+      }
+      this.#zipsToday += 1
+      const { versions: _versions, ...record } = track
+      return json(200, {
+        musica: record,
+        previas: [1, 2, 3].map((n) => `/api/v1/musicas/${track.id}/previa/${n}`),
+        download: { url: `${this.origin}/zips/${track.id}.zip`, expira_em: '6h' },
+      })
+    }
+    return json(404, { error: 'nao_encontrado' })
+  }
+
   #issue(clientId: string) {
     const n = ++this.#counter
     const access = `access-token-${n}-${randomBytes(6).toString('hex')}`
@@ -241,6 +404,192 @@ export class FakeClube {
       expires_in: this.expiresIn,
     }
   }
+}
+
+export type FakeSom = {
+  id: string
+  nome: string
+  tipo: string
+  papel?: string
+  nota?: string
+  duracao_s: number
+  categoria?: string
+  colecao?: string
+  familia?: string
+  modo?: string
+  lufs?: number
+  bpm?: number
+  /** What `/sons/arquivo` sends; a short text by default. */
+  bytes?: Buffer
+  fmt?: 'flac' | 'mp3'
+}
+
+export type FakeMusica = {
+  id: string
+  nome: string
+  artista: string
+  genero: string
+  clima: string
+  tom?: string
+  modo?: string
+  bpm?: number
+  duracao_s: number
+  /** The files of the track's zip; three versions by default. */
+  versions?: Array<{ name: string; data: Buffer }>
+}
+
+export function defaultSons(): FakeSom[] {
+  return [
+    {
+      id: '101',
+      nome: 'Cello Drone A minor',
+      tipo: 'tonal',
+      papel: 'drone',
+      nota: 'A',
+      modo: 'menor',
+      duracao_s: 42,
+      categoria: 'Drones',
+      familia: 'Cello',
+      colecao: 'Pack interno',
+      lufs: -23,
+    },
+    {
+      id: '102',
+      nome: 'Piano Loop C major',
+      tipo: 'tonal',
+      papel: 'loop',
+      nota: 'C',
+      modo: 'maior',
+      duracao_s: 16,
+      categoria: 'Loops',
+      familia: 'Piano',
+      lufs: -20,
+      bpm: 90,
+    },
+    {
+      id: '103',
+      nome: 'Whoosh Fast',
+      tipo: 'efeito',
+      papel: 'transicao',
+      duracao_s: 1.2,
+      categoria: 'Whoosh',
+      lufs: -18,
+    },
+    {
+      id: '104',
+      nome: 'Click Soft',
+      tipo: 'efeito',
+      papel: 'ui',
+      duracao_s: 0.2,
+      categoria: 'UI',
+      lufs: -26,
+    },
+    {
+      id: '105',
+      nome: 'Hit Low A',
+      tipo: 'tonal',
+      papel: 'hit',
+      nota: 'A',
+      modo: 'menor',
+      duracao_s: 4,
+      categoria: 'Hits',
+      familia: 'Synth',
+      lufs: -16,
+    },
+  ]
+}
+
+export function defaultMusicas(): FakeMusica[] {
+  return [
+    {
+      id: 'm1',
+      nome: 'Slow Burn',
+      artista: 'Artista Um',
+      genero: 'cinematic',
+      clima: 'tenso',
+      tom: 'Am',
+      bpm: 84,
+      duracao_s: 120,
+    },
+    {
+      id: 'm2',
+      nome: 'Bright Day',
+      artista: 'Artista Dois',
+      genero: 'pop',
+      clima: 'alegre',
+      tom: 'C',
+      bpm: 120,
+      duracao_s: 95,
+    },
+  ]
+}
+
+export function defaultVersions(name: string): Array<{ name: string; data: Buffer }> {
+  return ['Full', 'No drums', 'Stem'].map((version) => ({
+    name: `${name} - ${version}.wav`,
+    data: Buffer.from(`RIFF-${name}-${version}`),
+  }))
+}
+
+function inRange(bpm: number | undefined, query: URLSearchParams): boolean {
+  const min = query.get('bpm_min')
+  const max = query.get('bpm_max')
+  if (min === null && max === null) return true
+  if (bpm === undefined) return false
+  return (min === null || bpm >= Number(min)) && (max === null || bpm <= Number(max))
+}
+
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n
+  for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+  return c >>> 0
+})
+
+function crc32(data: Buffer): number {
+  let c = 0xffffffff
+  for (const byte of data) c = CRC_TABLE[(c ^ byte) & 0xff]! ^ (c >>> 8)
+  return (c ^ 0xffffffff) >>> 0
+}
+
+/** A zip of the entries given: the first stored, the others deflated, so both paths are read. */
+export function zip(entries: Array<{ name: string; data: Buffer }>): Buffer {
+  const locals: Buffer[] = []
+  const directory: Buffer[] = []
+  let offset = 0
+  entries.forEach((entry, index) => {
+    const name = Buffer.from(entry.name)
+    const method = index === 0 ? 0 : 8
+    const body = method === 0 ? entry.data : deflateRawSync(entry.data)
+    const local = Buffer.alloc(30)
+    local.writeUInt32LE(0x04034b50, 0)
+    local.writeUInt16LE(20, 4)
+    local.writeUInt16LE(method, 8)
+    local.writeUInt32LE(crc32(entry.data), 14)
+    local.writeUInt32LE(body.length, 18)
+    local.writeUInt32LE(entry.data.length, 22)
+    local.writeUInt16LE(name.length, 26)
+    locals.push(local, name, body)
+    const central = Buffer.alloc(46)
+    central.writeUInt32LE(0x02014b50, 0)
+    central.writeUInt16LE(20, 4)
+    central.writeUInt16LE(20, 6)
+    central.writeUInt16LE(method, 10)
+    central.writeUInt32LE(crc32(entry.data), 16)
+    central.writeUInt32LE(body.length, 20)
+    central.writeUInt32LE(entry.data.length, 24)
+    central.writeUInt16LE(name.length, 28)
+    central.writeUInt32LE(offset, 42)
+    directory.push(central, name)
+    offset += local.length + name.length + body.length
+  })
+  const central = Buffer.concat(directory)
+  const end = Buffer.alloc(22)
+  end.writeUInt32LE(0x06054b50, 0)
+  end.writeUInt16LE(entries.length, 8)
+  end.writeUInt16LE(entries.length, 10)
+  end.writeUInt32LE(central.length, 12)
+  end.writeUInt32LE(offset, 16)
+  return Buffer.concat([...locals, central, end])
 }
 
 function text(request: IncomingMessage): Promise<string> {
