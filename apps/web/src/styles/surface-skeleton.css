@@ -647,8 +647,8 @@
   animation-play-state: paused !important;
 }
 
-/* The beam's spin loops; its fade in or out runs once and still plays. */
-.shell__body[data-covered] :is(.composer__design-beam, .composer__design-button-beam)[data-active],
-.shell__body[data-covered] :is(.composer__design-beam, .composer__design-button-beam)[data-fading] {
-  animation-play-state: paused, running !important;
+/* The beam's loops; its fade in or out runs once and still plays. */
+.shell__body[data-covered] [data-beam-turn],
+.shell__body[data-covered] [data-beam-still] {
+  animation-play-state: paused !important;
 }

@@ -1,21 +1,15 @@
 /* Focused port of border-beam's two Composer variants. Static selectors avoid
    per-instance style tags, observers, and media-query listeners while keeping
    the same gradients, timing, masks, and fade behavior. */
-@property --composer-design-beam-angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: true;
-}
-
-@property --composer-design-beam-opacity {
-  syntax: '<number>';
-  initial-value: 0;
-  inherits: true;
-}
-
 :is(.composer__design-beam, .composer__design-button-beam) {
+  --design-beam-ring: 1px;
+  --design-beam-bleed: 2px;
   position: relative;
   overflow: hidden;
+}
+
+.composer__design-beam[data-active] {
+  --design-beam-ring: 2px;
 }
 
 .composer__design-beam {
@@ -28,15 +22,60 @@
   --design-beam-saturation: 1.2;
   --design-beam-inner-shadow: inset 0 0 9px 1px rgb(255 255 255 / 27%);
   --design-beam-border-gradients:
-    radial-gradient(ellipse 70px 40px at 33% -7.4%, rgb(255 50 100), transparent),
-    radial-gradient(ellipse 60px 35px at 12% -5%, rgb(40 140 255), transparent),
-    radial-gradient(ellipse 40px 70px at 2.1% 68.3%, rgb(50 200 80), transparent),
-    radial-gradient(ellipse 20px 35px at 2.1% 68.3%, rgb(30 185 170), transparent),
-    radial-gradient(ellipse 180px 32px at 74.4% 100%, rgb(100 70 255), transparent),
-    radial-gradient(ellipse 85px 26px at 55% 100%, rgb(40 140 255), transparent),
-    radial-gradient(ellipse 74px 32px at 93.9% 0%, rgb(255 120 40), transparent),
-    radial-gradient(ellipse 26px 42px at 100% 27.1%, rgb(240 50 180), transparent),
-    radial-gradient(ellipse 52px 48px at 100% 27.1%, rgb(180 40 240), transparent);
+    radial-gradient(
+      ellipse 70px 40px at calc(33% + 0.34 * var(--design-beam-bleed))
+        calc(-7.4% + 1.148 * var(--design-beam-bleed)),
+      rgb(255 50 100),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 60px 35px at calc(12% + 0.76 * var(--design-beam-bleed))
+        calc(-5% + 1.1 * var(--design-beam-bleed)),
+      rgb(40 140 255),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 40px 70px at calc(2.1% + 0.958 * var(--design-beam-bleed))
+        calc(68.3% - 0.366 * var(--design-beam-bleed)),
+      rgb(50 200 80),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 20px 35px at calc(2.1% + 0.958 * var(--design-beam-bleed))
+        calc(68.3% - 0.366 * var(--design-beam-bleed)),
+      rgb(30 185 170),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 180px 32px at calc(74.4% - 0.488 * var(--design-beam-bleed))
+        calc(100% - 1 * var(--design-beam-bleed)),
+      rgb(100 70 255),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 85px 26px at calc(55% - 0.1 * var(--design-beam-bleed))
+        calc(100% - 1 * var(--design-beam-bleed)),
+      rgb(40 140 255),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 74px 32px at calc(93.9% - 0.878 * var(--design-beam-bleed))
+        calc(0% + 1 * var(--design-beam-bleed)),
+      rgb(255 120 40),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 26px 42px at calc(100% - 1 * var(--design-beam-bleed))
+        calc(27.1% + 0.458 * var(--design-beam-bleed)),
+      rgb(240 50 180),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 52px 48px at calc(100% - 1 * var(--design-beam-bleed))
+        calc(27.1% + 0.458 * var(--design-beam-bleed)),
+      rgb(180 40 240),
+      transparent
+    );
   --design-beam-inner-gradients:
     radial-gradient(ellipse 63px 36px at 33% -7.4%, rgb(255 50 100 / 45%), transparent),
     radial-gradient(ellipse 54px 32px at 12% -5%, rgb(40 140 255 / 45%), transparent),
@@ -61,14 +100,54 @@
   --design-beam-saturation: 1.2;
   --design-beam-inner-shadow: inset 0 0 5px 1px rgb(255 255 255 / 30%);
   --design-beam-border-gradients:
-    radial-gradient(ellipse 9px 18px at 2% 68%, rgb(50 200 80), transparent),
-    radial-gradient(ellipse 4px 8px at 2% 68%, rgb(30 185 170), transparent),
-    radial-gradient(ellipse 59px 9px at 72% -3%, rgb(255 120 40), transparent),
-    radial-gradient(ellipse 42px 7px at 74% 100%, rgb(100 70 255), transparent),
-    radial-gradient(ellipse 10px 17px at 100% 27%, rgb(240 50 180), transparent),
-    radial-gradient(ellipse 10px 18px at 100% 27%, rgb(180 40 240), transparent),
-    radial-gradient(ellipse 5px 10px at 100% 27%, rgb(40 140 255), transparent),
-    radial-gradient(ellipse 11px 12px at 100% 27%, rgb(255 50 100), transparent);
+    radial-gradient(
+      ellipse 9px 18px at calc(2% + 0.96 * var(--design-beam-bleed))
+        calc(68% - 0.36 * var(--design-beam-bleed)),
+      rgb(50 200 80),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 4px 8px at calc(2% + 0.96 * var(--design-beam-bleed))
+        calc(68% - 0.36 * var(--design-beam-bleed)),
+      rgb(30 185 170),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 59px 9px at calc(72% - 0.44 * var(--design-beam-bleed))
+        calc(-3% + 1.06 * var(--design-beam-bleed)),
+      rgb(255 120 40),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 42px 7px at calc(74% - 0.48 * var(--design-beam-bleed))
+        calc(100% - 1 * var(--design-beam-bleed)),
+      rgb(100 70 255),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 10px 17px at calc(100% - 1 * var(--design-beam-bleed))
+        calc(27% + 0.46 * var(--design-beam-bleed)),
+      rgb(240 50 180),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 10px 18px at calc(100% - 1 * var(--design-beam-bleed))
+        calc(27% + 0.46 * var(--design-beam-bleed)),
+      rgb(180 40 240),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 5px 10px at calc(100% - 1 * var(--design-beam-bleed))
+        calc(27% + 0.46 * var(--design-beam-bleed)),
+      rgb(40 140 255),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 11px 12px at calc(100% - 1 * var(--design-beam-bleed))
+        calc(27% + 0.46 * var(--design-beam-bleed)),
+      rgb(255 50 100),
+      transparent
+    );
   --design-beam-inner-gradients:
     radial-gradient(ellipse 9px 18px at 2% 68%, rgb(50 200 80 / 50%), transparent),
     radial-gradient(ellipse 4px 8px at 2% 68%, rgb(30 185 170 / 45%), transparent),
@@ -87,18 +166,54 @@
 .composer__design-button-beam.composer__motion-beam {
   --beam-hue-base: 30deg;
   --design-beam-border-gradients:
-    radial-gradient(ellipse 9px 18px at 2% 68%, var(--composer-motion-beam-green), transparent),
-    radial-gradient(ellipse 4px 8px at 2% 68%, var(--composer-motion-beam-gold), transparent),
-    radial-gradient(ellipse 59px 9px at 72% -3%, var(--composer-motion-accent), transparent),
-    radial-gradient(ellipse 42px 7px at 74% 100%, var(--composer-motion-beam-azure), transparent),
     radial-gradient(
-      ellipse 10px 17px at 100% 27%,
+      ellipse 9px 18px at calc(2% + 0.96 * var(--design-beam-bleed))
+        calc(68% - 0.36 * var(--design-beam-bleed)),
+      var(--composer-motion-beam-green),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 4px 8px at calc(2% + 0.96 * var(--design-beam-bleed))
+        calc(68% - 0.36 * var(--design-beam-bleed)),
+      var(--composer-motion-beam-gold),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 59px 9px at calc(72% - 0.44 * var(--design-beam-bleed))
+        calc(-3% + 1.06 * var(--design-beam-bleed)),
+      var(--composer-motion-accent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 42px 7px at calc(74% - 0.48 * var(--design-beam-bleed))
+        calc(100% - 1 * var(--design-beam-bleed)),
+      var(--composer-motion-beam-azure),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 10px 17px at calc(100% - 1 * var(--design-beam-bleed))
+        calc(27% + 0.46 * var(--design-beam-bleed)),
       var(--composer-motion-beam-magenta),
       transparent
     ),
-    radial-gradient(ellipse 10px 18px at 100% 27%, var(--composer-motion-beam-violet), transparent),
-    radial-gradient(ellipse 5px 10px at 100% 27%, var(--composer-motion-beam-azure), transparent),
-    radial-gradient(ellipse 11px 12px at 100% 27%, var(--composer-motion-beam-gold), transparent);
+    radial-gradient(
+      ellipse 10px 18px at calc(100% - 1 * var(--design-beam-bleed))
+        calc(27% + 0.46 * var(--design-beam-bleed)),
+      var(--composer-motion-beam-violet),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 5px 10px at calc(100% - 1 * var(--design-beam-bleed))
+        calc(27% + 0.46 * var(--design-beam-bleed)),
+      var(--composer-motion-beam-azure),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 11px 12px at calc(100% - 1 * var(--design-beam-bleed))
+        calc(27% + 0.46 * var(--design-beam-bleed)),
+      var(--composer-motion-beam-gold),
+      transparent
+    );
   --design-beam-inner-gradients:
     radial-gradient(
       ellipse 9px 18px at 2% 68%,
@@ -152,28 +267,57 @@
   --design-beam-brightness: 1.35;
   --design-beam-saturation: 1.45;
   --design-beam-border-gradients:
-    radial-gradient(ellipse 70px 40px at 33% -7.4%, var(--composer-motion-accent), transparent),
-    radial-gradient(ellipse 60px 35px at 12% -5%, var(--composer-motion-beam-azure), transparent),
     radial-gradient(
-      ellipse 40px 70px at 2.1% 68.3%,
+      ellipse 70px 40px at calc(33% + 0.34 * var(--design-beam-bleed))
+        calc(-7.4% + 1.148 * var(--design-beam-bleed)),
+      var(--composer-motion-accent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 60px 35px at calc(12% + 0.76 * var(--design-beam-bleed))
+        calc(-5% + 1.1 * var(--design-beam-bleed)),
+      var(--composer-motion-beam-azure),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 40px 70px at calc(2.1% + 0.958 * var(--design-beam-bleed))
+        calc(68.3% - 0.366 * var(--design-beam-bleed)),
       var(--composer-motion-beam-green),
       transparent
     ),
-    radial-gradient(ellipse 20px 35px at 2.1% 68.3%, var(--composer-motion-beam-gold), transparent),
     radial-gradient(
-      ellipse 180px 32px at 74.4% 100%,
+      ellipse 20px 35px at calc(2.1% + 0.958 * var(--design-beam-bleed))
+        calc(68.3% - 0.366 * var(--design-beam-bleed)),
+      var(--composer-motion-beam-gold),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 180px 32px at calc(74.4% - 0.488 * var(--design-beam-bleed))
+        calc(100% - 1 * var(--design-beam-bleed)),
       var(--composer-motion-beam-violet),
       transparent
     ),
-    radial-gradient(ellipse 85px 26px at 55% 100%, var(--composer-motion-beam-azure), transparent),
     radial-gradient(
-      ellipse 74px 32px at 93.9% 0%,
+      ellipse 85px 26px at calc(55% - 0.1 * var(--design-beam-bleed))
+        calc(100% - 1 * var(--design-beam-bleed)),
+      var(--composer-motion-beam-azure),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 74px 32px at calc(93.9% - 0.878 * var(--design-beam-bleed))
+        calc(0% + 1 * var(--design-beam-bleed)),
       var(--composer-motion-beam-magenta),
       transparent
     ),
-    radial-gradient(ellipse 26px 42px at 100% 27.1%, var(--composer-motion-orange), transparent),
     radial-gradient(
-      ellipse 52px 48px at 100% 27.1%,
+      ellipse 26px 42px at calc(100% - 1 * var(--design-beam-bleed))
+        calc(27.1% + 0.458 * var(--design-beam-bleed)),
+      var(--composer-motion-orange),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 52px 48px at calc(100% - 1 * var(--design-beam-bleed))
+        calc(27.1% + 0.458 * var(--design-beam-bleed)),
       var(--composer-motion-beam-violet),
       transparent
     );
@@ -245,116 +389,125 @@
     color: var(--composer-motion-accent);
   }
 }
-
-:is(.composer__design-beam, .composer__design-button-beam)[data-active] {
-  animation:
-    composer-design-beam-spin 2.4s linear infinite,
-    composer-design-beam-fade-in 0.6s ease forwards;
-}
-
-:is(.composer__design-beam, .composer__design-button-beam)[data-fading] {
-  animation:
-    composer-design-beam-spin 2.4s linear infinite,
-    composer-design-beam-fade-out 0.5s ease forwards;
-}
-
-:is(.composer__design-beam, .composer__design-button-beam):is([data-active], [data-fading])::after {
+/* The travelling light. Only `transform` and `opacity` ever animate, so the
+   compositor runs the whole effect by itself and nothing is recalculated,
+   laid out or repainted per frame. A conic gradient "from an angle" is the same
+   picture as a static conic gradient on a square layer rotated by that angle, so:
+   - [data-beam-turn] is a square, as wide as the box's diagonal and centred on
+     it, that rotates once in 2.4s;
+   - a window or highlight (static mask, static gradient) lives in that layer's
+     own space, and rides along;
+   - colours that must stay put while the window passes sit in [data-beam-still],
+     which counter-rotates, so its net rotation is nil.
+   Each wrapper is a size container only to read the box's size in cq units: it
+   is positioned by inset, so its size never depends on its content. */
+:is(.composer__design-beam, .composer__design-button-beam)
+  > :is([data-beam-glow], [data-beam-stroke], [data-beam-bloom]) {
   position: absolute;
   z-index: 2;
   inset: 0;
-  padding: 1px;
   border-radius: var(--design-beam-inner-radius);
-  background:
-    conic-gradient(
-      from var(--composer-design-beam-angle),
-      transparent 0%,
-      transparent 54%,
-      rgb(255 255 255 / 10%) 57%,
-      rgb(255 255 255 / 30%) 60%,
-      rgb(255 255 255 / 60%) 63%,
-      rgb(255 255 255 / 75%) 66%,
-      rgb(255 255 255 / 60%) 69%,
-      rgb(255 255 255 / 30%) 72%,
-      rgb(255 255 255 / 10%) 75%,
-      transparent 78%,
-      transparent 100%
-    ),
-    var(--design-beam-border-gradients);
   clip-path: inset(0 round var(--design-beam-radius));
-  content: '';
+  container-type: size;
   filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - 30deg))
     brightness(var(--design-beam-brightness)) saturate(var(--design-beam-saturation));
-  mask:
-    conic-gradient(
-      from var(--composer-design-beam-angle),
-      transparent 0%,
-      transparent 30%,
-      rgb(255 255 255 / 10%) 36%,
-      rgb(255 255 255 / 35%) 44%,
-      white 52%,
-      white 80%,
-      rgb(255 255 255 / 35%) 86%,
-      rgb(255 255 255 / 10%) 92%,
-      transparent 95%,
-      transparent 100%
-    ),
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: intersect, exclude;
-  opacity: calc(
-    var(--composer-design-beam-opacity) * var(--design-beam-stroke) *
-      var(--beam-stroke-opacity, 1) * var(--beam-strength, 1)
-  );
+  overflow: hidden;
   pointer-events: none;
 }
 
-:is(.composer__design-beam, .composer__design-button-beam):is(
-    [data-active],
-    [data-fading]
-  )::before {
-  position: absolute;
+:is(.composer__design-beam, .composer__design-button-beam)
+  > :is([data-beam-stroke], [data-beam-bloom]) {
+  /* The ring: the padding, which follows the rounded corners. */
+  --beam-ring: var(--design-beam-ring);
+  padding: var(--beam-ring);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+:is(.composer__design-beam, .composer__design-button-beam) > [data-beam-stroke] {
+  --beam-level: calc(
+    var(--design-beam-stroke) * var(--beam-stroke-opacity, 1) * var(--beam-strength, 1)
+  );
+}
+
+:is(.composer__design-beam, .composer__design-button-beam) > [data-beam-bloom] {
+  z-index: 3;
+  border-radius: var(--design-beam-inner-radius);
+  filter: blur(8px) brightness(var(--design-beam-brightness))
+    saturate(var(--design-beam-saturation));
+  --beam-level: calc(
+    var(--design-beam-bloom) * var(--beam-bloom-opacity, 1) * var(--beam-strength, 1)
+  );
+}
+
+:is(.composer__design-beam, .composer__design-button-beam) > [data-beam-glow] {
   z-index: 1;
-  inset: 0;
+  border-radius: var(--design-beam-radius);
+  --beam-level: calc(
+    var(--design-beam-inner) * var(--beam-inner-opacity, 1) * var(--beam-strength, 1)
+  );
+}
+
+[data-beam-turn] {
+  --beam-d: hypot(100cqw + 2 * var(--beam-ring, 0px), 100cqh + 2 * var(--beam-ring, 0px));
+  position: absolute;
+  top: calc(50% - var(--beam-d) / 2);
+  left: calc(50% - var(--beam-d) / 2);
+  width: var(--beam-d);
+  height: var(--beam-d);
+  animation: composer-design-beam-spin 2.4s linear infinite;
+}
+
+[data-beam-still] {
+  position: absolute;
+  top: calc(50% - 50cqh - var(--beam-ring, 0px) - var(--beam-bleed, 0px));
+  left: calc(50% - 50cqw - var(--beam-ring, 0px) - var(--beam-bleed, 0px));
+  width: calc(100cqw + 2 * (var(--beam-ring, 0px) + var(--beam-bleed, 0px)));
+  height: calc(100cqh + 2 * (var(--beam-ring, 0px) + var(--beam-bleed, 0px)));
+  animation: composer-design-beam-spin 2.4s linear infinite reverse;
+}
+
+/* Nobody is looking: the window is minimised or in the tray. */
+:root[data-page-hidden] :is([data-beam-turn], [data-beam-still]) {
+  animation-play-state: paused;
+}
+
+/* The glow keeps to the edge bands in the prompt box, and sits under the shelf
+   as well as the prompt. At z-index 1 it painted over a new chat's shelf and was
+   cut off by the prompt's top edge, a hard block in the top corners. */
+.composer__design-beam > [data-beam-glow] {
+  z-index: 0;
+  mask-image:
+    linear-gradient(white, transparent 28px, transparent calc(100% - 28px), white),
+    linear-gradient(to right, white, transparent 28px, transparent calc(100% - 28px), white);
+  mask-composite: add;
+}
+
+[data-beam-glow] [data-beam-still] {
   border-radius: var(--design-beam-radius);
   background: var(--design-beam-inner-gradients);
   box-shadow: var(--design-beam-inner-shadow);
-  clip-path: inset(0 round var(--design-beam-radius));
-  content: '';
-  filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - 30deg))
-    brightness(var(--design-beam-brightness)) saturate(var(--design-beam-saturation));
-  opacity: calc(
-    var(--composer-design-beam-opacity) * var(--design-beam-inner) * var(--beam-inner-opacity, 1) *
-      var(--beam-strength, 1)
-  );
-  pointer-events: none;
 }
 
-.composer__design-beam:is([data-active], [data-fading])::before {
-  /* Under the shelf as well as the prompt. At 1 the glow painted over a new chat's shelf
-     and was cut off by the prompt's top edge, a hard block in the top corners. */
-  z-index: 0;
-  mask-image:
-    conic-gradient(
-      from var(--composer-design-beam-angle),
-      transparent 0%,
-      transparent 30%,
-      rgb(255 255 255 / 10%) 36%,
-      rgb(255 255 255 / 35%) 44%,
-      white 52%,
-      white 80%,
-      rgb(255 255 255 / 35%) 86%,
-      rgb(255 255 255 / 10%) 92%,
-      transparent 95%,
-      transparent 100%
-    ),
-    linear-gradient(white, transparent 28px, transparent calc(100% - 28px), white),
-    linear-gradient(to right, white, transparent 28px, transparent calc(100% - 28px), white);
-  mask-composite: intersect, add;
-}
-
-.composer__design-button-beam:is([data-active], [data-fading])::before {
+.composer__design-beam > [data-beam-glow] > [data-beam-turn] {
   mask-image: conic-gradient(
-    from var(--composer-design-beam-angle),
+    transparent 0%,
+    transparent 30%,
+    rgb(255 255 255 / 10%) 36%,
+    rgb(255 255 255 / 35%) 44%,
+    white 52%,
+    white 80%,
+    rgb(255 255 255 / 35%) 86%,
+    rgb(255 255 255 / 10%) 92%,
+    transparent 95%,
+    transparent 100%
+  );
+}
+
+.composer__design-button-beam > [data-beam-glow] > [data-beam-turn] {
+  mask-image: conic-gradient(
     transparent 0%,
     transparent 22%,
     rgb(255 255 255 / 12%) 28%,
@@ -368,15 +521,46 @@
   );
 }
 
-:is(.composer__design-beam, .composer__design-button-beam) [data-beam-bloom] {
-  position: absolute;
-  z-index: 3;
-  inset: 0;
-  display: none;
-  padding: 1px;
-  border-radius: var(--design-beam-inner-radius);
+[data-beam-stroke] > [data-beam-window] {
+  mask-image: conic-gradient(
+    transparent 0%,
+    transparent 30%,
+    rgb(255 255 255 / 10%) 36%,
+    rgb(255 255 255 / 35%) 44%,
+    white 52%,
+    white 80%,
+    rgb(255 255 255 / 35%) 86%,
+    rgb(255 255 255 / 10%) 92%,
+    transparent 95%,
+    transparent 100%
+  );
+}
+
+[data-beam-window] > [data-beam-still] {
+  /* The colours reach past the box: a layer that turns is resampled, and its own edge would
+     soften the ring's outer pixel. The gradients' positions allow for the extra size. */
+  --beam-bleed: var(--design-beam-bleed);
+  background: var(--design-beam-border-gradients);
+}
+
+[data-beam-stroke] > [data-beam-sweep] {
   background: conic-gradient(
-    from var(--composer-design-beam-angle),
+    transparent 0%,
+    transparent 54%,
+    rgb(255 255 255 / 10%) 57%,
+    rgb(255 255 255 / 30%) 60%,
+    rgb(255 255 255 / 60%) 63%,
+    rgb(255 255 255 / 75%) 66%,
+    rgb(255 255 255 / 60%) 69%,
+    rgb(255 255 255 / 30%) 72%,
+    rgb(255 255 255 / 10%) 75%,
+    transparent 78%,
+    transparent 100%
+  );
+}
+
+[data-beam-bloom] > [data-beam-turn] {
+  background: conic-gradient(
     transparent 0%,
     transparent 58%,
     rgb(255 255 255 / 3%) 62%,
@@ -391,43 +575,40 @@
     rgb(255 255 255 / 3%) 78%,
     transparent 82%
   );
-  clip-path: inset(0 round var(--design-beam-radius));
-  filter: blur(8px) brightness(var(--design-beam-brightness))
-    saturate(var(--design-beam-saturation));
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  opacity: calc(
-    var(--composer-design-beam-opacity) * var(--design-beam-bloom) * var(--beam-bloom-opacity, 1) *
-      var(--beam-strength, 1)
-  );
-  pointer-events: none;
 }
 
-:is(.composer__design-beam, .composer__design-button-beam):is([data-active], [data-fading])
-  [data-beam-bloom] {
-  display: block;
+:is(.composer__design-beam, .composer__design-button-beam)[data-active]
+  > :is([data-beam-glow], [data-beam-stroke], [data-beam-bloom]) {
+  animation: composer-design-beam-fade-in 0.6s ease forwards;
+}
+
+:is(.composer__design-beam, .composer__design-button-beam)[data-fading]
+  > :is([data-beam-glow], [data-beam-stroke], [data-beam-bloom]) {
+  animation: composer-design-beam-fade-out 0.5s ease forwards;
 }
 
 @keyframes composer-design-beam-spin {
   to {
-    --composer-design-beam-angle: 360deg;
+    transform: rotate(360deg);
   }
 }
 
 @keyframes composer-design-beam-fade-in {
+  from {
+    opacity: 0;
+  }
+
   to {
-    --composer-design-beam-opacity: 1;
+    opacity: var(--beam-level);
   }
 }
 
 @keyframes composer-design-beam-fade-out {
   from {
-    --composer-design-beam-opacity: 1;
+    opacity: var(--beam-level);
   }
 
   to {
-    --composer-design-beam-opacity: 0;
+    opacity: 0;
   }
 }

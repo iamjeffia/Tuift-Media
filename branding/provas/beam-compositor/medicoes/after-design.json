@@ -1,0 +1,104 @@
+{
+  "label": "after-design",
+  "kind": "design-chat",
+  "scheme": "light",
+  "seconds": 128,
+  "mainThreadBusyPct": 0.6,
+  "styleRecalcPct": 0.1,
+  "layoutPct": 0,
+  "scriptPct": 0,
+  "jsHeapMB": 63,
+  "runningAnimations": {
+    "composer-design-beam-fade-in": 6,
+    "composer-design-beam-spin": 12
+  },
+  "state": {
+    "shelved": false
+  },
+  "rows": [
+    {
+      "t": 10,
+      "rendererPrivMB": 295,
+      "rendererCpuPct": 13.9,
+      "gpu-processPrivMB": 157,
+      "gpu-processCpuPct": 70
+    },
+    {
+      "t": 20,
+      "rendererPrivMB": 297,
+      "rendererCpuPct": 15.6,
+      "gpu-processPrivMB": 158,
+      "gpu-processCpuPct": 63.4
+    },
+    {
+      "t": 30,
+      "rendererPrivMB": 249,
+      "rendererCpuPct": 20,
+      "gpu-processPrivMB": 157,
+      "gpu-processCpuPct": 65.5
+    },
+    {
+      "t": 40,
+      "rendererPrivMB": 249,
+      "rendererCpuPct": 15.3,
+      "gpu-processPrivMB": 157,
+      "gpu-processCpuPct": 64.4
+    },
+    {
+      "t": 50,
+      "rendererPrivMB": 236,
+      "rendererCpuPct": 15.1,
+      "gpu-processPrivMB": 170,
+      "gpu-processCpuPct": 65.4
+    },
+    {
+      "t": 60,
+      "rendererPrivMB": 236,
+      "rendererCpuPct": 14.6,
+      "gpu-processPrivMB": 158,
+      "gpu-processCpuPct": 68.3
+    },
+    {
+      "t": 70,
+      "rendererPrivMB": 238,
+      "rendererCpuPct": 15.4,
+      "gpu-processPrivMB": 158,
+      "gpu-processCpuPct": 69
+    },
+    {
+      "t": 80,
+      "rendererPrivMB": 236,
+      "rendererCpuPct": 15.2,
+      "gpu-processPrivMB": 156,
+      "gpu-processCpuPct": 69.8
+    },
+    {
+      "t": 90,
+      "rendererPrivMB": 234,
+      "rendererCpuPct": 15.2,
+      "gpu-processPrivMB": 156,
+      "gpu-processCpuPct": 69.7
+    },
+    {
+      "t": 100,
+      "rendererPrivMB": 234,
+      "rendererCpuPct": 14.9,
+      "gpu-processPrivMB": 156,
+      "gpu-processCpuPct": 66.9
+    },
+    {
+      "t": 110,
+      "rendererPrivMB": 235,
+      "rendererCpuPct": 14,
+      "gpu-processPrivMB": 159,
+      "gpu-processCpuPct": 69.8
+    },
+    {
+      "t": 120,
+      "rendererPrivMB": 235,
+      "rendererCpuPct": 14.9,
+      "gpu-processPrivMB": 158,
+      "gpu-processCpuPct": 73.5
+    }
+  ]
+}
