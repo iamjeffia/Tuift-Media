@@ -14,7 +14,11 @@
   --cast-gap: 10px;
   --cast-ring: 2px;
   --cast-ring-offset: 3px;
-  --cast-mark: 18px;
+  --cast-mark: 14px;
+  --cast-angle: 35deg;
+  /* From the head's centre to the centre of a mark: the head's radius, the
+     mark's radius and a pixel, so the mark clears the face. */
+  --cast-d: calc(var(--cast-size) / 2 + var(--cast-mark) / 2 + 1px);
 
   position: relative;
   z-index: 1;
@@ -68,7 +72,8 @@
   --cast-size: 56px;
   --cast-gap: 16px;
   --cast-ring-offset: 4px;
-  --cast-mark: 24px;
+  --cast-mark: 22px;
+  --cast-angle: 45deg;
 
   align-self: end;
   justify-content: center;
@@ -153,46 +158,47 @@
   user-select: none;
 }
 
-/* After Effects cannot be used: a warning triangle cut into the head's lower
-   edge, in the app's warning colour. The shape says it, not the colour, and
-   it sits on the head, so the row never moves. */
-.motion-cast__mark {
+/* The two marks sit on the edge of the head's ring, outside the circle, on the
+   right: the waiting bubble above the line through the head's centre, the
+   After Effects badge below it, so Cloud can carry both and neither reaches the
+   face. Each is a small round badge of its own (the app's surface and hairline),
+   placed by an angle and a distance from the head's centre, so it keeps its
+   place at every size of head and takes no room in the row. The warning colour
+   is the sidebar's needs-you one; the shape says it.
+
+   In the 48px band the bubble stays inside the band: at this angle its top is
+   a few pixels under the header's line. Nothing clips it (the scene and the
+   ring have no overflow), and the 10px gap to the next head is not crossed. */
+.motion-cast__mark,
+.motion-cast__wait {
   position: absolute;
-  right: -3px;
-  bottom: -3px;
+  left: calc(50% + var(--cast-d) * cos(var(--cast-angle)) - var(--cast-mark) / 2);
   display: grid;
   place-items: center;
+  box-sizing: border-box;
   width: var(--cast-mark);
   height: var(--cast-mark);
   color: var(--warning);
-  background: var(--bg);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-circle);
   pointer-events: none;
+}
+
+.motion-cast__mark {
+  top: calc(50% + var(--cast-d) * sin(var(--cast-angle)) - var(--cast-mark) / 2);
+}
+
+.motion-cast__wait {
+  top: calc(50% - var(--cast-d) * sin(var(--cast-angle)) - var(--cast-mark) / 2);
+  /* One quiet pop in, then still. */
+  animation: motion-cast-wait-in var(--dur-fast) var(--ease-out) backwards;
 }
 
 .motion-cast__mark svg,
 .motion-cast__wait svg {
-  width: 70%;
-  height: 70%;
-}
-
-/* The chat waits for the person: a speech bubble with dots cut into the head's
-   upper edge, the other corner from the After Effects triangle, so Cloud can
-   carry both. Same warning colour the sidebar's needs-you dot uses; the shape
-   says it. It appears with one quiet pop and then stays still. */
-.motion-cast__wait {
-  position: absolute;
-  top: -3px;
-  right: -3px;
-  display: grid;
-  place-items: center;
-  width: var(--cast-mark);
-  height: var(--cast-mark);
-  color: var(--warning);
-  background: var(--bg);
-  border-radius: var(--r-circle);
-  animation: motion-cast-wait-in var(--dur-fast) var(--ease-out) backwards;
-  pointer-events: none;
+  width: 80%;
+  height: 80%;
 }
 
 @keyframes motion-cast-wait-in {
@@ -331,7 +337,8 @@
     --cast-size: 32px;
     --cast-gap: 10px;
     --cast-ring-offset: 3px;
-    --cast-mark: 18px;
+    --cast-mark: 14px;
+    --cast-angle: 35deg;
 
     align-self: auto;
     justify-content: flex-start;

@@ -16,6 +16,11 @@ function rule(selector: string, source = css): string {
   )
 }
 
+/** A rule that stands alone: not the last selector of a group. */
+function alone(selector: string): string {
+  return css.split(`\n${selector} {`).at(-1)?.split('\n}')[0] ?? ''
+}
+
 function keyframes(name: string): string[] {
   const body = css.match(new RegExp(`@keyframes ${name} \\{(?<body>[\\s\\S]*?)\\n\\}`))?.groups?.[
     'body'
@@ -67,15 +72,33 @@ describe('Motion cast styles', () => {
     expect(css.match(/animation: motion-cast-breathe/g)).toHaveLength(1)
   })
 
-  it('draws the waiting mark on the other corner from the After Effects one, once, without a loop', () => {
-    const wait = rule('.motion-cast__wait')
-    expect(wait).toMatch(/top: -3px;[\s\S]*right: -3px;/)
-    expect(rule('.motion-cast__mark')).toMatch(/right: -3px;\s*bottom: -3px;/)
+  it('sits both marks on the ring outside the face: the bubble above the line through the centre, the badge below, on the right', () => {
+    const wait = alone('.motion-cast__wait')
+    const mark = alone('.motion-cast__mark')
+    expect(wait).toContain('top: calc(50% - var(--cast-d) * sin(var(--cast-angle))')
+    expect(mark).toContain('top: calc(50% + var(--cast-d) * sin(var(--cast-angle))')
+    const base = rule(['.motion-cast__mark,', '.motion-cast__wait'].join('\n'))
+    expect(base).toContain('left: calc(50% + var(--cast-d) * cos(var(--cast-angle))')
+    // Its own badge, from the app's tokens, so it reads over any head colour.
+    expect(base).toContain('background: var(--surface);')
+    expect(base).toContain('border: 1px solid var(--line-strong);')
+    expect(base).toContain('color: var(--warning);')
+    // Out of the flow: a mark appearing or leaving moves nothing.
+    expect(base).toContain('position: absolute;')
+    // The distance clears the head: its radius, the mark's radius and a pixel.
+    expect(css).toContain('--cast-d: calc(var(--cast-size) / 2 + var(--cast-mark) / 2 + 1px);')
+    // Nothing clips it: no overflow on the scene, its members or the heads.
+    expect(rule('.motion-cast')).not.toMatch(/overflow/)
+    expect(rule('.motion-cast__member')).not.toMatch(/overflow/)
+    expect(rule('.motion-cast__head')).not.toMatch(/overflow/)
+  })
+
+  it('brings the waiting bubble in once, without a loop', () => {
+    const wait = alone('.motion-cast__wait')
     expect(wait).toContain(
       'animation: motion-cast-wait-in var(--dur-fast) var(--ease-out) backwards;',
     )
     expect(wait).not.toContain('infinite')
-    expect(wait).toContain('color: var(--warning);')
   })
 
   it('stands still under reduced motion and keeps the ring and the label', () => {

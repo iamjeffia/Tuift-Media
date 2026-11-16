@@ -14,21 +14,30 @@ export const CAST_NAMES: readonly (readonly [CastId, string])[] = [
   ['penny', 'Penny'],
 ]
 
-/** What may follow a character's name in a helper's name: "Moss: references", "Zig - audio". */
-const NAME_SEPARATOR = /^\s*[:\-–—/·|_(,]/
+/** What may follow a character's name inside a segment: "Zig - audio", "Bun (script)". */
+const NAME_SEPARATOR = /^\s*[\-–—·|_(,]/
 
 /**
- * The character a helper agent is named after: the whole name, or the name
- * followed by a separator, in any case. "Mossy", "Pipeline" and "Cloud deploy"
- * are other names and light nobody.
+ * The character a helper agent is named after. A name is read as segments split
+ * on ":" and "/": the cast name must be a whole segment, the first or the last
+ * one, in any case, so "Moss: references", "tuift-media:cloud" (a Claude Code
+ * plugin agent: prefix, colon, name) and "team/penny" match. A name that is only
+ * a cast name followed by a separator ("Zig - audio") matches too. "Mossy",
+ * "Pipeline", "Cloud deploy", "tuift-media:mossy" and "cloud-team:explorer" are
+ * other names.
  */
 export function castIdOfName(name: string | undefined): CastId | undefined {
   const text = name?.trim().toLowerCase()
   if (!text) return undefined
+  const segments = text.split(/[:/]/).map((segment) => segment.trim())
+  const ends = [segments[0], segments.at(-1)]
   return CAST_NAMES.find(([, own]) => {
     const lower = own.toLowerCase()
     return (
-      text === lower || (text.startsWith(lower) && NAME_SEPARATOR.test(text.slice(lower.length)))
+      ends.includes(lower) ||
+      (segments.length === 1 &&
+        text.startsWith(lower) &&
+        NAME_SEPARATOR.test(text.slice(lower.length)))
     )
   })?.[0]
 }
