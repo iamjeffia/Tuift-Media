@@ -123,11 +123,11 @@ function duration(seconds: number): string {
 }
 
 type Failure = 'copy' | 'save' | 'attach'
-const FAILURE_KEY: Record<Failure, MessageKey> = {
+const FAILURE_KEY = {
   copy: 'chat.delivered.copyFailed',
   save: 'chat.delivered.saveFailed',
   attach: 'chat.delivered.attachFailed',
-}
+} as const satisfies Record<Failure, MessageKey>
 
 function DeliveredCard({ file, roots }: { file: DeliveredFile; roots: string[] }) {
   const { t } = useI18n()

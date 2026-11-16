@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { detectDeliveredPaths, MAX_DETECTED_PATHS } from './delivered-files.js'
 
-const VIDEO =
-  'C:/Users/Ana/Vídeos de teste/projeto/render/apresentacao-15s.mp4'
+const VIDEO = 'C:/Users/Ana/Vídeos de teste/projeto/render/apresentacao-15s.mp4'
 
 describe('detectDeliveredPaths', () => {
   it('finds a path written as inline code', () => {
