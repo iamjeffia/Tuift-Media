@@ -26,7 +26,7 @@ function keyframes(name: string): string[] {
 
 describe('Motion cast styles', () => {
   it('animates only transform and opacity', () => {
-    for (const name of ['motion-cast-in', 'motion-cast-breathe'])
+    for (const name of ['motion-cast-in', 'motion-cast-breathe', 'motion-cast-wait-in'])
       expect(new Set(keyframes(name))).toEqual(new Set(['opacity', 'transform']))
     const transitioned = Array.from(
       css.matchAll(/transition:\s*([^;]+);/g),
@@ -60,11 +60,22 @@ describe('Motion cast styles', () => {
     expect(rule('.stage__conversation:has(> .motion-cast)')).not.toContain('transition')
   })
 
-  it('breathes only while a turn is running, and only the highlighted head', () => {
+  it('breathes only the highlighted head while a turn runs, and the heads a running helper lights', () => {
     expect(css).toMatch(
-      /\.motion-cast\[data-running\] \.motion-cast__member\[data-current\] \.motion-cast__head::before \{[^}]*animation: motion-cast-breathe/s,
+      /\.motion-cast\[data-running\] \.motion-cast__member\[data-current\] \.motion-cast__head::before,\s*\.motion-cast__member\[data-working\] \.motion-cast__head::before \{[^}]*animation: motion-cast-breathe/s,
     )
     expect(css.match(/animation: motion-cast-breathe/g)).toHaveLength(1)
+  })
+
+  it('draws the waiting mark on the other corner from the After Effects one, once, without a loop', () => {
+    const wait = rule('.motion-cast__wait')
+    expect(wait).toMatch(/top: -3px;[\s\S]*right: -3px;/)
+    expect(rule('.motion-cast__mark')).toMatch(/right: -3px;\s*bottom: -3px;/)
+    expect(wait).toContain(
+      'animation: motion-cast-wait-in var(--dur-fast) var(--ease-out) backwards;',
+    )
+    expect(wait).not.toContain('infinite')
+    expect(wait).toContain('color: var(--warning);')
   })
 
   it('stands still under reduced motion and keeps the ring and the label', () => {
@@ -74,7 +85,12 @@ describe('Motion cast styles', () => {
     ).join('\n')
     expect(reduced).toContain('animation: none;')
     expect(reduced).toContain('transition: none;')
-    for (const target of ['.motion-cast,', '.motion-cast__member,', '.motion-cast__head::after'])
+    for (const target of [
+      '.motion-cast,',
+      '.motion-cast__member,',
+      '.motion-cast__wait,',
+      '.motion-cast__head::after',
+    ])
       expect(reduced).toContain(target)
     expect(reduced).not.toMatch(/display:\s*none/)
   })

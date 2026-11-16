@@ -1,7 +1,7 @@
 import type { DataOf, DomainEvent } from '@harness/contracts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DemoTransport } from './demo-transport.js'
-import { afterEffectsFromSearch } from './demo-server.js'
+import { afterEffectsFromSearch, motionSceneFromSearch } from './demo-server.js'
 
 const TIMING = { stepMs: 10, wordMs: 5, thinkingWordMs: 2, toolMs: 20 }
 
@@ -234,6 +234,89 @@ describe('DemoTransport', () => {
     expect(afterEffectsFromSearch('?chat=x&afterEffects=unavailable')).toBe('unavailable')
     expect(afterEffectsFromSearch('?afterEffects=maybe')).toBeUndefined()
     expect(afterEffectsFromSearch('')).toBeUndefined()
+  })
+
+  it('reads a Motion scene from the sandbox URL: whether it waits, and the helper names', () => {
+    expect(motionSceneFromSearch('?motionScene=waiting')).toEqual({ waiting: true, helpers: [] })
+    expect(motionSceneFromSearch('?motionScene=Moss,Pip')).toEqual({
+      waiting: false,
+      helpers: ['Moss', 'Pip'],
+    })
+    expect(motionSceneFromSearch('?chat=x&motionScene=Waiting, Explorer')).toEqual({
+      waiting: true,
+      helpers: ['Explorer'],
+    })
+    expect(motionSceneFromSearch('')).toBeUndefined()
+  })
+
+  describe('a Motion scene', () => {
+    async function sceneChat(scene: { waiting: boolean; helpers: string[] }) {
+      transport.close()
+      transport.server.dispose()
+      transport = new DemoTransport({
+        latencyMs: 1,
+        timing: TIMING,
+        platform: 'linux',
+        motionScene: scene,
+      })
+      events = []
+      transport.on('thread.event', (data) => events.push(data))
+      transport.connect()
+      await vi.advanceTimersByTimeAsync(1)
+      const threadId = await newChat()
+      await call(transport.request('thread.setMode', { threadId, mode: 'motion' }))
+      await call(transport.request('thread.sendTurn', { threadId, text: 'Make the video' }))
+      await vi.advanceTimersByTimeAsync(200)
+      return threadId
+    }
+    const statusOf = async (threadId: string) =>
+      (await call(transport.request('projects.list', {}))).projects
+        .flatMap((project) => project.sessions)
+        .find((session) => session.id === threadId)?.status
+    const helperStates = () =>
+      events.flatMap(({ event }) =>
+        (event.type === 'item.started' || event.type === 'item.completed') && event.item.subagent
+          ? [`${event.item.subagent.name}:${event.item.subagent.state}`]
+          : [],
+      )
+
+    it('starts the named helpers and keeps them running, and a chat without Motion is left alone', async () => {
+      const threadId = await sceneChat({ waiting: false, helpers: ['Moss', 'Pip'] })
+      expect(helperStates()).toEqual(['Moss:running', 'Pip:running'])
+      expect(await statusOf(threadId)).toBe('working')
+      expect(completedTurn(threadId)).toHaveLength(0)
+      await call(transport.request('thread.interrupt', { threadId }))
+      // A helper cut off with its turn is settled, so it stops lighting a character.
+      expect(helperStates().slice(2)).toEqual(['Moss:interrupted', 'Pip:interrupted'])
+      expect(completedTurn(threadId)).toHaveLength(1)
+
+      const plain = await newChat()
+      await call(transport.request('thread.sendTurn', { threadId: plain, text: 'Hello' }))
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(typesFor(plain)).not.toContain('approval.requested')
+      expect(helperStates()).toHaveLength(4)
+    })
+
+    it('waits on an approval, shows it in the sidebar status, and goes on when it is answered', async () => {
+      const threadId = await sceneChat({ waiting: true, helpers: ['Moss'] })
+      expect(typesFor(threadId)).toContain('approval.requested')
+      expect(await statusOf(threadId)).toBe('approval')
+      const request = events.find(({ event }) => event.type === 'approval.requested')?.event
+      if (request?.type !== 'approval.requested') throw new Error('no approval was requested')
+
+      await call(
+        transport.request('thread.respondToApproval', {
+          threadId,
+          approvalId: request.request.id,
+          decision: 'approve',
+        }),
+      )
+      expect(typesFor(threadId)).toContain('approval.resolved')
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(helperStates()).toEqual(['Moss:running', 'Moss:completed'])
+      expect(completedTurn(threadId)).toHaveLength(1)
+      expect(await statusOf(threadId)).toBe('idle')
+    })
   })
 
   it('keeps a chat mode and Motion stage, refuses a change mid-turn, and pushes each change', async () => {

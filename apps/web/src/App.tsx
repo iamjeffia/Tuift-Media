@@ -65,6 +65,7 @@ import { readTerminalPlacement, subscribeTerminalPlacement } from './terminal-pl
 import { useChatNotifications } from './use-chat-notifications.js'
 import { useAppUpdateInstallGate } from './app-update-install.js'
 import { ProviderUpdateNotice } from './ui/ProviderUpdates.js'
+import { useWorkingCast, waitingForPerson } from './motion/cast-activity.js'
 import { LazyMotionCast } from './motion/LazyMotionCast.js'
 import { useChatMotion, useThreadMotion, type LegacyMotionFlag } from './motion/thread-motion.js'
 import { AppUpdateToast } from './ui/AppUpdateToast.js'
@@ -1333,6 +1334,11 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     motionStore,
     besideId,
     split?.frozen.composer.motionMode ?? false,
+  )
+  const motionWorking = useWorkingCast(threadFrameStore, motionMode)
+  const besideWorking = useWorkingCast(
+    threadController.columns[focusedSlot === 0 ? 1 : 0],
+    besideMotion.mode,
   )
   // Design and Motion exclude each other: turning one on turns the other off.
   const changeDesignMode = useCallback(
@@ -8097,6 +8103,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                                 mode={motionMode}
                                 stage={motionStage}
                                 afterEffects={motionAfterEffects}
+                                waiting={waitingForPerson(active?.session)}
+                                working={motionWorking}
                                 running={visibleRunning}
                                 locked={motionLocked}
                                 onStageChange={setMotionStage}
@@ -8179,6 +8187,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                                 mode={besideMotion.mode}
                                 stage={besideMotion.stage}
                                 afterEffects={besideMotion.afterEffects}
+                                waiting={waitingForPerson(besideSession?.session)}
+                                working={besideWorking}
                               />
                               {besideId ? (
                                 <AccountLabelContext.Provider value={accountLabel}>

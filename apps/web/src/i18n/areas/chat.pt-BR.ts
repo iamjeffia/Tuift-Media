@@ -224,6 +224,7 @@ export const chatPt = {
   'chat.motion.group': 'Time do Motion',
   'chat.motion.announce': 'Modo Motion ativado. Etapa atual: {stage}, com {name}.',
   'chat.motion.announceStage': 'Etapa atual: {stage}, com {name}.',
+  'chat.motion.announceWaiting': '{name} está esperando você.',
   'chat.motion.afterEffects.notInstalled':
     'After Effects não encontrado neste computador. O vídeo será montado em HyperFrames.',
   'chat.motion.afterEffects.notInstalledName': 'After Effects não encontrado',
@@ -234,6 +235,10 @@ export const chatPt = {
   'chat.motion.member': '{name}, {role}',
   'chat.motion.memberCurrent': '{name}, {role}. Etapa atual: {stage}',
   'chat.motion.memberAfterEffects': '{label}. {state}',
+  'chat.motion.memberState': '{label}. {state}',
+  'chat.motion.labelWaiting': '{stage} · esperando você',
+  'chat.motion.waiting': 'Esperando você',
+  'chat.motion.working': 'Trabalhando',
   'chat.motion.role.zig': 'Lidera',
   'chat.motion.role.moss': 'Pesquisa as referências',
   'chat.motion.role.bun': 'Escreve o roteiro',
