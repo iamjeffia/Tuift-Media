@@ -171,7 +171,10 @@ describe('Clube do Motion settings', () => {
 })
 
 describe('Clube do Motion settings in Portuguese', () => {
-  const clubeKeys = Object.keys(en).filter((key) => /clube/i.test(key)) as Array<keyof typeof en>
+  // The Clube panel's own strings are asserted one by one in its test: some are the same word in both.
+  const clubeKeys = Object.keys(en).filter(
+    (key) => /clube/i.test(key) && !key.startsWith('clubePanel.'),
+  ) as Array<keyof typeof en>
 
   it('has a Portuguese message for every Clube string, never the English one', () => {
     expect(clubeKeys.length).toBeGreaterThan(30)
@@ -179,7 +182,7 @@ describe('Clube do Motion settings in Portuguese', () => {
       const portuguese = ptBR[key]
       expect(portuguese, key).toBeTruthy()
       // The product's own name is the same in both; every sentence is written, not copied.
-      if (!['Clube do Motion', 'E-mail'].includes(en[key]))
+      if (!['Clube do Motion', 'Clube', 'E-mail'].includes(en[key]))
         expect(portuguese, key).not.toBe(en[key])
     }
   })

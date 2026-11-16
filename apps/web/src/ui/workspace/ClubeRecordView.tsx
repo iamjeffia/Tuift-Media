@@ -34,7 +34,7 @@ import type {
   ClubeRecord,
   SoundFailure,
 } from '@harness/contracts'
-import { attachDeliveredFile, isDesktop, revealPath } from '../../bridge.js'
+import { attachDeliveredFile, isDesktop, revealPath, writeClipboardText } from '../../bridge.js'
 import {
   clubeFailureText,
   formatMb,
@@ -353,8 +353,7 @@ function PromptBlock(props: { prompt: string; i18n: I18n }) {
   const { t } = props.i18n
   const [copied, setCopied] = useState(false)
   const copy = () => {
-    void navigator.clipboard
-      ?.writeText(props.prompt)
+    void writeClipboardText(props.prompt)
       .then(() => setCopied(true))
       .catch(() => undefined)
   }
@@ -464,7 +463,13 @@ function PartsDownload(props: Props & { record: ClubeRecord; i18n: I18n }) {
   const spent = useRef(props.onSpent)
   spent.current = props.onSpent
 
-  const running = starting || job?.state === 'queued' || job?.state === 'running'
+  // A job that was accepted and has not answered its first poll yet is running too: without this
+  // the download button came back for a moment, and a second click started a second download.
+  const running =
+    starting ||
+    (jobId !== undefined && job === undefined) ||
+    job?.state === 'queued' ||
+    job?.state === 'running'
   const totals = partsTotals(parts, chosen)
   const folder = itemFolderName(item)
 
@@ -512,6 +517,7 @@ function PartsDownload(props: Props & { record: ClubeRecord; i18n: I18n }) {
     if (!props.threadId || running) return
     setStarting(true)
     setFailure(undefined)
+    setJobId(undefined)
     setJob(undefined)
     setSent(false)
     chosenWhenStarted.current = chosen
