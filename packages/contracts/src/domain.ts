@@ -151,6 +151,22 @@ export const ItemSchema = z.object({
   text: z.string().optional(),
   /** Absolute paths attached to a user message. The renderer only previews images. */
   attachments: z.array(z.string()).optional(),
+  /**
+   * What the server knows about attachments it stored itself (an image an imported
+   * transcript carried inline), keyed by the path in `attachments`. Optional: an older
+   * client ignores it, and a path with no entry is simply a file the user attached.
+   */
+  attachmentInfo: z
+    .record(
+      z.string(),
+      z.object({
+        mediaType: z.string(),
+        bytes: z.number().int().nonnegative(),
+        width: z.number().int().positive().optional(),
+        height: z.number().int().positive().optional(),
+      }),
+    )
+    .optional(),
   /** Present on `command`: the command line and its exit code once finished. */
   command: z.string().optional(),
   exitCode: z.number().optional(),

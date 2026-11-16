@@ -82,7 +82,12 @@ async function records(file: string): Promise<SavedRecord[]> {
     for await (const line of lines) {
       try {
         const row = object(JSON.parse(line))
-        if (typeof row.type === 'string') rows.push(row)
+        if (typeof row.type !== 'string') continue
+        // A tool result that returned a picture saves it twice: in the content block and again
+        // here. History items read the content block, so the copy is dropped on arrival.
+        const picture = object(object(row.toolUseResult).file)
+        if (typeof picture.base64 === 'string') delete picture.base64
+        rows.push(row)
       } catch {
         // Concurrent writes can leave the final record incomplete.
       }

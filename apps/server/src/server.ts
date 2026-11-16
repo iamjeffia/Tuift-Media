@@ -1553,6 +1553,13 @@ export function startServer(
         const p = parseParams(method, params)
         historySchedule.activity()
         await loadProviderHistoryForRead(p.threadId)
+        // Old saved events carry pictures inline; this moves them to files before the read, so
+        // the first open already sends the small version. A failure leaves them as they were.
+        try {
+          store.externalizeEmbeddedAttachments(p.threadId)
+        } catch (error) {
+          console.error('[history] could not move inline attachments to files', error)
+        }
         if (p.page) {
           const history = await orchestrator.historyPage(p.threadId, p.page)
           const running = orchestrator.isTurnRunning(p.threadId)

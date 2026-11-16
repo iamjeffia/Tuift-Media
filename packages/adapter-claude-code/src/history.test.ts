@@ -642,6 +642,34 @@ describe('Claude Code saved history', { timeout: 20_000 }, () => {
     expect(await f.source.read(session)).toEqual(events)
   })
 
+  it('keeps a screenshot a tool returned once, from its content block', async () => {
+    const f = await fixture([
+      row('u1', 'user', 'Look at the screen'),
+      row('a1', 'assistant', [{ type: 'tool_use', id: 'tool1', name: 'Read', input: {} }], 'u1'),
+      row(
+        'r1',
+        'user',
+        [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tool1',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AA==' } },
+            ],
+          },
+        ],
+        'a1',
+        { toolUseResult: { type: 'image', file: { base64: 'AA==', type: 'image/png' } } },
+      ),
+    ])
+    const events = await f.source.read((await f.source.list())[0]!)
+
+    expect(items(events).find((item) => item.attachments)?.attachments).toEqual([
+      'data:image/png;base64,AA==',
+    ])
+    expect(JSON.stringify(events).split('AA==')).toHaveLength(2)
+  })
+
   it('recovers sibling tool results and assistant blocks without including an abandoned branch or subagent', async () => {
     const f = await fixture([
       row('u1', 'user', 'Run both'),

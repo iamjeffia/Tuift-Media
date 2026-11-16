@@ -202,6 +202,16 @@ are never pruned by age: only chat history knows whether a file is still referen
 isolated chat checkouts live in `trees` beside the database for the same reason
 (`HARNESS_WORKTREE_DIR` overrides it); existing checkouts keep their stored paths.
 
+A picture a saved transcript carries inline (a `data:` attachment of an imported Claude Code or
+Codex chat) is written once, by content hash, to `<data folder>/pasted-files/<sha256>.<ext>` when
+the transcript is merged into the log. The event keeps only that path and a few facts about it
+(`attachmentInfo`: type, bytes, width, height), so a chat of 184 screenshots went from 48 MB to 3 MB
+on the wire. The renderer shows the picture through the desktop's signed preview URL (or, in a
+browser tab, `attachments.read`) only while its row is mounted. Events an older version saved with
+the picture inline are moved to files when the chat is opened (once per run) and by
+`harness history compact`; a file that cannot be written leaves the picture inline, so nothing is
+lost, and an inline picture still renders. Deleting a chat removes the files no other chat names.
+
 Electron's weaker security defaults are fixed in the shell: `contextIsolation: true`,
 `nodeIntegration: false`, sandboxing, a strict CSP, a narrow typed `contextBridge`, and
 deny-by-default external navigation. The renderer never spawns a process, touches the
@@ -1059,3 +1069,4 @@ registry entry, which is deliberately a good first outside contribution.
 | 2026-10-31 | Phone access became dev-only: offered only with `HARNESS_PHONE_ACCESS=1` (set by `pnpm dev`); other builds never open the phone port.                                          |
 | 2026-11-01 | Each build offers its edition's providers: release offers Claude Code, Codex, Grok, Cursor and Antigravity, dev every provider; missing means release.                         |
 | 2026-11-06 | Kept the Browser's recently used pages in renderer storage, recorded only from tabs the user opened.                                                                           |
+| 2026-11-15 | Pictures inside a saved transcript are kept as content-addressed files beside the pasted attachments; events carry the path, old inline pictures move out when the chat opens. |

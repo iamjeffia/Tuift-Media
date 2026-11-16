@@ -18,7 +18,7 @@ history to a new archive. Active tasks and tasks with private checkouts stay.
 Close TUIFT Code and its core server before using history commands.
 Archives contain conversation records, not a backup of workspace files.
 Compact removes streamed text fragments that completed messages already contain,
-then reclaims free database pages. HARNESS_DATA_DIR selects the data folder.
+moves pictures saved inside events into files, then reclaims free database pages. HARNESS_DATA_DIR selects the data folder.
 `
 
 export async function runHistoryCli(
@@ -78,8 +78,15 @@ export async function runHistoryCli(
     }
     if (command === 'compact') {
       const foldedDeltaEvents = store.foldCompletedItemDeltas()
+      const externalizedAttachmentEvents = store.externalizeEmbeddedAttachments()
       store.reclaimHistorySpace()
-      output(JSON.stringify({ foldedDeltaEvents, ...store.historyStorage() }, null, 2))
+      output(
+        JSON.stringify(
+          { foldedDeltaEvents, externalizedAttachmentEvents, ...store.historyStorage() },
+          null,
+          2,
+        ),
+      )
       return
     }
     const date = flags.get('--before')

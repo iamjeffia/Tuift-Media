@@ -9,6 +9,7 @@ import {
   statSync,
   writeSync,
 } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import {
   AccountContextSettingsSchema,
@@ -47,6 +48,7 @@ import type {
 } from '@harness/contracts'
 import { z } from 'zod'
 import type { TurnOptions } from './adapters.js'
+import { AttachmentFiles, hasInlineAttachment } from './attachment-files.js'
 import { canonicalDataPath } from './data-lease.js'
 import type { HistoryCarry } from './history-page.js'
 import { boundItemEvent, boundOutputEvent } from './item-output-bounds.js'
@@ -616,6 +618,14 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
   name TEXT PRIMARY KEY
 );
 
+-- Which chats name an attachment file the server stored (see attachment-files.ts), so deleting
+-- a chat removes the files that no other chat still names.
+CREATE TABLE IF NOT EXISTS attachment_files (
+  hash      TEXT NOT NULL,
+  thread_id TEXT NOT NULL,
+  PRIMARY KEY (hash, thread_id)
+) WITHOUT ROWID;
+
 ${SESSION_SEARCH_TABLE}
 
 CREATE TABLE IF NOT EXISTS diff_decisions (
@@ -953,6 +963,9 @@ export class Store {
   readonly checkpointNamespace: string
   readonly location: string
   #db: DatabaseSync
+  #attachments: AttachmentFiles
+  /** Chats whose saved events were already checked for inline attachments in this run. */
+  #attachmentsChecked = new Set<string>()
   #insertEvent: StatementSync
   #insertSearchEntry: StatementSync
   #insertUsageEvent: StatementSync
@@ -1080,6 +1093,11 @@ export class Store {
       .slice(0, 32)
     if (location !== ':memory:') mkdirSync(path.dirname(location), { recursive: true })
     this.#db = new DatabaseSync(location)
+    this.#attachments = new AttachmentFiles(
+      location === ':memory:'
+        ? path.join(os.tmpdir(), 'TUIFT Code', `memory-store-${randomUUID()}`)
+        : path.join(path.dirname(location), 'pasted-files'),
+    )
     // Without WAL a reader blocks a writer, and we do both on every turn.
     this.#db.exec('PRAGMA journal_mode = WAL')
     // Search and history are read-heavy once the event log grows. Mapping the
@@ -2190,8 +2208,10 @@ export class Store {
       )?.restored_at
       let turnAt = this.thread(threadId)?.createdAt ?? 0
       for (const { key, event: imported } of entries) {
+        // A picture inside the transcript goes to a file; the event keeps its path.
+        const externalized = this.#externalizeAttachments(threadId, imported)
         // Saved transcripts hold whatever a tool printed; bound it like a live one.
-        const event = boundItemEvent(imported)
+        const event = boundItemEvent(externalized)
         const payload = JSON.stringify(event)
         const existing = previous.get(key)
         if (event.type === 'turn.started') turnAt = event.turn.createdAt
@@ -2200,7 +2220,7 @@ export class Store {
         const unchanged =
           existing?.active &&
           (existing.payload === payload ||
-            existing.payload === JSON.stringify(boundOutputEvent(imported)))
+            existing.payload === JSON.stringify(boundOutputEvent(externalized)))
         if (
           !(retired && event.type === 'thread.started') &&
           (unchanged || (restoredAt != null && turnAt <= Number(restoredAt)))
@@ -3003,6 +3023,7 @@ export class Store {
     }
     // A chat's sub-agents go with it.
     const ids = [id, ...this.ownedThreadIds(id)]
+    const released: string[] = []
     // One transaction: a failure partway must not leave orphaned rows with
     // no owner and no path to ever clean them up.
     this.#db.exec('BEGIN IMMEDIATE')
@@ -3030,11 +3051,14 @@ export class Store {
         this.#db.prepare(`DELETE FROM history_keys WHERE thread_id = ?`).run(threadId)
         this.#db.prepare(`DELETE FROM history_state_events WHERE thread_id = ?`).run(threadId)
         this.subagents.deleteFor(threadId)
+        released.push(...this.#releaseAttachmentRows(threadId))
         this.#db.prepare(`DELETE FROM threads WHERE id = ?`).run(threadId)
       }
       this.#db.exec('COMMIT')
+      this.#removeUnreferencedAttachments(released)
       this.#searchRevision += 1
       for (const threadId of ids) {
+        this.#attachmentsChecked.delete(threadId)
         this.#historyDeltaRuns.delete(threadId)
         this.#ephemeralThreads.delete(threadId)
         this.#deleteCachedReplaySnapshot(threadId)
@@ -3045,6 +3069,88 @@ export class Store {
       this.#db.exec('ROLLBACK')
       throw error
     }
+  }
+
+  /** `imported` with its inline attachments moved to files, and the chat noted as naming them. */
+  #externalizeAttachments(threadId: string, event: DomainEvent): DomainEvent {
+    const { event: externalized, hashes } = this.#attachments.externalize(event)
+    for (const hash of hashes)
+      this.#db
+        .prepare('INSERT OR IGNORE INTO attachment_files (hash, thread_id) VALUES (?, ?)')
+        .run(hash, threadId)
+    return externalized
+  }
+
+  /** Forgets a chat's attachment files and returns their hashes, for the ones to check. */
+  #releaseAttachmentRows(threadId: string): string[] {
+    const hashes = sqliteRows<{ hash: string }>(
+      this.#db.prepare('SELECT hash FROM attachment_files WHERE thread_id = ?'),
+      threadId,
+    ).map((row) => row.hash)
+    this.#db.prepare('DELETE FROM attachment_files WHERE thread_id = ?').run(threadId)
+    return hashes
+  }
+
+  /** Removes the files of these hashes that no chat names any more. A file that stays is harmless. */
+  #removeUnreferencedAttachments(hashes: string[]): void {
+    for (const hash of new Set(hashes)) {
+      if (this.#db.prepare('SELECT 1 FROM attachment_files WHERE hash = ? LIMIT 1').get(hash))
+        continue
+      try {
+        this.#attachments.remove(hash)
+      } catch {
+        // The file may be open elsewhere; the next delete of a chat naming it tries again.
+      }
+    }
+  }
+
+  /**
+   * Moves the pictures that old saved events carry inline (a `data:` attachment) into files,
+   * one event at a time: the file is written and checked first, then the event is rewritten
+   * to name it, so a failure leaves that event as it was. The chat's replay snapshot, which
+   * holds a second copy, is dropped. Returns how many events changed.
+   *
+   * Run when a chat is opened, once per chat and run, and by `history compact` for every chat.
+   */
+  externalizeEmbeddedAttachments(threadId?: string): number {
+    if (threadId !== undefined && this.#attachmentsChecked.has(threadId)) return 0
+    const rows = sqliteRows<{ seq: SqliteInteger; thread_id: string }>(
+      this.#db.prepare(
+        `SELECT seq, thread_id FROM events
+         WHERE (? IS NULL OR thread_id = ?) AND instr(payload, ';base64,') > 0
+           AND instr(payload, 'data:') > 0`,
+      ),
+      threadId ?? null,
+      threadId ?? null,
+    )
+    const read = this.#db.prepare('SELECT payload FROM events WHERE seq = ?')
+    const write = this.#db.prepare('UPDATE events SET payload = ? WHERE seq = ?')
+    const touched = new Set<string>()
+    let changed = 0
+    for (const { seq, thread_id } of rows) {
+      const stored = sqliteRow<{ payload: string }>(read, seq)?.payload
+      if (stored === undefined) continue
+      let event: DomainEvent
+      try {
+        event = JSON.parse(stored) as DomainEvent
+      } catch {
+        continue
+      }
+      if (!hasInlineAttachment(event)) continue
+      this.#transaction(() => {
+        const payload = JSON.stringify(this.#externalizeAttachments(thread_id, event))
+        if (payload === stored) return
+        write.run(payload, seq)
+        touched.add(thread_id)
+        changed += 1
+      })
+    }
+    for (const id of touched) {
+      this.#deleteReplaySnapshot.run(id)
+      this.#deleteCachedReplaySnapshot(id)
+    }
+    if (threadId !== undefined) this.#attachmentsChecked.add(threadId)
+    return changed
   }
 
   historyStorage() {
