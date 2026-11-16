@@ -821,6 +821,16 @@ wrote it is gone; anything else is dropped, never ended. A child that ends takes
 A crash in the first 1.5 s of a child is not covered, and the registry costs one process list (a
 PowerShell start, about 0.4 s) per provider start and per start after a crash.
 
+Terminals are written the same way: `terminal.ts` hands the registry the pid of each pty's process
+(`trackOwnedProcess`) and takes it out when the pty exits. On Windows that pid is the shell itself
+(`cmd.exe`, a child of the server like the console host `conhost.exe` beside it), so the entry
+holds the shell and whatever runs under it when it is written; the console host is the system's
+and is not written. Measured with node-pty 1.2.0-beta.15: when the server is killed, the shell, its
+ordinary children and the console host all die with it (the job object); what survives is a
+process that broke away (a detached daemon a command started), whose parent link is gone and which
+no entry names. So a terminal entry matters when a shell outlives the server, and then the next
+start ends the shell and its whole tree, the long job the person left running included.
+
 _Rejected:_ a Windows job object (no way to create one from plain Node, a native module is
 off the table, and a PowerShell helper per spawn costs more than the list) · a watcher process that
 ends the tree the moment the app dies (works, costs a process per app, left to the owner) · ending
