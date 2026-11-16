@@ -223,7 +223,7 @@ Pedido de 15/11, depois de um trabalho longo de vídeo em que o sistema ficou se
 - [x] 16.15 Brilhos de texto que redesenhavam a cada quadro: agora varrem poucas vezes e param (16/11). Um teste lista toda animação contínua e falha quando aparece uma que não seja barata.
 - [x] 16.16 A porta do servidor abre antes de refazer índices grandes (16/11): com 197 mil eventos a partida até a primeira resposta caiu de cerca de 7 a 9 segundos para 0,5 a 2,3 segundos; a reconstrução segue em fatias, retoma se o app fechar, e a busca avisa que ainda está atualizando.
 - [ ] 16.17 Validação do dono do projeto no app instalado: memória e CPU com um chat Motion aberto por uma hora.
-- [ ] 16.18 Turno iniciado pelo celular com a janela descarregada ou fechada: o PC não recebe notificação, pode dormir e o app não pergunta antes de sair, porque a contagem de chats trabalhando vem da tela. Falta o servidor informar essa contagem ao app.
+- [x] 16.18 O app sabe pelo servidor quais chats trabalham, não pela tela (16/11): o servidor avisa o processo que o iniciou a cada mudança de estado (trabalhando, esperando aprovação ou resposta, falhou), pelo mesmo canal do pedido de encerramento. Sono do computador, descarga da janela escondida, pergunta ao sair e notificações usam esse aviso, então valem para um turno iniciado pelo celular com a janela descarregada ou fechada. O modo de notificação escolhido fica guardado pelo app para valer sem tela. Falta ver no app instalado com um turno real do celular.
 - [ ] 16.19 Restos da rodada de 16/11: o app do celular recebe o aviso de banco restaurado mas não o mostra; terminais não entram no registro de processos órfãos; login vencido em Grok, Cursor, Pi e Antigravity ainda aparece cru.
 - [ ] 16.20 Validação do dono do projeto no app instalado dos itens 16.6 a 16.16: nenhum foi visto com sono real, bandeja real, queda real, disco cheio ou banco danificado de verdade.
 
@@ -254,4 +254,5 @@ Cada frente roda num worktree próprio em `C:/Dev/tuift-wt/<frente>`, numa branc
 | 7    | `motion-ae`, `motion-ae-ui`, `ae-bundle`                                                             | 9.6, 11.1 a 11.4                      | na `main` (15/11), testada |
 | 8    | `motion-react`, `chat-feedback`, `crash-recovery`, `memory-images`, `beam-compositor`                | 9.7, 8.5, 16.1 a 16.5                 | na `main` (15/11), testada |
 | 9    | `strip-cast`, `perf-gpu`, `media-delivery`                                                           | 5.11, 16.1, 16.5, 16.5b, 16.15        | na `main` (16/11), testada |
-| 10   | `desk-lifecycle`, `server-startup`, `write-safety`, `orphans-caps` | 16.6 a 16.14, 16.16 | na `main` (16/11), testada |
+| 10   | `desk-lifecycle`, `server-startup`, `write-safety`, `orphans-caps`                                   | 16.6 a 16.14, 16.16                   | na `main` (16/11), testada |
+| 11   | `server-activity`                                                                                    | 16.18                                 | na `main` (16/11), testada |
