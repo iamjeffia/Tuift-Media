@@ -22,6 +22,8 @@ export type ComposerError = {
   tone?: 'info'
   usageReset?: UsageResetNoticeProps | undefined
   action?: { label: string; run: () => void }
+  /** A second way forward beside `action`, drawn quieter, such as Continue beside Sign in. */
+  secondaryAction?: { label: string; run: () => void }
   /** One action with several places to go, offered as a menu instead of a button. */
   choices?: {
     label: string
@@ -125,6 +127,15 @@ export function ComposerErrors({
                     ))
                   }
                 </Menu>
+              ) : null}
+              {error.secondaryAction ? (
+                <button
+                  className="notice-action notice-action--quiet"
+                  type="button"
+                  onClick={error.secondaryAction.run}
+                >
+                  {error.secondaryAction.label}
+                </button>
               ) : null}
               {error.report && error.role !== 'status' ? (
                 <button

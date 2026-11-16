@@ -208,6 +208,43 @@ describe('Codex notifications', () => {
   })
 })
 
+describe('a login Codex refuses in the middle of a turn', () => {
+  const failed = (codexErrorInfo: unknown, message = 'Failed to parse server response') =>
+    mapCodexError({ ...capturedError, error: { message, codexErrorInfo } })
+
+  it("takes Codex's own classification `unauthorized` for a login problem", () => {
+    expect(
+      failed('unauthorized', 'Your access token could not be refreshed. Please sign in again.'),
+    ).toEqual({
+      type: 'thread.error',
+      threadId: 'captured-thread',
+      message: 'Codex did not accept the login. Sign in again to continue.',
+      reason: {
+        code: 'auth_failed',
+        message: 'Your access token could not be refreshed. Please sign in again.',
+      },
+    })
+  })
+
+  it.each([
+    'usageLimitExceeded',
+    'sessionBudgetExceeded',
+    'serverOverloaded',
+    'contextWindowExceeded',
+    'badRequest',
+    'other',
+    { httpConnectionFailed: { httpStatusCode: 401 } },
+    null,
+    undefined,
+  ])('does not take %j for one', (info) => {
+    expect(failed(info)).not.toHaveProperty('reason')
+  })
+
+  it('does not take words that say unauthorized for one', () => {
+    expect(failed('other', '401 Unauthorized from the tool it called')).not.toHaveProperty('reason')
+  })
+})
+
 describe('Codex auto-review', () => {
   it('advertises the capability and maps captured lifecycle frames', () => {
     expect(CODEX_CAPABILITIES.autoReview).toBe(true)

@@ -360,7 +360,7 @@ export class PiAdapter extends EventEmitter<Events> {
             return
           }
           this.#processFailed(error.message)
-          void killTree(child)
+          void killTree(child).catch(() => undefined)
         },
       },
     )

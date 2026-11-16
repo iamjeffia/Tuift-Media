@@ -533,9 +533,14 @@ export class OpenCodeAdapter extends EventEmitter<Events> {
       turn: { id: turnId, threadId, status: 'running', createdAt: Date.now() },
     })
     if (this.#protocol === 'v2') {
-      void this.#sendV2Turn(text, turnId, attachments).catch((error: unknown) =>
-        this.#failTurn(turnId, error instanceof OpenCodeV2RequestError ? error.reason : undefined),
-      )
+      void this.#sendV2Turn(text, turnId, attachments)
+        .catch((error: unknown) =>
+          this.#failTurn(
+            turnId,
+            error instanceof OpenCodeV2RequestError ? error.reason : undefined,
+          ),
+        )
+        .catch(this.#loopFailed)
       return turnId
     }
     const variant =
@@ -578,7 +583,9 @@ export class OpenCodeAdapter extends EventEmitter<Events> {
         },
         throwOnError: true,
       })
-    })().catch(() => this.#failTurn(turnId))
+    })()
+      .catch(() => this.#failTurn(turnId))
+      .catch(this.#loopFailed)
     return turnId
   }
 
@@ -870,6 +877,22 @@ export class OpenCodeAdapter extends EventEmitter<Events> {
         this.#disconnected = true
         this.emit('disconnected')
       })
+      .catch(this.#loopFailed)
+  }
+
+  /**
+   * The last stop of a promise nobody awaits: what ended a turn here can itself fail when a
+   * listener throws, and that must not escape as an unhandled rejection.
+   */
+  #loopFailed = (error: unknown): void => {
+    try {
+      this.emit(
+        'log',
+        `OpenCode loop failed: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    } catch {
+      // The owner's own handlers are what failed; there is no one left to tell.
+    }
   }
 
   /** The newest model a v1 session ran on; a failed read leaves the model unset. */
@@ -1161,6 +1184,9 @@ export class OpenCodeAdapter extends EventEmitter<Events> {
       const error = failure.success ? failure.data.error : undefined
       // Stopping a turn from another OpenCode client aborts it; it did not fail.
       if (error?.name === 'MessageAbortedError') this.#finishTurn('interrupted')
+      // OpenCode's own name for a provider whose key or login it could not use.
+      else if (error?.name === 'ProviderAuthError')
+        this.#failTurn(undefined, error.data?.message, true)
       else this.#failTurn(undefined, error?.data?.message)
       return
     }
@@ -1205,7 +1231,7 @@ export class OpenCodeAdapter extends EventEmitter<Events> {
 
   /** When `turnId` is given, no-op unless it is still the live turn — a late
    *  rejection from a finished turn must not fail whatever runs now. */
-  #failTurn(turnId?: string, reason?: string): void {
+  #failTurn(turnId?: string, reason?: string, authFailed = false): void {
     if (turnId !== undefined && this.#turnId !== turnId) return
     if (!this.#turnId || !this.#threadId) return
     const failedTurnId = this.#turnId
@@ -1226,7 +1252,19 @@ export class OpenCodeAdapter extends EventEmitter<Events> {
     this.emit('event', {
       type: 'thread.error',
       threadId,
-      message: reason ? `The OpenCode request failed: ${reason}` : 'The OpenCode request failed.',
+      message: authFailed
+        ? 'OpenCode did not accept the login of its provider. Sign in again to continue.'
+        : reason
+          ? `The OpenCode request failed: ${reason}`
+          : 'The OpenCode request failed.',
+      ...(authFailed
+        ? {
+            reason: {
+              code: 'auth_failed' as const,
+              ...(reason ? { message: reason.slice(0, 500) } : {}),
+            },
+          }
+        : {}),
     })
     this.emit('event', { type: 'turn.completed', turnId: failedTurnId, status: 'failed' })
   }

@@ -1,9 +1,12 @@
 import type { DomainEvent } from '@harness/contracts'
+import { classifyWriteFailure } from './write-failure.js'
 
 const DEFAULT_DELAY_MS = 4
 const DEFAULT_MAXIMUM_TEXT_LENGTH = 64 * 1024
 const DEFAULT_MAXIMUM_EVENT_COUNT = 256
 const RETRY_DELAY_MS = 1_000
+/** A locked file is tried again this many times, a second apart, before the text is given up. */
+const DEFAULT_MAXIMUM_RETRIES = 3
 
 export type ItemDeltaEvent = Extract<DomainEvent, { type: 'item.delta' }>
 export type RecordedDelta = { threadId: string; event: ItemDeltaEvent }
@@ -14,6 +17,13 @@ type RecordedDeltaBufferOptions = {
   maximumEventCount?: number
   /** Must commit atomically: a failed batch stays buffered for retry. */
   commitBatch?: (records: RecordedDelta[]) => void
+  /**
+   * Called when a failed write is not worth another try: the disk is full, something else is
+   * wrong, or a lock outlasted `maximumRetries`. The buffered text of those chats is dropped
+   * first, so the caller can end their turns. Without it, a failed write is retried for ever.
+   */
+  onGiveUp?: (threadIds: string[], error: unknown) => void
+  maximumRetries?: number
 }
 
 type PendingDelta = {
@@ -35,6 +45,9 @@ export class RecordedDeltaBuffer {
   readonly #maximumTextLength: number
   readonly #maximumEventCount: number
   readonly #commitBatch: ((records: RecordedDelta[]) => void) | undefined
+  readonly #onGiveUp: ((threadIds: string[], error: unknown) => void) | undefined
+  readonly #maximumRetries: number
+  #failures = 0
 
   constructor(
     private readonly commit: (threadId: string, event: ItemDeltaEvent) => void,
@@ -44,6 +57,8 @@ export class RecordedDeltaBuffer {
     this.#maximumTextLength = options.maximumTextLength ?? DEFAULT_MAXIMUM_TEXT_LENGTH
     this.#maximumEventCount = options.maximumEventCount ?? DEFAULT_MAXIMUM_EVENT_COUNT
     this.#commitBatch = options.commitBatch
+    this.#onGiveUp = options.onGiveUp
+    this.#maximumRetries = options.maximumRetries ?? DEFAULT_MAXIMUM_RETRIES
   }
 
   push(threadId: string, event: ItemDeltaEvent): void {
@@ -71,7 +86,13 @@ export class RecordedDeltaBuffer {
       pending.text.length >= this.#maximumTextLength ||
       pending.eventCount >= this.#maximumEventCount
     ) {
-      this.flush(threadId)
+      // The stream goes on: a failed write keeps the text and is retried from the timer, which
+      // does not hold up the events that follow.
+      try {
+        this.flush(threadId)
+      } catch (error) {
+        this.#failedWindow(error)
+      }
     }
   }
 
@@ -111,10 +132,31 @@ export class RecordedDeltaBuffer {
     this.#timer = undefined
     try {
       this.#commitPending()
+      this.#failures = 0
     } catch (error) {
-      console.error('Could not save streamed text; buffered changes will be retried.', error)
-      this.#schedule(RETRY_DELAY_MS)
+      this.#failedWindow(error)
     }
+  }
+
+  #failedWindow(error: unknown): void {
+    this.#failures += 1
+    const onGiveUp = this.#onGiveUp
+    if (
+      onGiveUp &&
+      (classifyWriteFailure(error) !== 'locked' || this.#failures > this.#maximumRetries)
+    ) {
+      const threadIds = [...this.#pending.keys()]
+      this.discardAll()
+      this.#failures = 0
+      try {
+        onGiveUp(threadIds, error)
+      } catch (failure) {
+        console.error('Could not end the turns whose streamed text was not saved.', failure)
+      }
+      return
+    }
+    console.error('Could not save streamed text; buffered changes will be retried.', error)
+    this.#schedule(RETRY_DELAY_MS)
   }
 
   #commit(threadId: string, pending: PendingDelta): void {

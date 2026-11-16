@@ -275,6 +275,16 @@ export const chatEn = {
     '{provider} ended unexpectedly and the reason is not known. The chat and the files already written are kept.',
   'chat.crash.appClosed':
     'TUIFT Code was closed while this chat was working. The chat and the files already written are kept.',
+  'chat.crash.saveDiskFull':
+    "The chat stopped: the disk is full, so {provider}'s work could not be saved. Free up some space and continue. What was already saved is kept.",
+  'chat.crash.saveLocked':
+    "The chat stopped: another program is using the conversation file (an antivirus or a backup tool, for example), so {provider}'s work could not be saved. Try to continue in a moment. What was already saved is kept.",
+  'chat.crash.saveFailed':
+    "The chat stopped: {provider}'s work could not be saved. What was already saved is kept.",
+  'chat.crash.authFailed':
+    '{provider} did not accept your login. Sign in again to continue. The chat and the files already written are kept.',
+  'chat.crash.authNoAccess':
+    '{provider} refused this account because it is not allowed to use it. Sign in with another account to continue. The chat and the files already written are kept.',
   'chat.crash.continue': 'Continue',
   'chat.crash.details': 'Technical details: {details}',
   'chat.crash.exitCode': 'exit code {code}',

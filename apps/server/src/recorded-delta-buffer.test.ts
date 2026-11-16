@@ -1,6 +1,7 @@
 import type { DomainEvent } from '@harness/contracts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RecordedDeltaBuffer } from './recorded-delta-buffer.js'
+import { realSqliteError } from './write-failure.test-support.js'
 
 type ItemDeltaEvent = Extract<DomainEvent, { type: 'item.delta' }>
 
@@ -216,6 +217,100 @@ describe('RecordedDeltaBuffer', () => {
       expect(commit.mock.calls[1]).toEqual(commit.mock.calls[0])
     } finally {
       buffer.discardAll()
+    }
+  })
+})
+
+describe('RecordedDeltaBuffer when a write keeps failing', () => {
+  it('gives up at once on a full disk, drops the text, and names the chats', async () => {
+    vi.useFakeTimers()
+    const full = realSqliteError('full')
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const commit = vi.fn(() => {
+      throw full
+    })
+    const onGiveUp = vi.fn()
+    const buffer = new RecordedDeltaBuffer(commit, { onGiveUp })
+    try {
+      buffer.push('one', delta('text'))
+      await vi.advanceTimersByTimeAsync(4)
+      expect(onGiveUp).toHaveBeenCalledExactlyOnceWith(['one'], full)
+      expect(vi.getTimerCount()).toBe(0)
+      // Nothing is left to flush: a later flush writes nothing.
+      buffer.flushAll()
+      expect(commit).toHaveBeenCalledOnce()
+    } finally {
+      log.mockRestore()
+    }
+  })
+
+  it('retries a lock three times, a second apart, then gives up', async () => {
+    vi.useFakeTimers()
+    const locked = realSqliteError('locked')
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const commit = vi.fn(() => {
+      throw locked
+    })
+    const onGiveUp = vi.fn()
+    const buffer = new RecordedDeltaBuffer(commit, { onGiveUp })
+    try {
+      buffer.push('one', delta('text'))
+      await vi.advanceTimersByTimeAsync(4)
+      expect(commit).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(2_000)
+      expect(commit).toHaveBeenCalledTimes(3)
+      expect(onGiveUp).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(commit).toHaveBeenCalledTimes(4)
+      expect(onGiveUp).toHaveBeenCalledExactlyOnceWith(['one'], locked)
+    } finally {
+      log.mockRestore()
+    }
+  })
+
+  it('goes on saving once the lock lets go, and forgets the failures', async () => {
+    vi.useFakeTimers()
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let locks = 2
+    const saved: string[] = []
+    const onGiveUp = vi.fn()
+    const buffer = new RecordedDeltaBuffer(
+      (_threadId, event) => {
+        if (locks-- > 0) throw realSqliteError('locked')
+        saved.push(event.textDelta)
+      },
+      { onGiveUp },
+    )
+    try {
+      buffer.push('one', delta('a'))
+      await vi.advanceTimersByTimeAsync(2_100)
+      expect(saved).toEqual(['a'])
+      expect(onGiveUp).not.toHaveBeenCalled()
+    } finally {
+      log.mockRestore()
+    }
+  })
+
+  it('does not throw into the event stream when a size threshold flush fails', async () => {
+    vi.useFakeTimers()
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let fail = true
+    const saved: string[] = []
+    const buffer = new RecordedDeltaBuffer(
+      (_threadId, event) => {
+        if (fail) throw realSqliteError('locked')
+        saved.push(event.textDelta)
+      },
+      { maximumEventCount: 2, onGiveUp: vi.fn() },
+    )
+    try {
+      buffer.push('one', delta('a'))
+      expect(() => buffer.push('one', delta('b'))).not.toThrow()
+      fail = false
+      await vi.advanceTimersByTimeAsync(1_100)
+      expect(saved).toEqual(['ab'])
+    } finally {
+      log.mockRestore()
     }
   })
 })

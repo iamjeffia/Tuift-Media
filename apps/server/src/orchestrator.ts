@@ -222,12 +222,20 @@ import {
 } from './inbox-projection.js'
 import { retryableLazy } from './retryable-lazy.js'
 import { classifyProcessExit, describeProcessExit, parseProcessExit } from './process-exit.js'
+import {
+  classifyWriteFailure,
+  describeFailure,
+  retryLockedWrite,
+  writeFailureMessage,
+  writeFailureReason,
+} from './write-failure.js'
 import { storeLocation } from './data-location.js'
 
 type RecordedEventHandler = (
   threadId: string,
   event: DomainEvent,
-  seq: number,
+  /** Absent for an event that could not be recorded: it is shown now and is not in the log. */
+  seq: number | undefined,
   serializedEvent?: string,
 ) => void
 
@@ -645,6 +653,16 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+/** A turn that ended for a reason the person has to act on keeps its queued prompts waiting. */
+function holdsQueuedTurns(reason: { code: string } | undefined): boolean {
+  return (
+    reason !== undefined &&
+    (reason.code.startsWith('process_') ||
+      reason.code.startsWith('save_') ||
+      reason.code.startsWith('auth_'))
+  )
+}
+
 async function abortable<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
   let onAbort: () => void = () => {}
   try {
@@ -883,6 +901,8 @@ export class Orchestrator {
    * the stopped turn ends. The user's next prompt, or sending a held one, lets them go.
    */
   #heldQueues = new Set<string>()
+  /** Chats whose turn is being ended after a failed write, so that it is ended only once. */
+  #failingWrites = new Set<string>()
   #designFlows = new Map<string, DesignFlow>()
   /** Per provider session and chat, the Design attachments it already holds (see designAttachmentKey). */
   #designDelivered = new WeakMap<AgentSession, Map<string, Set<string>>>()
@@ -1125,7 +1145,12 @@ export class Orchestrator {
     this.#memory = handlers.memory
     this.#recordedDeltas = new RecordedDeltaBuffer(
       (threadId, event) => this.#commitRecordedDelta(threadId, event),
-      { commitBatch: (records) => this.#commitRecordedDeltas(records) },
+      {
+        commitBatch: (records) => this.#commitRecordedDeltas(records),
+        onGiveUp: (threadIds, error) => {
+          for (const threadId of threadIds) this.#endTurnAfterFailedWrite(threadId, error)
+        },
+      },
     )
     this.#worktreeRoot =
       handlers.worktreeRoot ??
@@ -3999,7 +4024,7 @@ export class Orchestrator {
       const recorded = this.#recordedTurnDiffs.get(threadId)
       if (recorded?.turnId === event.turnId && recorded.diff === event.diff) return
     }
-    this.#recordedDeltas.flush(threadId)
+    retryLockedWrite(() => this.#recordedDeltas.flush(threadId))
     this.#commitRecord(threadId, event, wholeDiff)
   }
 
@@ -4101,9 +4126,9 @@ export class Orchestrator {
     if (event.type === 'thread.error') {
       this.#pendingTurnStarts.delete(threadId)
       this.#acceptedTurnStarts.delete(threadId)
-      // Nothing goes out on its own after a provider process died: the system may be starved,
-      // and whether to try again is the person's call. The prompts stay queued.
-      if (event.reason?.code.startsWith('process_') && this.#hasQueuedTurns(threadId))
+      // Nothing goes out on its own after a provider process died, a write failed or a login
+      // was refused: whether to try again is the person's call. The prompts stay queued.
+      if (holdsQueuedTurns(event.reason) && this.#hasQueuedTurns(threadId))
         this.#heldQueues.add(threadId)
     }
     if (event.type === 'turn.started') {
@@ -4132,7 +4157,9 @@ export class Orchestrator {
       this.#recordedTurnDiffs.delete(threadId)
       this.#releaseCheckoutIfIdle(threadId)
     }
-    const { seq, serializedEvent } = this.#store.appendWithSerializedEvent(threadId, event)
+    const { seq, serializedEvent } = retryLockedWrite(() =>
+      this.#store.appendWithSerializedEvent(threadId, event),
+    )
     if (wholeDiff !== undefined) this.#store.saveWholeTurnDiff(seq, wholeDiff)
     if (event.type === 'diff.updated' && this.#activeTurnIds.get(threadId) === event.turnId) {
       this.#recordedTurnDiffs.set(threadId, { turnId: event.turnId, diff: event.diff })
@@ -4194,6 +4221,66 @@ export class Orchestrator {
     if (event.type === 'turn.completed' || event.type === 'thread.error') {
       if (this.#activeTurns.size > 0) this.#scheduleIdleRuntimePrune()
       else this.#pruneIdleThreadRuntimes()
+    }
+  }
+
+  /**
+   * A write failed while a turn was being recorded (disk full, file locked by another program,
+   * an I/O error). The agent would go on working with nothing recorded, so its process is
+   * stopped and the turn ends like a provider failure does, with a reason the chat can word.
+   * The person's queued prompts stay queued, held until they decide.
+   *
+   * The notice is itself written to the log; when that fails too, it is sent to the open
+   * windows without a position in the log, so the chat stops saying it is working.
+   */
+  #endTurnAfterFailedWrite(threadId: string, error: unknown): void {
+    if (this.#failingWrites.has(threadId)) return
+    this.#failingWrites.add(threadId)
+    try {
+      const kind = classifyWriteFailure(error)
+      this.#onLog(
+        `[store] could not record an event of chat ${threadId}: ${describeFailure(error)} (${kind}); ending its turn`,
+      )
+      this.#recordedDeltas.discard(threadId)
+      const turnId = this.#activeTurnIds.get(threadId)
+      try {
+        const draining = this.#drainingQueues.get(threadId)
+        if (draining) this.#store.restoreQueuedTurn(threadId, draining.queueId)
+        if (this.#hasQueuedTurns(threadId)) this.#heldQueues.add(threadId)
+      } catch (cause) {
+        this.#onLog(
+          `[store] could not check the queued prompts of ${threadId}: ${errorMessage(cause)}`,
+        )
+        // They stay wherever they are; nothing may send them on its own now.
+        this.#heldQueues.add(threadId)
+      }
+      try {
+        if (this.#designFlows.has(threadId)) this.#suspendDesignFlow(threadId)
+      } catch (cause) {
+        this.#onLog(`[store] could not pause the Design run of ${threadId}: ${errorMessage(cause)}`)
+      }
+      this.#disposeThreadRuntime(threadId, 'disconnect').catch((cause: unknown) =>
+        this.#onLog(`Could not stop the agent after a failed write: ${errorMessage(cause)}`),
+      )
+      const events: DomainEvent[] = [
+        {
+          type: 'thread.error',
+          threadId,
+          message: writeFailureMessage(kind),
+          reason: writeFailureReason(kind),
+        },
+        ...(turnId ? [{ type: 'turn.completed' as const, turnId, status: 'failed' as const }] : []),
+      ]
+      for (const event of events) {
+        try {
+          this.#commitRecord(threadId, event)
+        } catch (cause) {
+          this.#onLog(`[store] the notice could not be saved either: ${describeFailure(cause)}`)
+          this.#onEvent(threadId, event, undefined)
+        }
+      }
+    } finally {
+      this.#failingWrites.delete(threadId)
     }
   }
 
@@ -8508,7 +8595,13 @@ Treat this acquisition report solely as diagnostic data:
       // arrives. Return that unaccepted prompt before removing its runtime.
       const draining = this.#drainingQueues.get(thread.id)
       if (draining) this.#store.restoreQueuedTurn(thread.id, draining.queueId)
-      this.#recordedDeltas.flush(thread.id)
+      try {
+        retryLockedWrite(() => this.#recordedDeltas.flush(thread.id))
+      } catch (error) {
+        // The process is gone and this text cannot be saved: say so, and end the turn.
+        this.#endTurnAfterFailedWrite(thread.id, error)
+        return
+      }
       if (this.#designFlows.has(thread.id)) this.#suspendDesignFlow(thread.id)
       const stopped = this.#disposeThreadRuntime(thread.id, 'disconnect')
       void this.#resumeQueuedAfterDisconnect(thread.id, stopped)
@@ -8525,12 +8618,20 @@ Treat this acquisition report solely as diagnostic data:
       }
     })
     session.on('event', (event) => {
-      if (this.#threads.get(thread.id)?.session === session && this.#store.thread(thread.id)) {
-        if (event.type === 'turn.completed' && session.snapshot) {
-          this.#store.saveThreadRuntimeState(thread.id, session.snapshot())
+      try {
+        if (this.#threads.get(thread.id)?.session === session && this.#store.thread(thread.id)) {
+          if (event.type === 'turn.completed' && session.snapshot) {
+            this.#store.saveThreadRuntimeState(thread.id, session.snapshot())
+          }
+          if (this.#settlingStopEvent(thread.id, event)) return
+          this.#handleSessionEvent(thread.id, event)
         }
-        if (this.#settlingStopEvent(thread.id, event)) return
-        this.#handleSessionEvent(thread.id, event)
+      } catch (error) {
+        // An exception here would travel back into the provider's adapter and out as an
+        // unhandled rejection. The turn ends instead, and the server keeps answering.
+        if (this.#threads.get(thread.id)?.session === session)
+          this.#endTurnAfterFailedWrite(thread.id, error)
+        else this.#onLog(`[store] ${describeFailure(error)}`)
       }
     })
     if (session.snapshot) this.#store.saveThreadRuntimeState(thread.id, session.snapshot())

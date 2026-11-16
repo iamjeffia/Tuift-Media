@@ -750,6 +750,72 @@ describe('recovering interrupted turns', () => {
     }
   })
 
+  it('skips a chat it cannot write, records it, and recovers the others', () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'harness-recovery-skip-'))
+    const file = path.join(dir, 'harness.db')
+    const seeded = new Store(file)
+    seeded.addProject('/repo')
+    seedThread(seeded, 'first')
+    seedThread(seeded, 'broken')
+    seedThread(seeded, 'last')
+    seeded.close()
+    // Another program's trigger, or an I/O error on one chat's rows: writes for one chat fail.
+    const outside = new DatabaseSync(file)
+    outside.exec(`CREATE TRIGGER refuse_broken BEFORE INSERT ON events
+      WHEN NEW.thread_id = 'broken' BEGIN SELECT RAISE(ABORT, 'disk I/O error'); END`)
+    outside.close()
+
+    const restarted = new Store(file)
+    try {
+      const skipped: Array<[string, string]> = []
+      const recovered = restarted.recoverInterruptedThreads((threadId, error) =>
+        skipped.push([threadId, (error as Error).message]),
+      )
+      expect(recovered).toEqual(['first', 'last'])
+      expect(skipped).toEqual([['broken', 'disk I/O error']])
+      for (const id of ['first', 'last']) {
+        const events = restarted.history(id).map(({ event }) => event)
+        expect(events.at(-1)).toMatchObject({
+          type: 'thread.error',
+          reason: { code: 'app_closed' },
+        })
+      }
+      // The skipped chat is untouched, so the next start tries it again.
+      expect(restarted.history('broken').map(({ event }) => event.type)).toEqual(['turn.started'])
+    } finally {
+      restarted.close()
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
+    }
+  })
+
+  it('skips a chat whose record cannot be read and logs it by default', () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'harness-recovery-unreadable-'))
+    const file = path.join(dir, 'harness.db')
+    const seeded = new Store(file)
+    seeded.addProject('/repo')
+    seedThread(seeded, 'unreadable')
+    seedThread(seeded, 'fine')
+    seeded.close()
+
+    const restarted = new Store(file)
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const read = restarted.thread.bind(restarted)
+    vi.spyOn(restarted, 'thread').mockImplementation((id) => {
+      if (id === 'unreadable') throw new Error('database disk image is malformed')
+      return read(id)
+    })
+    try {
+      expect(restarted.recoverInterruptedThreads()).toEqual(['fine'])
+      expect(log).toHaveBeenCalledOnce()
+      expect(log.mock.calls[0]![0]).toContain('skipped chat unreadable')
+      expect(log.mock.calls[0]![0]).not.toContain('Pending')
+    } finally {
+      log.mockRestore()
+      restarted.close()
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
+    }
+  })
+
   it('backfills active recovery state for an existing event log', () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), 'harness-recovery-index-'))
     const file = path.join(dir, 'harness.db')
@@ -913,7 +979,7 @@ describe('recovering interrupted turns', () => {
     expect(inbox?.inputs).toBeUndefined()
   })
 
-  it('rolls back the whole recovery when one terminal event cannot be written', () => {
+  it('undoes the half-written changes of a chat whose terminal event cannot be written', () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), 'harness-recovery-atomic-'))
     const file = path.join(dir, 'harness.db')
     const seeded = new Store(file)
@@ -933,7 +999,14 @@ describe('recovering interrupted turns', () => {
 
     const restarted = new Store(file)
     try {
-      expect(() => restarted.recoverInterruptedThreads()).toThrow('injected recovery failure')
+      const skipped: string[] = []
+      // Before, one chat that could not be written aborted the whole pass and the server start.
+      expect(
+        restarted.recoverInterruptedThreads((threadId, error) =>
+          skipped.push(`${threadId}: ${(error as Error).message}`),
+        ),
+      ).toEqual([])
+      expect(skipped).toEqual(['thread-1: injected recovery failure'])
       expect(restarted.history('thread-1')).toHaveLength(2)
       expect(restarted.thread('thread-1')?.unread).toBe(false)
     } finally {
@@ -1239,14 +1312,14 @@ describe('a database written by a newer build', () => {
     }
   })
 
-  it('does not keep cache writes a rolled-back recovery made', () => {
+  it('does not keep cache writes a skipped chat recovery made', () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), 'harness-recovery-cache-'))
     const file = path.join(dir, 'harness.db')
     const seeded = new Store(file)
     seeded.addProject('/repo')
     for (const [id, turnId] of [
-      ['first', 'turn-first'],
       ['second', 'turn-second'],
+      ['first', 'turn-first'],
     ] as const) {
       seeded.addThread({ id, projectPath: '/repo', provider: 'codex', title: id })
       seeded.append(id, {
@@ -1265,14 +1338,20 @@ describe('a database written by a newer build', () => {
     const reopened = new Store(file)
     try {
       // Warm both caches so the failure lands on populated in-memory state.
-      expect(reopened.thread('first')?.unread).toBe(false)
+      expect(reopened.thread('second')?.unread).toBe(false)
       expect(reopened.sidebarThreads().every((thread) => !thread.unread)).toBe(true)
-      expect(() => reopened.recoverInterruptedThreads()).toThrow('injected recovery failure')
-      // First's recovery appended and touched, then rolled back: the caches
-      // must agree with the database, not with the lost writes.
-      expect(reopened.thread('first')?.unread).toBe(false)
-      expect(reopened.sidebarThreads().find((thread) => thread.id === 'first')?.unread).toBe(false)
-      expect(reopened.history('first')).toHaveLength(1)
+      const skipped: string[] = []
+      expect(reopened.recoverInterruptedThreads((threadId) => skipped.push(threadId))).toEqual([
+        'first',
+      ])
+      expect(skipped).toEqual(['second'])
+      // Second's recovery appended and touched, then was undone: the caches must agree with
+      // the database, not with the lost writes. First, recovered after it, is kept.
+      expect(reopened.thread('second')?.unread).toBe(false)
+      expect(reopened.sidebarThreads().find((thread) => thread.id === 'second')?.unread).toBe(false)
+      expect(reopened.history('second')).toHaveLength(1)
+      expect(reopened.thread('first')?.unread).toBe(true)
+      expect(reopened.sidebarThreads().find((thread) => thread.id === 'first')?.unread).toBe(true)
     } finally {
       reopened.close()
       rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })

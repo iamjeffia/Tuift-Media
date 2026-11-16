@@ -340,6 +340,11 @@ export type Usage = z.infer<typeof UsageSchema>
  * - `process_provider_error`: the process ended with an error the provider described.
  * - `process_unknown`: the process ended and nothing says why; `exitCode` is the lead.
  * - `app_closed`: TUIFT Code closed, or went away, while this chat's turn was running.
+ * - `save_disk_full`, `save_locked`, `save_failed`: the server could not record what the turn
+ *   produced, because the disk is full, another program holds the conversation file, or for
+ *   another reason. The turn was ended and its provider process stopped.
+ * - `auth_failed`: the provider refused the login mid-turn (expired, revoked, or no key).
+ * - `auth_no_access`: signed in, but the account or organization may not use the provider.
  */
 export const ThreadErrorReasonSchema = z.object({
   code: z.enum([
@@ -348,6 +353,11 @@ export const ThreadErrorReasonSchema = z.object({
     'process_provider_error',
     'process_unknown',
     'app_closed',
+    'save_disk_full',
+    'save_locked',
+    'save_failed',
+    'auth_failed',
+    'auth_no_access',
   ]),
   certainty: z.enum(['certain', 'likely']).optional(),
   /** The process exit code, as the platform reported it (unsigned on Windows). */

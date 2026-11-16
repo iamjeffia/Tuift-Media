@@ -174,8 +174,10 @@ export function probeAgentSession(agentId: string): Promise<AcpSessionProbe> {
 }
 
 /** ACP's `auth_required` error, or an older agent that only says so in words. */
+const AUTH_REQUIRED_CODE = -32000
+
 function isAuthRequired(cause: unknown): boolean {
-  if (cause instanceof JsonRpcError && cause.code === -32000) return true
+  if (cause instanceof JsonRpcError && cause.code === AUTH_REQUIRED_CODE) return true
   return /auth/i.test(cause instanceof Error ? cause.message : String(cause))
 }
 
@@ -424,13 +426,27 @@ export class AcpAdapter extends EventEmitter<AcpAdapterEvents> {
       .catch((cause) => {
         if (this.#streamer !== streamer) return
         this.#clearTurn('failed')
+        // ACP's own error code for a session that needs a login (`auth_required`), never words.
+        const authRequired = cause instanceof JsonRpcError && cause.code === AUTH_REQUIRED_CODE
         this.emit('event', {
           type: 'thread.error',
           threadId,
           message: cause instanceof Error ? cause.message : String(cause),
+          ...(authRequired
+            ? {
+                reason: {
+                  code: 'auth_failed' as const,
+                  message: (cause instanceof Error ? cause.message : String(cause)).slice(0, 500),
+                },
+              }
+            : {}),
         })
         this.emit('event', { type: 'turn.completed', turnId, status: 'failed' })
       })
+      // A listener that throws while the turn is being failed must not escape unhandled.
+      .catch((cause: unknown) =>
+        this.emit('log', `ACP turn loop failed: ${cause instanceof Error ? cause.message : cause}`),
+      )
 
     return turnId
   }

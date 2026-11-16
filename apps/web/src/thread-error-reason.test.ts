@@ -2,7 +2,7 @@ import type { ThreadErrorReason } from '@harness/contracts'
 import { emptyThread, reduce, reduceEventLog } from './thread-store.js'
 import { describe, expect, it } from 'vitest'
 import { setLanguage } from './i18n/index.js'
-import { lowMemoryMessage, threadErrorNotice } from './thread-error-reason.js'
+import { isLoginFailure, lowMemoryMessage, threadErrorNotice } from './thread-error-reason.js'
 
 const KEPT_EN = 'The chat and the files already written are kept.'
 const KEPT_PT = 'O chat e os arquivos já gravados foram mantidos.'
@@ -38,6 +38,36 @@ describe('the notice for an error the server could explain', () => {
       { code: 'process_unknown', exitCode: 1 },
       `Claude Code ended unexpectedly and the reason is not known. ${KEPT_EN}`,
       `Claude Code foi encerrado de forma inesperada e não deu para saber o motivo. ${KEPT_PT}`,
+    ],
+    [
+      'a full disk',
+      { code: 'save_disk_full' },
+      "The chat stopped: the disk is full, so Claude Code's work could not be saved. Free up some space and continue. What was already saved is kept.",
+      'O chat parou: o disco está cheio e o trabalho de Claude Code não pôde ser salvo. Libere espaço e continue. O que já foi salvo foi mantido.',
+    ],
+    [
+      'a file another program holds',
+      { code: 'save_locked' },
+      "The chat stopped: another program is using the conversation file (an antivirus or a backup tool, for example), so Claude Code's work could not be saved. Try to continue in a moment. What was already saved is kept.",
+      'O chat parou: outro programa está usando o arquivo das conversas (um antivírus ou um programa de backup, por exemplo) e o trabalho de Claude Code não pôde ser salvo. Tente continuar em instantes. O que já foi salvo foi mantido.',
+    ],
+    [
+      'a save that failed for another reason',
+      { code: 'save_failed' },
+      "The chat stopped: Claude Code's work could not be saved. What was already saved is kept.",
+      'O chat parou: o trabalho de Claude Code não pôde ser salvo. O que já foi salvo foi mantido.',
+    ],
+    [
+      'a login the provider refused',
+      { code: 'auth_failed' },
+      `Claude Code did not accept your login. Sign in again to continue. ${KEPT_EN}`,
+      `Claude Code não aceitou o seu login. Entre de novo para continuar. ${KEPT_PT}`,
+    ],
+    [
+      'an account without access',
+      { code: 'auth_no_access' },
+      `Claude Code refused this account because it is not allowed to use it. Sign in with another account to continue. ${KEPT_EN}`,
+      `Claude Code recusou esta conta porque ela não tem permissão de uso. Entre com outra conta para continuar. ${KEPT_PT}`,
     ],
     [
       'the app closing',
@@ -78,6 +108,32 @@ describe('the notice for an error the server could explain', () => {
 
   it('has no details line when nothing is known beyond the reason', () => {
     expect(threadErrorNotice({ code: 'app_closed' }, 'Claude Code').detail).toBeUndefined()
+  })
+})
+
+describe('which reasons send the person to sign in', () => {
+  it('only a refused login does, never a crash or a failed save', () => {
+    expect(isLoginFailure({ code: 'auth_failed' })).toBe(true)
+    expect(isLoginFailure({ code: 'auth_no_access' })).toBe(true)
+    for (const code of [
+      'process_memory',
+      'process_signal',
+      'process_provider_error',
+      'process_unknown',
+      'app_closed',
+      'save_disk_full',
+      'save_locked',
+      'save_failed',
+    ] as const)
+      expect(isLoginFailure({ code })).toBe(false)
+    expect(isLoginFailure(undefined)).toBe(false)
+  })
+
+  it("keeps the provider's own words in the details line", () => {
+    expect(
+      threadErrorNotice({ code: 'auth_failed', message: 'Please run /login' }, 'Claude Code')
+        .detail,
+    ).toBe('Technical details: Please run /login')
   })
 })
 

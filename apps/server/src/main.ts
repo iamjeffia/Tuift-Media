@@ -1,4 +1,5 @@
 import { takeFeedbackConfig } from './feedback-config.js'
+import { installProcessGuards } from './process-guards.js'
 import { takeEdition } from './provider-edition.js'
 import { DEFAULT_PORT, startServer } from './server.js'
 
@@ -7,6 +8,8 @@ import { DEFAULT_PORT, startServer } from './server.js'
 // and provider CLI would inherit it, and an Electron app started from one of
 // them would come up as plain Node.
 delete process.env['ELECTRON_RUN_AS_NODE']
+// Last resort for a rejection or exception nothing handled: logged, never silent.
+installProcessGuards()
 // Same reason: the feedback inbox key must live only in this process, never in
 // the environment every agent CLI and terminal inherits.
 const feedback = takeFeedbackConfig(process.env)

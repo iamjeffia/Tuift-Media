@@ -5,7 +5,7 @@ import type {
   ParsedJsonRpcRequestOptions,
   ServerRequestHandler,
 } from '@harness/proc'
-import { spawnCli } from '@harness/proc'
+import { JsonRpcError, spawnCli } from '@harness/proc'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -352,6 +352,44 @@ describe('ACP approval lifecycle', () => {
       },
       { type: 'turn.completed', turnId, status: 'failed' },
     ])
+  })
+
+  it.each([
+    [new JsonRpcError(-32000, 'Authentication required'), 'auth_failed'],
+    // Words alone are not a login problem: only ACP's own `auth_required` code is.
+    [new Error('Authentication required'), undefined],
+    [new JsonRpcError(-32603, 'Internal error: 401 Unauthorized from a tool'), undefined],
+  ])('takes %s for a login problem only by its code', async (error, code) => {
+    const { events } = await startedAdapter('ask')
+    activeRpc().rejectPrompt(error)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    const [raised] = events.filter((event) => event.type === 'thread.error')
+    if (code) expect(raised).toMatchObject({ reason: { code, message: 'Authentication required' } })
+    else expect(raised).not.toHaveProperty('reason')
+  })
+
+  it('does not let a listener that throws while the turn fails escape as a rejection', async () => {
+    const unhandled: unknown[] = []
+    const onUnhandled = (reason: unknown) => unhandled.push(reason)
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      const current = adapter()
+      const logs: string[] = []
+      current.on('log', (line) => logs.push(line))
+      await current.startThread('C:\repo', { approval: 'ask' })
+      let full = false
+      current.on('event', () => {
+        if (full) throw new Error('database or disk is full')
+      })
+      await current.sendTurn('acp-grok-sess-1', 'go')
+      full = true
+      activeRpc().rejectPrompt(new Error('prompt failed'))
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      expect(unhandled).toEqual([])
+      expect(logs.join(' | ')).toContain('ACP turn loop failed: database or disk is full')
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+    }
   })
 
   it('auto mode only waves through reads — mutations stay questions', async () => {

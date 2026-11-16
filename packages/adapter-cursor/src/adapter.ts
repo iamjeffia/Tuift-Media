@@ -264,7 +264,7 @@ export class CursorAdapter extends EventEmitter<Events> {
             return
           }
           this.#fail(turnId, error.message)
-          void killTree(child)
+          void killTree(child).catch(() => undefined)
         },
       },
     )

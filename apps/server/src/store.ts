@@ -66,6 +66,7 @@ import {
   isEmptyInboxProjection,
   type InboxProjection,
 } from './inbox-projection.js'
+import { describeFailure } from './write-failure.js'
 
 const BACKGROUND_MODEL_SETTING = 'background-model'
 const PROVIDER_CONTEXT_SETTING = 'provider-context'
@@ -3602,11 +3603,23 @@ export class Store {
 
   // ---- events ------------------------------------------------------------
 
-  #interruptedThreadStates(rows: InterruptedThreadRow[]): Map<string, InterruptedThreadState> {
+  #interruptedThreadStates(
+    rows: InterruptedThreadRow[],
+    onSkip?: (threadId: string, error: unknown) => void,
+  ): Map<string, InterruptedThreadState> {
     const states = new Map<string, InterruptedThreadState>()
+    const unreadable = new Set<string>()
     for (const row of rows) {
+      if (unreadable.has(row.thread_id)) continue
       // Leave newer-provider histories intact; they must not abort recovery of other threads.
-      if (!this.thread(row.thread_id)) continue
+      try {
+        if (!this.thread(row.thread_id)) continue
+      } catch (error) {
+        // A chat that cannot be read is left as it is; the others are still recovered.
+        unreadable.add(row.thread_id)
+        onSkip?.(row.thread_id, error)
+        continue
+      }
       const event = parseDomainEvent(
         row.payload,
         `recovery for interrupted thread ${row.thread_id}`,
@@ -3646,7 +3659,12 @@ export class Store {
    * durable state before clients connect so history stays honest and the user
    * gets a clear next action instead of a button that does nothing.
    */
-  recoverInterruptedThreads(): string[] {
+  recoverInterruptedThreads(
+    onSkip: (threadId: string, error: unknown) => void = (threadId, error) =>
+      console.error(
+        `[server] restart recovery skipped chat ${threadId}: ${describeFailure(error)}`,
+      ),
+  ): string[] {
     this.#db.exec('BEGIN IMMEDIATE')
     try {
       // The write path keeps only current process-owned lifecycles here. A
@@ -3655,25 +3673,41 @@ export class Store {
 
       const recovered: string[] = []
       const at = Date.now()
-      for (const [threadId, state] of this.#interruptedThreadStates(rows)) {
-        for (const event of interruptedLifecycleEvents(state, at)) {
-          this.#appendEvent(threadId, event, at)
+      for (const [threadId, state] of this.#interruptedThreadStates(rows, onSkip)) {
+        // One chat that cannot be written is skipped, with its own changes undone. It is tried
+        // again at the next start, since its turn is still open.
+        this.#db.exec('SAVEPOINT recover_chat')
+        try {
+          for (const event of interruptedLifecycleEvents(state, at)) {
+            this.#appendEvent(threadId, event, at)
+          }
+          if (state.openTurns.size > 0) {
+            if (!state.hasResumableInput) {
+              this.#appendEvent(
+                threadId,
+                {
+                  type: 'thread.error',
+                  threadId,
+                  message: RESTART_INTERRUPTION_MESSAGE,
+                  reason: { code: 'app_closed' },
+                },
+                at,
+              )
+            }
+            this.touchThread(threadId, true, at)
+          }
+          this.#db.exec('RELEASE recover_chat')
+        } catch (error) {
+          this.#db.exec('ROLLBACK TO recover_chat')
+          this.#db.exec('RELEASE recover_chat')
+          this.#threadCache.clear()
+          this.#invalidateSidebarThreads()
+          this.#searchRevision += 1
+          this.#historyDeltaRuns.clear()
+          onSkip(threadId, error)
+          continue
         }
-        if (state.openTurns.size === 0) continue
-        if (!state.hasResumableInput) {
-          this.#appendEvent(
-            threadId,
-            {
-              type: 'thread.error',
-              threadId,
-              message: RESTART_INTERRUPTION_MESSAGE,
-              reason: { code: 'app_closed' },
-            },
-            at,
-          )
-        }
-        this.touchThread(threadId, true, at)
-        recovered.push(threadId)
+        if (state.openTurns.size > 0) recovered.push(threadId)
       }
       // Sub-agents died with that process too; their parents' rows say so.
       for (const run of this.subagents.interruptUnfinished(at)) {

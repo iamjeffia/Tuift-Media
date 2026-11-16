@@ -204,6 +204,17 @@ function updatedClaudeTask(
   })
 }
 
+/**
+ * Claude Code's own account of why a reply failed (`SDKAssistantMessageError` in the Agent SDK
+ * types). Only the two that mean the login, never the words: a rate limit, an exhausted plan
+ * (`billing_error`) and an overloaded API are not a login problem.
+ */
+export function claudeAuthFailure(error: string): 'auth_failed' | 'auth_no_access' | undefined {
+  if (error === 'authentication_failed') return 'auth_failed'
+  if (error === 'oauth_org_not_allowed') return 'auth_no_access'
+  return undefined
+}
+
 function noteClaudeTaskTools(pending: Map<string, PendingTaskTool>, event: ClaudeEvent): void {
   for (const block of event.message?.content ?? []) {
     if (block.type !== 'tool_use' || !block.id) continue
@@ -619,6 +630,8 @@ export class ClaudeCodeAdapter extends EventEmitter<ClaudeAdapterEvents> {
   readonly #processes = new Set<ReturnType<ClaudeSpawn>>()
   #activeTurnId: string | undefined
   #interruptRequested = false
+  /** The login problem Claude reported on this turn's last reply; the result ends the turn with it. */
+  #authFailure: ReturnType<typeof claudeAuthFailure>
   /**
    * Steers sent during the current turn, by uuid, and whether the CLI reported that their run
    * started, so a stop receipt or a result can tell which of them still run.
@@ -1331,7 +1344,9 @@ export class ClaudeCodeAdapter extends EventEmitter<ClaudeAdapterEvents> {
           this.#promptQueue = promptQueue
           this.#query = query
           this.#queryCostUsd = 0
-          void this.#consume(query, generation)
+          this.#consume(query, generation).catch((error: unknown) =>
+            this.#consumeFailed(error, generation),
+          )
           await query.initializationResult()
           if (bootstrap) {
             phase = 'mcp'
@@ -1511,6 +1526,22 @@ export class ClaudeCodeAdapter extends EventEmitter<ClaudeAdapterEvents> {
     }
   }
 
+  /**
+   * The consume loop ended with an error of its own, such as a listener that threw while the
+   * turn was being failed. The turn ends through the same road; if that throws too, it is only
+   * logged, since nobody awaits this promise.
+   */
+  #consumeFailed(error: unknown, generation: number): void {
+    const message = error instanceof Error ? error.message : String(error)
+    try {
+      this.emit('log', this.#redactor.redact(`Claude session loop failed: ${message}`))
+      if (generation === this.#queryGeneration && !this.#disposed && this.#activeTurnId)
+        this.#failActiveTurn(message)
+    } catch {
+      // Nothing is left to tell: the owner's own handlers are what failed.
+    }
+  }
+
   #onMessage(message: SDKMessage): void {
     const sessionId = 'session_id' in message ? message.session_id : undefined
     if (sessionId) this.#sessionId = sessionId
@@ -1533,6 +1564,8 @@ export class ClaudeCodeAdapter extends EventEmitter<ClaudeAdapterEvents> {
         return
       }
       if (message.error) this.#log(`Claude assistant error: ${message.error}`)
+      // Each reply replaces the last: a login problem followed by a good reply is over.
+      this.#authFailure = message.error ? claudeAuthFailure(message.error) : undefined
       const parsed = ClaudeEventSchema.safeParse(message)
       if (!parsed.success) {
         this.#log(`ignored malformed Claude assistant event: ${parsed.error.message}`)
@@ -1612,7 +1645,25 @@ export class ClaudeCodeAdapter extends EventEmitter<ClaudeAdapterEvents> {
           usage: contextUsage(this.#contextTokens, contextWindow, this.#reportedModel),
         })
       }
-      if (message.is_error && 'errors' in message && message.errors.length > 0) {
+      const authFailure = this.#authFailure
+      this.#authFailure = undefined
+      if (authFailure && !this.#interruptRequested) {
+        // Claude said the login is the problem. Whatever it wrote in the result goes to the
+        // notice's details line; the notice itself is worded by the chat.
+        const said =
+          'errors' in message && message.errors.length > 0
+            ? this.#redactor.redact(message.errors.join('\n')).slice(0, 500)
+            : undefined
+        this.emit('event', {
+          type: 'thread.error',
+          threadId: this.#threadId,
+          message:
+            authFailure === 'auth_no_access'
+              ? 'Claude Code refused this account: it is not allowed to use it. Sign in with another account to continue.'
+              : 'Claude Code did not accept the login. Sign in again to continue.',
+          reason: { code: authFailure, ...(said ? { message: said } : {}) },
+        })
+      } else if (message.is_error && 'errors' in message && message.errors.length > 0) {
         const errors = this.#redactor.redact(message.errors.join('\n'))
         // A stopped turn ends as an error result carrying "[ede_diagnostic]" lines; that is
         // the expected outcome of Stop, not something to show as an error.

@@ -172,7 +172,7 @@ import { canCaptureVoice, type VoiceRecording } from './voice-capability.js'
 import { pollUsageLimits, UsageLimitsController, type LimitTarget } from './usage-limits-state.js'
 import { sameAccount } from './usage-summary-state.js'
 import { CONTINUE_PROMPT, UsageResetController, usageResetAt } from './usage-reset.js'
-import { threadErrorNotice } from './thread-error-reason.js'
+import { isLoginFailure, threadErrorNotice } from './thread-error-reason.js'
 import { useMemoryNotice } from './use-memory-notice.js'
 import { poolsOf, recommendedAccounts } from './account-pool.js'
 import {
@@ -7798,6 +7798,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     loadingThreadId !== activeSession.id
       ? findSession(projects, activeSession.continuedFrom)?.session
       : undefined
+  const carryOn = { label: t('chat.crash.continue'), run: () => void send(CONTINUE_PROMPT) }
   const composerErrors: ComposerError[] = [
     ...(actionError
       ? [reportable({ ...actionError, dismiss: () => setActionError(undefined) }, 'action')]
@@ -7811,11 +7812,14 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
               ...(thread.error.reason && activeSession && !thread.running
                 ? {
                     ...threadErrorNotice(thread.error.reason, providerName(activeSession.provider)),
-                    // The person decides: nothing carries on by itself.
-                    action: {
-                      label: t('chat.crash.continue'),
-                      run: () => void send(CONTINUE_PROMPT),
-                    },
+                    // The person decides: nothing carries on by itself. A refused login first
+                    // goes to where the person signs in again; Continue stays beside it.
+                    ...(isLoginFailure(thread.error.reason)
+                      ? {
+                          action: { label: t('chat.setup.signIn'), run: openProviderSetup },
+                          secondaryAction: carryOn,
+                        }
+                      : { action: carryOn }),
                   }
                 : continueOffer),
               usageReset,

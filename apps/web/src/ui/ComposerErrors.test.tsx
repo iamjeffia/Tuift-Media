@@ -43,6 +43,30 @@ describe('ComposerErrors', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
+  it('offers a second, quieter way forward beside the main action', () => {
+    const signIn = vi.fn()
+    const carryOn = vi.fn()
+    render(
+      <ComposerErrors
+        errors={[
+          {
+            id: 'turn:1',
+            message: 'Claude Code did not accept your login.',
+            action: { label: 'Sign in', run: signIn },
+            secondaryAction: { label: 'Continue', run: carryOn },
+          },
+        ]}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(signIn).toHaveBeenCalledOnce()
+    expect(carryOn).not.toHaveBeenCalled()
+    const second = screen.getByRole('button', { name: 'Continue' })
+    expect(second.className).toContain('notice-action--quiet')
+    fireEvent.click(second)
+    expect(carryOn).toHaveBeenCalledOnce()
+  })
+
   it('offers Report on errors the app made reportable, but never on status rows', () => {
     const report = vi.fn()
     render(

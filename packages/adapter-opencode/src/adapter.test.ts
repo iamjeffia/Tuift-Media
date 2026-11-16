@@ -804,6 +804,37 @@ describe('OpenCode adapter', () => {
       }
     })
 
+    it.each([
+      ['ProviderAuthError', 'auth_failed'],
+      ['UnknownError', undefined],
+      ['ApiError', undefined],
+    ] as const)('takes a %s for a login problem only when it is one', async (name, code) => {
+      const { mock, adapter, events, thread, completed } = await capturedTurn()
+      try {
+        await adapter.sendTurn(thread.id, 'FAIL please')
+        await mock.waitFor('/session/session-1/prompt_async')
+        mock.broadcast({
+          type: 'session.error',
+          properties: {
+            sessionID: 'session-1',
+            error: { name, data: { message: 'The key was refused as unauthorized' } },
+          },
+        } as OpenCodeWireEvent)
+
+        expect(await completed).toMatchObject({ status: 'failed' })
+        const [raised] = events.filter((event) => event.type === 'thread.error')
+        if (code) {
+          expect(raised).toMatchObject({
+            reason: { code, message: 'The key was refused as unauthorized' },
+          })
+        } else {
+          expect(raised).not.toHaveProperty('reason')
+        }
+      } finally {
+        await adapter.dispose()
+      }
+    })
+
     it('ends a turn stopped from another OpenCode client as interrupted', async () => {
       const { mock, adapter, events, thread, completed } = await capturedTurn()
       try {

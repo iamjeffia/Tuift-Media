@@ -447,7 +447,9 @@ export const WarningNotificationSchema = z.object({
 export type WarningNotification = z.infer<typeof WarningNotificationSchema>
 
 export const ErrorNotificationSchema = z.object({
-  error: z.object({ message: z.string() }),
+  // `codexErrorInfo` is the protocol's own classification (generated/v2/CodexErrorInfo.ts):
+  // a bare string for most kinds, an object for the ones that carry details.
+  error: z.object({ message: z.string(), codexErrorInfo: z.unknown().optional() }),
   willRetry: z.boolean(),
   threadId: z.string(),
   turnId: z.string(),
