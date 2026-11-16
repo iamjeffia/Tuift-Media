@@ -56,6 +56,7 @@ import {
   canPreviewViewedImages,
   knownViewedImagePreview,
   previewViewedImage,
+  type PickedAttachment,
   revealPath,
 } from '../bridge.js'
 import {
@@ -3412,9 +3413,11 @@ function ViewedImagePreview({
   // A disclosure measures its row in the commit that opens it. A preview that
   // arrives a frame later would resize the reveal mid-wipe, so anything
   // already known renders in the first frame.
+  const chatImages = useContext(ChatImageContext)
+  const viaServerOnly = !canPreviewViewedImages && variant === 'message' && chatImages !== undefined
   const [preview, setPreview] = useState(() => knownViewedImagePreview(reference))
   const [previewSettled, setPreviewSettled] = useState(
-    () => preview !== undefined || !canPreviewViewedImages,
+    () => preview !== undefined || (!canPreviewViewedImages && !viaServerOnly),
   )
   const [viewerOpen, setViewerOpen] = useState(false)
   const [thumbnailFailed, setThumbnailFailed] = useState(false)
@@ -3425,10 +3428,22 @@ function ViewedImagePreview({
     let cancelled = false
     const known = knownViewedImagePreview(reference)
     setPreview(known)
-    setPreviewSettled(known !== undefined || !canPreviewViewedImages)
+    setPreviewSettled(known !== undefined || (!canPreviewViewedImages && !viaServerOnly))
     setThumbnailFailed(false)
     setImageFailed(false)
-    void previewViewedImage(reference)
+    // Without the desktop bridge (a browser tab) the picture comes through the server, held
+    // only while this row is mounted and in the bounded chat image cache.
+    const viaServer =
+      viaServerOnly && !reference.startsWith('data:')
+        ? () =>
+            chatImages(reference).then((previewUrl): PickedAttachment => ({
+              path: reference,
+              name: attachmentName(reference),
+              mediaType: 'image',
+              previewUrl,
+            }))
+        : undefined
+    void (viaServer ? viaServer() : previewViewedImage(reference))
       .then((result) => {
         if (!cancelled) {
           setPreview(result)
@@ -3441,7 +3456,7 @@ function ViewedImagePreview({
     return () => {
       cancelled = true
     }
-  }, [active, reference])
+  }, [active, reference, chatImages, viaServerOnly])
 
   const inlineSource =
     preview?.thumbnailUrl && !thumbnailFailed ? preview.thumbnailUrl : preview?.previewUrl

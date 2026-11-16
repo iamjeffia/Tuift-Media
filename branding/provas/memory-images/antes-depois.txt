@@ -1,0 +1,57 @@
+memory-images: memory before and after, same measurement on a private copy of the real database
+Numbers only (sizes, counts, event types). Date 2026-11-15. Machine: Windows 11, Node 24, headless Chromium (Playwright).
+
+Scenario. The biggest chat of the copy: an imported Claude Code chat, 2,279 stored events, 44 MB, 184 inline
+images (171 on tool_call items, 13 on message items) = 41.5 MB of base64 inside the events. Its saved session
+file is 129 MB (each screenshot is saved twice there). Server started headless on a copy of the database with
+its own port; renderer = the real web app on a Vite dev server, opened in headless Chromium against that server.
+Before = main at the start of this front. After = this branch. Both rows ran on fresh copies of the data.
+The saved session grows while the owner works, so the "after" run read 1,969 events and the "before" run 1,923.
+
+1. SERVER (one process, node:sqlite). Opening the chat the way the renderer does: newest page of 10 turns,
+   then every older page of 20 turns, then one unpaged read.
+   metric                                  before        after
+   idle after start, RSS MB                     191.9        199.1
+   after newest page, RSS MB                    656.5        518.5
+   after all older pages, RSS MB                  951        518.5
+   after unpaged read, RSS MB                  1133.1        523.2
+   peak RSS MB                                 1133.1        523.2
+   peak JS heap MB                              847.2        333.5
+   at rest 15 s later, RSS MB                   211.2        139.5
+   newest page, bytes to renderer             5251860       479313
+   older page 1 (20 turns), bytes            40804091      2146230
+   all pages together, bytes                 48204562      2856745
+   unpaged read, bytes                       48204113      2856296
+
+2. SERVER, live session. The saved session file (a copy) grows by one synthetic tool call with a 230 KB image
+   about every 12 s; the server notices (15 s refresh), re-reads the 129 MB file, and the client reloads the
+   newest page. Six cycles.
+   metric                                  before        after
+   first open, peak RSS MB                      645.1        514.1
+   cycle peak RSS MB (min-max)              658-878.5  420.6-518.2
+   cycle peak JS heap MB (min-max)        385.5-629.7  265.5-343.2
+   newest page, cycle 1, bytes                5621631       466322
+   newest page, cycle 6, bytes                7193412       469803
+   page growth per cycle, bytes                314356          696
+   at rest, RSS MB                              173.7        134.5
+
+3. RENDERER (headless Chromium, 1400x900). Open the chat, scroll to the top until every older page is loaded,
+   scroll through the whole chat, rest 12 s after a forced GC, then the same six live cycles. Renderer process
+   memory is the private bytes of the --type=renderer process (JS heap + native).
+   state                                     JS heap MB (b/a)    renderer private MB (b/a)
+   app-loaded-no-chat                            59.5 /  60.6          200.0 /   198.5
+   chat-open-newest-page                         72.0 /  67.8          280.6 /   263.1
+   after-scrolled-to-top-all-pages-loaded       110.6 /  69.2         1427.8 /   872.3
+   after-scrolling-through-whole-chat           124.4 /  93.6         1550.4 /  1019.8
+   rest-after-gc-12s                            109.9 /  69.4         1448.5 /   897.2
+   live-cycle-1                                 110.0 /  70.0         1440.7 /   887.8
+   live-cycle-6                                 127.0 /  81.7         2063.8 /  1312.6
+   after-live-rest-after-gc                     124.1 /  72.1         2039.8 /  1233.8
+   scroll peaks (sampled)                    JS heap 137.2 / 90.2, renderer private 1552.2 / 1018.3
+   images in the DOM at the most: 11 before, 11 after (the 13 user-message pictures; every tool_call picture was never shown)
+
+4. NOT ATTRIBUTED. After the fix the renderer still sits near 0.9-1.3 GB private in this chat. Chromium memory-infra
+   shows about 0.7 GB in the "buffer" partition that appears when the older rows mount (62 MB with the chat open,
+   207 MB after the first scroll to the top, 692 MB after the second, then flat). At that moment the DOM has no
+   image, no canvas and 1,600 nodes, the JS heap holds no large ArrayBuffer, the WebSocket frames received total
+   4.6 MB, and blocking the 10 picture reads does not change it. I could not tie it to the images or to the payload.
