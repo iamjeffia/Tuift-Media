@@ -516,6 +516,45 @@ export const SkillCapabilitiesSchema = z.object({
 })
 export type SkillCapabilities = z.infer<typeof SkillCapabilitiesSchema>
 
+/**
+ * A skill that TUIFT Code does not ship because its author's terms do not let
+ * it be redistributed. The page lists it and the server installs it straight
+ * from the author's repository, at the commit the manifest pins.
+ */
+export const AvailableSkillCategorySchema = z.enum(['motion', 'design', 'general'])
+export type AvailableSkillCategory = z.infer<typeof AvailableSkillCategorySchema>
+
+export const AvailableSkillStateSchema = z.enum(['not-installed', 'installed', 'update-available'])
+export type AvailableSkillState = z.infer<typeof AvailableSkillStateSchema>
+
+export const AvailableSkillSchema = z.object({
+  /** The skill's folder name, which is also its folder under `.agents/skills`. */
+  id: z.string().min(1),
+  name: z.string().min(1),
+  /** One line per interface language, written for TUIFT Code, not copied from the source. */
+  summary: z.object({ en: z.string().min(1), 'pt-BR': z.string().min(1) }),
+  author: z.string().min(1),
+  category: AvailableSkillCategorySchema,
+  /** Skills that only work together share a set name. */
+  set: z.string().min(1).optional(),
+  /** The licence as the author's repository declares it; null when it declares none. */
+  license: z.string().min(1).nullable(),
+  /** Where the person can read the skill before installing it. */
+  sourceUrl: HttpUrlSchema,
+  /** The commit the manifest pins today. */
+  commit: z.string().min(1),
+  state: AvailableSkillStateSchema,
+  /** The commit installed in this project, when the install record has one. */
+  installedCommit: z.string().min(1).optional(),
+})
+export type AvailableSkill = z.infer<typeof AvailableSkillSchema>
+
+export const SkillInstallResultSchema = z.discriminatedUnion('ok', [
+  z.object({ id: z.string().min(1), ok: z.literal(true) }),
+  z.object({ id: z.string().min(1), ok: z.literal(false), message: z.string().min(1) }),
+])
+export type SkillInstallResult = z.infer<typeof SkillInstallResultSchema>
+
 export const SearchSnippetPartSchema = z.object({
   text: z.string(),
   highlighted: z.boolean(),
@@ -1389,6 +1428,19 @@ export const methods = {
       folderPath: z.string().min(1),
     }),
     result: z.object({ skill: SkillSchema }),
+  },
+  'skills.available': {
+    params: z.object({ provider: ProviderIdSchema, projectPath: z.string().min(1) }),
+    result: z.object({ skills: z.array(AvailableSkillSchema) }),
+  },
+  'skills.installAvailable': {
+    params: z.object({
+      provider: ProviderIdSchema,
+      projectPath: z.string().min(1),
+      ids: z.array(z.string().min(1)).min(1).max(100),
+    }),
+    /** One entry per requested id, in order; a failed skill does not stop the others. */
+    result: z.object({ results: z.array(SkillInstallResultSchema) }),
   },
   'search.sessions': {
     params: z.object({

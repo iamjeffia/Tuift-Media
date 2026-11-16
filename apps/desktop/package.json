@@ -117,6 +117,10 @@
         "to": "default-skills"
       },
       {
+        "from": "../../packages/default-skills/third-party-skills.json",
+        "to": "third-party-skills.json"
+      },
+      {
         "from": "../../packages/after-effects-mcp/bundle/after-effects-mcp",
         "to": "after-effects-mcp"
       },

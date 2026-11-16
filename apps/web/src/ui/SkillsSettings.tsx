@@ -1,7 +1,8 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import type { ProviderId, ResultOf, Skill } from '@harness/contracts'
+import type { AvailableSkill, ProviderId, ResultOf, Skill } from '@harness/contracts'
 import {
   IconAlertTriangle as AlertTriangle,
+  IconExternalLink as ExternalLink,
   IconFolderPlus as FolderPlus,
 } from '@tabler/icons-react'
 import { pickSkillFolder } from '../bridge.js'
@@ -35,6 +36,15 @@ export function SkillsSettings(props: {
   // Per id: one toggle settling must not unlock another switch still in flight.
   const [busy, setBusy] = useState<ReadonlySet<string>>(() => new Set())
   const [reload, setReload] = useState(0)
+  // The skills their authors publish, which TUIFT Code installs from the source.
+  const [available, setAvailable] = useState<AvailableSkill[]>()
+  const [availableError, setAvailableError] = useState<string>()
+  const [catalogBusy, setCatalogBusy] = useState<ReadonlySet<string>>(() => new Set())
+  const [catalogFailures, setCatalogFailures] = useState<ReadonlyMap<string, string>>(
+    () => new Map(),
+  )
+  const availableGeneration = useRef(0)
+  const refreshAvailable = useRef<() => Promise<void>>(async () => {})
   const inventoryGeneration = useRef(0)
   const inventoryContext = useRef<Context | undefined>(undefined)
   const errorContext = useRef<Context | undefined>(undefined)
@@ -120,6 +130,78 @@ export function SkillsSettings(props: {
     }
   }, [props.transport, props.provider, props.projectPath, reload])
 
+  const canInstall = Boolean(props.projectPath) && inventory?.capabilities.install === true
+  useEffect(() => {
+    setAvailable(undefined)
+    setAvailableError(undefined)
+    setCatalogBusy(new Set())
+    setCatalogFailures(new Map())
+    if (!props.projectPath || !canInstall) return
+    let active = true
+    // Ordered like the inventory's load: a push may overlap the first read.
+    const load = async () => {
+      const mine = ++availableGeneration.current
+      try {
+        const next = await props.transport.request('skills.available', {
+          provider: props.provider,
+          projectPath: props.projectPath!,
+        })
+        if (active && mine === availableGeneration.current) {
+          setAvailable(next.skills)
+          setAvailableError(undefined)
+        }
+      } catch (cause) {
+        if (active && mine === availableGeneration.current) setAvailableError(message(cause))
+      }
+    }
+    refreshAvailable.current = load
+    void load()
+    const off = props.transport.on('skills.changed', ({ provider, projectPath }) => {
+      if (provider === props.provider && projectPath === props.projectPath) void load()
+    })
+    return () => {
+      active = false
+      refreshAvailable.current = async () => {}
+      off()
+    }
+  }, [props.transport, props.provider, props.projectPath, canInstall])
+
+  /**
+   * Installs skills from their authors. The server reports each one that lands
+   * with `skills.changed`, which refreshes both lists; the answer carries the
+   * reason for each one that failed.
+   */
+  async function installFromAuthors(ids: string[]): Promise<void> {
+    if (!props.projectPath || !ids.length) return
+    setCatalogBusy((current) => new Set([...current, ...ids]))
+    setCatalogFailures((current) => {
+      const next = new Map(current)
+      for (const id of ids) next.delete(id)
+      return next
+    })
+    let failed: Array<[string, string]>
+    try {
+      const { results } = await props.transport.request('skills.installAvailable', {
+        provider: props.provider,
+        projectPath: props.projectPath,
+        ids,
+      })
+      failed = results.flatMap((result): Array<[string, string]> =>
+        result.ok ? [] : [[result.id, result.message]],
+      )
+    } catch (cause) {
+      failed = ids.map((id) => [id, message(cause)])
+    }
+    if (!isCurrentContext()) return
+    setCatalogFailures((current) => new Map([...current, ...failed]))
+    setCatalogBusy((current) => {
+      const next = new Set(current)
+      for (const id of ids) next.delete(id)
+      return next
+    })
+    await refreshAvailable.current()
+  }
+
   async function toggle(skill: Skill): Promise<void> {
     if (!props.projectPath) return
     setBusy((current) => new Set(current).add(skill.id))
@@ -190,6 +272,9 @@ export function SkillsSettings(props: {
   const projectSkills = currentInventory?.skills.filter((skill) => skill.scope === 'project') ?? []
   const globalSkills = currentInventory?.skills.filter((skill) => skill.scope === 'user') ?? []
   const includedSkills = currentInventory?.skills.filter(isIncludedSkill) ?? []
+  const missingFromAuthors = (available ?? []).filter(
+    (skill) => skill.state === 'not-installed' && !catalogBusy.has(skill.id),
+  )
   // A background refresh keeps the current list on screen; blanking it
   // to a loading note on every skills.changed push read as flicker.
   const discovering = Boolean(props.projectPath) && loading && !inventory
@@ -261,6 +346,50 @@ export function SkillsSettings(props: {
       ) : (
         <SettingsEmpty title={t('settings.skills.project.empty')} />
       )}
+      {props.projectPath && canInstall && (available?.length || availableError) ? (
+        <SettingsSection
+          title={t('settings.skills.catalog.title')}
+          note={t('settings.skills.catalog.note')}
+          action={
+            available?.length ? (
+              <button
+                className="set-button set-button--quiet"
+                type="button"
+                disabled={!missingFromAuthors.length}
+                onClick={() => void installFromAuthors(missingFromAuthors.map((skill) => skill.id))}
+              >
+                {t('settings.skills.catalog.installAll')}
+              </button>
+            ) : undefined
+          }
+        >
+          {availableError ? (
+            <SettingsNotice
+              tone="error"
+              action={
+                <button
+                  className="set-button"
+                  type="button"
+                  onClick={() => void refreshAvailable.current()}
+                >
+                  {t('settings.skills.retry')}
+                </button>
+              }
+            >
+              {availableError}
+            </SettingsNotice>
+          ) : null}
+          {(available ?? []).map((skill) => (
+            <AvailableSkillRow
+              key={skill.id}
+              skill={skill}
+              installing={catalogBusy.has(skill.id)}
+              failure={catalogFailures.get(skill.id)}
+              onInstall={() => void installFromAuthors([skill.id])}
+            />
+          ))}
+        </SettingsSection>
+      ) : null}
       {props.projectPath && currentInventory && globalSkills.length ? (
         <SettingsSection
           title={t('settings.skills.global.title')}
@@ -377,6 +506,98 @@ function SkillRow(props: {
             </span>
           </p>
         ))}
+      </div>
+    </article>
+  )
+}
+
+/**
+ * One skill from its author: the same row as an installed skill, with who
+ * wrote it, the licence as its repository declares it, a link to read the
+ * source before installing, and the install button where the state allows it.
+ */
+function AvailableSkillRow(props: {
+  skill: AvailableSkill
+  installing: boolean
+  failure: string | undefined
+  onInstall: () => void
+}) {
+  const { t, language } = useI18n()
+  const { skill } = props
+  // Installed wins over a request still in flight: an update that landed is done.
+  const installing = props.installing && skill.state !== 'installed'
+  const failed = !installing && props.failure !== undefined && skill.state !== 'installed'
+  const status = installing
+    ? t('settings.skills.installing')
+    : failed
+      ? t('settings.skills.catalog.failed')
+      : skill.state === 'installed'
+        ? t('settings.skills.catalog.installed')
+        : skill.state === 'update-available'
+          ? t('settings.skills.catalog.updateAvailable')
+          : undefined
+  const [action, actionFor] = failed
+    ? ([
+        t('settings.skills.retry'),
+        t('settings.skills.catalog.retryFor', { name: skill.name }),
+      ] as const)
+    : skill.state === 'update-available'
+      ? ([
+          t('settings.skills.catalog.update'),
+          t('settings.skills.catalog.updateFor', { name: skill.name }),
+        ] as const)
+      : ([
+          t('settings.skills.catalog.install'),
+          t('settings.skills.catalog.installFor', { name: skill.name }),
+        ] as const)
+  return (
+    <article className="set-entity" data-tone={failed ? 'error' : undefined}>
+      <div className="set-entity__main">
+        <div className="set-entity__head">
+          <h2 className="set-entity__name">{skill.name}</h2>
+          <span className="set-leader" aria-hidden />
+          {status ? <span className="set-entity__status">{status}</span> : null}
+        </div>
+      </div>
+      <div className="set-entity__actions">
+        {skill.state === 'installed' ? null : (
+          <button
+            className="set-button"
+            type="button"
+            disabled={installing}
+            aria-label={actionFor}
+            onClick={props.onInstall}
+          >
+            {action}
+          </button>
+        )}
+        <a
+          className="set-button set-button--quiet set-button--icon"
+          href={skill.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={t('settings.skills.catalog.openSource', { name: skill.name })}
+          title={t('settings.skills.catalog.openSource', { name: skill.name })}
+        >
+          <ExternalLink size={14} aria-hidden />
+        </a>
+      </div>
+      <div className="set-entity__details">
+        <SkillDescription
+          name={skill.name}
+          text={language === 'pt-BR' ? skill.summary['pt-BR'] : skill.summary.en}
+        />
+        <p className="set-entity__detail">
+          {skill.license === null
+            ? t('settings.skills.catalog.metaNoLicense', { author: skill.author })
+            : t('settings.skills.catalog.meta', { author: skill.author, license: skill.license })}
+        </p>
+        {failed ? (
+          <p className="set-entity__detail set-entity__detail--error">
+            <AlertTriangle size={13} aria-hidden />
+            <span>{props.failure}</span>
+          </p>
+        ) : null}
       </div>
     </article>
   )

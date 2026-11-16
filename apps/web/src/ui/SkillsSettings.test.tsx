@@ -44,6 +44,7 @@ describe('Agent Skills settings', () => {
           errors: [],
         }
       }
+      if (method === 'skills.available') return { skills: [] }
       if (method === 'skills.setEnabled') return { enabled: false }
       if (method === 'skills.installFromFolder') {
         return { skill: { ...skill, id: '/new/SKILL.md', name: 'new', displayName: 'New Skill' } }
@@ -201,11 +202,15 @@ describe('Agent Skills settings', () => {
   })
 
   it('starts empty when the provider only reports managed skills', async () => {
-    const transport = client(async () => ({
-      capabilities: { inventory: true, configure: true, install: true },
-      skills: [{ ...skill, id: 'managed', scope: 'system', source: { type: 'provider' } }],
-      errors: [],
-    }))
+    const transport = client(async (method) =>
+      method === 'skills.available'
+        ? { skills: [] }
+        : {
+            capabilities: { inventory: true, configure: true, install: true },
+            skills: [{ ...skill, id: 'managed', scope: 'system', source: { type: 'provider' } }],
+            errors: [],
+          },
+    )
     render(
       <SkillsSettings
         transport={transport}
@@ -249,6 +254,7 @@ describe('Agent Skills settings', () => {
   it('reports a rejected folder picker without starting an install', async () => {
     let rejectPicker!: (cause: Error) => void
     const transport = client(async (method) => {
+      if (method === 'skills.available') return { skills: [] }
       if (method === 'skills.list') {
         return {
           capabilities: { inventory: true, configure: false, install: true },

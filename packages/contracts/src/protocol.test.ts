@@ -1408,6 +1408,52 @@ describe('protocol envelopes', () => {
     ).toThrow()
   })
 
+  it('validates the skills from their authors and their installs', () => {
+    const available = {
+      id: 'transitions-dev',
+      name: 'Transitions.dev',
+      summary: { en: 'Ready-made transitions.', 'pt-BR': 'Transições prontas.' },
+      author: 'Jakub Antalik',
+      category: 'design',
+      license: null,
+      sourceUrl: 'https://github.com/owner/repo/tree/abc/skills/transitions-dev',
+      commit: 'a'.repeat(40),
+      state: 'update-available',
+      installedCommit: 'b'.repeat(40),
+      vendorExtension: 'must not cross the contract',
+    }
+
+    const parsed = methods['skills.available'].result.parse({ skills: [available] })
+    expect('vendorExtension' in parsed.skills[0]!).toBe(false)
+    expect(parsed.skills[0]?.license).toBeNull()
+    expect(() =>
+      methods['skills.available'].result.parse({ skills: [{ ...available, state: 'gone' }] }),
+    ).toThrow()
+    expect(() =>
+      methods['skills.available'].result.parse({
+        skills: [{ ...available, summary: { en: 'x' } }],
+      }),
+    ).toThrow()
+    expect(
+      methods['skills.installAvailable'].result.parse({
+        results: [
+          { id: 'a', ok: true },
+          { id: 'b', ok: false, message: 'Checksum mismatch' },
+        ],
+      }).results,
+    ).toHaveLength(2)
+    expect(() =>
+      methods['skills.installAvailable'].result.parse({ results: [{ id: 'b', ok: false }] }),
+    ).toThrow()
+    expect(() =>
+      methods['skills.installAvailable'].params.parse({
+        provider: 'codex',
+        projectPath: 'D:\\project',
+        ids: [],
+      }),
+    ).toThrow()
+  })
+
   it('validates provider-neutral Agent Skills inventory and mutations', () => {
     const skill = SkillSchema.parse({
       id: 'project-design',

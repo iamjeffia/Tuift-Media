@@ -10,6 +10,7 @@
   "scripts": {
     "sync": "node scripts/sync.js",
     "verify": "node scripts/sync.js --verify",
+    "check:third-party": "node scripts/check-third-party.mjs",
     "test": "node --test scripts/sync.test.js"
   }
 }

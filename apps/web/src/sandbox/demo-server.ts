@@ -3,6 +3,7 @@ import {
   PROTOCOL_VERSION,
   type AfterEffectsState,
   type ApprovalMode,
+  type AvailableSkill,
   type BackgroundModelPreference,
   type ChannelName,
   type DataOf,
@@ -190,6 +191,98 @@ function oneLine(text: string, limit: number): string {
   return clean.length > limit ? `${clean.slice(0, limit - 1)}…` : clean
 }
 
+/** The skills from their authors, in the states the page has to show. */
+function demoAuthorSkills(): Map<string, AvailableSkill> {
+  const commit = 'a'.repeat(40)
+  const entry = (
+    id: string,
+    name: string,
+    author: string,
+    category: AvailableSkill['category'],
+    license: string | null,
+    state: AvailableSkill['state'],
+    en: string,
+    pt: string,
+  ): [string, AvailableSkill] => [
+    id,
+    {
+      id,
+      name,
+      summary: { en, 'pt-BR': pt },
+      author,
+      category,
+      license,
+      sourceUrl: `https://github.com/example/${id}`,
+      commit,
+      state,
+      ...(state === 'installed' ? { installedCommit: commit } : {}),
+      ...(state === 'update-available' ? { installedCommit: 'b'.repeat(40) } : {}),
+    },
+  ]
+  return new Map([
+    entry(
+      'remotion-best-practices',
+      'Remotion best practices',
+      'Remotion',
+      'motion',
+      null,
+      'not-installed',
+      'Router for all Remotion work. It carries the other Remotion skills inside it, so this one alone covers them.',
+      'Ponto de entrada para tudo de Remotion. Traz as outras skills do Remotion dentro dela, então só esta já cobre as demais.',
+    ),
+    entry(
+      'remotion-captions',
+      'Remotion captions',
+      'Remotion',
+      'motion',
+      null,
+      'not-installed',
+      'Transcribe speech, then show and animate captions in Remotion videos.',
+      'Transcrever a fala e exibir e animar legendas em vídeos do Remotion.',
+    ),
+    entry(
+      'remotion-render',
+      'Remotion render',
+      'Remotion',
+      'motion',
+      null,
+      'not-installed',
+      'Export a Remotion video, a still image or an editable timeline.',
+      'Exportar um vídeo, uma imagem estática ou uma linha do tempo editável do Remotion.',
+    ),
+    entry(
+      'transitions-dev',
+      'Transitions.dev',
+      'Jakub Antalik',
+      'design',
+      'Transitions.dev License',
+      'installed',
+      'Ready-made CSS transitions for web UI: menus, modals, toasts, tabs, number changes and more.',
+      'Transições CSS prontas para interface web: menus, modais, avisos, abas, troca de números e mais.',
+    ),
+    entry(
+      'transitions-polish',
+      'Transitions polish',
+      'Jakub Antalik',
+      'design',
+      'Transitions.dev License',
+      'update-available',
+      'Audit and tune the motion you already have: duration, distance, easing and stagger.',
+      'Revisar e ajustar a animação que você já tem: duração, distância, easing e atraso entre itens.',
+    ),
+    entry(
+      '21st-ui-build',
+      '21st UI build',
+      '21st.dev',
+      'design',
+      'Apache-2.0',
+      'not-installed',
+      "Build production UI that follows the project's design context.",
+      'Construir interface de produção que segue o contexto de design do projeto.',
+    ),
+  ])
+}
+
 export class DemoServer {
   readonly platform: DemoPlatform
   readonly home: string
@@ -208,6 +301,7 @@ export class DemoServer {
   #contextSettings: ProviderContextSettingsMap = {}
   #backgroundModel: BackgroundModelPreference = { mode: 'automatic' }
   #skillOverrides = new Map<string, boolean>()
+  #authorSkills = demoAuthorSkills()
   readonly #handlers: Handlers
   readonly #afterEffects: AfterEffectsState | undefined
   readonly #motionScene: MotionScene | undefined
@@ -1138,7 +1232,7 @@ export class DemoServer {
         loading: false,
       }),
       'skills.list': (params) => ({
-        capabilities: { inventory: true, configure: true, install: false },
+        capabilities: { inventory: true, configure: true, install: params.provider === 'codex' },
         skills: provider(params.provider)
           .skills(this.home, this.platform)
           .map((skill) => ({
@@ -1147,6 +1241,31 @@ export class DemoServer {
           })),
         errors: [],
       }),
+      'skills.available': () => ({ skills: [...this.#authorSkills.values()] }),
+      'skills.installAvailable': async ({ provider: id, projectPath, ids }) => {
+        const results: ResultOf<'skills.installAvailable'>['results'] = []
+        for (const skillId of ids) {
+          await new Promise((resolve) => setTimeout(resolve, 900))
+          const skill = this.#authorSkills.get(skillId)
+          if (!skill || skillId === 'remotion-render') {
+            results.push({
+              id: skillId,
+              ok: false,
+              message:
+                'The download does not match the checksum pinned in TUIFT Code, so it was discarded',
+            })
+          } else {
+            this.#authorSkills.set(skillId, {
+              ...skill,
+              state: 'installed',
+              installedCommit: skill.commit,
+            })
+            results.push({ id: skillId, ok: true })
+          }
+          this.#push('skills.changed', { provider: id, projectPath })
+        }
+        return { results }
+      },
       'skills.setEnabled': ({ provider: id, projectPath, skillId, enabled }) => {
         this.#skillOverrides.set(skillId, enabled)
         this.#push('skills.changed', { provider: id, projectPath })

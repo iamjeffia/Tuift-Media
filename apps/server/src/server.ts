@@ -26,6 +26,7 @@ import { stopModelListings } from './runtime-loader.js'
 import { readWorkspaceDiff, StaleDiffSnapshotError } from './diff-review.js'
 import { Orchestrator, resolveWorkspacePath, type LifecycleScheduleHint } from './orchestrator.js'
 import { defaultSkillsRoot } from './default-skills.js'
+import { SkillCatalog, readCatalogFile, thirdPartySkillsFile } from './skill-catalog.js'
 import { afterEffectsSource } from './motion-after-effects.js'
 import { checkForUpdates } from './update-check.js'
 import type { FeedbackConfig } from './feedback-config.js'
@@ -109,6 +110,7 @@ const PROVIDER_READS: ReadonlySet<MethodName> = new Set<MethodName>([
   'providers.list',
   'providers.updates',
   'skills.list',
+  'skills.available',
   'usage.history',
   'usage.summary',
   'voice.status',
@@ -408,6 +410,13 @@ export function startServer(
     accounts,
   })
   reportStartupMilestone('server-orchestrator-ready')
+  const skillCatalog = new SkillCatalog({
+    entries: () => readCatalogFile(thirdPartySkillsFile(defaultSkillsRoot())),
+    installFolder: (provider, projectPath, folderPath) =>
+      orchestrator.installSkillFromFolder(provider, projectPath, folderPath),
+    onChanged: (provider, projectPath) =>
+      push.broadcast('skills.changed', { provider, projectPath }),
+  })
   let providerStatuses: readonly ProviderStatus[] = []
   const feedback = new FeedbackService({
     config: options.feedback,
@@ -1229,6 +1238,16 @@ export function startServer(
         return {
           skill: await orchestrator.installSkillFromFolder(p.provider, p.projectPath, p.folderPath),
         }
+      }
+
+      case 'skills.available': {
+        const p = parseParams(method, params)
+        return { skills: await skillCatalog.list(p.projectPath) }
+      }
+
+      case 'skills.installAvailable': {
+        const p = parseParams(method, params)
+        return { results: await skillCatalog.install(p.provider, p.projectPath, p.ids) }
       }
 
       case 'auth.status': {
