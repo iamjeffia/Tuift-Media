@@ -192,13 +192,13 @@ describe('the Design role instruction', () => {
       expect(role).not.toContain('—')
   })
 
-  it('names only skills the Design pack really holds, and no Remotion, transitions or 21st skill', () => {
+  it('names only skills the Design pack really holds, and no Remotion or transitions skill', () => {
     const named = [...DESIGN_ROLE_INSTRUCTION.matchAll(/^- [^:]+: (.+)$/gm)].flatMap((match) =>
       match[1]!.split(/,?\s+(?:and|then)\s+|,\s*/),
     )
     expect(named.length).toBeGreaterThan(8)
     for (const name of named) expect(inDesign, name).toContain(name)
-    expect(inDesign.some((folder) => /remotion|transitions|^21st/.test(folder))).toBe(false)
+    expect(inDesign.some((folder) => /remotion|transitions/.test(folder))).toBe(false)
   })
 
   it('covers the five kinds of request, references first, and a phone and a desktop width', () => {

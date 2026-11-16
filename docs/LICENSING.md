@@ -27,13 +27,15 @@ bundle on disk that lacks them, and `verify-release-assets` fails an installer w
 the pinned release.
 
 The Design pack's Agent Skills (`packages/default-skills`, pack `design`) are third-party files under
-their authors' own licences, all MIT. Each is pinned to an exact commit of a public repository, ships
-unmodified in `resources/default-skills/packs/design` with the licence file of its source, and is listed
-in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) with its commit. `design-taste-frontend`, in the
-base bundle, is the one skill under two licences: taste-skill's MIT (its `LICENSE`) and Apache-2.0 for the
-parts adapted, with changes, from Anthropic's `frontend-design` (`LICENSE-APACHE-2.0` and a `NOTICE`
-that says what was adapted and changed, as Apache-2.0 asks of a derivative). A skill is added only when its licence permits redistribution; the Remotion, `transitions-*` and
-`21st-*` skills are not, and the installer carries none of them. `sync.js` refuses a pin whose archive or
+their authors' own licences, MIT except the seven `21st-*` skills (Apache-2.0). Each is pinned to an
+exact commit of a public repository, ships unmodified in `resources/default-skills/packs/design` with
+the licence file of its source, and is listed in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)
+with its commit. `design-taste-frontend`, in the base bundle, is the one skill under two licences:
+taste-skill's MIT (its `LICENSE`) and Apache-2.0 for the parts adapted, with changes, from Anthropic's
+`frontend-design` (`LICENSE-APACHE-2.0` and a `NOTICE` that says what was adapted and changed, as
+Apache-2.0 asks of a derivative). A skill is added only when its licence permits redistribution; the
+Remotion and `transitions-*` skills are not, and the installer carries none of them (the Skills page
+installs them from their authors). `sync.js` refuses a pin whose archive or
 files differ from the recorded hashes.
 
 Apache-2.0 covers TasteCode source code. It does not grant rights to third-party product

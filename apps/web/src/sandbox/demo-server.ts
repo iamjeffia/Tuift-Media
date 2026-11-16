@@ -224,6 +224,7 @@ function demoAuthorSkills(): Map<string, AvailableSkill> {
     category: AvailableSkill['category'],
     license: string | null,
     state: AvailableSkill['state'],
+    installedFor: AvailableSkill['installedFor'],
     en: string,
     pt: string,
   ): [string, AvailableSkill] => [
@@ -240,6 +241,7 @@ function demoAuthorSkills(): Map<string, AvailableSkill> {
       state,
       ...(state === 'installed' ? { installedCommit: commit } : {}),
       ...(state === 'update-available' ? { installedCommit: 'b'.repeat(40) } : {}),
+      ...(installedFor ? { installedFor } : {}),
     },
   ]
   return new Map([
@@ -250,28 +252,9 @@ function demoAuthorSkills(): Map<string, AvailableSkill> {
       'motion',
       null,
       'not-installed',
+      undefined,
       'Router for all Remotion work. It carries the other Remotion skills inside it, so this one alone covers them.',
       'Ponto de entrada para tudo de Remotion. Traz as outras skills do Remotion dentro dela, então só esta já cobre as demais.',
-    ),
-    entry(
-      'remotion-captions',
-      'Remotion captions',
-      'Remotion',
-      'motion',
-      null,
-      'not-installed',
-      'Transcribe speech, then show and animate captions in Remotion videos.',
-      'Transcrever a fala e exibir e animar legendas em vídeos do Remotion.',
-    ),
-    entry(
-      'remotion-render',
-      'Remotion render',
-      'Remotion',
-      'motion',
-      null,
-      'not-installed',
-      'Export a Remotion video, a still image or an editable timeline.',
-      'Exportar um vídeo, uma imagem estática ou uma linha do tempo editável do Remotion.',
     ),
     entry(
       'transitions-dev',
@@ -280,6 +263,7 @@ function demoAuthorSkills(): Map<string, AvailableSkill> {
       'design',
       'Transitions.dev License',
       'installed',
+      'app',
       'Ready-made CSS transitions for web UI: menus, modals, toasts, tabs, number changes and more.',
       'Transições CSS prontas para interface web: menus, modais, avisos, abas, troca de números e mais.',
     ),
@@ -290,18 +274,20 @@ function demoAuthorSkills(): Map<string, AvailableSkill> {
       'design',
       'Transitions.dev License',
       'update-available',
+      'app',
       'Audit and tune the motion you already have: duration, distance, easing and stagger.',
       'Revisar e ajustar a animação que você já tem: duração, distância, easing e atraso entre itens.',
     ),
     entry(
-      '21st-ui-build',
-      '21st UI build',
-      '21st.dev',
+      'transitions-ui-generation',
+      'Transitions UI generation',
+      'Jakub Antalik',
       'design',
-      'Apache-2.0',
-      'not-installed',
-      "Build production UI that follows the project's design context.",
-      'Construir interface de produção que segue o contexto de design do projeto.',
+      'Transitions.dev License',
+      'installed',
+      'project',
+      'Generate new interface with the Transitions.dev motion built in from the start.',
+      'Gerar interface nova já com a animação do Transitions.dev desde o começo.',
     ),
   ])
 }
@@ -1274,7 +1260,7 @@ export class DemoServer {
         for (const skillId of ids) {
           await new Promise((resolve) => setTimeout(resolve, 900))
           const skill = this.#authorSkills.get(skillId)
-          if (!skill || skillId === 'remotion-render') {
+          if (!skill) {
             results.push({
               id: skillId,
               ok: false,
@@ -1286,12 +1272,23 @@ export class DemoServer {
               ...skill,
               state: 'installed',
               installedCommit: skill.commit,
+              installedFor: 'app',
             })
             results.push({ id: skillId, ok: true })
           }
           this.#push('skills.changed', { provider: id, projectPath })
         }
         return { results }
+      },
+      'skills.removeAvailable': async ({ provider: id, projectPath, id: skillId }) => {
+        await new Promise((resolve) => setTimeout(resolve, 600))
+        const skill = this.#authorSkills.get(skillId)
+        if (!skill || skill.installedFor !== 'app')
+          throw new Error('This skill is not installed for the whole app')
+        const { installedCommit: _installedCommit, installedFor: _installedFor, ...rest } = skill
+        this.#authorSkills.set(skillId, { ...rest, state: 'not-installed' })
+        this.#push('skills.changed', { provider: id, projectPath })
+        return {}
       },
       'skills.setEnabled': ({ provider: id, projectPath, skillId, enabled }) => {
         this.#skillOverrides.set(skillId, enabled)

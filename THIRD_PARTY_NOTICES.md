@@ -66,13 +66,14 @@ The default Agent Skills are pinned to exact commits in `packages/default-skills
 and ship as real files in the app's `resources/default-skills` folder, each with its own
 `LICENSE`.
 
-The Design pack's 34 third-party skills come from four public repositories, each pinned to an
+The Design pack's 41 third-party skills come from five public repositories, each pinned to an
 exact commit in `packages/default-skills/skills.json` (or, for `libraries-dev`, copied into
 `.agents/skills/` at the commit below) and each shipped unmodified with its own `LICENSE`. The pack
 holds only skills, never the other files of those repositories: from `Jakubantalik/Libraries.dev`
 it takes the skill alone, not the libraries or the `Magnet` and `VoicePosition` model files that
-its separate model licence covers. The Remotion, `transitions-*` and `21st-*` skills are not in
-the installer, because their licences do not allow embedding.
+its separate model licence covers. The Remotion and `transitions-*` skills are not in the
+installer, because their licences do not allow embedding; the Skills page installs them from their
+authors, once for the whole app.
 
 <!-- prettier-ignore -->
 | Source repository | Design pack skills | License | Commit |
@@ -81,6 +82,7 @@ the installer, because their licences do not allow embedding.
 | [jakubkrehel/skills](https://github.com/jakubkrehel/skills) | `better-accessibility`, `better-colors`, `better-interface`, `better-layout`, `better-typography`, `better-ui`, `better-writing`, `break`, `build-design`, `explain-interface`, `interface-review`, `state-machine`, `variant` | [MIT](./licenses/jakubkrehel-skills-MIT.txt) | `6c21201` |
 | [mattpocock/skills](https://github.com/mattpocock/skills) | `design-an-interface` (retired upstream, so pinned at the last commit that holds it) | [MIT](./licenses/mattpocock-skills-MIT.txt) | `f958fa1` |
 | [Jakubantalik/Libraries.dev](https://github.com/Jakubantalik/Libraries.dev) | `libraries-dev` | [MIT](./licenses/libraries-dev-MIT.txt) | `387b049` |
+| [21st-dev/skill](https://github.com/21st-dev/skill) | `21st-ai`, `21st-cli-use`, `21st-design-sync`, `21st-registry`, `21st-ui-build`, `21st-ui-explore`, `21st-ui-review` (Apache-2.0, Copyright 2026 21st.dev, per the repository's `LICENSE` at the pinned commit) | [Apache-2.0](./licenses/21st-dev-skill-Apache-2.0.txt) | `15c7436` |
 
 `design-taste-frontend` (taste-skill v2.5.0) ships without its picture library. Its photographs,
 the sample photographs of its demos and hero templates, its demo icon sets, its objects kit's sample

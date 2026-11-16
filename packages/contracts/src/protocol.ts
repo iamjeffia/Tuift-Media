@@ -531,7 +531,7 @@ export const AvailableSkillStateSchema = z.enum(['not-installed', 'installed', '
 export type AvailableSkillState = z.infer<typeof AvailableSkillStateSchema>
 
 export const AvailableSkillSchema = z.object({
-  /** The skill's folder name, which is also its folder under `.agents/skills`. */
+  /** The skill's folder name, which is also its folder in the app's data folder. */
   id: z.string().min(1),
   name: z.string().min(1),
   /** One line per interface language, written for TUIFT Code, not copied from the source. */
@@ -547,8 +547,15 @@ export const AvailableSkillSchema = z.object({
   /** The commit the manifest pins today. */
   commit: z.string().min(1),
   state: AvailableSkillStateSchema,
-  /** The commit installed in this project, when the install record has one. */
+  /** The commit installed, when the install record has one. */
   installedCommit: z.string().min(1).optional(),
+  /**
+   * Where an installed skill lives. `app`: in the app's own data folder, loaded
+   * by its category in every project (the person can remove it from the page).
+   * `project`: an earlier install into this project's `.agents/skills`, which
+   * stays as it is and only loads for a provider that reads that folder.
+   */
+  installedFor: z.enum(['app', 'project']).optional(),
 })
 export type AvailableSkill = z.infer<typeof AvailableSkillSchema>
 
@@ -1444,6 +1451,15 @@ export const methods = {
     }),
     /** One entry per requested id, in order; a failed skill does not stop the others. */
     result: z.object({ results: z.array(SkillInstallResultSchema) }),
+  },
+  'skills.removeAvailable': {
+    params: z.object({
+      provider: ProviderIdSchema,
+      projectPath: z.string().min(1),
+      id: z.string().min(1),
+    }),
+    /** Removes a skill installed for the whole app: its folder and its record. */
+    result: z.object({}),
   },
   'search.sessions': {
     params: z.object({

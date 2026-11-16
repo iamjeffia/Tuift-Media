@@ -5,6 +5,7 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   PACK_CATALOG_MAX_CHARS,
+  bundledSkillFolders,
   defaultSkillsRoot,
   isDefaultSkillId,
   loadDefaultSkillPack,
@@ -336,8 +337,8 @@ describe('default skill packs', () => {
     'fits the real Design pack within the cap: the team skills and the pinned third-party ones',
     () => {
       const pack = loadDefaultSkillPack('design')
-      expect(pack?.skills).toHaveLength(37)
-      expect(new Set(pack?.skills).size).toBe(37)
+      expect(pack?.skills).toHaveLength(44)
+      expect(new Set(pack?.skills).size).toBe(44)
       expect(pack?.skills).toEqual(
         expect.arrayContaining([
           'ui-profissional',
@@ -349,13 +350,16 @@ describe('default skill packs', () => {
           'design-an-interface',
           'emil-design-eng',
           'better-interface',
+          // Apache-2.0 at the pinned commit, so they ship (they were offered to install before).
+          '21st-ui-build',
+          '21st-registry',
         ]),
       )
       // The merged skill lives in the base bundle, not in the pack.
       expect(pack?.skills).not.toContain('frontend-design')
       expect(pack?.skills).not.toContain('design-taste-frontend')
       // Skills whose licence does not allow embedding stay out.
-      expect(pack?.skills.some((folder) => /remotion|transitions|^21st/.test(folder))).toBe(false)
+      expect(pack?.skills.some((folder) => /remotion|transitions/.test(folder))).toBe(false)
       expect(pack?.catalog.length).toBeLessThanOrEqual(PACK_CATALOG_MAX_CHARS)
       expect(pack?.catalog).toContain('- ui-profissional: ')
       // Both packs hold the two shared skills, each as a folder of its own.
@@ -380,4 +384,14 @@ describe('default skill packs', () => {
       expect(loadDefaultSkills().skills).toHaveLength(5)
     },
   )
+
+  it('names every folder the bundle declares, base and packs, even one whose files are missing', async () => {
+    const root = await writeDefaultSkillsFixture(await tempDir(), ['cinetic'])
+    await writeDefaultSkillPackFixture(root, 'design', [['ui-profissional', 'screens']], [])
+
+    expect(bundledSkillFolders(root)).toEqual(
+      new Set(['cinetic', 'design-taste-frontend', 'cook', 'ui-profissional']),
+    )
+    expect(bundledSkillFolders(path.join(root, 'nowhere'))).toEqual(new Set())
+  })
 })

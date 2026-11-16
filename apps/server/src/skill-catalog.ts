@@ -1,16 +1,20 @@
-import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { lstat, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
-import os from 'node:os'
+import { lstat, mkdir, mkdtemp, readFile, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
 import type {
   AvailableSkill,
   AvailableSkillCategory,
   ProviderId,
-  Skill,
   SkillInstallResult,
 } from '@harness/contracts'
+import {
+  categoryPluginDir,
+  ensureCategoryPlugin,
+  installedSkillDir,
+  readInstalledRecord,
+  writeInstalledRecord,
+} from './installed-skills.js'
 import {
   DEFAULT_DOWNLOAD_POLICY,
   downloadArchive,
@@ -21,8 +25,9 @@ import { projectSkillsDir } from './skill-inventory.js'
 
 /**
  * Third-party skills TUIFT Code does not ship. `packages/default-skills/third-party-skills.json`
- * lists them; an install downloads the pinned commit from the author's repository
- * and hands the unpacked folder to the same code path "install from a folder" uses.
+ * lists them; an install downloads the pinned commit from the author's repository,
+ * checks it and unpacks the skill into the app's own data folder (see
+ * `installed-skills.ts`), where every project and every provider reaches it.
  */
 
 const ID = /^[a-z0-9][a-z0-9._-]{0,63}$/
@@ -100,10 +105,10 @@ export function thirdPartySkillsFile(defaultSkillsDir: string): string {
 }
 
 /**
- * What TUIFT Code remembers about the skills it installed from their authors.
- * It lives in the project, next to the skills (`.agents/skills/.tuift-catalog.json`);
- * the leading dot keeps the skill listing from reading it as a skill. Read it to
- * tell which skills came from the catalog, at which commit, and in which category.
+ * What an earlier version remembered about the skills it installed into a project
+ * (`.agents/skills/.tuift-catalog.json`, `{ version: 1, skills: { <id>: { commit,
+ * category, set?, installedAt } } }`). It is only read now: such a skill stays in
+ * its project and the page says so, but nothing installs into a project any more.
  */
 export type CatalogRecord = {
   version: 1
@@ -140,20 +145,8 @@ export async function readCatalogRecord(projectPath: string): Promise<CatalogRec
       .parse(JSON.parse(text))
     return parsed as CatalogRecord
   } catch {
-    // A damaged record only costs the "installed at" detail; the folders are still there.
+    // A damaged record only costs the "installed" detail; the folders are still there.
     return empty
-  }
-}
-
-async function writeCatalogRecord(projectPath: string, record: CatalogRecord): Promise<void> {
-  const file = path.join(projectSkillsDir(projectPath), CATALOG_RECORD_FILE)
-  const temporary = `${file}.${randomBytes(4).toString('hex')}.tmp`
-  try {
-    await writeFile(temporary, `${JSON.stringify(record, null, 2)}\n`)
-    await rename(temporary, file)
-  } catch (error) {
-    await rm(temporary, { force: true })
-    throw error
   }
 }
 
@@ -172,30 +165,42 @@ async function folderState(destination: string): Promise<FolderState> {
 export type SkillCatalogOptions = {
   /** The validated manifest entries; read again on every call so a new manifest shows at once. */
   entries: () => CatalogEntry[]
-  /** The "install from a folder" path: copies the folder into the project and returns the skill. */
-  installFolder: (provider: ProviderId, projectPath: string, folderPath: string) => Promise<Skill>
-  /** Tells the page the project's skills changed. */
+  /** The app's folder of installed third-party skills (`installedSkillsRoot`). */
+  root: string
+  /** Folder names the bundle ships. A manifest entry with one of them is neither offered nor installed. */
+  bundled?: () => ReadonlySet<string>
+  /** Tells the page the skills changed; it names the provider and project of the page that asked. */
   onChanged: (provider: ProviderId, projectPath: string) => void
   policy?: DownloadPolicy
 }
 
 export class SkillCatalog {
   readonly #options: SkillCatalogOptions
-  /** One install at a time: each holds an archive and a copy of its skill in memory and on disk. */
+  /** One change at a time: an install holds an archive and a copy of its skill in memory and on disk. */
   #queue: Promise<unknown> = Promise.resolve()
 
   constructor(options: SkillCatalogOptions) {
     this.#options = options
   }
 
-  /** The manifest's skills with their state in this project. */
+  /** The manifest's skills that do not ship with the app, with their state. */
   async list(projectPath: string): Promise<AvailableSkill[]> {
-    const record = await readCatalogRecord(projectPath)
-    const root = projectSkillsDir(projectPath)
+    const record = readInstalledRecord(this.#options.root)
+    const legacy = await readCatalogRecord(projectPath)
+    const legacyDir = projectSkillsDir(projectPath)
+    const bundled = this.#options.bundled?.()
     const skills: AvailableSkill[] = []
     for (const entry of this.#options.entries()) {
-      const present = (await folderState(path.join(root, entry.id))) !== 'missing'
-      const installed = present ? record.skills[entry.id] : undefined
+      if (bundled?.has(entry.id)) continue
+      const own = record.skills[entry.id]
+      const installedHere =
+        own !== undefined &&
+        (await folderState(installedSkillDir(this.#options.root, own.category, entry.id))) ===
+          'folder'
+      // An earlier install into this project: still shown, never moved or removed.
+      const earlier =
+        !installedHere && (await folderState(path.join(legacyDir, entry.id))) !== 'missing'
+      const installed = installedHere ? own : earlier ? legacy.skills[entry.id] : undefined
       skills.push({
         id: entry.id,
         name: entry.name,
@@ -206,12 +211,15 @@ export class SkillCatalog {
         license: entry.license.name,
         sourceUrl: entry.source.url,
         commit: entry.source.commit,
-        state: !present
-          ? 'not-installed'
-          : installed && installed.commit !== entry.source.commit
-            ? 'update-available'
-            : 'installed',
+        state:
+          !installedHere && !earlier
+            ? 'not-installed'
+            : installedHere && installed && installed.commit !== entry.source.commit
+              ? 'update-available'
+              : 'installed',
         ...(installed ? { installedCommit: installed.commit } : {}),
+        ...(installedHere ? { installedFor: 'app' as const } : {}),
+        ...(earlier ? { installedFor: 'project' as const } : {}),
       })
     }
     return skills
@@ -228,11 +236,33 @@ export class SkillCatalog {
     return run
   }
 
+  /** Removes a skill installed for the whole app: its folder and its record. */
+  remove(provider: ProviderId, projectPath: string, id: string): Promise<void> {
+    const run = this.#queue.then(async () => {
+      const root = this.#options.root
+      const record = readInstalledRecord(root)
+      const own = record.skills[id]
+      if (!own) throw new Error('This skill is not installed for the whole app')
+      // The record goes first: a folder left behind is never loaded, a record without one is never shown.
+      delete record.skills[id]
+      await writeInstalledRecord(root, record)
+      const last = !Object.values(record.skills).some((entry) => entry.category === own.category)
+      await rm(
+        last ? categoryPluginDir(root, own.category) : installedSkillDir(root, own.category, id),
+        { recursive: true, force: true, maxRetries: 5, retryDelay: 100 },
+      )
+      this.#options.onChanged(provider, projectPath)
+    })
+    this.#queue = run.catch(() => undefined)
+    return run
+  }
+
   async #installAll(
     provider: ProviderId,
     projectPath: string,
     ids: string[],
   ): Promise<SkillInstallResult[]> {
+    const bundled = this.#options.bundled?.()
     const entries = new Map(this.#options.entries().map((entry) => [entry.id, entry]))
     const results = new Map<string, SkillInstallResult>()
     const groups = new Map<string, CatalogEntry[]>()
@@ -242,6 +272,10 @@ export class SkillCatalog {
         results.set(id, { id, ok: false, message: 'This skill is not in the list from authors' })
         continue
       }
+      if (bundled?.has(id)) {
+        results.set(id, { id, ok: false, message: 'This skill already ships with TUIFT Code' })
+        continue
+      }
       const key = `${entry.source.host}/${entry.source.repository}@${entry.source.commit}`
       groups.set(key, [...(groups.get(key) ?? []), entry])
     }
@@ -249,9 +283,7 @@ export class SkillCatalog {
     for (const group of groups.values()) {
       const pending: CatalogEntry[] = []
       for (const entry of group) {
-        const skip = await this.#skipReason(projectPath, entry)
-        if (skip === 'current') results.set(entry.id, { id: entry.id, ok: true })
-        else if (skip) results.set(entry.id, { id: entry.id, ok: false, message: skip })
+        if (await this.#current(entry)) results.set(entry.id, { id: entry.id, ok: true })
         else pending.push(entry)
       }
       if (!pending.length) continue
@@ -267,7 +299,7 @@ export class SkillCatalog {
       }
       for (const entry of pending) {
         try {
-          await this.#installOne(provider, projectPath, entry, archive)
+          await this.#installOne(entry, archive)
           results.set(entry.id, { id: entry.id, ok: true })
         } catch (error) {
           results.set(entry.id, failure(entry.id, error))
@@ -279,63 +311,56 @@ export class SkillCatalog {
     return ids.filter((id, index) => ids.indexOf(id) === index).map((id) => results.get(id)!)
   }
 
-  /** `current` when there is nothing to do, a reason when the skill must not be touched, else nothing. */
-  async #skipReason(projectPath: string, entry: CatalogEntry): Promise<string | undefined> {
-    const destination = path.join(projectSkillsDir(projectPath), entry.id)
-    const state = await folderState(destination)
-    if (state === 'missing') return undefined
-    const installed = (await readCatalogRecord(projectPath)).skills[entry.id]
-    if (state === 'folder' && installed) {
-      return installed.commit === entry.source.commit ? 'current' : undefined
-    }
-    // Someone else's folder: never replaced.
-    return `A skill named "${entry.id}" already exists in this project and was not installed from this list`
+  /** Installed for the app at the pinned commit: nothing to do. */
+  async #current(entry: CatalogEntry): Promise<boolean> {
+    const own = readInstalledRecord(this.#options.root).skills[entry.id]
+    return (
+      own?.commit === entry.source.commit &&
+      own.category === entry.category &&
+      (await folderState(installedSkillDir(this.#options.root, own.category, entry.id))) ===
+        'folder'
+    )
   }
 
-  async #installOne(
-    provider: ProviderId,
-    projectPath: string,
-    entry: CatalogEntry,
-    archive: Buffer,
-  ): Promise<void> {
-    const staging = await mkdtemp(path.join(os.tmpdir(), 'tuift-skill-'))
-    const destination = path.join(projectSkillsDir(projectPath), entry.id)
-    // An update moves the old folder aside, so a failure can put it back.
-    const aside =
-      (await folderState(destination)) === 'folder'
-        ? path.join(
-            projectSkillsDir(projectPath),
-            `.${entry.id}.replaced-${randomBytes(4).toString('hex')}`,
-          )
-        : undefined
+  async #installOne(entry: CatalogEntry, archive: Buffer): Promise<void> {
+    const root = this.#options.root
+    await mkdir(root, { recursive: true })
+    // Inside the data folder, so the final move is a rename on the same volume.
+    const staging = await mkdtemp(path.join(root, '.staging-'))
+    const destination = installedSkillDir(root, entry.category, entry.id)
     try {
-      // The folder's name is the skill's name: "install from a folder" copies it under that name.
       const folder = path.join(staging, entry.id)
       await unpackSkill(archive, entry.source.path, folder)
+      await ensureCategoryPlugin(root, entry.category)
+      await mkdir(path.dirname(destination), { recursive: true })
+      // An update, or what a crash left: moved aside, so a failure can put it back.
+      const aside =
+        (await folderState(destination)) === 'missing' ? undefined : path.join(staging, 'replaced')
       if (aside) await rename(destination, aside)
       try {
-        // On a failure the copy and the provider check clean up after themselves.
-        await this.#options.installFolder(provider, projectPath, folder)
-      } catch (error) {
-        if (aside) await rename(aside, destination).catch(() => undefined)
-        throw error
-      }
-      try {
-        const record = await readCatalogRecord(projectPath)
+        await rename(folder, destination)
+        const record = readInstalledRecord(root)
+        const before = record.skills[entry.id]
         record.skills[entry.id] = {
           commit: entry.source.commit,
           category: entry.category,
           ...(entry.set ? { set: entry.set } : {}),
           installedAt: new Date().toISOString(),
         }
-        await writeCatalogRecord(projectPath, record)
+        await writeInstalledRecord(root, record)
+        // The manifest moved the skill to another category: its old folder goes.
+        if (before && before.category !== entry.category) {
+          await rm(installedSkillDir(root, before.category, entry.id), {
+            recursive: true,
+            force: true,
+          })
+        }
       } catch (error) {
         // Nothing half-installed: without its record the new folder goes and the old one comes back.
         await rm(destination, { recursive: true, force: true })
         if (aside) await rename(aside, destination).catch(() => undefined)
         throw error
       }
-      if (aside) await rm(aside, { recursive: true, force: true })
     } finally {
       await rm(staging, { recursive: true, force: true })
     }

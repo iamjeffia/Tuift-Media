@@ -888,7 +888,7 @@ export const settingsEn = {
   'settings.skills.showMoreAbout': 'Show more about {name}',
   'settings.skills.catalog.title': 'Available to install',
   'settings.skills.catalog.note':
-    "These skills come from their authors and are not part of TUIFT Code. Installing downloads each one from its author's repository.",
+    "These skills come from their authors and are not part of TUIFT Code. Installing downloads each one from its author's repository, once for the whole app. Design skills load in Design chats and Motion skills in Motion chats.",
   'settings.skills.catalog.installAll': 'Install all',
   'settings.skills.catalog.install': 'Install',
   'settings.skills.catalog.update': 'Update',
@@ -901,6 +901,16 @@ export const settingsEn = {
   'settings.skills.catalog.meta': 'By {author} · License: {license}',
   'settings.skills.catalog.metaNoLicense': 'By {author} · The author declares no license',
   'settings.skills.catalog.openSource': 'Open the source of {name}',
+  'settings.skills.catalog.scopeApp.design': 'Installed for the whole app · Loads in Design chats',
+  'settings.skills.catalog.scopeApp.motion': 'Installed for the whole app · Loads in Motion chats',
+  'settings.skills.catalog.scopeApp.general': 'Installed for the whole app · Loads in every chat',
+  'settings.skills.catalog.scopeProject':
+    'Installed in this project by an earlier version. It stays here and is not shared with other projects.',
+  'settings.skills.catalog.remove': 'Remove',
+  'settings.skills.catalog.removeFor': 'Remove {name}',
+  'settings.skills.catalog.removing': 'Removing…',
+  'settings.skills.catalog.confirmRemove':
+    'Remove {name} from the whole app? It will no longer load in any chat.',
   // MCP servers
   'settings.mcp.provider': 'Provider',
   'settings.mcp.providerLabel': 'MCP provider',
