@@ -106,6 +106,13 @@ const LIBRARY = {
   'no-subscription': `The linked Clube do Motion account has no subscription, so the app's sound library is closed: do not call ${SOUND_TOOL_NAMES.join(', ')}. The plans are at ${CLUBE_PLANS_URL}.`,
 } as const satisfies Record<SoundsSession['library'], string>
 
+/**
+ * Whatever the source, the agent hears a sound before it speaks for it: it cannot hear, and a
+ * name, a genre and an estimated key do not say whether a track fits.
+ */
+export const HEAR_FIRST =
+  'Hear a sound or a track with the `ouvir` skill before you recommend or place it, and say what it found; if `ouvir` is not set up, say you have not heard it and offer the setup once.'
+
 /** The paragraph a Motion chat's role carries about where its sounds come from. */
 export function soundsSentence(session: SoundsSession): string {
   return [
@@ -114,6 +121,7 @@ export function soundsSentence(session: SoundsSession): string {
     session.folder
       ? `The person's own sounds folder is ${session.folder}: look there after the library; nothing in it is indexed or copied.`
       : '',
+    HEAR_FIRST,
   ]
     .filter(Boolean)
     .join(' ')

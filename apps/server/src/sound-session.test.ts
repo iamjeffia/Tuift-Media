@@ -3,7 +3,12 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { modeSessionStart } from './motion-session.js'
-import { detectProjectSounds, soundsSentence, SOUND_TOOL_NAMES } from './sound-session.js'
+import {
+  detectProjectSounds,
+  HEAR_FIRST,
+  soundsSentence,
+  SOUND_TOOL_NAMES,
+} from './sound-session.js'
 import { SOUND_TOOLS } from './sound-tools.js'
 
 const folders: string[] = []
@@ -88,15 +93,24 @@ describe('the sentence a Motion role carries about sounds', () => {
     expect(text).toContain('key and BPM are estimates')
   })
 
+  it('tells the agent to hear a sound before it recommends one, whatever the source', () => {
+    for (const library of ['tools', 'panel', 'off', 'unlinked', 'no-subscription'] as const) {
+      expect(soundsSentence({ library })).toContain(HEAR_FIRST)
+    }
+    expect(HEAR_FIRST).toContain('`ouvir`')
+    expect(HEAR_FIRST).toContain('say you have not heard it')
+  })
+
   it('stays short', () => {
-    expect(soundsSentence({ library: 'tools' }).length).toBeLessThan(500)
+    // The library's paragraph, plus the sentence about hearing first (about 45 tokens).
+    expect(soundsSentence({ library: 'tools' }).length).toBeLessThan(700)
     expect(
       soundsSentence({
         library: 'tools',
         own: { dir: 'audio', files: 12 },
         folder: 'D:\\Sons\\meus',
       }).length,
-    ).toBeLessThan(700)
+    ).toBeLessThan(900)
   })
 
   it('is part of the Motion role only when the session gives it, and only in Motion', () => {
