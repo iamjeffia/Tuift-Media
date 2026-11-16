@@ -1,0 +1,160 @@
+/* ---------- live feedback ----------
+
+   A running step says it is running: its own time, what it is doing, and, when
+   the agent has gone quiet, how long ago it last did anything. Everything here
+   borrows the rows around it (the working line, the subagent status, the notice
+   shelf): the same sizes, inks and glyph column, only alive. The figures are
+   written by the shared clock into single text nodes, never by a render. */
+
+/* The step's own time, after its label: mono figures like a subagent's status,
+   set after a dot so a number inside the title is never read as the timer. An
+   empty one (a tool that has not run long enough) takes no room. */
+.live-elapsed {
+  flex: none;
+  color: color-mix(in srgb, var(--text-3) 72%, transparent);
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.live-elapsed:empty {
+  display: none;
+}
+
+.live-elapsed::before {
+  content: '·';
+  margin-right: 6px;
+  font-family: var(--font-ui);
+}
+
+/* A subagent's own status already draws its dots; its time needs no second one. */
+.subagent__elapsed::before {
+  content: none;
+}
+
+/* The dim line under a running row: its latest step and a count, one line. It
+   starts where the row's label starts (glyph column and gap). */
+.live-now {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  min-width: 0;
+  margin: -3px 0 2px 22px;
+  padding-right: 8px;
+  color: var(--text-3);
+  font-size: var(--t-xs);
+  line-height: 1.45;
+}
+
+.live-now__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  animation: live-now-in var(--dur-fast) var(--ease-out) both;
+}
+
+.live-now__count {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.live-now__text + .live-now__count::before {
+  content: '·';
+  padding-inline: 6px;
+}
+
+/* A command's last line of output reads as output. It changes with every line,
+   so it does not replay the entrance. */
+.live-now--tail .live-now__text {
+  font-family: var(--font-mono);
+  animation: none;
+}
+
+@keyframes live-now-in {
+  from {
+    opacity: 0.4;
+  }
+}
+
+/* The open row lists what it is doing in its own body. */
+.activity[data-expanded='true'] > .live-now,
+.aux[data-expanded='true'] > .live-now {
+  display: none;
+}
+
+/* How long ago the agent last did anything, beside the working line. */
+.idle-text:not([hidden]) {
+  flex: none;
+  color: color-mix(in srgb, var(--text-3) 72%, transparent);
+  white-space: nowrap;
+}
+
+.idle-text:not([hidden])::before {
+  content: '·';
+  margin: 0 6px;
+}
+
+/* ---------- the status line above the prompt box ----------
+
+   A shelf in the notice strip's slot, in its quiet (info) look. */
+
+.composer__shelf.composer__provider-shelf.composer__work-status {
+  color: var(--text-2);
+}
+
+.work-status__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+.work-status__time {
+  flex: none;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+}
+
+.work-status__doing {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.work-status__doing::before {
+  content: '·';
+  margin-right: 6px;
+}
+
+.work-status__idle:not([hidden]) {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-3);
+  font-size: var(--t-xs);
+  white-space: nowrap;
+}
+
+/* After a couple of quiet minutes: an explanation, never an alarm. */
+.work-status__calm:not([hidden]) {
+  display: block;
+  padding: 0 0 4px 24px;
+  color: var(--text-3);
+  font-size: var(--t-xs);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-now__text {
+    animation: none;
+  }
+}

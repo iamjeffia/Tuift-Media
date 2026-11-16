@@ -937,3 +937,63 @@ describe('paged history', () => {
     expect(controller.snapshot('thread')!.olderCursor).toBe('cursor')
   })
 })
+
+describe('ThreadController quiet-agent record', () => {
+  const turnCompleted: DomainEvent = { type: 'turn.completed', turnId: 'turn', status: 'completed' }
+
+  it('notes the arrival of any event, a streamed word included, for the chat a column shows', () => {
+    vi.useFakeTimers({ now: 10_000 })
+    vi.stubGlobal('requestAnimationFrame', () => 1)
+    vi.stubGlobal('cancelAnimationFrame', () => undefined)
+    const controller = new ThreadController(new TestTransport(() => history('x')))
+    controller.show(0, 'thread')
+    controller.setCursor('thread', 0)
+    const store = controller.columns[0]
+    expect(store.lastEventAt()).toBeUndefined()
+
+    controller.receive({ threadId: 'thread', event: started, seq: 1 }, unprotected)
+    expect(store.lastEventAt()).toBe(10_000)
+    vi.advanceTimersByTime(5_000)
+    controller.receive({ threadId: 'thread', event: delta, seq: 2 }, unprotected)
+    expect(store.lastEventAt()).toBe(15_000)
+    // A repeat of an event already seen says nothing new.
+    vi.advanceTimersByTime(5_000)
+    controller.receive({ threadId: 'thread', event: delta, seq: 2 }, unprotected)
+    expect(store.lastEventAt()).toBe(15_000)
+    // The other chat's events are not this column's.
+    controller.receive({ threadId: 'other', event: started, seq: 1 }, unprotected)
+    expect(store.lastEventAt()).toBe(15_000)
+    vi.useRealTimers()
+  })
+
+  it('forgets a chat once its turn ends', () => {
+    vi.stubGlobal('requestAnimationFrame', () => 1)
+    const controller = new ThreadController(new TestTransport(() => history('x')))
+    controller.show(0, 'thread')
+    controller.receive({ threadId: 'thread', event: started, seq: 1 }, unprotected)
+    expect(controller.columns[0].lastEventAt()).toBeDefined()
+    controller.receive({ threadId: 'thread', event: turnCompleted, seq: 2 }, unprotected)
+    expect(controller.columns[0].lastEventAt()).toBeUndefined()
+  })
+
+  it('counts a turn found running at history load as heard from then', async () => {
+    vi.useFakeTimers({ now: 20_000 })
+    const transport = new TestTransport(() => ({
+      events: [
+        {
+          seq: 1,
+          event: {
+            type: 'turn.started',
+            turn: { id: 'turn', threadId: 'thread', status: 'running', createdAt: 1 },
+          },
+        },
+      ],
+      running: true,
+    }))
+    const controller = new ThreadController(transport)
+    controller.show(0, 'thread')
+    await controller.loadHistory('thread')
+    expect(controller.columns[0].lastEventAt()).toBe(20_000)
+    vi.useRealTimers()
+  })
+})

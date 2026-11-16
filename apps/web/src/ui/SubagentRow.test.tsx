@@ -150,7 +150,7 @@ describe('SubagentRow', () => {
     ])
     expect(rows[0]?.getAttribute('data-failed')).toBe('true')
     expect(rows[0]?.querySelector('.subagent__state.is-failed')?.textContent).toBe('Failed')
-    expect(parts(rows[1]!)).toEqual(['Stopped', '2 tools'])
+    expect(parts(rows[1]!)).toEqual(['Interrupted', '2 tools'])
     expect(rows[2]?.querySelector('.subagent__tag')?.textContent).toBe('Background')
     expect(rows[0]?.querySelector('.subagent__tag')).toBeNull()
   })
@@ -191,7 +191,7 @@ describe('subagents in the transcript', () => {
     )
 
     const summary = container.querySelector<HTMLButtonElement>('.activity__summary')!
-    expect(summary.textContent).toBe('Running 2 subagents')
+    expect(summary.querySelector('.activity__label')?.textContent).toBe('Running 2 subagents')
     fireEvent.click(summary)
     // Subagents that are all the work need no header of their own.
     expect(container.querySelector('.activity--subagents')).toBeNull()
@@ -212,7 +212,9 @@ describe('subagents in the transcript', () => {
       ],
       true,
     )
-    expect(container.querySelector('.activity__summary')?.textContent).toBe('Running 2 subagents')
+    expect(container.querySelector('.activity__summary .activity__label')?.textContent).toBe(
+      'Running 2 subagents',
+    )
   })
 
   it('leaves the summary to the main agent while only background subagents run', () => {
@@ -224,7 +226,9 @@ describe('subagents in the transcript', () => {
       ],
       true,
     )
-    expect(container.querySelector('.activity__summary')?.textContent).toBe('Running pnpm test')
+    expect(container.querySelector('.activity__summary .activity__label')?.textContent).toBe(
+      'Running pnpm test',
+    )
   })
 
   it('names a single running subagent by its task', () => {
@@ -235,7 +239,7 @@ describe('subagents in the transcript', () => {
       ],
       true,
     )
-    expect(container.querySelector('.activity__summary')?.textContent).toBe(
+    expect(container.querySelector('.activity__summary .activity__label')?.textContent).toBe(
       'Running Explore · Count files',
     )
   })
@@ -300,7 +304,7 @@ describe('subagents in the transcript', () => {
     })
 
     expect(screen.getByRole('button', { name: 'Worked for 3s' })).toBeDefined()
-    expect(container.querySelector('.subagent__state')?.textContent).toBe('Stopped')
+    expect(container.querySelector('.subagent__state')?.textContent).toBe('Interrupted')
     expect(container.querySelector('.subagent__pulse')).toBeNull()
     expect(subagentClockRunning()).toBe(false)
   })

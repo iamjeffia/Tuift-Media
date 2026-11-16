@@ -268,4 +268,18 @@ export const chatEn = {
   'chat.memory.lowNamed':
     'The computer is close to running out of memory. Using the most: {programs}. Close something heavy before the system starts ending programs.',
   'chat.memory.consumer': '{name} ({size} GB)',
+
+  // The status line above the prompt box while a turn runs (the transcript itself stays English)
+  'chat.work.region': 'Work in progress',
+  'chat.work.working': 'In progress',
+  'chat.work.helper': 'Subagent {name}: “{title}”',
+  'chat.work.helperNamed': 'Subagent {name}',
+  'chat.work.helpers_one': '{count} subagent running',
+  'chat.work.helpers_other': '{count} subagents running',
+  'chat.work.command': 'Running {command}',
+  'chat.work.edit': 'Editing {target}',
+  'chat.work.tool': 'Using {tool}',
+  'chat.work.idle': 'Last activity {time} ago',
+  'chat.work.calm':
+    'Nothing new for a while. Long steps, such as a render, can take minutes. The turn is still open and no error was reported.',
 } as const

@@ -50,6 +50,8 @@ export type TurnPresentation = {
   design: boolean
   /** The user stopped the turn: it is settled like a finished one, with what it reached. */
   stopped: boolean
+  /** The turn ended because its agent or process gave out, not because it finished or was stopped. */
+  failed: boolean
   /** The row a stopped turn's end marker follows: its answer, its work, or its prompt. */
   endIndex: number
   /** The last flat-list index that belongs to this turn. */
@@ -271,6 +273,7 @@ function presentTurnsRange(
       design: boolean
       /** Its output ended where the user stopped it, so unfinished text is what it said. */
       stopped: boolean
+      failed: boolean
       lastIndex: number
       lastStackedIndex: number
     }
@@ -299,6 +302,7 @@ function presentTurnsRange(
         onlyReasoning: true,
         design: false,
         stopped: item.turnId !== activeTurnId && turnTiming[item.turnId]?.interrupted === true,
+        failed: item.turnId !== activeTurnId && turnTiming[item.turnId]?.failed === true,
         lastIndex: index,
         lastStackedIndex: -1,
       }
@@ -426,6 +430,7 @@ function presentTurnsRange(
       complete,
       design: draft.design,
       stopped: draft.stopped,
+      failed: draft.failed,
       endIndex:
         finalAnswer?.index ??
         activityGroups.at(-1)?.firstIndex ??

@@ -29,10 +29,11 @@ export function PaneComposer(props: {
     props.store.subscribeStructure,
     props.store.getStructureSnapshot,
   )
-  if (!props.dormant) return <Composer {...props.composer} />
+  if (!props.dormant) return <Composer {...props.composer} frameStore={props.store} />
   return (
     <Composer
       {...props.composer}
+      frameStore={props.store}
       dormant
       errorsVisible={false}
       running={thread.running}

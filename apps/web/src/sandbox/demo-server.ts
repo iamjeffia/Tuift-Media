@@ -38,6 +38,14 @@ import {
   type DemoPlatform,
   type DemoTurn,
 } from './demo-data.js'
+import {
+  COMMAND_LINES,
+  FEEDBACK_CHAT,
+  feedbackSceneFromSearch,
+  helperItem,
+  seedFeedbackScene,
+  type FeedbackScene,
+} from './demo-feedback.js'
 
 /**
  * An in-memory stand-in for the local server, for the design sandbox. It
@@ -83,6 +91,11 @@ export type DemoServerOptions = {
    * every other chat does.
    */
   motionScene?: MotionScene
+  /**
+   * A scripted long turn in the first demo chat, to look at the chat's live feedback. Absent,
+   * the URL's feedbackScene value says (see demo-feedback.ts).
+   */
+  feedbackScene?: FeedbackScene
 }
 
 /**
@@ -258,6 +271,10 @@ export class DemoServer {
         completedAt: this.#now(),
       })
     }
+    const feedbackScene =
+      options.feedbackScene ??
+      (typeof location === 'undefined' ? undefined : feedbackSceneFromSearch(location.search))
+    if (feedbackScene) this.#playFeedbackScene(feedbackScene)
     this.#handlers = this.#createHandlers()
   }
 
@@ -293,6 +310,56 @@ export class DemoServer {
   /** Sends what the real server would push on its own, such as the low memory warning. */
   announce<C extends ChannelName>(channel: C, data: DataOf<C>): void {
     this.#push(channel, data)
+  }
+
+  /**
+   * Seeds a long turn in the log as it would stand now (started minutes ago), and for a running
+   * scene keeps it alive: a helper that reports every few seconds, or a command that prints a line,
+   * or nothing at all. Stop ends it as in any chat.
+   */
+  #playFeedbackScene(scene: FeedbackScene): void {
+    const thread = this.#thread(FEEDBACK_CHAT)
+    const seeded = seedFeedbackScene(scene, thread.id, this.#now())
+    for (const event of seeded.events) this.#append(thread, event)
+    if (!seeded.running) return
+    const run: Run = { turnId: seeded.turnId, steps: [], open: new Map(), timer: undefined }
+    for (const event of seeded.events) {
+      if (event.type === 'item.started') run.open.set(event.item.id, event.item)
+    }
+    const stepMs = 4_000
+    if (scene === 'helper') {
+      for (let index = 4; index < 400; index += 1) {
+        run.steps.push({
+          delay: stepMs,
+          run: () => {
+            const open = run.open.get(seeded.helperId)
+            if (!open) return
+            const next = helperItem(scene, seeded.turnId, open.createdAt, index)
+            run.open.set(seeded.helperId, next)
+            this.#record(thread, { type: 'item.completed', item: next })
+          },
+        })
+      }
+    } else if (scene === 'command') {
+      for (let index = 0; index < 400; index += 1) {
+        run.steps.push({
+          delay: 3_000,
+          run: () =>
+            this.#delta(
+              thread,
+              run,
+              seeded.commandId,
+              `${COMMAND_LINES[index % COMMAND_LINES.length]!}\n`,
+            ),
+        })
+      }
+    } else {
+      // Quiet and idle: the agent says nothing until the turn is stopped.
+      run.steps.push({ delay: SCENE_HOLD_MS, run: () => undefined })
+    }
+    this.#runs.set(thread.id, run)
+    thread.lastActiveAt = this.#now()
+    this.#advance(thread, run)
   }
 
   /** The seeded or live answer to one request, or undefined for a method the sandbox ignores. */

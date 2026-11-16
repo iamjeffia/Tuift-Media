@@ -92,9 +92,16 @@ import {
   subagentActivityLabel,
   SubagentGlyph,
   SubagentGroup,
+  SubagentNow,
   SubagentRow,
+  waitingSubagents,
   waitingSubagentsLabel,
 } from './SubagentRow.js'
+import { CommandNow, LIVE_STEP_AFTER_MS } from './LiveNow.js'
+import { LiveElapsed } from './LiveElapsed.js'
+import { IdleText } from './IdleText.js'
+import { elapsedLabel } from './live-clock.js'
+import { commandLabel, inlineActivityText } from './command-label.js'
 import { FindBarSkeleton } from './SurfaceSkeletons.js'
 import { TurnRail, type VisibleRows } from './TurnRail.js'
 import { replyPreview, rowAtOffset, turnRailEntries, type TurnRailEntry } from './turn-rail.js'
@@ -1474,7 +1481,10 @@ export const Thread = memo(function Thread(props: ThreadProps) {
                       startedAt={activePresentation.workStartedAt}
                     />
                   ) : (
-                    <TurnDuration startedAt={thread.activeTurn.startedAt} />
+                    <TurnDuration
+                      startedAt={thread.activeTurn.startedAt}
+                      frameStore={props.frameStore}
+                    />
                   )}
                 </div>
               ) : null}
@@ -2045,6 +2055,15 @@ const ThreadFrameRow = memo(function ThreadFrameRow({
   const settling = settlingTurnId === item.turnId
   const railAnchor = showWorkingRail && live && presentation?.firstResponseIndex === index
   const activityComplete = presentation?.complete === true && !live && presentation.design !== true
+  // A turn that ended because its agent or process gave out did not finish, and a
+  // restart that settled a turn as stopped was not the user's Stop: both say interrupted.
+  const interruptedTurn =
+    !live &&
+    presentation !== undefined &&
+    presentation.design !== true &&
+    (presentation.failed ||
+      (presentation.stopped &&
+        threadItemAt(items, liveItems, presentation.lastIndex + 1)?.type === 'error'))
   const activitySource =
     activityLead && activityGroup
       ? {
@@ -2053,6 +2072,7 @@ const ThreadFrameRow = memo(function ThreadFrameRow({
           liveItems,
           complete: activityComplete,
           stopped: activityComplete && presentation.stopped,
+          interrupted: interruptedTurn && presentation.activityGroups.at(-1) === activityGroup,
         }
       : undefined
   const liveItemUpdate = liveItems.get(index)
@@ -2074,7 +2094,11 @@ const ThreadFrameRow = memo(function ThreadFrameRow({
       ref={measureElement}
     >
       {responseLead && !presentation.design && presentation.activityGroups.length === 0 ? (
-        <TurnDuration elapsedMs={presentation.elapsedMs} stopped={presentation.stopped} />
+        <TurnDuration
+          elapsedMs={presentation.elapsedMs}
+          stopped={presentation.stopped}
+          interrupted={interruptedTurn}
+        />
       ) : null}
       <Row
         item={item}
@@ -2545,6 +2569,8 @@ type ActivityRenderSource = {
   complete: boolean
   /** A settled turn the user stopped: its summary says so instead of "Worked for". */
   stopped?: boolean | undefined
+  /** A settled turn its agent or process gave out on: "Interrupted after", never "Worked for". */
+  interrupted?: boolean | undefined
 }
 
 /**
@@ -2595,6 +2621,12 @@ function AuxDisclosure({
     : batched
       ? batchedItemLabel(item)
       : activityItemLabel(item)
+  // A running tool or command says how long it has run, once that is worth saying.
+  const runningStep =
+    live &&
+    item.status === 'started' &&
+    item.createdAt > 0 &&
+    (item.type === 'command' || item.type === 'tool_call' || item.type === 'file_change')
 
   return (
     <div
@@ -2622,12 +2654,16 @@ function AuxDisclosure({
         {item.durationMs !== undefined && item.durationMs >= 1000 ? (
           <span className="aux__time">{duration(item.durationMs)}</span>
         ) : null}
+        {runningStep ? (
+          <LiveElapsed since={item.createdAt} after={LIVE_STEP_AFTER_MS} silent />
+        ) : null}
         {/* A row that is not live and still started was interrupted: its label
             says so, and a spinner beside it would claim the work still runs. */}
         {expandable ? (
           <ChevronRight className="aux__chevron" size={14} strokeWidth={1.8} aria-hidden />
         ) : null}
       </button>
+      {runningStep && item.type === 'command' ? <CommandNow output={commandOutput(item)} /> : null}
       {/* Design markers have no output worth expanding — their text is the slug. */}
       {expandable ? (
         <div
@@ -3076,23 +3112,26 @@ function ActivityStack({
   const hasWorkNotes = completedActivity.some(
     (item) => item.type === 'reasoning' || (item.type === 'message' && item.role === 'assistant'),
   )
+  const interrupted = !live && activity.interrupted === true
   const tally =
     live && current
       ? undefined
-      : activity.complete || hasWorkNotes
+      : activity.complete || hasWorkNotes || interrupted
         ? undefined
         : toolTally(operationalActivity, false)
-  const stopped = !live && activity.stopped === true
+  const stopped = !live && !interrupted && activity.stopped === true
   // Counted in the group the projection already holds, never across the transcript.
   const runningSubagents = runningSubagentCount(completedActivity)
   // While the main agent waits on subagents they are the news, whatever call it waits in.
   const waiting = live && current ? waitingSubagentsLabel(completedActivity) : undefined
+  // What the live row adds to its label: how long the step has run, and what it is doing.
+  const focus = live && current ? liveFocus(current, completedActivity) : undefined
   const label =
     live && current
       ? (waiting ?? liveActivityLabel(current))
       : tally
         ? toolTallyText(tally)
-        : `${stopped ? 'Stopped after' : 'Worked for'} ${workedFor(activity.group.elapsedMs)}${
+        : `${interrupted ? 'Interrupted after' : stopped ? 'Stopped after' : 'Worked for'} ${workedFor(activity.group.elapsedMs)}${
             runningSubagents > 0 ? ` · ${runningSubagentsText(runningSubagents)}` : ''
           }`
   const summaryItem = live ? current : (operationalActivity[0] ?? completedActivity[0])
@@ -3127,7 +3166,7 @@ function ActivityStack({
     : undefined
 
   if (!summaryItem) return null
-  const hasGlyph = live || Boolean(tally) || stopped
+  const hasGlyph = live || Boolean(tally) || stopped || interrupted
 
   return (
     <div
@@ -3146,7 +3185,7 @@ function ActivityStack({
           <span className="activity__glyph" aria-hidden>
             {tally ? (
               toolBatchGlyph(operationalActivity)
-            ) : stopped ? (
+            ) : stopped || interrupted ? (
               <Stop strokeWidth={1.8} />
             ) : waiting ? (
               <SubagentGlyph />
@@ -3164,8 +3203,10 @@ function ActivityStack({
               : label}
           </span>
         )}
+        {focus ? <LiveElapsed since={focus.since} after={focus.after} silent /> : null}
         <ChevronRight className="activity__chevron" size={15} strokeWidth={1.8} aria-hidden />
       </button>
+      {focus?.now}
       <div
         ref={disclosure.revealRef}
         className="activity__reveal"
@@ -3228,6 +3269,40 @@ function ActivityStack({
       </div>
     </div>
   )
+}
+
+/**
+ * What a live work summary shows besides its label, for the step it names: the time the
+ * step has run (a subagent from the start; a tool or command once it has run a few seconds)
+ * and a dim line with what it is doing. Nothing the provider did not report is invented.
+ */
+function liveFocus(
+  current: Item,
+  activity: readonly Item[],
+): { since: number; after: number; now: ReactNode } | undefined {
+  const waiting = waitingSubagents(activity)
+  if (waiting?.only.subagent) {
+    return {
+      since: waiting.since,
+      after: 0,
+      now: waiting.count === 1 ? <SubagentNow subagent={waiting.only.subagent} /> : null,
+    }
+  }
+  if (current.status !== 'started' || current.createdAt <= 0) return undefined
+  if (current.subagent) {
+    return { since: current.createdAt, after: 0, now: <SubagentNow subagent={current.subagent} /> }
+  }
+  if (current.type === 'command') {
+    return {
+      since: current.createdAt,
+      after: LIVE_STEP_AFTER_MS,
+      now: <CommandNow output={commandOutput(current)} />,
+    }
+  }
+  if (current.type === 'tool_call' || current.type === 'file_change') {
+    return { since: current.createdAt, after: LIVE_STEP_AFTER_MS, now: null }
+  }
+  return undefined
 }
 
 function isWorkDisclosureItem(item: Item): boolean {
@@ -3722,47 +3797,6 @@ function webSearchQuery(item: Item): string | undefined {
 }
 
 /**
- * Codex runs every command through a login shell, so the label would start
- * with the same `/bin/zsh -lc` on every row. The command inside is what ran.
- */
-function commandLabel(command: string | undefined): string {
-  const text = inlineActivityText(command)
-  const wrapped = /^(?:\S*[\\/])?(?:ba|z)?sh(?:\.exe)? -l?c (['"])([\s\S]*)\1$/.exec(text)
-  const inner = wrapped?.[2]?.trim() || powerShellCommand(text) || text
-  // Claude Code starts many commands with `cd "<absolute project path>" &&`.
-  // In a one-line row that path used up the width and the part that does the
-  // work was cut off, so the label starts at the command after it. A relative
-  // cd says where in the project the command runs, so it stays.
-  return inner.replace(LEADING_ABSOLUTE_CD, '') || inner
-}
-
-/**
- * On Windows the same wrapper is PowerShell, joined into one shell-quoted
- * line: `"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '<command>'`.
- * The quoted path filled the row and cut off the command after it.
- */
-function powerShellCommand(text: string): string | undefined {
-  const wrapped = POWERSHELL_WRAPPER.exec(text)
-  if (!wrapped) return undefined
-  const [, quote, payload = ''] = wrapped
-  // A double-quoted payload escapes `"`, `\`, `$` and backticks with a backslash;
-  // a single-quoted one closes, quotes and reopens around each `'` it contains.
-  const inner =
-    quote === '"' ? payload.replace(/\\(["\\$`])/g, '$1') : payload.replace(/'"'"'|'\\''/g, "'")
-  return inner.trim() || undefined
-}
-
-const POWERSHELL_WRAPPER =
-  /^(?:"[^"]*[\\/](?:pwsh|powershell)(?:\.exe)?"|(?:[^\s"]*[\\/])?(?:pwsh|powershell)(?:\.exe)?)(?:\s+-(?:NoProfile|NoLogo|NonInteractive))*\s+-(?:Command|c) (['"])([\s\S]*)\1$/i
-
-const LEADING_ABSOLUTE_CD =
-  /^cd(?:\s+\/d)?\s+(?:"(?:[a-z]:|[\\/~])[^"]*"|'(?:[a-z]:|[\\/~])[^']*'|(?:[a-z]:|[\\/~])[^\s;&|]*)\s*(?:&&|;)\s*/i
-
-function inlineActivityText(text: string | undefined): string {
-  return text?.replace(/\s+/g, ' ').trim() ?? ''
-}
-
-/**
  * One formatter for every reply's time. toLocaleTimeString builds a new
  * formatter on each call, and every reply row that mounts while a long chat
  * is paged calls it.
@@ -3798,16 +3832,21 @@ function ResponseActions({
 
 // Memoized: the working rail renders it on every transcript render.
 const TurnDuration = memo(function TurnDuration(
-  props: { startedAt: number } | { elapsedMs: number; stopped?: boolean | undefined },
+  props:
+    | { startedAt: number; frameStore?: ThreadFrameStore | undefined }
+    | { elapsedMs: number; stopped?: boolean | undefined; interrupted?: boolean | undefined },
 ) {
   const working = 'startedAt' in props
-  const stopped = !working && props.stopped === true
+  const interrupted = !working && props.interrupted === true
+  const stopped = !working && !interrupted && props.stopped === true
   return (
     <div className={`activity activity--duration${working ? ' activity--working' : ''}`}>
-      <div className={`activity__summary${stopped || working ? '' : ' activity__summary--bare'}`}>
+      <div
+        className={`activity__summary${stopped || interrupted || working ? '' : ' activity__summary--bare'}`}
+      >
         {working ? (
           <WorkingPulse />
-        ) : stopped ? (
+        ) : stopped || interrupted ? (
           <span className="activity__glyph" aria-hidden>
             <Stop strokeWidth={1.8} />
           </span>
@@ -3816,9 +3855,12 @@ const TurnDuration = memo(function TurnDuration(
           {working ? (
             <>
               Working for <WorkingTimer startedAt={props.startedAt} />
+              {props.frameStore ? (
+                <IdleText frameStore={props.frameStore} format={quietFor} />
+              ) : null}
             </>
           ) : (
-            `${stopped ? 'Stopped after' : 'Worked for'} ${workedFor(props.elapsedMs)}`
+            `${interrupted ? 'Interrupted after' : stopped ? 'Stopped after' : 'Worked for'} ${workedFor(props.elapsedMs)}`
           )}
         </span>
       </div>
@@ -3867,21 +3909,23 @@ const FrameWorkingRail = memo(function FrameWorkingRail({
   const liveItems = useFrameLiveItems(frameStore, activityIndices)
   const searching = activeTurnIsSearching(items, turnId, liveItems, liveStart, activityIndices)
   const label = workLabel(items, turnId, searching, liveItems, liveStart, activityIndices)
-  return <WorkingRail startedAt={startedAt} label={label} />
+  return <WorkingRail startedAt={startedAt} label={label} frameStore={frameStore} />
 })
 
 const WorkingRail = memo(function WorkingRail({
   startedAt,
   label,
+  frameStore,
 }: {
   startedAt: number
   label: string
+  frameStore?: ThreadFrameStore
 }) {
   return (
     <div className="activity activity--working">
       <div className="activity__summary">
         <WorkingPulse />
-        <WorkingLabel label={label} startedAt={startedAt} />
+        <WorkingLabel label={label} startedAt={startedAt} frameStore={frameStore} />
       </div>
     </div>
   )
@@ -3889,7 +3933,20 @@ const WorkingRail = memo(function WorkingRail({
 
 const WORKING_LABEL_MOTION_MS = 480
 
-function WorkingLabel({ label, startedAt }: { label: string; startedAt: number }) {
+/** The working line's note once the agent has been quiet for a while. */
+function quietFor(idleMs: number): string {
+  return `last activity ${elapsedLabel(idleMs)} ago`
+}
+
+function WorkingLabel({
+  label,
+  startedAt,
+  frameStore,
+}: {
+  label: string
+  startedAt: number
+  frameStore?: ThreadFrameStore | undefined
+}) {
   const lastLabel = useRef(label)
   const timer = useRef<number | undefined>(undefined)
   const [previousLabel, setPreviousLabel] = useState<string>()
@@ -3931,6 +3988,7 @@ function WorkingLabel({ label, startedAt }: { label: string; startedAt: number }
         <span className="activity__working-time">
           <WorkingTimer startedAt={startedAt} />
         </span>
+        {frameStore ? <IdleText frameStore={frameStore} format={quietFor} /> : null}
       </span>
     </span>
   )
@@ -3983,34 +4041,12 @@ export function workLabel(
   return latest ?? 'Working'
 }
 
-// Updating this text node directly avoids committing the virtualized thread
-// every second while a response is streaming.
+/**
+ * The turn's running time. The shared clock writes this text node directly, so
+ * the virtualized thread is never committed for it while a response streams.
+ */
 function WorkingTimer({ startedAt }: { startedAt: number }) {
-  const text = useRef<HTMLSpanElement>(null)
-  const initial = workedFor(Math.max(0, Date.now() - startedAt))
-
-  useEffect(() => {
-    let timer: number | undefined
-    const update = () => {
-      if (text.current) text.current.textContent = workedFor(Math.max(0, Date.now() - startedAt))
-    }
-    const schedule = () => {
-      window.clearTimeout(timer)
-      timer = undefined
-      if (document.visibilityState === 'hidden') return
-      update()
-      const elapsed = Math.max(0, Date.now() - startedAt)
-      timer = window.setTimeout(schedule, Math.max(50, 1_000 - (elapsed % 1_000)))
-    }
-    schedule()
-    document.addEventListener('visibilitychange', schedule)
-    return () => {
-      window.clearTimeout(timer)
-      document.removeEventListener('visibilitychange', schedule)
-    }
-  }, [startedAt])
-
-  return <span ref={text}>{initial}</span>
+  return <LiveElapsed since={startedAt} format={workedFor} className="working-timer" />
 }
 
 function duration(ms: number): string {
