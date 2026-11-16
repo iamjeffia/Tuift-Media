@@ -10,6 +10,7 @@ export * from './phone.js'
 export * from './protocol.js'
 export * from './pull-requests.js'
 export * from './sounds.js'
+export * from './clube-library.js'
 export * from './usage-history.js'
 export type {
   ProviderHistoryListOptions,

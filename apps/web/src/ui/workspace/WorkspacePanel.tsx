@@ -14,6 +14,7 @@ import {
 } from 'react'
 import {
   IconArrowLeft as ArrowLeft,
+  IconBooks as Books,
   IconFileDiff as FileDiff,
   IconFolderOpen as FolderOpen,
   IconWorld as Globe2,
@@ -27,6 +28,7 @@ import {
 } from '@tabler/icons-react'
 import type { BrowserCommand, BrowserResult, PullRequestTarget } from '@harness/contracts'
 import { isDesktop } from '../../bridge.js'
+import { useClube } from '../../clube.js'
 import { useI18n, type MessageKey } from '../../i18n/index.js'
 import { receiveAgentBrowserEvents } from '../../browser-capability.js'
 import { performAppHaptic, prepareAppHaptics } from '../../haptics.js'
@@ -81,6 +83,9 @@ const WorkspaceAgents = lazy(() =>
 const WorkspaceSounds = lazy(() =>
   import('./WorkspaceSounds.js').then((module) => ({ default: module.WorkspaceSounds })),
 )
+const WorkspaceClube = lazy(() =>
+  import('./WorkspaceClube.js').then((module) => ({ default: module.WorkspaceClube })),
+)
 
 export type WorkspaceProviderLoginRequest = {
   id: number
@@ -90,7 +95,7 @@ export type WorkspaceProviderLoginRequest = {
 }
 
 export type WorkspaceTool =
-  'review' | 'terminal' | 'browser' | 'files' | 'side-chat' | 'agents' | 'sounds'
+  'review' | 'terminal' | 'browser' | 'files' | 'side-chat' | 'agents' | 'sounds' | 'clube'
 
 type WorkspaceTab =
   | {
@@ -149,6 +154,12 @@ const TOOLS: Array<{
     title: 'workspace.tool.sounds',
     Icon: WaveSine,
   },
+  // The Clube's library: offered in Motion chats, and in any other chat once an account is linked.
+  {
+    kind: 'clube',
+    title: 'workspace.tool.clube',
+    Icon: Books,
+  },
 ]
 
 const MIN_CHAT_WIDTH = 360
@@ -198,9 +209,16 @@ function WorkspacePanelComponent(props: {
 }) {
   const { t } = useI18n()
   const bottom = props.placement === 'bottom'
+  // Outside Motion the Clube tab appears only once an account is linked, so it never invites a chat that has no use for it.
+  const clubeLinked = useClube(props.transport, !props.motion).status?.state === 'connected'
   const tools = useMemo(
-    () => TOOLS.filter((item) => item.kind !== 'sounds' || props.motion),
-    [props.motion],
+    () =>
+      TOOLS.filter(
+        (item) =>
+          (item.kind !== 'sounds' || props.motion) &&
+          (item.kind !== 'clube' || props.motion || clubeLinked),
+      ),
+    [props.motion, clubeLinked],
   )
   const [tabs, setTabs] = useState<WorkspaceTab[]>([])
   const [activeId, setActiveId] = useState<string>()
@@ -900,6 +918,17 @@ function WorkspaceToolSurface(props: {
         threadId={props.threadId}
         frameStore={props.frameStore}
         subagentTranscript={props.subagentTranscript}
+      />
+    )
+  }
+  if (props.tab.kind === 'clube') {
+    return (
+      <WorkspaceClube
+        active={props.active}
+        transport={props.transport}
+        threadId={props.threadId}
+        projectPath={props.projectPath}
+        onOpenClubeSettings={props.onOpenClubeSettings}
       />
     )
   }

@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { deflateRawSync } from 'node:zlib'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { ClubeStore } from './clube-account.js'
+import { FakeLibrary } from './clube-fake-library.test-support.js'
 
 /**
  * A fake Clube do Motion for tests: the discovery document, dynamic registration,
@@ -58,6 +59,8 @@ export class FakeClube {
   musicPlanBlocked = false
   #filesToday = 0
   #zipsToday = 0
+  /** The library of the Clube tab: its items, skills, limits and files (see clube-fake-library.test-support.ts). */
+  readonly library = new FakeLibrary(() => this.origin)
 
   #server: Server | undefined
   #codes = new Map<string, Code>()
@@ -206,6 +209,15 @@ export class FakeClube {
       if (!bearer() || !this.#access.has(bearer()!)) return json(401, { error: 'invalid_token' })
       return json(200, { ...FAKE_ACCOUNT, plano: this.plan })
     }
+    if (/^\/api\/v1\/(?:biblioteca|projetos|skills|limites)(?:\/|$)/.test(url.pathname)) {
+      this.seen.push({ path: url.pathname, authorization: request.headers.authorization })
+      if (!bearer() || !this.#access.has(bearer()!)) return json(401, { error: 'invalid_token' })
+      if (this.plan === 'grátis' || this.plan === 'teste') {
+        return json(403, { error: 'so_assinantes', mensagem: 'Só para assinantes.' })
+      }
+      return this.library.handle(url, request, response, json, body)
+    }
+    if (await this.library.serve(url, request, response)) return
     if (url.pathname.startsWith('/api/v1/sons') || url.pathname.startsWith('/api/v1/musicas')) {
       return this.#library(url, request, response, json, bearer)
     }

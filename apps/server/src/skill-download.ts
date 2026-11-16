@@ -198,7 +198,7 @@ function paxRecords(body: Buffer): Map<string, string> {
 }
 
 /** The segments of a path inside a skill, or an error for anything that could leave its folder. */
-function confinedSegments(relative: string): string[] {
+export function confinedSegments(relative: string): string[] {
   const segments = relative.split('/')
   const unsafe = segments.some(
     (segment) =>

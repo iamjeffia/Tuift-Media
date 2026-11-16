@@ -31,6 +31,19 @@ import {
 } from './domain.js'
 import { ClubeStatusSchema } from './clube.js'
 import {
+  ClubeDownloadStartResultSchema,
+  ClubeExportResultSchema,
+  ClubeJobResultSchema,
+  ClubeLimitsResultSchema,
+  ClubeMediaResultSchema,
+  ClubeRecordResultSchema,
+  ClubeSearchParamsSchema,
+  ClubeSearchResultSchema,
+  ClubeSignalSchema,
+  ClubeSimpleResultSchema,
+  ClubeSkillInstallResultSchema,
+} from './clube-library.js'
+import {
   SoundFacetsResultSchema,
   SoundPreviewResultSchema,
   SoundSearchParamsSchema,
@@ -700,6 +713,12 @@ export const AvailableSkillSchema = z.object({
    * stays as it is and only loads for a provider that reads that folder.
    */
   installedFor: z.enum(['app', 'project']).optional(),
+  /**
+   * Where the skill comes from when it is not the manifest's list: `clube` is a skill the person
+   * installed from the Clube do Motion's library. Its `author` is the Clube, its `license` is null
+   * and its `sourceUrl` is the skill's page there.
+   */
+  origin: z.literal('clube').optional(),
 })
 export type AvailableSkill = z.infer<typeof AvailableSkillSchema>
 
@@ -2775,6 +2794,57 @@ export const methods = {
   'clube.disconnect': {
     params: z.object({}),
     result: ClubeStatusSchema,
+  },
+  // The Clube's library, for the Clube tab of the side panel. Never offered to a paired phone.
+  'clube.library.search': {
+    params: ClubeSearchParamsSchema,
+    result: ClubeSearchResultSchema,
+  },
+  /** Opens one item's record. Only on the person's request: it tells the Clube the item was seen and a reference may spend a credit. */
+  'clube.library.item': {
+    params: z.object({ id: z.string().min(1).max(200), threadId: z.string().min(1).optional() }),
+    result: ClubeRecordResultSchema,
+  },
+  /** A cover or a preview, fetched here from the Clube's own origin only, so the page's policy stays shut. */
+  'clube.library.media': {
+    params: z.object({ url: z.string().min(1).max(2048) }),
+    result: ClubeMediaResultSchema,
+  },
+  'clube.library.limits': {
+    params: z.object({}),
+    result: ClubeLimitsResultSchema,
+  },
+  /** `hide` is permanent for the account. */
+  'clube.library.signal': {
+    params: z.object({ id: z.string().min(1).max(200), signal: ClubeSignalSchema }),
+    result: ClubeSimpleResultSchema,
+  },
+  /** Starts a download into the chat's project and answers at once; `clube.library.job` tells how it goes. */
+  'clube.library.download': {
+    params: z.object({
+      threadId: z.string().min(1),
+      id: z.string().min(1).max(200),
+      parts: z.array(z.string().min(1).max(200)).max(50).optional(),
+    }),
+    result: ClubeDownloadStartResultSchema,
+  },
+  'clube.library.job': {
+    params: z.object({ jobId: z.string().min(1).max(100) }),
+    result: ClubeJobResultSchema,
+  },
+  'clube.library.cancel': {
+    params: z.object({ jobId: z.string().min(1).max(100) }),
+    result: z.object({}),
+  },
+  /** Writes an item's analysis and prompt into one Markdown file under `clube/` of the project. */
+  'clube.library.exportText': {
+    params: z.object({ threadId: z.string().min(1), id: z.string().min(1).max(200) }),
+    result: ClubeExportResultSchema,
+  },
+  /** Installs a Clube skill once, for the whole app. */
+  'clube.library.installSkill': {
+    params: z.object({ threadId: z.string().min(1), id: z.string().min(1).max(200) }),
+    result: ClubeSkillInstallResultSchema,
   },
   // The Clube's sound library. Never offered to a paired phone.
   'sounds.settings': {

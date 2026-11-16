@@ -32,7 +32,13 @@ const COMMIT = /^[0-9a-f]{40}$/
 const ID = /^[a-z0-9][a-z0-9._-]{0,63}$/
 
 export type InstalledEntry = {
-  commit: string
+  /** The pinned commit of a skill from its author's repository; a skill from the Clube has none. */
+  commit?: string
+  /** A skill the person installed from the Clube do Motion's library, with what its row shows. */
+  origin?: 'clube'
+  title?: string
+  summary?: string
+  page?: string
   category: AvailableSkillCategory
   set?: string
   installedAt: string
@@ -55,7 +61,11 @@ export const installedSkillDir = (root: string, category: AvailableSkillCategory
   path.join(root, category, 'skills', id)
 
 const EntrySchema = z.object({
-  commit: z.string().regex(COMMIT),
+  commit: z.string().regex(COMMIT).optional(),
+  origin: z.literal('clube').optional(),
+  title: z.string().max(200).optional(),
+  summary: z.string().max(2000).optional(),
+  page: z.string().max(2048).optional(),
   category: AvailableSkillCategorySchema,
   set: z.string().optional(),
   installedAt: z.string(),
@@ -159,7 +169,7 @@ export function loadInstalledSkills(
       }
       const name = skillName(parseSkillFrontmatter(markdown).name, id)
       if (options.exclude?.has(id) || options.exclude?.has(name)) continue
-      const summary = options.summary?.(id)?.trim()
+      const summary = (options.summary?.(id) ?? entry.summary)?.trim()
       folders.push(id)
       lines.push(`- ${name}${name === id ? '' : ` (folder ${id})`}${summary ? `: ${summary}` : ''}`)
     }

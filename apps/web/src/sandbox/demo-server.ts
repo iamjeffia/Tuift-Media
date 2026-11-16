@@ -1,3 +1,4 @@
+import { DemoClubeLibrary } from './demo-clube-library.js'
 import { DemoSounds } from './demo-sounds.js'
 import {
   AfterEffectsStateSchema,
@@ -312,6 +313,8 @@ export class DemoServer {
   )
   // The Clube's sound library; `?sounds=` picks what it answers (see demo-sounds.ts).
   #sounds = new DemoSounds(typeof location === 'undefined' ? '' : location.search)
+  // The Clube's library for its tab; `?clubeLib=` picks what it answers (see demo-clube-library.ts).
+  #clubeLibrary = new DemoClubeLibrary(typeof location === 'undefined' ? '' : location.search)
   #hiddenModels: string[] = []
   #roster: string[] | null = null
   #contextSettings: ProviderContextSettingsMap = {}
@@ -1257,7 +1260,9 @@ export class DemoServer {
           })),
         errors: [],
       }),
-      'skills.available': () => ({ skills: [...this.#authorSkills.values()] }),
+      'skills.available': () => ({
+        skills: [...this.#authorSkills.values(), ...this.#clubeLibrary.installedSkills()],
+      }),
       'skills.installAvailable': async ({ provider: id, projectPath, ids }) => {
         const results: ResultOf<'skills.installAvailable'>['results'] = []
         for (const skillId of ids) {
@@ -1285,6 +1290,10 @@ export class DemoServer {
       },
       'skills.removeAvailable': async ({ provider: id, projectPath, id: skillId }) => {
         await new Promise((resolve) => setTimeout(resolve, 600))
+        if (this.#clubeLibrary.removeSkill(skillId)) {
+          this.#push('skills.changed', { provider: id, projectPath })
+          return {}
+        }
         const skill = this.#authorSkills.get(skillId)
         if (!skill || skill.installedFor !== 'app')
           throw new Error('This skill is not installed for the whole app')
@@ -1391,6 +1400,29 @@ export class DemoServer {
         this.#clube = { state: 'disconnected' }
         this.#push('clube.changed', {})
         return this.#clube
+      },
+      'clube.library.search': (params) => this.#clubeLibrary.search(params),
+      'clube.library.item': ({ id }) => this.#clubeLibrary.item(id),
+      'clube.library.media': ({ url }) => this.#clubeLibrary.media(url),
+      'clube.library.limits': () => this.#clubeLibrary.limits(),
+      'clube.library.signal': ({ id, signal }) => this.#clubeLibrary.signal(id, signal),
+      'clube.library.download': ({ id, parts }) => this.#clubeLibrary.download(id, parts),
+      'clube.library.job': ({ jobId }) => this.#clubeLibrary.job(jobId),
+      'clube.library.cancel': ({ jobId }) => {
+        this.#clubeLibrary.cancel(jobId)
+        return {}
+      },
+      'clube.library.exportText': ({ id }) => this.#clubeLibrary.exportText(id),
+      'clube.library.installSkill': ({ id, threadId }) => {
+        const result = this.#clubeLibrary.installSkill(id)
+        const thread = this.#threads.get(threadId)
+        if (result.ok && thread) {
+          this.#push('skills.changed', {
+            provider: thread.provider,
+            projectPath: thread.projectPath,
+          })
+        }
+        return result
       },
       'sounds.settings': () => this.#sounds.settings(),
       'sounds.updateSettings': (patch) => this.#sounds.update(patch),

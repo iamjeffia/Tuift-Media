@@ -1,6 +1,7 @@
 import { soundsPt } from './areas/sounds.pt-BR.js'
 import { settingsPt } from './areas/settings.pt-BR.js'
 import { clubePt } from './areas/clube.pt-BR.js'
+import { clubePanelPt } from './areas/clubePanel.pt-BR.js'
 import { sidebarPt } from './areas/sidebar.pt-BR.js'
 import { onboardingPt } from './areas/onboarding.pt-BR.js'
 import { workspacePt } from './areas/workspace.pt-BR.js'
@@ -85,5 +86,6 @@ export const ptBR = {
   ...startupPt,
   ...designPt,
   ...clubePt,
+  ...clubePanelPt,
   ...soundsPt,
 } satisfies Record<MessageKey, string>

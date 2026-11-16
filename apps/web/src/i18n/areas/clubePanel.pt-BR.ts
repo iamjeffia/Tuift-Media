@@ -1,0 +1,182 @@
+import type { clubePanelEn } from './clubePanel.en.js'
+
+/**
+ * Brazilian Portuguese messages of the Clube's library tab: exactly the keys of `clubePanel.en.ts`.
+ *
+ * Glossary (this area): biblioteca, animação, projeto, referência, skill (fica "skill"), música,
+ * prévia (preview), parte (de um projeto), crédito (de referência), limite do dia, assinatura e
+ * assinante, Clube do Motion (nunca traduzido), conta conectada, chat, pasta.
+ */
+export const clubePanelPt = {
+  'workspace.tool.clube': 'Clube',
+  // Search
+  'clubePanel.search.label': 'Buscar na biblioteca do Clube',
+  'clubePanel.search.placeholder': 'Buscar animações, projetos, skills…',
+  'clubePanel.filter.kind': 'Tipo',
+  'clubePanel.filter.allKinds': 'Todos os tipos',
+  'clubePanel.filter.style': 'Estilo',
+  'clubePanel.filter.anyStyle': 'Qualquer estilo',
+  'clubePanel.filter.tool': 'Ferramenta',
+  'clubePanel.filter.anyTool': 'Qualquer ferramenta',
+  'clubePanel.filter.scene': 'Cena',
+  'clubePanel.filter.anyScene': 'Qualquer cena',
+  'clubePanel.filter.format': 'Formato',
+  'clubePanel.filter.anyFormat': 'Qualquer formato',
+  'clubePanel.kind.animation': 'Animação',
+  'clubePanel.kind.project': 'Projeto',
+  'clubePanel.kind.reference': 'Referência',
+  'clubePanel.kind.skill': 'Skill',
+  'clubePanel.kind.music': 'Música',
+  'clubePanel.kindPlural.animation': 'Animações',
+  'clubePanel.kindPlural.project': 'Projetos',
+  'clubePanel.kindPlural.reference': 'Referências',
+  'clubePanel.kindPlural.skill': 'Skills',
+  'clubePanel.kindPlural.music': 'Músicas',
+  'clubePanel.results_one': '{count} resultado',
+  'clubePanel.results_other': '{count} resultados',
+  'clubePanel.list.label': 'Itens da biblioteca',
+  'clubePanel.more': 'Mostrar mais',
+  'clubePanel.row.open': 'Abrir {title}',
+  'clubePanel.row.free': 'Livre',
+  // States
+  'clubePanel.state.loading': 'Carregando a biblioteca…',
+  'clubePanel.state.empty.title': 'Nada encontrado',
+  'clubePanel.state.empty.detail': 'Tente outra palavra ou limpe os filtros.',
+  'clubePanel.state.error.title': 'A biblioteca não respondeu',
+  'clubePanel.state.error.detail': 'Confira sua conexão e tente de novo.',
+  'clubePanel.state.retry': 'Tentar de novo',
+  'clubePanel.state.notLinked.title': 'Conecte sua conta do Clube do Motion',
+  'clubePanel.state.notLinked.detail':
+    'A biblioteca do Clube abre aqui quando a conta está conectada: animações, projetos, referências, skills e músicas para levar aos seus chats.',
+  'clubePanel.state.notLinked.action': 'Abrir os ajustes do Clube',
+  'clubePanel.state.noSubscription.title': 'A biblioteca é para assinantes',
+  'clubePanel.state.noSubscription.detail':
+    'Sua conta do Clube do Motion está conectada, mas sem assinatura. Os planos incluem a biblioteca toda.',
+  'clubePanel.state.noSubscription.action': 'Ver os planos',
+  'clubePanel.rate.notice': 'Muitos pedidos seguidos. Tente de novo em {seconds} segundos.',
+  'clubePanel.rate.noticeNow': 'Muitos pedidos seguidos. Tente de novo em um minuto.',
+  'clubePanel.noChat': 'Abra um chat para baixar na pasta do projeto dele.',
+  // The day
+  'clubePanel.limits.label': 'Limites da sua conta',
+  'clubePanel.limits.files': 'Arquivos {used}/{limit}',
+  'clubePanel.limits.filesNote':
+    'Arquivos baixados nas últimas 24 horas: partes de projetos, animações, skills e músicas juntas.',
+  'clubePanel.limits.sounds': 'Sons {used}/{limit}',
+  'clubePanel.limits.soundsNote': 'Sons baixados nas últimas 24 horas.',
+  'clubePanel.limits.references': 'Créditos {used}/{limit}',
+  'clubePanel.limits.referencesNote':
+    'Créditos de referência usados nos últimos 30 dias. Abrir uma referência pela primeira vez gasta um.',
+  'clubePanel.limits.unlimited': 'Sem limite nesta conta',
+  // Failures of an action
+  'clubePanel.failure.notLinked': 'A conta do Clube não está mais conectada.',
+  'clubePanel.failure.noSubscription': 'Esta conta não tem assinatura.',
+  'clubePanel.failure.rateLimit': 'Muitos pedidos seguidos. Tente de novo em {seconds} segundos.',
+  'clubePanel.failure.rateLimitNow': 'Muitos pedidos seguidos. Tente de novo em um minuto.',
+  'clubePanel.failure.dailyLimit':
+    'O limite de arquivos do dia foi atingido. Os arquivos voltam aos poucos nas próximas 24 horas.',
+  'clubePanel.failure.unreachable': 'Não foi possível falar com o Clube. Tente de novo.',
+  'clubePanel.failure.notFound': 'O Clube não tem mais este item.',
+  'clubePanel.failure.noProject': 'Este chat não tem uma pasta de projeto para receber o download.',
+  'clubePanel.failure.refused': 'O Clube recusou o pedido.',
+  'clubePanel.failure.damaged': 'Um arquivo chegou danificado e não foi guardado. Tente de novo.',
+  'clubePanel.failure.unsafe':
+    'Um arquivo pedia para ir a um lugar proibido, então nada foi guardado.',
+  'clubePanel.failure.tooLarge':
+    'Um arquivo é maior do que o TUIFT Code aceita, então nada foi guardado.',
+  'clubePanel.failure.noSpace': 'Não há espaço livre suficiente no disco.',
+  'clubePanel.failure.cancelled': 'Cancelado.',
+  // Record
+  'clubePanel.record.back': 'Voltar à biblioteca',
+  'clubePanel.record.loading': 'Abrindo o item…',
+  'clubePanel.record.failed': 'Não foi possível abrir o item.',
+  'clubePanel.record.analysis': 'Análise',
+  'clubePanel.record.skillFile': 'A skill',
+  'clubePanel.record.prompt': 'Prompt',
+  'clubePanel.record.copy': 'Copiar o prompt',
+  'clubePanel.record.copied': 'Copiado',
+  'clubePanel.record.page': 'Abrir no Clube',
+  'clubePanel.record.original': 'Abrir o original',
+  'clubePanel.aspect.animation': 'Animação',
+  'clubePanel.aspect.colors': 'Cores',
+  'clubePanel.aspect.typography': 'Tipografia',
+  'clubePanel.aspect.transition': 'Transição',
+  'clubePanel.aspect.sound': 'Som',
+  'clubePanel.preview.play': 'Tocar a prévia de {title}',
+  'clubePanel.preview.loading': 'Carregando a prévia…',
+  'clubePanel.preview.failed': 'A prévia não carregou.',
+  'clubePanel.cover.none': 'Sem capa',
+  // A reference spends a credit
+  'clubePanel.reference.confirm.title': 'Abrir uma referência pode gastar um crédito',
+  'clubePanel.reference.confirm.detail':
+    'Na primeira vez que você abre uma referência, ela gasta um crédito de referência. Abrir de novo não gasta.',
+  'clubePanel.reference.confirm.open': 'Abrir a referência',
+  'clubePanel.reference.confirm.cancel': 'Agora não',
+  'clubePanel.reference.credits': 'Você usou {used} de {of} créditos de referência.',
+  // Parts and download
+  'clubePanel.parts.title': 'O que baixar',
+  'clubePanel.parts.name.project': 'Projeto',
+  'clubePanel.parts.name.guide': 'Guia',
+  'clubePanel.parts.name.audio': 'Áudio',
+  'clubePanel.parts.name.references': 'Referências',
+  'clubePanel.parts.name.render': 'Vídeo final',
+  'clubePanel.parts.size': '{size} MB',
+  'clubePanel.parts.onDisk': 'Já está no projeto',
+  'clubePanel.parts.files_one': '{count} arquivo',
+  'clubePanel.parts.files_other': '{count} arquivos',
+  'clubePanel.parts.total': '{size} MB no total',
+  'clubePanel.parts.count_one': '{count} arquivo vai contar no limite do dia.',
+  'clubePanel.parts.count_other': '{count} arquivos vão contar no limite do dia.',
+  'clubePanel.parts.nothing': 'Tudo o que você marcou já está no projeto.',
+  'clubePanel.parts.none': 'O Clube não listou arquivos para este item.',
+  'clubePanel.parts.pick': 'Incluir {label}',
+  'clubePanel.download.action': 'Baixar para o projeto',
+  'clubePanel.download.destination': 'Vai para {folder}',
+  'clubePanel.download.queued': 'Esperando outro download…',
+  'clubePanel.download.running': 'Baixando {file}',
+  'clubePanel.download.runningPlain': 'Baixando…',
+  'clubePanel.download.progress': '{received} de {total} MB',
+  'clubePanel.download.progressLabel': 'Progresso do download',
+  'clubePanel.download.cancel': 'Cancelar',
+  'clubePanel.download.done': 'Baixado em {folder}',
+  'clubePanel.download.doneFiles_one': '{count} arquivo gravado.',
+  'clubePanel.download.doneFiles_other': '{count} arquivos gravados.',
+  'clubePanel.download.doneReused': 'Nada novo foi baixado: já estava no projeto.',
+  'clubePanel.download.cancelled':
+    'O download foi cancelado. As partes que já tinham terminado ficam guardadas.',
+  'clubePanel.download.failed': 'O download não terminou.',
+  'clubePanel.download.openFolder': 'Abrir pasta',
+  // Sending to the chat
+  'clubePanel.send.action': 'Enviar ao chat',
+  'clubePanel.send.sending': 'Enviando…',
+  'clubePanel.send.sent': 'No chat',
+  'clubePanel.send.failed': 'Não foi possível anexar ao chat.',
+  'clubePanel.send.textNote':
+    'A análise e o prompt ficam salvos em um arquivo Markdown no projeto, e é ele que vai para o chat.',
+  // Music
+  'clubePanel.music.full': 'Versão completa',
+  'clubePanel.music.instrumental': 'Instrumental',
+  'clubePanel.music.vocal': 'Vocal',
+  'clubePanel.music.play': 'Tocar a prévia: {version}',
+  'clubePanel.music.pause': 'Pausar a prévia: {version}',
+  'clubePanel.music.send': 'Enviar a música ao chat',
+  'clubePanel.music.note':
+    'A música vai para audio/clube no projeto, como na aba Sons, com as três versões.',
+  // Skills
+  'clubePanel.skill.install': 'Instalar a skill',
+  'clubePanel.skill.installing': 'Instalando…',
+  'clubePanel.skill.installed': 'Instalada para todos os projetos e provedores.',
+  'clubePanel.skill.scope.motion': 'Carrega nos chats Motion.',
+  'clubePanel.skill.scope.general': 'Carrega em todos os chats.',
+  'clubePanel.skill.note':
+    'Instalada uma vez para o app todo. Ela continua aí se você desconectar a conta, e dá para remover na página Skills.',
+  'clubePanel.skill.failed': 'Não foi possível instalar a skill.',
+  // Hiding
+  'clubePanel.hide.action': 'Não mostrar mais',
+  'clubePanel.hide.note':
+    'O item some de todas as buscas da sua conta do Clube, para sempre. Aqui não dá para desfazer.',
+  'clubePanel.hide.confirm': 'Ocultar para sempre',
+  'clubePanel.hide.keep': 'Manter',
+  'clubePanel.hide.failed': 'O Clube não ocultou o item. Tente de novo.',
+  // Skills page
+  'settings.skills.catalog.metaClube': 'Instalada da biblioteca do Clube do Motion',
+} as const satisfies Record<keyof typeof clubePanelEn, string>
