@@ -165,13 +165,16 @@ describe('the cards under a reply', () => {
     expect(await screen.findByRole('dialog')).toBeTruthy()
   })
 
-  it('shows audio as a compact player', async () => {
+  it('shows audio with a player under the name, the width of the card', async () => {
     renderFiles(message('d.wav'), [AUDIO])
     const player = (await screen.findByLabelText(AUDIO.name, {
       selector: 'audio',
     })) as HTMLAudioElement
     expect(player.controls).toBe(true)
     expect(player.autoplay).toBe(false)
+    // Not squeezed beside the name: a sibling of the row, not a child of it.
+    expect(player.closest('.delivered__row')).toBeNull()
+    expect(player.closest('.delivered__card--audio')).toBeTruthy()
   })
 
   it('shows a PDF as a card that opens in the side panel, or in Explorer where there is none', async () => {

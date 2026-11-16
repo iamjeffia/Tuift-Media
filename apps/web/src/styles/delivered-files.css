@@ -145,10 +145,16 @@ button.delivered__row:hover {
   white-space: nowrap;
 }
 
-.delivered__row audio {
-  flex: none;
-  width: min(220px, 48%);
+/* The audio player has a line of its own under the name, as wide as the card. */
+.delivered__card--audio .delivered__row {
+  height: 48px;
+}
+
+.delivered__player {
+  display: block;
+  width: calc(100% - 24px);
   height: 40px;
+  margin: 0 12px 12px;
 }
 
 .delivered__unavailable {

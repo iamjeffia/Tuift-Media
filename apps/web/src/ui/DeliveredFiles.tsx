@@ -247,18 +247,22 @@ function DeliveredCard({ file, roots }: { file: DeliveredFile; roots: string[] }
     )
   } else if (file.mediaType === 'audio') {
     body = (
-      <div className="delivered__row">
-        <span className="delivered__icon" aria-hidden>
-          <FileTypeIcon path={file.name} />
-        </span>
-        <Meta
-          name={file.name}
-          path={file.path}
-          detail={failed ? t('chat.delivered.unavailable', { name: file.name }) : detail}
-          notice={Boolean(failure) || failed}
-        />
+      <>
+        <div className="delivered__row">
+          <span className="delivered__icon" aria-hidden>
+            <FileTypeIcon path={file.name} />
+          </span>
+          <Meta
+            name={file.name}
+            path={file.path}
+            detail={failed ? t('chat.delivered.unavailable', { name: file.name }) : detail}
+            notice={Boolean(failure) || failed}
+          />
+        </div>
+        {/* Under the name, the width of the card: beside it the scrubber had no room. */}
         {live && !failed ? (
           <audio
+            className="delivered__player"
             src={file.url}
             aria-label={file.name}
             controls
@@ -266,7 +270,7 @@ function DeliveredCard({ file, roots }: { file: DeliveredFile; roots: string[] }
             {...mediaEvents}
           />
         ) : null}
-      </div>
+      </>
     )
   } else {
     body = (
