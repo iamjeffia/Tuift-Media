@@ -312,7 +312,7 @@ describe('default skill packs', () => {
     'fits the real Motion pack within the cap and lists the HyperFrames entry point',
     () => {
       const pack = loadDefaultSkillPack('motion')
-      expect(pack?.skills).toHaveLength(20)
+      expect(pack?.skills).toHaveLength(19)
       expect(pack?.skills.slice(0, 3)).toEqual([
         'motion-app-ae',
         'composicao-trilha',
@@ -320,7 +320,7 @@ describe('default skill packs', () => {
       ])
       expect(pack?.catalog.length).toBeLessThanOrEqual(PACK_CATALOG_MAX_CHARS)
       expect(pack?.catalog).toContain('- hyperframes: ')
-      expect(loadDefaultSkills().skills).toHaveLength(3)
+      expect(loadDefaultSkills().skills).toHaveLength(5)
     },
   )
 })

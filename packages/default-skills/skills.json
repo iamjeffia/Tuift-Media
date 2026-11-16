@@ -102,9 +102,9 @@
       "pack": "motion",
       "license": "Apache-2.0",
       "licenseFile": "LICENSE",
-      "treeSha256": "debe4978760f1c94ad5420212f8645462009f34a0c5ff2da2c3c498321731c23",
+      "treeSha256": "6fede989d9e6ef3a72f201550a714d193329948135f390ceac169346b8bad5ad",
       "files": 18,
-      "bytes": 106779
+      "bytes": 107141
     },
     {
       "folder": "video-referencias",
@@ -165,12 +165,21 @@
       "folder": "watch",
       "summary": "watch a video from a URL or file: frames and transcript",
       "source": "local",
-      "pack": "motion",
       "license": "MIT",
       "licenseFile": "LICENSE",
       "treeSha256": "e7d5915ead6e699c5397f5c6b8c4091b9a7fa01145380cae2569ccbe0c59f97b",
       "files": 12,
       "bytes": 139375
+    },
+    {
+      "folder": "ouvir",
+      "summary": "hear and measure audio: levels, cue sync, key, speech",
+      "source": "local",
+      "license": "Apache-2.0",
+      "licenseFile": "LICENSE",
+      "treeSha256": "4f590e68cc7cd30c0433da635b9b6f495e7c0430615e8958dba1b21c66f2bbce",
+      "files": 9,
+      "bytes": 91887
     },
     {
       "folder": "hyperframes",

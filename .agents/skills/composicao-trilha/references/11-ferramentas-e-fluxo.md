@@ -6,7 +6,7 @@ As ferramentas na ordem do trabalho: medir a música, separar a voz, escolher os
 
 | O quê | Como |
 |---|---|
-| Tom | um analisador de tom (Essentia, librosa ou equivalente). Com resultado pouco confiável, desempate em um banco de tons ou na partitura. Para piano e violino, meça a escala no stem harmônico |
+| Tom | `ouvir key` (a skill `ouvir`) ou um analisador de tom (Essentia, librosa ou equivalente); o resultado diz quando não é confiável. Com resultado pouco confiável, desempate em um banco de tons ou na partitura. Para piano e violino, meça a escala no stem harmônico |
 | Afinação | `librosa.estimate_tuning` no instrumental. Música desafinada em dezenas de cents desafina todo tonal: meça antes de escolher |
 | Batida e andamento | um rastreador de batidas (beat_this, madmom, librosa). O andamento de um catálogo pode estar errado. No After Effects, `ae_beats` mede e marca a comp |
 | Acordes | um extrator de acordes, como base para piano e orquestra no pulso |
@@ -44,7 +44,7 @@ Formato do `cues.json` e exemplos: veja o cabeçalho do script.
 
 | O quê | Como |
 |---|---|
-| Sincronia | onsets no stem só de efeitos ou tonais, nunca no mix |
+| Sincronia | onsets no stem só de efeitos ou tonais, nunca no mix; `ouvir events --cues` confere uma lista de cues e mostra o acerto por acaso |
 | Contra uma referência | só nas janelas em que o autor não fala, comparando a mixagem inteira no drop |
 | Som de cena | confira antes de entregar: ambiência cruzando, sem silêncio morto, sem normalizar sozinho a −14 |
 | Densidade em tutorial | conte os grupos de som por 10 s |
@@ -53,5 +53,5 @@ Formato do `cues.json` e exemplos: veja o cabeçalho do script.
 ## 6. Quem aprova
 
 - **O ouvido final é do usuário.** Você mede e envia a prévia com som. Para A/B: referência, 2 s de silêncio, a sua, igualadas no drop.
-- Um modelo de áudio pode dar uma segunda opinião estrutural (nível, estrutura, artefato, sincronia). Ele erra nome de instrumento, inventa tempos e é mau juiz de reverb e de gosto: confira cada crítica no stem.
+- Um modelo de áudio pode dar uma segunda opinião estrutural (nível, estrutura, artefato, sincronia): `ouvir opinion`, só com o ok da pessoa para enviar o áudio. Volume, pico e silêncio vêm de `ouvir measure`. Ele erra nome de instrumento, inventa tempos e é mau juiz de reverb e de gosto: confira cada crítica no stem.
 - Gosto de reverb ou de dose: envie 3 doses do mesmo trecho lado a lado.
