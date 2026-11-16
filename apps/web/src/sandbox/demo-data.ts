@@ -471,6 +471,47 @@ function usage(totalTokens: number, contextWindow: number, modelId: string): Dem
   }
 }
 
+/**
+ * A long chat (forty turns of mixed lengths) to scroll, so a virtualised transcript with
+ * rows it has not measured yet can be looked at: `?chat=demo-long-chat`.
+ */
+function longChat(): DemoChat {
+  const code = '```ts\nconst rows = list.filter((row) => row.visible)\nrows.forEach(measure)\n```'
+  return {
+    id: 'demo-long-chat',
+    title: 'A long chat to scroll',
+    provider: 'claude-code',
+    model: 'claude-opus-5-5',
+    effort: 'high',
+    approval: 'auto',
+    turns: Array.from({ length: 40 }, (_, index): DemoTurn => {
+      const lines = 1 + ((index * 7) % 5)
+      const body = Array.from(
+        { length: lines },
+        (_line, line) =>
+          `Point ${line + 1} of answer ${index + 1}: the row keeps its height while the list around it changes, and the next row starts where this one ends.`,
+      ).join('\n\n')
+      return {
+        prompt: `Question ${index + 1}: how does the list measure rows that are far from the viewport?`,
+        agoMs: (41 - index) * 20 * 60_000,
+        durationMs: 9_000 + index * 300,
+        items: [
+          ...(index % 3 === 0
+            ? [
+                toolCall(
+                  'Grep',
+                  { pattern: 'measure', path: 'apps/web/src' },
+                  'apps/web/src/ui/Thread.tsx:1084',
+                ),
+              ]
+            : []),
+          assistant(index % 4 === 1 ? `${body}\n\n${code}` : body),
+        ],
+      }
+    }),
+  }
+}
+
 export const DEMO_PROJECTS: ReadonlyArray<DemoProject> = [
   {
     name: 'tastecode',
@@ -501,6 +542,7 @@ export const DEMO_PROJECTS: ReadonlyArray<DemoProject> = [
     chats: [
       FILE_LINK_DEMO_CHAT,
       MEDIA_DELIVERY_DEMO_CHAT,
+      longChat(),
       {
         id: 'demo-focus-ring',
         title: 'Soften the prompt bar focus ring',

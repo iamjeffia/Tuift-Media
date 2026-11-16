@@ -7915,6 +7915,11 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     designMode: designMode,
     motionMode: motionMode,
     motionLocked: motionLocked,
+    motionStage: motionStage,
+    motionAfterEffects: motionAfterEffects,
+    motionWaiting: waitingForPerson(active?.session),
+    motionWorking: motionWorking,
+    onMotionStageChange: setMotionStage,
     ...(askFirstUnsupported
       ? {
           askFirstUnavailable: `${providerName(provider, sourceAgentName)} can't ask before running commands`,
@@ -7962,6 +7967,20 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
   const besideSession = useMemo(
     () => (besideId ? findSession(projects, besideId) : undefined),
     [projects, besideId],
+  )
+  // The Motion team of the pane beside, live where the rest of its composer is frozen.
+  const besideWaiting = waitingForPerson(besideSession?.session)
+  const besideComposerMotion = useMemo(
+    () => ({
+      motionMode: besideMotion.mode,
+      motionStage: besideMotion.stage,
+      motionAfterEffects: besideMotion.afterEffects,
+      motionWaiting: besideWaiting,
+      motionWorking: besideWorking,
+      motionLocked: false,
+      onMotionStageChange: undefined,
+    }),
+    [besideMotion, besideWaiting, besideWorking],
   )
   const besideNewPath = split?.beside.kind === 'new' ? split.beside.projectPath : undefined
   const renderStageHeader = (onClosePane: (() => void) | undefined) => (
@@ -8116,16 +8135,19 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                             <div
                               className={`stage__conversation${activeId ? '' : ' is-new-session'}`}
                             >
-                              <LazyMotionCast
-                                mode={motionMode}
-                                stage={motionStage}
-                                afterEffects={motionAfterEffects}
-                                waiting={waitingForPerson(active?.session)}
-                                working={motionWorking}
-                                running={visibleRunning}
-                                locked={motionLocked}
-                                onStageChange={setMotionStage}
-                              />
+                              {/* A chat that exists has its Motion team in the status strip above the prompt box. */}
+                              {activeId ? null : (
+                                <LazyMotionCast
+                                  mode={motionMode}
+                                  stage={motionStage}
+                                  afterEffects={motionAfterEffects}
+                                  waiting={waitingForPerson(active?.session)}
+                                  working={motionWorking}
+                                  running={visibleRunning}
+                                  locked={motionLocked}
+                                  onStageChange={setMotionStage}
+                                />
+                              )}
                               {activeId ? (
                                 <AccountLabelContext.Provider value={accountLabel}>
                                   <ModelNameContext.Provider value={modelName}>
@@ -8200,13 +8222,15 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                             <div
                               className={`stage__conversation${besideId ? '' : ' is-new-session'}`}
                             >
-                              <LazyMotionCast
-                                mode={besideMotion.mode}
-                                stage={besideMotion.stage}
-                                afterEffects={besideMotion.afterEffects}
-                                waiting={waitingForPerson(besideSession?.session)}
-                                working={besideWorking}
-                              />
+                              {besideId ? null : (
+                                <LazyMotionCast
+                                  mode={besideMotion.mode}
+                                  stage={besideMotion.stage}
+                                  afterEffects={besideMotion.afterEffects}
+                                  waiting={waitingForPerson(besideSession?.session)}
+                                  working={besideWorking}
+                                />
+                              )}
                               {besideId ? (
                                 <AccountLabelContext.Provider value={accountLabel}>
                                   <ModelNameContext.Provider value={modelName}>
@@ -8257,6 +8281,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                                 composer={split.frozen.composer}
                                 dormant
                                 queue={besideQueue}
+                                motion={besideComposerMotion}
                               />
                             </div>
                           </>

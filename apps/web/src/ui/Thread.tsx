@@ -338,6 +338,37 @@ export const Thread = memo(function Thread(props: ThreadProps) {
     [glide],
   )
   /**
+   * What the scroller keeps clear at its bottom for the composer is its own padding,
+   * so a status line, a queue or a draft that goes away shrinks the scroll range, and
+   * so does a window that gets shorter. The browser clamps the scroll to the smaller
+   * range in the layout that just ran, before anything of ours can react, and the
+   * scroll event for it arrives a frame later looking like the user scrolling up: the
+   * pinned prompt slid up by the difference and the follow let go of the end. Called
+   * from the resize notification, once the room for the new range is written: the
+   * scroll goes back where we left it (or where the running glide is), before paint,
+   * so the clamp is never seen and never read as the user's.
+   */
+  const putBackClampedScroll = useCallback(
+    (el: HTMLElement) => {
+      const state = follow.current
+      const now = performance.now()
+      if (state.holding || (state.intent?.up && now - state.intent.at < INTENT_MS)) return
+      const clamped = el.scrollTop
+      if (clamped >= state.knownTop - 0.5) return
+      const back = Math.min(
+        glide.running ? glide.position : state.knownTop,
+        Math.max(0, el.scrollHeight - el.clientHeight),
+      )
+      // The range did not come back (content that really shrank): the clamp stands.
+      if (back <= clamped + 0.5) return
+      writtenScrollTop.current = back
+      state.knownTop = back
+      if (glide.running) glide.sync(back)
+      el.scrollTop = back
+    },
+    [glide],
+  )
+  /**
    * The frame request of a running "Jump to latest" glide. A native smooth
    * scroll fixes its target when it starts, so it lands short of a reply that
    * keeps growing and never reaches the end it was sent to. The glide chases
@@ -1555,6 +1586,7 @@ export const Thread = memo(function Thread(props: ThreadProps) {
           follow={follow}
           writeScrollTop={writeScrollTop}
           followTo={followTo}
+          putBackClampedScroll={putBackClampedScroll}
           measureFollow={measureFollow}
           settledHeight={settledHeight}
           applyRoom={applyRoom}
@@ -1643,6 +1675,7 @@ function FrameScrollFollower({
   follow,
   writeScrollTop,
   followTo,
+  putBackClampedScroll,
   measureFollow,
   settledHeight,
   applyRoom,
@@ -1664,6 +1697,7 @@ function FrameScrollFollower({
   follow: { current: FollowState }
   writeScrollTop: (element: HTMLElement, top: number) => void
   followTo: (element: HTMLElement, end: number) => void
+  putBackClampedScroll: (element: HTMLElement) => void
   measureFollow: (element: HTMLElement, settled?: number) => void
   settledHeight: (element: HTMLElement) => number
   applyRoom: () => void
@@ -1692,6 +1726,7 @@ function FrameScrollFollower({
       applyRoom()
       if (modeRef.current === 'free') updateJump(endOf() - follow.current.knownTop)
       if (modeRef.current !== 'follow-end') return
+      putBackClampedScroll(element)
       // A viewport that changed size keeps the last line where it was at
       // once: a composer growing by a line must not cover it while a glide
       // catches up.
@@ -1707,6 +1742,7 @@ function FrameScrollFollower({
     follow,
     writeScrollTop,
     followTo,
+    putBackClampedScroll,
     measureFollow,
     applyRoom,
     endOf,
