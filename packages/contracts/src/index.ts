@@ -1,5 +1,6 @@
 export * from './chat-activity.js'
 export * from './chat-import.js'
+export * from './clube.js'
 export * from './connections.js'
 export * from './domain.js'
 export * from './item-limits.js'

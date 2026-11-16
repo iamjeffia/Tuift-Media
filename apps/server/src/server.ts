@@ -26,6 +26,7 @@ import { stopModelListings } from './runtime-loader.js'
 import { readWorkspaceDiff, StaleDiffSnapshotError } from './diff-review.js'
 import { Orchestrator, resolveWorkspacePath, type LifecycleScheduleHint } from './orchestrator.js'
 import { defaultSkillsRoot } from './default-skills.js'
+import { ClubeAccount } from './clube-account.js'
 import { afterEffectsSource } from './motion-after-effects.js'
 import { checkForUpdates } from './update-check.js'
 import type { FeedbackConfig } from './feedback-config.js'
@@ -314,7 +315,13 @@ export function startServer(
     onChange: (notice) => push.broadcast('system.memory', notice),
   })
   let chatActivity: ChatActivityReporter | undefined
+  // The Clube do Motion link. Its changes carry nothing: a phone gets the nudge, never the account.
+  const clube = new ClubeAccount({
+    log: (line) => console.log(line),
+    onChanged: () => push.broadcast('clube.changed', {}),
+  })
   const orchestrator = new Orchestrator(store, {
+    clube,
     memory: memoryWatch,
     onChatStatus: (threadId) => chatActivity?.changed(threadId),
     onEvent: (threadId, event, seq, serializedEvent) => {
@@ -1196,6 +1203,20 @@ export function startServer(
         await orchestrator.reloadMcpServers(p.provider, p.projectPath)
         return {}
       }
+
+      case 'clube.status':
+        return clube.status()
+
+      case 'clube.connect':
+        return clube.connect()
+
+      case 'clube.cancel':
+        clube.cancel()
+        return clube.status()
+
+      case 'clube.disconnect':
+        await clube.disconnect()
+        return clube.status()
 
       case 'mcp.startOAuth': {
         const p = parseParams(method, params)

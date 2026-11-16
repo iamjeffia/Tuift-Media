@@ -29,6 +29,7 @@ import {
   SubagentSettingsSchema,
   UsageSchema,
 } from './domain.js'
+import { ClubeStatusSchema } from './clube.js'
 import { AfterEffectsStateSchema, MotionStageSchema, ThreadModeSchema } from './motion.js'
 import { PhoneAccessStatusSchema, PhonePairingSchema, ProjectBrowseResultSchema } from './phone.js'
 import {
@@ -428,6 +429,8 @@ export const McpServerSchema = z.object({
   tools: z.array(McpToolSchema),
   resources: z.array(McpResourceSchema),
   resourceTemplates: z.array(McpResourceTemplateSchema),
+  /** The app provides this server itself, and it cannot be edited here. */
+  providedBy: z.literal('clube').optional(),
 })
 export type McpServer = z.infer<typeof McpServerSchema>
 
@@ -2542,6 +2545,25 @@ export const methods = {
     params: z.object({ otherProviders: z.boolean() }),
     result: SubagentSettingsSchema,
   },
+  // The Clube do Motion link. Never offered to a paired phone.
+  'clube.status': {
+    params: z.object({}),
+    result: ClubeStatusSchema,
+  },
+  /** Starts the sign-in; the page opens `authUrl` in the person's browser. */
+  'clube.connect': {
+    params: z.object({}),
+    result: z.object({ authUrl: HttpUrlSchema }),
+  },
+  'clube.cancel': {
+    params: z.object({}),
+    result: ClubeStatusSchema,
+  },
+  /** Revokes at the Clube and forgets the tokens. */
+  'clube.disconnect': {
+    params: z.object({}),
+    result: ClubeStatusSchema,
+  },
 } as const
 
 export type MethodName = keyof typeof methods
@@ -2725,6 +2747,8 @@ export const channels = {
   'projects.changed': z.object({}),
   /** Phone access changed: turned on or off, a phone paired, connected or left. */
   'phone.changed': PhoneAccessStatusSchema,
+  /** The Clube link changed. Carries nothing: the screen asks `clube.status`, which a phone cannot. */
+  'clube.changed': z.object({}),
   'terminal.output': z.object({
     terminalId: TerminalIdSchema,
     data: z.string(),
