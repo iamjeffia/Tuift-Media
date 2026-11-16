@@ -38,7 +38,7 @@
       "ref": "v2.5.0",
       "commit": "822e0b9d872e10deb931afad2c6c2bd943cf4c7b",
       "path": "skills/taste-skill",
-      "license": "MIT",
+      "license": "MIT AND Apache-2.0",
       "licenseFile": "LICENSE",
       "archiveSha256": "f7995b87905c1881e48fad6aa0c6ba4ad871bded5e673ecc455a085f922da2e5",
       "treeSha256": "68c80a9007a7d14fe435d373cf3f2eda245840dd96d8be424e44efba3915537a",
@@ -61,7 +61,8 @@
         ]
       },
       "patch": {
-        "about": "TUIFT Code copies in patches/design-taste-frontend/ that point the skill at the user's own pictures; each value is the sha256 of the upstream file the copy was written against.",
+        "about": "TUIFT Code copies in patches/design-taste-frontend/ (each value is the sha256 of the upstream file the copy was written against) that point the skill at the user's own pictures and merge in Anthropic's frontend-design (Apache-2.0); `add` lists TUIFT Code's own files that sit beside the upstream ones: the direction reference, the Apache-2.0 licence and the notice.",
+        "add": ["LICENSE-APACHE-2.0", "NOTICE", "references/direction.md"],
         "files": {
           "SKILL.md": "c16f47478c2da4911232de8210c938cb6efe41a78ae24bfdcc502d8336f2303b",
           "references/photos.md": "cd7fd222a950c6a44159cf1679fe502ad897798f72a14968aae1cc73ce225d3f",
@@ -323,21 +324,6 @@
       "treeSha256": "18f872fcb03691458e3112604d802f974c80c05986e344a2d3eb01a0c7ef2a74",
       "files": 7,
       "bytes": 53550
-    },
-    {
-      "folder": "frontend-design",
-      "summary": "a distinctive visual direction, type and palette",
-      "repository": "anthropics/skills",
-      "ref": "main",
-      "commit": "1780c5e5a552fd4d1c9d6a7b0cab26b0c2bef064",
-      "path": "skills/frontend-design",
-      "license": "Apache-2.0",
-      "licenseFile": "skills/frontend-design/LICENSE.txt",
-      "pack": "design",
-      "archiveSha256": "df4b9c743ef33f46b029019d8e247b717a0e833b628c80c8b4c51f034923d2b2",
-      "treeSha256": "319b552ff3a29adc7e180618850393688c214c8c2c070c57afe3ec381ca46f72",
-      "files": 3,
-      "bytes": 29738
     },
     {
       "folder": "better-interface",
@@ -799,6 +785,36 @@
       "treeSha256": "b360cbcc1cab89161f839ba2d2a75f8ca3fc79c90899c630b876dcb115770c3b",
       "files": 3,
       "bytes": 36070
+    },
+    {
+      "folder": "ask-emil",
+      "summary": "which skill or flow fits your situation",
+      "repository": "emilkowalski/skills",
+      "ref": "main",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "path": "skills/ask-emil",
+      "license": "MIT",
+      "licenseFile": "LICENSE",
+      "pack": "design",
+      "archiveSha256": "1ff7591c03f1cc539b1c1d6468aabae27e5543f120783d947d9ee9b79cba9350",
+      "treeSha256": "b14b3151c6210d69ed432add05426d521056e47580c203328e1bb4625bec08a6",
+      "files": 2,
+      "bytes": 6018
+    },
+    {
+      "folder": "learn-taste",
+      "summary": "turn design corrections into written rules",
+      "repository": "emilkowalski/skills",
+      "ref": "main",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "path": "skills/learn-taste",
+      "license": "MIT",
+      "licenseFile": "LICENSE",
+      "pack": "design",
+      "archiveSha256": "1ff7591c03f1cc539b1c1d6468aabae27e5543f120783d947d9ee9b79cba9350",
+      "treeSha256": "07c7b05760bf4bf6863ce4f23b12b45ced40a9880078e3ad74c2ee18f7a7efc8",
+      "files": 2,
+      "bytes": 10321
     },
     {
       "folder": "design-an-interface",

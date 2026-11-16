@@ -13069,7 +13069,7 @@ describe('Motion mode session start', () => {
 
   const DESIGN_SKILLS = [
     ['ui-profissional', 'screens without a generic look'],
-    ['frontend-design', 'a distinctive visual direction'],
+    ['better-typography', 'type that fits the subject'],
   ] as const
 
   const motionHarness = async ({

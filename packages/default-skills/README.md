@@ -36,7 +36,7 @@ bundle/                         base plugin ("tastecode"): skills with no pack
 - Other providers: a short catalog of the pack, from `loadDefaultSkillPack` in
   `apps/server/src/default-skills.ts`.
 
-Packs today: `motion` (video and motion skills) and `design` (36 skills: the team's own, and the
+Packs today: `motion` (video and motion skills) and `design` (37 skills: the team's own, and the
 third-party ones whose licences allow embedding, each pinned by commit; see
 `THIRD_PARTY_NOTICES.md`). A source whose archive is too large to fetch for one skill is copied into
 `.agents/skills/` instead and bundled as a local skill (`libraries-dev`).

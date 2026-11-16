@@ -55,7 +55,7 @@ async function harness(options: { design?: boolean; motion?: boolean } = {}) {
   if (options.design !== false)
     await writeDefaultSkillPackFixture(root, 'design', [
       ['ui-profissional', 'screens without a generic look'],
-      ['frontend-design', 'a distinctive visual direction'],
+      ['better-typography', 'type that fits the subject'],
     ])
   const started: StartOptions[] = []
   const resumed: StartOptions[] = []
@@ -128,7 +128,7 @@ describe('a chat in Design mode', { timeout: 30_000 }, () => {
     expect(start.packPlugins).toBeUndefined()
     expect(start.instructions).toContain(DESIGN_ROLE_WITH_BROWSER)
     expect(start.instructions).toContain('- ui-profissional: screens without a generic look')
-    expect(start.instructions).toContain('- frontend-design')
+    expect(start.instructions).toContain('- better-typography')
     expect(start.instructions).not.toContain('hyperframes')
   })
 

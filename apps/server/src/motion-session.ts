@@ -65,8 +65,10 @@ const DESIGN_HEAD = `This chat is in Design mode. You are the designer and front
 
 Look for references before you design, and say where each one came from: a site, an app, a screenshot or something the person named. Do not invent a look from memory.
 
+design-taste-frontend is always available: start from it for anything new or redesigned, its concept and plan come before code.
+
 Pick skills of the Design pack by the request, and read one only when the request needs it, never all of them:
-- build something new: ui-profissional and frontend-design, then better-colors, better-typography and better-layout
+- build something new: ui-profissional, then better-colors, better-typography and better-layout
 - redesign or review: better-interface, interface-review and better-accessibility
 - interface text: better-writing
 - interface animation: animate, choreograph and review-animations

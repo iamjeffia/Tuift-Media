@@ -1,0 +1,27 @@
+design-taste-frontend, as shipped by TUIFT Code
+
+This skill carries two works under two licences.
+
+1. tasteskill (taste-skill v2.5.0, Leonxlnx/taste-skill at commit 822e0b9), MIT licence, in LICENSE
+   with the copyright line of its author. Every file of this folder comes from it, unchanged, except
+   the files named in 3.
+
+2. The frontend-design skill (anthropics/skills, skills/frontend-design, commit 1780c5e), Apache
+   License 2.0, in LICENSE-APACHE-2.0 as the Apache-2.0 licence asks. That work has no NOTICE file
+   of its own and its SKILL.md carries no copyright line.
+
+3. What was changed. SKILL.md, references/direction.md and this NOTICE are new in this skill; the
+   Apache-2.0 work was adapted into them, not copied:
+   - references/direction.md holds the substance of frontend-design (subject grounding, the design
+     plan and its review, the traits of generated pages, the hero, type, structure, motion, code,
+     restraint and self-critique, and the writing rules), reworded, split into numbered sections,
+     fitted to this skill's run, with a table of where the two sets of rules differ.
+   - SKILL.md is tasteskill's SKILL.md with TUIFT Code's earlier changes (no picture library: see its
+     section "In TUIFT Code") and, adapted from frontend-design: the concept step and the plan review,
+     the paragraph on the brief's words, the lines on machine-made defaults, and the widened
+     description.
+   - scripts/photos.mjs and references/photos.md are tasteskill's files as TUIFT Code changed them
+     (no picture library).
+
+The MIT licence covers part 1 and the Apache License 2.0 covers the adapted part 2. Names and
+trademarks of the authors are not granted by either licence.

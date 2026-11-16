@@ -1,14 +1,15 @@
 ---
 name: design-taste-frontend
 description: >-
-  tasteskill 2.5.0, the anti-slop frontend skill. Builds professional company websites at the level
-  of figma.com and x.ai: plain copy, one system, one section per screen, equal edges, real
-  photographs and real product UI (product renders when there are no photographs), with shader
-  effects, scenes and moments only on tech, gaming and software pages, quiet micro-interactions,
-  and a checker that enforces it in a real browser. Use this whenever you build, design, redesign,
-  restyle, polish or review a landing page, company, product, shop, cafe, hotel, studio, SaaS, AI,
-  developer-tool or game site, in any stack (HTML/CSS, React, Next.js, Vue, Svelte, Astro,
-  Tailwind), or when the user says a page looks generic, templated or "AI-made".
+  Visual direction and the anti-slop build for interfaces: tasteskill 2.5.0 merged with Anthropic's
+  frontend-design. A concept, type and palette chosen for the subject, then websites at the level of
+  figma.com and x.ai: plain copy, one system, one section per screen, equal edges, real photographs and
+  real product UI, shader effects, scenes and moments only on tech pages, quiet micro-interactions, and a
+  checker that enforces it in a real browser. Use this whenever you build, design, redesign, restyle,
+  polish or review a landing page, company, product, shop, cafe, hotel, studio, SaaS, AI, developer-tool
+  or game site, a web app screen or a component, in any stack (HTML/CSS, React, Next.js, Vue, Svelte,
+  Astro, Tailwind); when you pick an aesthetic direction, typefaces or a palette, or write interface
+  copy; or when the user says a page looks generic, templated or "AI-made".
 ---
 
 # tasteskill 2.5
@@ -16,6 +17,11 @@ description: >-
 Build the website a good company would ship: it says plainly what is sold, shows the real thing on
 every screen, and looks made for this client, not from a template and not like an art piece.
 figma.com and x.ai are the bar (in words: `layout-v4.md` section 1).
+
+This is two skills in one. The kit below (tasteskill) fixes how a page is built and checks it; the
+direction (from Anthropic's `frontend-design`, `references/direction.md`) decides what the page is about,
+and comes first: the concept and the plan are written and reviewed against the brief before any code.
+The stance is in the first paragraph of `direction.md`.
 
 `<skill>` is this folder. It needs Node 22+ and Chrome, Edge or Chromium (ffmpeg optional). Copy `<skill>/assets` into the project's
 `assets` and start from `assets/starter.html`.
@@ -61,6 +67,10 @@ These nine win over everything else in this skill.
 9. **Addresses:** street and district only (no street given: the district), no house number, postcode or coordinates; no register
    or VAT numbers; no phone in a real format; contacts on `.example`.
 
+The brief's own words win on the look it pins down (colours, type, a direction), even when that is a look
+the direction calls a default; the nine rules above win over everything else in the kit. Direction and
+kit disagree in a few places: `direction.md` section 12 says which rule stands.
+
 ## 1. The kind of business decides everything
 
 Write the kind on the plan's first line and declare it on the page: the page type on
@@ -80,6 +90,9 @@ the metas.
 
 A maker that also opens its door or teaches (a ceramics studio, a bakery with a web shop) is a
 **place**; its web shop becomes the goods section. It is a product only when nothing happens at the door.
+
+Then ground the design in the subject: its industry, materials and vernacular are where the distinctive
+choices come from (`direction.md` section 1).
 
 "Tech" below means site-kind software, gaming or tech; "other" is everything else. Effects,
 scenes, moments, loops, counts, CSS grounds, dark pages and dark heroes are tech only. An other
@@ -139,6 +152,7 @@ Open the reference of every asset family the page uses first. A dash means never
 | Sections and recipes | `starter.html` | its plan | product plan | its plan | place plan | `sections.md`, `sections-library.md` |
 | Tokens, grid, buttons, nav, footer, colour | `system.css`, `system.js` | yes | yes | yes | place tokens | `system.md` |
 | Copy, contacts, credits | | yes | yes | yes | yes | `copy.md` |
+| Concept, plan review, type voice, words inside an interface | | yes | yes | yes | yes | `direction.md` |
 | Hover, press, focus, nav, tabs | `assets/motion` | yes | yes | yes | yes | `motion.md` |
 | Card loops, a count | `assets/motion`, `assets/ui` | yes | yes | - | - | `motion.md`, `cards.md` |
 | Photographs | the brief's and the user's own files | people, customers; a game's art | lead | lead | lead, 12-20 | `photos.md` |
@@ -153,23 +167,29 @@ Open the reference of every asset family the page uses first. A dash means never
 | Big scenes | `assets/scenes` | 0-1 | 0-1 | - | - | `scenes.md` |
 | Speed and weight | `scripts/perf.mjs` | yes | yes | yes | yes | `perf.md` |
 
-Read `copy.md`, `system.md`, `layout-v4.md` and `sections.md` in full before the first page.
+Read `direction.md`, `copy.md`, `system.md`, `layout-v4.md` and `sections.md` in full before the first page.
 
 ## 4. The run
 
 1. **Read the brief.** Write down the kind (section 1), what is sold, who buys it, the one main
    action (the transaction: Book a room, Order a cake, Start a free trial; a place with neither:
-   Get directions) and the real material: logo, screens, photographs, prices, address, hours.
+   Get directions) and the real material: logo, screens, photographs, prices, address, hours. If the brief does not say what the
+   product or subject is, propose one concrete subject, audience and primary job and confirm it
+   (`direction.md` section 1).
 
 2. **Write all the copy first,** as `copy.md` says: the h1 names the category
    and the buyer or the place (a game: its name and genre), one hard fact on the first screen, a noun in every heading, buttons
    as a verb and an object. Nothing is invented but a coined brand name (searched first, the result
-   kept in `names.json` beside the page) and, on a place, plausible hours and prices.
+   kept in `names.json` beside the page) and, on a place, plausible hours and prices. The words inside an
+   interface (buttons, errors, empty states): `direction.md` section 11.
 
 3. **Plan the page as screens.** Line 1: the kind. Line 2: the deal (step 4). Then one line per
    section: its id, its one idea, its picture and its kind (object, use, parts, world, slot, diagram, type; three object lines at most), its
    screens (1 or 2, from its content height, `layout-v4.md` section 2), and on tech which section
-   holds the effect, the scene or a moment. List the photographs the brief and the user supply
+   holds the effect, the scene or a moment. Beside the lines write the concept (`direction.md` sections 2
+   and 10): the one thing the page is about and its one memorable element, the base palette as 4 to 6
+   named hex values, the type roles, and an ASCII wireframe of the hero and the screen order, two or three
+   to compare, with the alignment. List the photographs the brief and the user supply
    (`photos.md`); their count sets a place's length (section 2). Then read `cards.md` and the recipe of
    every id you use in `sections-library.md`.
 
@@ -193,6 +213,10 @@ Read `copy.md`, `system.md`, `layout-v4.md` and `sections.md` in full before the
    (`effects-usage.md`) and the moments (`moments.md`). Write every result on plan line 2 and in
    the comment at the top of `<body>`, and build exactly that (a short page drops what it has no section for: `sections.md` section 4).
 
+   **Review the plan against the brief before you build** (`direction.md` section 3): wherever a part
+   reads like the default you would produce for any similar page, not like a choice for this brief, deal
+   again or take the client's own colours, say what changed and why, and build the revised plan.
+
 5. **Build.** In `starter.html`: set `<html data-type data-radius data-buttons data-motion>` and the
    three metas, the nav class; copy only the `<section class="hero …">` of
    `assets/layout/hero-<id>.html` (never its nav, other sections, footer or credit line; every word
@@ -200,7 +224,7 @@ Read `copy.md`, `system.md`, `layout-v4.md` and `sections.md` in full before the
    and delete the rest. Every section is `main > section` with
    one `.wrap`, its h2 first, `--h: 1` or `2`. Build each to its recipe with the system's classes
    and tokens; write page CSS only where a reference says page CSS (inside a visual, `--p-h`,
-   `.wall`, `.rail`, `.device`). Paste UI from `assets/ui/<name>/fragment.html` and rewrite every
+   `.wall`, `.rail`, `.device`), and watch selector specificity there (`direction.md` section 9). Paste UI from `assets/ui/<name>/fragment.html` and rewrite every
    name, number and logo to the client's (kit icons become `data-icon`, `cards.md`); a diagram card is `data-diagram="<preset>"`
    with the client's labels; run `icons.mjs scan index.html --out assets/icons --colour` last, so every icon
    the page names is a local file. Mount an effect, object, moment or scene exactly as its
@@ -220,7 +244,8 @@ Read `copy.md`, `system.md`, `layout-v4.md` and `sections.md` in full before the
 
    Shoot 1024, 820x1180, 768x1024 and 390 as well. Every `check.mjs` finding fails the page (no `--no-stress`).
    Fix every FAIL (one you judge false goes in the report with its reason), shoot again, and read
-   every screenshot against the checklist.
+   every screenshot against the checklist, and against the plan: take one accessory off (`direction.md`
+   section 10).
 
 7. **Report:** the kind, the deal (palette, pairing, hero, grounds, effect, moments, scene); the
    checker, layout and perf results; what you could not check; every assumed price, hour or
@@ -273,9 +298,10 @@ Each line names its checks: `consistency.mjs` ids in brackets, `check.mjs` findi
   or on a clear bleed [fold-card] (`layout-v4.md`); splits stack text first, no row half empty; one column at 390, buttons full
   width, a full-screen menu; the place action bar.
 - **Your eyes:** beside the figma.com and x.ai frames it reads as a professional company site;
-  nothing tilted, staggered, cut or overlapping; the hero is the work, not a mood.
+  nothing tilted, staggered, cut or overlapping; the hero is the work, not a mood; one element is the
+  memorable one and the rest is quiet; keyboard focus is visible on every control.
 
-## 6. Never
+## 6. Never, and what reads as machine-made
 
 - A card, row or tile that animates on scroll; a reveal, fade-in or parallax; random blinking.
 - Stock photographs passed off as the client's product, people or place; a product page that
@@ -284,9 +310,18 @@ Each line names its checks: `consistency.mjs` ids in brackets, `check.mjs` findi
 - Violet or lavender in the page's own design: accent, ground, gradient, effect colour or tint (a
   real third-party logo keeps its own colours, `icons.md`).
 - Copying a reference site's code, copy, pictures or signature effect.
+- The defaults of a generated page, whatever the subject (`direction.md` section 4): cream ground, serif
+  and clay accent together; near-black with one acid accent; a broadsheet of rules and zero radius;
+  identical rounded cards with one radius and one grey shadow; a tracked all-caps eyebrow on every
+  heading, dotted meta strings, a typed `→` on buttons.
+- A single word or phrase of a headline accented in italic, bold or colour; all-caps labels; a label above
+  content that carries no fact; numbered markers (01 / 02 / 03) on content that is not a sequence.
 - Deleting or editing the kit's own files (`assets/`, `scripts/`) to clear a check: a check that
   flags a kit file is reported, and the page is checked again after any change.
 
 ## References
 
-All in `references/`; section 3 names the one each asset needs.
+All in `references/`; section 3 names the one each asset needs. `direction.md` is the concept, the plan,
+the type voice and the interface words. Licences: MIT (tasteskill, `LICENSE`) and Apache-2.0 for the parts
+adapted from `frontend-design` (`LICENSE-APACHE-2.0`): `SKILL.md` and `direction.md` carry changed
+text adapted from it, as `NOTICE` says.
