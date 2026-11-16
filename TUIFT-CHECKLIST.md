@@ -53,7 +53,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
   - [x] 2.5d Limpar e trazer `ui-profissional`, `gravar-janela`, `humanizer` e `stageshow`. No lugar da `better-portuguese`, que é de um autor externo e não tem licença, entrou a `escrita-pt-br`, escrita do zero pela casa (15/11).
   - [x] 2.5e Revisão de privacidade do coordenador antes de publicar: nenhum nome, marca interna, cliente, caminho do PC ou chave.
 - [~] 2.6 O instalador leva as skills de vídeo como pacote Motion (feito). Falta o agente enxergar o pacote num chat Motion (fase 3 do Motion).
-- [ ] 2.8 Skills de terceiros que não podem ir embutidas (decisão de 16/11): seção "Disponíveis para instalar" na página de Skills, com autor, licença declarada e link para a fonte; instala uma ou todas direto do repositório do autor, em versão fixada. Primeira lista: as do Remotion (sem licença declarada), as três `transitions-*` (a licença não deixa republicar) e as sete `21st-*` (fonte a confirmar). Depois de instaladas, as de design carregam no modo Design.
+- [x] 2.8 Skills de terceiros que não podem ir embutidas (16/11): seção "Disponíveis para instalar" na página de Skills, com autor, licença declarada e link para a fonte; instala uma ou todas direto do repositório do autor, em versão fixada e conferida. A instalação é uma só, na pasta de dados do app, e vale para todo projeto e todo provedor; carrega por categoria (design em chats Design, motion em chats Motion) e pode ser removida pela página. Lista de hoje: as três `transitions-*` e a do Remotion, que traz as outras doze dentro dela. As sete `21st-*` foram embutidas no pacote Design, porque o repositório delas declara Apache-2.0.
 - [x] 2.9 Medir o uso real das skills (transcrições das sessões e anotações de agosto a novembro) e levar só o que vale: 24 skills entram. Ficam de fora por falta de uso registrado: `edvid`, os pacotes de design de terceiros (Emil Kowalski, Jakub Krehel), as skills da Higgsfield, os fluxos e blocos extras do HyperFrames e as avulsas. Podem entrar depois, se passarem a ser usadas.
 - [x] 2.10 Decisão de 15/11: a skill `media-use` fica como o autor publicou, com o envio de uso anônimo e o aviso no índice das skills (quem quiser desliga pela variável de ambiente). As operações de movimento do MCP do After Effects usam o prefixo `tuift.` (decisão do dono do projeto); as skills já dizem `tuift.*`, e o nome antigo segue aceito pelo MCP para projetos existentes.
 - [ ] 2.11 O dono do projeto relê os trechos reescritos que as frentes marcaram (morph de UI, método de captura, rotas do After Effects, arco de trilha).
@@ -169,23 +169,24 @@ Decisão de 15/11: o MCP de After Effects da casa vem dentro do app, para o clie
 
 Decisão do dono do projeto (16/11): a biblioteca completa de sons (tonal sounds, efeitos e trilhas) fica hospedada e é usada dentro do app por quem assina o Clube do Motion e conectou a conta (item 17). Não vai no instalador e não existe download da biblioteca: o som usado num vídeo vira arquivo na pasta de áudio daquele projeto. Os agentes precisam saber que ela existe e usá-la na etapa de trilha, salvo quando o projeto já tem sons próprios ou a pessoa desligou.
 
-- [ ] 12.1 Completar a biblioteca hospedada com os efeitos sonoros que faltam (pede o ok do dono do projeto na hora).
-- [ ] 12.2 Ferramentas do app para o agente: buscar som e usar som, com a conta conectada; as músicas do Clube entram na mesma busca, por tom, BPM e clima.
-- [ ] 12.3 Instrução no modo Motion e ajuste da skill `composicao-trilha`: usar a biblioteca do app; sons do projeto vêm primeiro; em Ajustes, apontar a própria pasta ou desligar.
-- [ ] 12.4 Sem assinatura ou sem conta conectada: o agente avisa, usa a pasta da pessoa ou a síntese de emergência, e o app convida a conectar.
-- [ ] 12.5 Aba Sons no painel em chats Motion: buscar, ouvir a prévia e mandar para o chat.
-- [ ] 12.6 Skill `ouvir`, a partir da earshot (MIT): descrever, comparar, medir volume e pico, mapa de eventos, transcrição da fala, tom e conferência de sincronia. `watch` e `ouvir` passam a valer em todo chat.
-- [ ] 12.7 Testes e validação no app.
+- [x] 12.1 Biblioteca hospedada completada com os efeitos sonoros que faltavam e com trilhas (16/11): 6.894 sons, entre tonais, efeitos, trilhas e respostas de impulso. As trilhas têm gênero, tom e BPM estimados.
+- [x] 12.2 Ferramentas do app para o agente (16/11), em chats Motion: buscar som (texto, tipo, categoria, tom, modo, faixa de BPM), usar som, buscar música do Clube e usar música. O som usado vai para `audio/clube/` do projeto com o nome real; o mesmo som pedido de novo reaproveita o arquivo. Chegam a Claude Code, Codex e OpenCode.
+- [x] 12.3 Instrução no modo Motion (cerca de 116 tokens) e skill `composicao-trilha` reescrita na ordem: sons do próprio projeto, biblioteca do app, pasta da pessoa, saídas de emergência. Em Ajustes, "Usar os sons do app" e "Minha pasta de sons" (16/11).
+- [x] 12.4 Sem assinatura, sem conta conectada, com o limite do dia ou com a biblioteca desligada, o agente recebe a explicação em palavras e a aba Sons mostra o que falta e o caminho (16/11).
+- [x] 12.5 Aba Sons no painel em chats Motion (16/11): Tonais, Efeitos e Músicas (trilhas ou músicas do Clube), com busca, filtros, prévia e "Enviar" para o chat.
+- [x] 12.6 Skill `ouvir`, com a earshot (MIT) como motor em versão fixada (16/11): medir volume e pico, eventos e conferência contra o plano de sons, tom e andamento com aviso de confiança, comparar, descrever, achar trecho, transcrever fala e segunda opinião opcional. `watch` e `ouvir` valem em todo chat e voltaram às etapas do Motion (referências, trilha e revisão).
+- [ ] 12.7 Validação do dono do projeto no app instalado, com a conta real: conectar, buscar e usar um som, uma trilha e uma música; a transcrição de fala da `ouvir` não rodou de verdade.
 
 ## 13. Modo Design completo
 
 Decisão de 16/11: o modo Design cobre tudo de UI/UX (site novo, tela de app, redesign, revisão e animação de interface) e carrega todas as skills de design que a casa usa, não só as próprias. O pacote Design já ia no instalador com a `ui-profissional`, mas nenhum chat o carregava.
 
-- [ ] 13.1 Pacote Design completo: as da casa (`ui-profissional`, `stageshow`, `figma`) e as de terceiros com licença que permite, em versão fixada e com a licença de cada uma. `design-taste-frontend` continua em todos os chats.
-- [ ] 13.2 Carregar o pacote em chats com Design ligado, pelo mesmo mecanismo do Motion, com instrução de papel: referências antes de desenhar, conferir no navegador do app, o que fazer em cada tipo de pedido.
-- [ ] 13.3 Diagnóstico com provedor de verdade (site novo, tela de app, redesign, pasta grande) e conserto do que quebrar, começando pela parada de emergência que ainda dispara a revisão e pela captura de tela sem janela aberta.
-- [ ] 13.4 As skills de design instaladas pelo botão do item 2.8 também carregam no Design.
-- [ ] 13.5 Testes e validação no app.
+- [x] 13.1 Pacote Design completo (16/11), 44 skills: as da casa (`ui-profissional`, `stageshow`, `figma`) e 41 de terceiros com licença que permite, em versão fixada e com a licença de cada uma. `design-taste-frontend` e `frontend-design` foram unidas numa só, que continua em todos os chats com as duas licenças; uma skill pode estar em dois pacotes.
+- [x] 13.2 O pacote carrega em chats com Design ligado, com instrução de papel (16/11). A causa de não carregar era a tela guardar o botão Design só localmente: agora o servidor é avisado.
+- [x] 13.3 Diagnóstico com provedor de verdade em cinco tipos de pedido (16/11), e conserto de: fase enviada depois da parada de emergência, captura de tela sem janela aberta (termina com aviso em vez de travar), achados da revisão escondidos e pasta grande sem aviso. Provas em `branding/provas/design-diagnosis/`.
+- [x] 13.4 As skills de design instaladas pela página de Skills também carregam em chats Design (16/11).
+- [ ] 13.5 Em andamento (decisão de 16/11): revisão e animação fora do fluxo de construção, revisão automática que vê a página inteira e mede, redesign que revisa todas as páginas, nenhum modelo trava o fluxo, e mensagens no idioma do cliente.
+- [ ] 13.6 Validação do dono do projeto no app instalado.
 
 ## 14. README bonito no GitHub
 
@@ -238,39 +239,40 @@ Pedido de 15/11, depois de um trabalho longo de vídeo em que o sistema ficou se
 
 Decisão de 16/11: o Clube do Motion faz parte do ecossistema e pode ser citado no app. Quem assina o Clube usa no TUIFT Code todos os benefícios de assinante: MCP conectado, sons, trilhas, biblioteca, projetos e skills.
 
-- [ ] 17.1 Conectar com a conta do Clube pelo login que ele já oferece: passo opcional no onboarding e em Ajustes; o acesso fica guardado protegido e nunca aparece para o agente nem em arquivo de projeto.
-- [ ] 17.2 MCP do Clube ligado sozinho depois de conectar, em qualquer provedor; se a pessoa já tem o dela configurado, o dela vale.
-- [ ] 17.3 Do lado do Clube: cliente "TUIFT Code", sons para assinante e prévia que não conta no limite (publicar pede o ok do dono do projeto).
+- [x] 17.1 Conectar com a conta do Clube pelo login que ele já oferece (16/11): passo opcional no onboarding e aba em Ajustes, com os estados conectado, sem assinatura, falha e desconectar. O acesso fica no cofre de credenciais do sistema e nunca aparece para o agente, em arquivo de projeto ou no celular.
+- [x] 17.2 MCP do Clube ligado sozinho depois de conectar com conta de assinante (16/11), em Claude Code, Codex e OpenCode, com o servidor do app no meio; se a pessoa já tem o dela configurado, o dela vale. Período de teste não conta como assinante. Falta nos provedores que ainda não recebem as ferramentas do app.
+- [x] 17.3 Do lado do Clube (16/11): sons para o assinante que conecta pelo TUIFT Code, prévia que não conta no limite, filtros e faixa de BPM.
 - [ ] 17.4 Painel do Clube no app: buscar na biblioteca, baixar projeto para a pasta, instalar skills do Clube e ver os limites do dia.
-- [ ] 17.5 Testes e validação no app.
+- [ ] 17.5 Validação do dono do projeto no app instalado, com a conta real: nada desta seção rodou contra o Clube de verdade.
 
 ## Ondas de trabalho
 
 Cada frente roda num worktree próprio em `C:/Dev/tuift-wt/<frente>`, numa branch `tuift/<frente>`, e volta para a `main` por merge depois de conferida.
 
-| Onda | Frente                                                                                               | Subtarefas                            | Estado                     |
-| ---- | ---------------------------------------------------------------------------------------------------- | ------------------------------------- | -------------------------- |
-| 1    | `i18n-core`                                                                                          | 1.1, 1.2, 1.3                         | na `main` (15/11), testada |
-| 1    | `mcp-cards`                                                                                          | 3.1 a 3.5                             | na `main` (15/11), testada |
-| 1    | `bulk-delete`                                                                                        | 4.1 a 4.4                             | na `main` (15/11), testada |
-| 1    | `file-viewers`                                                                                       | 5.1 a 5.7                             | na `main` (15/11), testada |
-| 1    | `composer`                                                                                           | 6.1, 6.2                              | na `main` (15/11), testada |
-| 1    | `design-scan`                                                                                        | 6.3                                   | na `main` (15/11), testada |
-| 1    | `skills`                                                                                             | 2.1, 2.3, 2.4                         | na `main` (15/11), testada |
-| 1    | `chat-leak`                                                                                          | 8.1 a 8.4                             | na `main` (15/11), testada |
-| 1b   | `skills-pin`                                                                                         | 2.5a                                  | na `main` (15/11)          |
-| 1b   | `skills-motion`                                                                                      | 2.5b                                  | na `main` (15/11)          |
-| 1b   | `skills-ae-trilha`                                                                                   | 2.5c                                  | na `main` (15/11)          |
-| 1b   | `skills-misc`                                                                                        | 2.5d                                  | na `main` (15/11)          |
-| 1b   | `readme`                                                                                             | 14.1 a 14.5                           | na `main` (15/11)          |
-| 3    | `motion-cast`, `motion-state`, `motion-pack`                                                         | 9.2, 9.3a, 9.4a                       | na `main` (15/11), testada |
-| 2    | `i18n-settings`, `i18n-sidebar`, `i18n-onboarding`, `i18n-workspace`, `i18n-dialogs`, `i18n-desktop` | 1.4 a 1.12                            | na `main` (15/11), testada |
-| 4    | `restos-i18n`                                                                                        | 1.16                                  | na `main` (15/11), testada |
-| 5    | `motion-read`, `motion-session`, `bulk-count`, `pdf-viewer`, `output-caps`                           | 9.3b, 9.3c, 9.4b, 9.4c, 4.5, 5.8, 8.7 | na `main` (15/11), testada |
-| 6    | `motion-stage-tool`, `motion-stage-ui`                                                               | 9.5a, 9.5b, 9.5c                      | na `main` (15/11), testada |
-| 7    | `motion-ae`, `motion-ae-ui`, `ae-bundle`                                                             | 9.6, 11.1 a 11.4                      | na `main` (15/11), testada |
-| 8    | `motion-react`, `chat-feedback`, `crash-recovery`, `memory-images`, `beam-compositor`                | 9.7, 8.5, 16.1 a 16.5                 | na `main` (15/11), testada |
-| 9    | `strip-cast`, `perf-gpu`, `media-delivery`                                                           | 5.11, 16.1, 16.5, 16.5b, 16.15        | na `main` (16/11), testada |
-| 10   | `desk-lifecycle`, `server-startup`, `write-safety`, `orphans-caps`                                   | 16.6 a 16.14, 16.16                   | na `main` (16/11), testada |
-| 11   | `server-activity`                                                                                    | 16.18                                 | na `main` (16/11), testada |
-| 12   | `reliability-leftovers`                                                                              | 16.19                                 | na `main` (16/11), testada |
+| Onda | Frente                                                                                                                                       | Subtarefas                                 | Estado                     |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | -------------------------- |
+| 1    | `i18n-core`                                                                                                                                  | 1.1, 1.2, 1.3                              | na `main` (15/11), testada |
+| 1    | `mcp-cards`                                                                                                                                  | 3.1 a 3.5                                  | na `main` (15/11), testada |
+| 1    | `bulk-delete`                                                                                                                                | 4.1 a 4.4                                  | na `main` (15/11), testada |
+| 1    | `file-viewers`                                                                                                                               | 5.1 a 5.7                                  | na `main` (15/11), testada |
+| 1    | `composer`                                                                                                                                   | 6.1, 6.2                                   | na `main` (15/11), testada |
+| 1    | `design-scan`                                                                                                                                | 6.3                                        | na `main` (15/11), testada |
+| 1    | `skills`                                                                                                                                     | 2.1, 2.3, 2.4                              | na `main` (15/11), testada |
+| 1    | `chat-leak`                                                                                                                                  | 8.1 a 8.4                                  | na `main` (15/11), testada |
+| 1b   | `skills-pin`                                                                                                                                 | 2.5a                                       | na `main` (15/11)          |
+| 1b   | `skills-motion`                                                                                                                              | 2.5b                                       | na `main` (15/11)          |
+| 1b   | `skills-ae-trilha`                                                                                                                           | 2.5c                                       | na `main` (15/11)          |
+| 1b   | `skills-misc`                                                                                                                                | 2.5d                                       | na `main` (15/11)          |
+| 1b   | `readme`                                                                                                                                     | 14.1 a 14.5                                | na `main` (15/11)          |
+| 3    | `motion-cast`, `motion-state`, `motion-pack`                                                                                                 | 9.2, 9.3a, 9.4a                            | na `main` (15/11), testada |
+| 2    | `i18n-settings`, `i18n-sidebar`, `i18n-onboarding`, `i18n-workspace`, `i18n-dialogs`, `i18n-desktop`                                         | 1.4 a 1.12                                 | na `main` (15/11), testada |
+| 4    | `restos-i18n`                                                                                                                                | 1.16                                       | na `main` (15/11), testada |
+| 5    | `motion-read`, `motion-session`, `bulk-count`, `pdf-viewer`, `output-caps`                                                                   | 9.3b, 9.3c, 9.4b, 9.4c, 4.5, 5.8, 8.7      | na `main` (15/11), testada |
+| 6    | `motion-stage-tool`, `motion-stage-ui`                                                                                                       | 9.5a, 9.5b, 9.5c                           | na `main` (15/11), testada |
+| 7    | `motion-ae`, `motion-ae-ui`, `ae-bundle`                                                                                                     | 9.6, 11.1 a 11.4                           | na `main` (15/11), testada |
+| 8    | `motion-react`, `chat-feedback`, `crash-recovery`, `memory-images`, `beam-compositor`                                                        | 9.7, 8.5, 16.1 a 16.5                      | na `main` (15/11), testada |
+| 9    | `strip-cast`, `perf-gpu`, `media-delivery`                                                                                                   | 5.11, 16.1, 16.5, 16.5b, 16.15             | na `main` (16/11), testada |
+| 10   | `desk-lifecycle`, `server-startup`, `write-safety`, `orphans-caps`                                                                           | 16.6 a 16.14, 16.16                        | na `main` (16/11), testada |
+| 11   | `server-activity`                                                                                                                            | 16.18                                      | na `main` (16/11), testada |
+| 12   | `reliability-leftovers`                                                                                                                      | 16.19                                      | na `main` (16/11), testada |
+| 13   | `ouvir-skill`, `design-pack`, `skills-catalog`, `design-diagnosis`, `clube-link`, `sound-library`, `third-party-pack`, `design-skill-fusion` | 2.8, 12.1 a 12.6, 13.1 a 13.4, 17.1 a 17.3 | na `main` (16/11), testada |
