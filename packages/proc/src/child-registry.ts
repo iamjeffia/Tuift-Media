@@ -107,14 +107,26 @@ export class ChildRegistry {
   track(child: ChildProcess): void {
     const root = child.pid
     if (this.#closed || !root) return
-    const timer = setTimeout(() => void this.#register(child, root), this.#graceMs)
+    const done = this.trackPid(root, () => exited(child))
+    child.once('exit', done)
+    child.once('error', done)
+  }
+
+  /**
+   * The same for a process that is not a `ChildProcess`, such as a terminal's shell, which
+   * node-pty starts. Returns what to call when it ends. `ended` says whether it has already ended
+   * when the time comes to write it down. Never throws.
+   */
+  trackPid(root: number, ended: () => boolean = () => false): () => void {
+    if (this.#closed) return () => undefined
+    let over = false
+    const timer = setTimeout(() => void this.#register(root, () => over || ended()), this.#graceMs)
     timer.unref()
-    const done = () => {
+    return () => {
+      over = true
       clearTimeout(timer)
       if (this.#live.delete(root)) this.#write()
     }
-    child.once('exit', done)
-    child.once('error', done)
   }
 
   /**
@@ -181,8 +193,8 @@ export class ChildRegistry {
     this.#write()
   }
 
-  async #register(child: ChildProcess, root: number): Promise<void> {
-    if (this.#closed || exited(child)) return
+  async #register(root: number, ended: () => boolean): Promise<void> {
+    if (this.#closed || ended()) return
     let table
     try {
       table = await this.#sharedTable()
@@ -192,7 +204,7 @@ export class ChildRegistry {
     }
     const own = table.get(process.pid)
     const first = table.get(root)
-    if (this.#closed || exited(child) || !own || !first) return
+    if (this.#closed || ended() || !own || !first) return
     const owner = { pid: own.pid, startTime: own.startTime }
     const tree: ProcessInfo[] = [first, ...descendantsOf(table, root)]
     this.#live.set(
@@ -401,6 +413,14 @@ export function openChildRegistry(file: string, options?: Options): ChildRegistr
   active = new ChildRegistry(file, options)
   setOwnedChildHook((child) => active?.track(child))
   return active
+}
+
+/**
+ * Writes down a process that is not a `ChildProcess` (a terminal's shell) in the open registry, if
+ * one is open. Returns what to call when the process ends.
+ */
+export function trackOwnedProcess(pid: number): () => void {
+  return active?.trackPid(pid) ?? (() => undefined)
 }
 
 /** Stops the open registry from writing; the file keeps what is running. */

@@ -95,6 +95,8 @@ export const PHONE_METHODS: ReadonlySet<MethodName> = new Set<MethodName>([
   'thread.settle',
   'thread.unsettle',
   'thread.diff',
+  // The start-up notice is the computer's: a phone that reads it may dismiss it for everyone.
+  'startup.dismissNotice',
 ])
 
 /** Pushes a phone never receives: its own pairing state and desktop-only previews. */

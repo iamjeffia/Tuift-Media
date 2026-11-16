@@ -4,6 +4,7 @@ import { statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { promisify } from 'node:util'
 import type { IPty, spawn as NodePtySpawn } from 'node-pty'
+import { trackOwnedProcess } from '@harness/proc'
 import { applyDesktopPath } from '@harness/proc/desktop-path'
 
 const DEFAULT_CLOSE_TIMEOUT_MS = 10_000
@@ -302,6 +303,12 @@ export class TerminalManager {
       this.#outputScheduler,
     )
     const output = process.onData((data) => outputBuffer.push(data))
+    // Written down in the orphan registry, so a crash of the app that leaves this shell (and the
+    // person's commands under it) running does not leave it for good: the next start ends it.
+    // On Windows the pty's pid is the shell itself, which holds those commands; the console host
+    // beside it is the system's and goes with it.
+    const untrack =
+      Number.isInteger(process.pid) && process.pid > 0 ? trackOwnedProcess(process.pid) : () => {}
     let resolveExited: () => void = () => {}
     const exited = new Promise<void>((resolve) => {
       resolveExited = resolve
@@ -311,6 +318,7 @@ export class TerminalManager {
     this.#byThread.set(key, terminalId)
 
     process.onExit(({ exitCode }) => {
+      untrack()
       // Preserve the last prompt or command output before publishing the exit.
       // Explicit close disposes the buffer first because that pane is gone.
       outputBuffer.flush()

@@ -17,6 +17,16 @@ struct LinkView: Decodable, Equatable {
   var phoneKey: String
 }
 
+/// A notice the computer keeps until it is dismissed, already worded in the phone's language.
+struct NoticeView: Decodable, Equatable {
+  var title: String
+  var message: String
+  /// Where things were kept, on the computer.
+  var detail: String
+  /// The button that dismisses it.
+  var dismiss: String
+}
+
 enum ChatState: String, Decodable {
   case idle, starting, working, queued, approval, input, failed
 

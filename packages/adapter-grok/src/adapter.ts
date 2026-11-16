@@ -238,6 +238,27 @@ export function grokCommand(): string {
   return existsSync(installed) ? installed : 'grok'
 }
 
+/**
+ * Whether the CLI's own `error` frame says the login is the problem: no sign-in, a session or token
+ * that ran out, or an API key xAI refused. Only that frame is read, never a model's text or a
+ * tool's output, which may say "unauthorized" about anything. Wordings, from grok 1.0.77:
+ * "Not signed in. To authenticate without a browser, run: grok login --device-code ..." and
+ * "Incorrect API key provided" inside "Internal error: {... 400 ...}" are captured from the
+ * CLI with an empty GROK_HOME and a made-up key; "Session expired. Run `grok login` ...",
+ * "Your session has expired. Run `grok login` ...", "Token expired. Run `grok login` ...",
+ * "Authentication required. Run `grok login` ..." and "Authentication rejected by server. Run
+ * `grok login` ..." are the strings the binary itself carries, not captured at run time.
+ * A 403 is not read: nothing says whether it is the account or something else.
+ */
+export function grokLoginRefused(message: string): boolean {
+  return (
+    /^Not (?:signed|logged) in\b/i.test(message) ||
+    /\bIncorrect API key provided\b/i.test(message) ||
+    /\b(?:session|token) (?:has )?expired\b[^]*`grok login`/i.test(message) ||
+    /^Authentication (?:required|rejected by server)\. Run `grok login`/i.test(message)
+  )
+}
+
 const GrokFrameSchema = z.object({
   type: z.string().optional(),
   data: z.string().optional(),
@@ -735,7 +756,19 @@ export class GrokAdapter extends EventEmitter<GrokAdapterEvents> {
       terminal = true
       const killReason = this.#killReasons.get(child)
       if (!killReason) {
-        this.emit('event', { type: 'thread.error', threadId, message: errorMessage })
+        // The CLI's own error frame says the login is the problem: the notice offers to sign in.
+        const said = reportedError
+        const refused = said !== undefined && grokLoginRefused(said)
+        this.emit('event', {
+          type: 'thread.error',
+          threadId,
+          message: refused
+            ? 'Grok did not accept the login. Sign in again to continue.'
+            : errorMessage,
+          ...(refused
+            ? { reason: { code: 'auth_failed' as const, message: said.slice(0, 500) } }
+            : {}),
+        })
       }
       finishItems('failed')
       if (killReason !== 'silent') {

@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
-import type { DomainEvent } from '@harness/contracts'
+import type { DomainEvent, ThreadErrorReason } from '@harness/contracts'
 import { argumentPromptLimit } from '@harness/proc'
 import { spawnOwned } from '@harness/proc/kill'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -98,7 +98,12 @@ type TurnOutput = { stdout?: string; stderr?: string[] }
 async function finishTurn(
   output: TurnOutput,
   code: number,
-): Promise<{ errors: string[]; statuses: string[]; logs: string[] }> {
+): Promise<{
+  errors: string[]
+  reasons: Array<ThreadErrorReason | undefined>
+  statuses: string[]
+  logs: string[]
+}> {
   const child = new FakeChild()
   const adapter = new CursorAdapter({ spawn: () => child })
   const events: DomainEvent[] = []
@@ -119,6 +124,7 @@ async function finishTurn(
 
   return {
     errors: events.flatMap((event) => (event.type === 'thread.error' ? [event.message] : [])),
+    reasons: events.flatMap((event) => (event.type === 'thread.error' ? [event.reason] : [])),
     statuses: events.flatMap((event) => (event.type === 'turn.completed' ? [event.status] : [])),
     logs,
   }
@@ -553,9 +559,40 @@ describe('Cursor adapter', () => {
       1,
     )
 
-    expect(result.errors).toEqual([
-      "Authentication required. Run 'agent login', pass --api-key/--auth-token, or set CURSOR_API_KEY/CURSOR_AUTH_TOKEN.",
+    // The CLI's own refusal of the sign-in: the notice offers to sign in again, and the CLI's
+    // words stay in the details.
+    expect(result.errors).toEqual(['Cursor did not accept the login. Sign in again to continue.'])
+    expect(result.reasons).toEqual([
+      {
+        code: 'auth_failed',
+        message:
+          "Authentication required. Run 'agent login', pass --api-key/--auth-token, or set CURSOR_API_KEY/CURSOR_AUTH_TOKEN.",
+      },
     ])
+  })
+
+  it.each([
+    ['stderr', { stderr: ["Error: Authentication required. Run 'agent login'.\n"] }],
+    ['stdout', { stdout: "Error: Authentication required. Run 'agent login'.\n" }],
+  ] as Array<[string, TurnOutput]>)(
+    'reads the sign-in refusal the CLI prints on %s',
+    async (_stream, output) => {
+      expect((await finishTurn(output, 1)).reasons).toEqual([
+        { code: 'auth_failed', message: "Authentication required. Run 'agent login'." },
+      ])
+    },
+  )
+
+  it.each<[string, TurnOutput, number]>([
+    // A plan limit, an untrusted folder and a bare exit are not a login problem.
+    ['a model outside the plan', { stderr: [`${REFUSAL}\n`] }, 1],
+    ['a rate limit', { stderr: ['Error: rate limit exceeded. Try again later.\n'] }, 1],
+    ['an exit with no words', {}, 1],
+    // A turn that finished never reads what else the CLI printed.
+    ['a success that printed the phrase', { stderr: ['Authentication required\n'] }, 0],
+  ])('does not call it a login problem: %s', async (_name, output, code) => {
+    const result = await finishTurn(output, code)
+    expect(result.reasons.every((reason) => reason === undefined)).toBe(true)
   })
 
   it.each(['stdout', 'stderr'] as const)(

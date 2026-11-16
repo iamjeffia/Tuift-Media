@@ -80,6 +80,18 @@ export function antigravitySignIn(result: CapturedCli): boolean | undefined {
   return result.code === 0 ? true : undefined
 }
 
+/**
+ * Whether what agy printed in place of a result says the turn was refused for want of a login.
+ * In print mode, which is the only way a chat runs it (no terminal to ask in), agy 1.4.9 carries
+ * the sentence "Print mode: not logged in and no controlling terminal" and its release notes say
+ * a sign-in the server rejects is cleared, so the next run is this one. The sentence is from the
+ * shipped binary; it was not captured from a run, because that needs the real account signed out.
+ * Read only from agy's own stderr and its non-JSON stdout lines, never from a step's output.
+ */
+export function antigravityLoginRefused(output: string): boolean {
+  return /print mode: not logged in/i.test(output)
+}
+
 /** A read that cannot tell rejects, so the last confirmed sign-in can stand. */
 export async function antigravityAccount(): Promise<Account> {
   const result = await sharedAgyModels()

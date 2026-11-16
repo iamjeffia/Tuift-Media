@@ -7,6 +7,7 @@ import {
   ChildRegistry,
   closeChildRegistry,
   openChildRegistry,
+  trackOwnedProcess,
   type RegisteredProcess,
   type TreeEnder,
 } from './child-registry.js'
@@ -219,6 +220,45 @@ describe('the registry file', () => {
     started.add(quick.pid!)
     await new Promise((resolve) => quick.once('exit', resolve))
     await sleep(2_300)
+    expect(existsSync(file)).toBe(false)
+    registry.close()
+  })
+
+  it('writes a process that is not a ChildProcess (a terminal shell) and removes it when released', async () => {
+    const dir = folder()
+    const file = path.join(dir, 'child-processes.json')
+    const registry = openChildRegistry(file, { graceMs: 300 })
+    // A process this test started, which node-pty would own instead of node's child_process.
+    const shell = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 120000)'], {
+      stdio: 'ignore',
+    })
+    started.add(shell.pid!)
+    const release = trackOwnedProcess(shell.pid!)
+
+    await until(() => existsSync(file))
+    const written = JSON.parse(readFileSync(file, 'utf8')) as { entries: RegisteredProcess[] }
+    const real = (await readProcessTable()).get(shell.pid!)!
+    expect(written.entries).toEqual([
+      {
+        pid: shell.pid,
+        startTime: real.startTime,
+        exe: real.exe,
+        owner: { pid: process.pid, startTime: expect.any(String) },
+      },
+    ])
+
+    release()
+    await until(() => !existsSync(file))
+    registry.close()
+  }, 60_000)
+
+  it('does not write a process released before the grace period, and does nothing with no registry open', async () => {
+    const dir = folder()
+    const file = path.join(dir, 'child-processes.json')
+    trackOwnedProcess(process.pid)()
+    const registry = openChildRegistry(file, { graceMs: 300 })
+    trackOwnedProcess(process.pid)()
+    await sleep(700)
     expect(existsSync(file)).toBe(false)
     registry.close()
   })

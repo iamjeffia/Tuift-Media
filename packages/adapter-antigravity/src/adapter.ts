@@ -15,6 +15,7 @@ import { agyCommandName, isAgyAnsweredCommand } from './commands.js'
 import { lastJsonObject } from './limits.js'
 import {
   ANTIGRAVITY_SIGN_IN_REQUIRED,
+  antigravityLoginRefused,
   antigravitySignIn,
   readAgyModels,
   sharedAgyModels,
@@ -310,6 +311,11 @@ export class AntigravityAdapter extends EventEmitter<AntigravityAdapterEvents> {
     const messageId = `${turnId}-message`
     /** A result frame that did not say SUCCESS, waiting for agy's exit code. */
     let reported: { status: string; error?: string; timer: NodeJS.Timeout } | undefined
+    /** What agy itself printed outside its result frames: stderr and lines that are not JSON. */
+    let printed = ''
+    const remember = (text: string) => {
+      printed = `${printed}\n${text}`.slice(-2_000)
+    }
 
     readNdjson(
       child.stdout,
@@ -404,7 +410,10 @@ export class AntigravityAdapter extends EventEmitter<AntigravityAdapterEvents> {
           }
         }
       },
-      (line) => this.emit('log', `unparsable stdout: ${line.slice(0, 200)}`),
+      (line) => {
+        remember(line)
+        this.emit('log', `unparsable stdout: ${line.slice(0, 200)}`)
+      },
       {
         onError: (error) => {
           // A frame that does not match the schema, or a throwing event
@@ -420,7 +429,10 @@ export class AntigravityAdapter extends EventEmitter<AntigravityAdapterEvents> {
     )
 
     child.stderr.setEncoding('utf8')
-    child.stderr.on('data', (chunk: string) => this.emit('log', chunk.trimEnd()))
+    child.stderr.on('data', (chunk: string) => {
+      remember(chunk)
+      this.emit('log', chunk.trimEnd())
+    })
 
     // Settles a turn whose result frame did not say SUCCESS. `code` is agy's
     // exit code, or undefined when the process failed or outlived the grace.
@@ -465,7 +477,18 @@ export class AntigravityAdapter extends EventEmitter<AntigravityAdapterEvents> {
       terminal = true
       const killReason = this.#killReasons.get(child)
       if (!killReason) {
-        this.emit('event', { type: 'thread.error', threadId, message: errorMessage })
+        // agy exited without a result and said it has no login: the notice offers to sign in.
+        const refused = code != null && code !== 0 && antigravityLoginRefused(printed)
+        this.emit('event', {
+          type: 'thread.error',
+          threadId,
+          message: refused
+            ? 'Antigravity did not accept the login. Sign in again to continue.'
+            : errorMessage,
+          ...(refused
+            ? { reason: { code: 'auth_failed' as const, message: printed.trim().slice(-500) } }
+            : {}),
+        })
       }
       if (messageStarted) {
         this.emit('event', {

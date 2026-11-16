@@ -16,6 +16,7 @@ import {
   grokTurnArgs,
   parseGrokAccount,
   parseGrokModels,
+  grokLoginRefused,
 } from './adapter.js'
 
 class FakeChild extends ChildProcess {
@@ -539,6 +540,82 @@ describe('Grok adapter', () => {
       },
     ])
     expect(events.at(-1)).toEqual({ type: 'turn.completed', turnId, status: 'failed' })
+  })
+
+  // The CLI's own error frames for a login it cannot use. The first two were captured from
+  // grok 1.0.77 (an empty GROK_HOME; a made-up XAI_API_KEY), the others are strings its binary
+  // carries.
+  const LOGIN_REFUSED = [
+    'Not signed in. To authenticate without a browser, run:\n  grok login --device-code\n\nAlternatively, set the XAI_API_KEY environment variable or run `grok login` on a machine with a browser.',
+    'Internal error: {\n  "message": "API error (status 400 Bad Request): invalid-argument: Incorrect API key provided. You can obtain an API key from https://console.x.ai.",\n  "http_status": 400\n}',
+    'Session expired. Run `grok login` to re-authenticate.',
+    'Your session has expired. Run `grok login` to sign in again.',
+    'Token expired. Run `grok login` to re-authenticate.',
+    'Authentication required. Run `grok login` to re-authenticate.',
+    'Authentication rejected by server. Run `grok login` to re-authenticate.',
+  ]
+
+  it.each(LOGIN_REFUSED)('says the login was refused when the CLI reports: %s', async (said) => {
+    const child = new FakeChild()
+    const adapter = new GrokAdapter({ spawn: () => child })
+    const events: DomainEvent[] = []
+    adapter.on('event', (event) => events.push(event))
+    const thread = await adapter.startThread('C:\repo')
+    const turnId = await adapter.sendTurn(thread.id, 'go')
+
+    child.stdout.end(`${JSON.stringify({ type: 'error', message: said })}\n`)
+    await new Promise((resolve) => setImmediate(resolve))
+    child.emit('close', 1)
+    await new Promise((resolve) => setImmediate(resolve))
+
+    expect(events.filter((event) => event.type === 'thread.error')).toEqual([
+      {
+        type: 'thread.error',
+        threadId: thread.id,
+        message: 'Grok did not accept the login. Sign in again to continue.',
+        reason: { code: 'auth_failed', message: said.slice(0, 500) },
+      },
+    ])
+    expect(events.at(-1)).toEqual({ type: 'turn.completed', turnId, status: 'failed' })
+  })
+
+  it('leaves other failures raw: a rate limit, a 403, a model refusal', () => {
+    for (const said of [
+      "You've hit your usage limit. Try again later.",
+      'API error (status 429 Too Many Requests): rate limit exceeded',
+      "Responses API returned 403 Forbidden: you can't use this model",
+      "Couldn't set model 'x': Invalid params: \"unknown model id\". Run 'grok models' to see available models.",
+      'Authentication is temporarily unavailable. Run `grok login` if this persists.',
+    ]) {
+      expect(grokLoginRefused(said)).toBe(false)
+    }
+  })
+
+  it('does not read a tool output or the model text that says unauthorized or not signed in', async () => {
+    const child = new FakeChild()
+    const adapter = new GrokAdapter({ spawn: () => child })
+    const events: DomainEvent[] = []
+    adapter.on('event', (event) => events.push(event))
+    const thread = await adapter.startThread('C:\repo')
+    await adapter.sendTurn(thread.id, 'go')
+
+    child.stdout.write(
+      `${JSON.stringify({ type: 'text', data: 'Not signed in. Session expired. Run `grok login`.' })}\n`,
+    )
+    child.stdout.write(
+      `${JSON.stringify({ type: 'tool_call', toolCallId: 't1', toolName: 'run_terminal_command', title: 'curl', rawInput: { command: 'curl x' } })}\n`,
+    )
+    child.stdout.write(
+      `${JSON.stringify({ type: 'tool_call_update', toolCallId: 't1', status: 'failed', rawOutput: { output: '401 Unauthorized: Not signed in' } })}\n`,
+    )
+    child.stdout.write(`${JSON.stringify({ type: 'end', stopReason: 'refusal' })}\n`)
+    await new Promise((resolve) => setImmediate(resolve))
+    child.emit('close', 0)
+    await new Promise((resolve) => setImmediate(resolve))
+
+    const errors = events.filter((event) => event.type === 'thread.error')
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).not.toHaveProperty('reason')
   })
 
   it.each(['close', 'error'] as const)('handles stopped turns on %s', async (signal) => {

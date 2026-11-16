@@ -19,6 +19,8 @@ final class AppModel {
   var chats = ChatsView.empty
   var catalog = CatalogView.empty
   var newChat = NewChatView.empty
+  /// What the computer wants read until dismissed; nil when there is none.
+  var notice: NoticeView?
 
   @ObservationIgnored var emit: ((String, String) -> Void)?
   @ObservationIgnored private var threads: [String: ThreadStore] = [:]
@@ -42,6 +44,7 @@ final class AppModel {
     case chats(ChatsView)
     case catalog(CatalogView)
     case newChat(NewChatView)
+    case notice(NoticeView?)
     case thread(String, ThreadPatch)
   }
 
@@ -58,6 +61,7 @@ final class AppModel {
       case "chats": return .chats(try decoder.decode(ChatsView.self, from: data))
       case "catalog": return .catalog(try decoder.decode(CatalogView.self, from: data))
       case "newChat": return .newChat(try decoder.decode(NewChatView.self, from: data))
+      case "notice": return .notice(try decoder.decode(NoticeView?.self, from: data))
       default:
         guard key.hasPrefix("thread:") else { return nil }
         return .thread(String(key.dropFirst("thread:".count)), try decoder.decode(ThreadPatch.self, from: data))
@@ -74,6 +78,7 @@ final class AppModel {
     case .chats(let next): if chats != next { chats = next }
     case .catalog(let next): if catalog != next { catalog = next }
     case .newChat(let next): if newChat != next { newChat = next }
+    case .notice(let next): if notice != next { notice = next }
     case .thread(let id, let patch): thread(id).apply(patch)
     }
   }

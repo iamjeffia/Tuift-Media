@@ -7,6 +7,7 @@ import {
   PHONE_ACCESS_UNAVAILABLE,
   PhoneAccess,
   phoneAccessAvailable,
+  PHONE_METHODS,
   phoneAddresses,
   type PhoneLinkSocket,
 } from './phone-access.js'
@@ -371,5 +372,10 @@ describe('phone addresses', () => {
     expect(isReachableAddress('172.32.0.1')).toBe(false)
     expect(isReachableAddress('8.8.8.8')).toBe(false)
     expect(isReachableAddress('2001:db8::1')).toBe(false)
+  })
+
+  it('lets a phone dismiss the start-up notice and still keeps it out of the terminal', () => {
+    expect(PHONE_METHODS.has('startup.dismissNotice')).toBe(true)
+    expect(PHONE_METHODS.has('terminal.open')).toBe(false)
   })
 })

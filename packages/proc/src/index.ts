@@ -9,6 +9,7 @@ export {
   ChildRegistry,
   closeChildRegistry,
   openChildRegistry,
+  trackOwnedProcess,
   type ReapReport,
   type RegisteredProcess,
 } from './child-registry.js'

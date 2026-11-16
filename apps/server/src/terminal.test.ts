@@ -1,9 +1,10 @@
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type { IPty } from 'node-pty'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { ChildRegistry, closeChildRegistry, openChildRegistry } from '@harness/proc'
 import {
   platformShell,
   terminalEnvironment,
@@ -1221,6 +1222,167 @@ const jobMember: ProcessRow = {
   leader: false,
   zombie: false,
 }
+
+/**
+ * Terminals and the registry of processes an app crash leaves behind. These tests only end
+ * processes they started themselves: a node tree each test spawns and names by the pid it printed.
+ */
+describe('terminals in the orphan registry', () => {
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+  const folders: string[] = []
+  const started = new Set<number>()
+  const isRunning = (pid: number) => {
+    try {
+      globalThis.process.kill(pid, 0)
+      return true
+    } catch {
+      return false
+    }
+  }
+  const until = async (done: () => boolean, ms = 20_000) => {
+    const deadline = Date.now() + ms
+    while (!done()) {
+      if (Date.now() >= deadline) throw new Error('timed out waiting')
+      await sleep(50)
+    }
+  }
+  const registryFile = () => {
+    const folder = mkdtempSync(path.join(os.tmpdir(), 'tuift-terminal-registry-'))
+    folders.push(folder)
+    return path.join(folder, 'child-processes.json')
+  }
+  type Written = {
+    entries: Array<{
+      pid: number
+      startTime: string
+      exe: string
+      owner: { pid: number; startTime: string }
+    }>
+  }
+  const read = (file: string) => JSON.parse(readFileSync(file, 'utf8')) as Written
+
+  afterEach(() => {
+    closeChildRegistry()
+    for (const pid of started) {
+      try {
+        globalThis.process.kill(pid, 'SIGKILL')
+      } catch {
+        // Already gone.
+      }
+    }
+    started.clear()
+    for (const folder of folders.splice(0)) removeTemporaryDirectory(folder)
+  })
+
+  /**
+   * A shell with a long job under it, as a terminal's shell is: a node process (the shell) that
+   * started a sleeper (the job). Detached, so it outlives the registry's owner like a shell a
+   * crash left behind. Resolves with both pids.
+   */
+  async function shellWithJob(): Promise<{ shell: number; job: number }> {
+    const folder = mkdtempSync(path.join(os.tmpdir(), 'tuift-terminal-shell-'))
+    folders.push(folder)
+    const pidFile = path.join(folder, 'job.pid')
+    const sleeper = `require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setTimeout(() => {}, 120000)`
+    const shell = spawn(
+      globalThis.process.execPath,
+      [
+        '-e',
+        `require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(sleeper)}], { stdio: 'ignore' }); setTimeout(() => {}, 120000)`,
+      ],
+      { stdio: 'ignore', detached: true },
+    )
+    shell.unref()
+    started.add(shell.pid!)
+    await until(() => existsSync(pidFile) && readFileSync(pidFile, 'utf8') !== '')
+    const job = Number(readFileSync(pidFile, 'utf8'))
+    started.add(job)
+    return { shell: shell.pid!, job }
+  }
+
+  /** Starts a terminal whose shell is a real process, and waits for the registry to write it down. */
+  async function terminalOnReal(shell: number, file: string) {
+    openChildRegistry(file, { graceMs: 300 })
+    const pty = controlledPty({ pid: shell })
+    const manager = new TerminalManager(
+      { onOutput: () => {}, onExit: () => {} },
+      { spawnPty: () => pty },
+    )
+    manager.open('thread', os.tmpdir(), 80, 24)
+    await until(() => existsSync(file))
+    return pty
+  }
+
+  it('writes a terminal down with the identity the registry checks, and removes it when it ends', async () => {
+    const { shell, job } = await shellWithJob()
+    const file = registryFile()
+    const pty = await terminalOnReal(shell, file)
+
+    const entries = read(file).entries
+    // The shell, which holds the person's commands, and what runs under it (and, on Windows, a
+    // console host the system started for the job).
+    const written = (pid: number) => entries.find((entry) => entry.pid === pid)
+    for (const pid of [shell, job]) {
+      expect(written(pid)).toMatchObject({ owner: { pid: globalThis.process.pid } })
+      expect(written(pid)!.startTime).not.toBe('')
+      expect(written(pid)!.exe.toLowerCase()).toContain('node')
+    }
+
+    pty.emitExit(0)
+    await until(() => !existsSync(file))
+  }, 60_000)
+
+  it('ends the tree of a terminal an app crash left behind, only while the pid still names it', async () => {
+    const { shell, job } = await shellWithJob()
+    const file = registryFile()
+    await terminalOnReal(shell, file)
+    closeChildRegistry()
+    // The app is gone: its entries now name an owner that is not running.
+    const crashed = read(file)
+    const gone = { pid: 2_000_000_000, startTime: 'gone' }
+    const settle = (entries: Written['entries']) =>
+      writeFileSync(
+        file,
+        JSON.stringify({
+          version: 1,
+          user: os.userInfo().username,
+          entries: entries.map((entry) => ({ ...entry, owner: gone })),
+        }),
+      )
+
+    // The pid was handed out again: the start time or the executable differs, so nothing is ended.
+    settle(crashed.entries.map((entry) => ({ ...entry, startTime: `${entry.startTime}0` })))
+    const reused = await new ChildRegistry(file).reapLeftBehind()
+    expect(reused.ended).toEqual([])
+    expect(isRunning(shell)).toBe(true)
+    expect(isRunning(job)).toBe(true)
+
+    settle(crashed.entries.map((entry) => ({ ...entry, exe: `${entry.exe}.other` })))
+    const renamed = await new ChildRegistry(file).reapLeftBehind()
+    expect(renamed.ended).toEqual([])
+    expect(isRunning(shell)).toBe(true)
+
+    // Pid, start time and executable match and the app is gone: the shell and its job are ended.
+    settle(crashed.entries)
+    const report = await new ChildRegistry(file).reapLeftBehind()
+    expect(report.ended.map((entry) => entry.pid)).toContain(shell)
+    await until(() => !isRunning(shell) && !isRunning(job))
+  }, 90_000)
+
+  it('does not write a terminal that has no usable pid', async () => {
+    const file = registryFile()
+    openChildRegistry(file, { graceMs: 100 })
+    const pty = controlledPty({ pid: 0 })
+    new TerminalManager({ onOutput: () => {}, onExit: () => {} }, { spawnPty: () => pty }).open(
+      'thread',
+      os.tmpdir(),
+      80,
+      24,
+    )
+    await sleep(400)
+    expect(existsSync(file)).toBe(false)
+  })
+})
 
 function removeTemporaryDirectory(directory: string): void {
   rmSync(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 })
