@@ -506,7 +506,6 @@ test('the committed packs hold the Motion skills and a Design entry point, all l
       'animacao-saas',
       'motion-narrado',
       'stageshow',
-      'watch',
       'hyperframes',
       'hyperframes-core',
       'hyperframes-animation',
@@ -529,9 +528,9 @@ test('the committed packs hold the Motion skills and a Design entry point, all l
     assert.equal(entry.source, 'local', entry.folder)
     assert.equal(entry.licenseFile, 'LICENSE', entry.folder)
   }
-  // The base bundle is still the three pinned skills, with no pack.
+  // The base bundle is the three pinned skills, then `watch` and `ouvir`, with no pack.
   assert.deepEqual(
     manifest.skills.filter((entry) => !entry.pack).map((entry) => entry.folder),
-    ['cinetic', 'design-taste-frontend', 'cook'],
+    ['cinetic', 'design-taste-frontend', 'cook', 'watch', 'ouvir'],
   )
 })

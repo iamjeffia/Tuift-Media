@@ -103,11 +103,11 @@ under the repository's own license.
 
 ## Workspace Agent Skills (`.agents/skills/`)
 
-The workspace skills are plain files read by coding agents working in this repository. Two groups
-of them also ship in the installer, as separate packs next to the default Agent Skills above, in the
+The workspace skills are plain files read by coding agents working in this repository. `watch` and
+`ouvir` ship in the base bundle of default skills, with the ones above. Two other groups of them also ship in the installer, as separate packs next to the default Agent Skills above, in the
 app's `resources/default-skills/packs/` folder: the `motion` pack (`motion-app-ae`,
 `composicao-trilha`, `video-referencias`, `captura-de-movimento`, `animacao-saas`, `motion-narrado`,
-`stageshow`, `watch` and the twelve HyperFrames skills in the table below) and the `design` pack
+`stageshow` and the twelve HyperFrames skills in the table below) and the `design` pack
 (`ui-profissional`). They are pinned by content hash in `packages/default-skills/skills.json`, and the
 release check fails when one differs from its pin. The other workspace skills (`humanizer`,
 `escrita-pt-br`, `gravar-janela`) are not shipped. Each third-party skill keeps the licence of its
@@ -120,5 +120,6 @@ TUIFT Media carry their own Apache-2.0 `LICENSE`.
 | --- | --- | --- | --- |
 | [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes) | `hyperframes`, `hyperframes-core`, `hyperframes-animation`, `hyperframes-audio`, `hyperframes-cli`, `hyperframes-creative`, `hyperframes-keyframes`, `hyperframes-registry`, `hyperframes-studio`, `media-use`, `motion-graphics`, `figma` | Apache-2.0 | Commit `b20f3f7`. The 19 bundled `.mp3` sound effects of `media-use` (Pixabay Content License) are left out. `hyperframes-creative` includes Inter, EB Garamond and JetBrains Mono (`.woff2`), each with its SIL Open Font License 1.1 text. |
 | [bradautomates/claude-video](https://github.com/bradautomates/claude-video) | `watch` | MIT | Commit `03ceb42`. |
+| [Leonxlnx/earshot](https://github.com/Leonxlnx/earshot) | `ouvir` | MIT | Version 0.4.1, commit `4ac3d2a`. Not copied into the repository: `ouvir` downloads that exact archive, checks its hash and installs it into its own folder on the person's say-so. Its licence is kept in `.agents/skills/ouvir/EARSHOT-LICENSE`. |
 | [blader/humanizer](https://github.com/blader/humanizer) | `humanizer` | MIT | Adapted. |
 | [benjitaylor/skills](https://github.com/benjitaylor/skills) | `stageshow` | MIT | Its own `LICENSE` and `NOTICE.md` stay in the skill folder. |

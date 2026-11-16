@@ -21,14 +21,15 @@ import type { Store } from './store.js'
 /**
  * The Motion pack skills (folder names in `packages/default-skills/skills.json`) that
  * each stage reads. Stages with no skill are work the person and the agent do in
- * conversation; the test checks every name against the real pack.
+ * conversation, or lean on base skills every chat already has (`watch` for the review
+ * stage, `ouvir` for the soundtrack); the test checks every name against the real pack.
  */
 export const MOTION_STAGE_SKILLS = {
   idea: [],
   script: [],
   narration: [],
   audioApproval: [],
-  references: ['video-referencias', 'watch', 'captura-de-movimento', 'media-use'],
+  references: ['video-referencias', 'captura-de-movimento', 'media-use'],
   identity: ['stageshow', 'hyperframes-creative'],
   soundtrack: ['composicao-trilha', 'hyperframes-audio'],
   motion: [
@@ -39,7 +40,7 @@ export const MOTION_STAGE_SKILLS = {
     'hyperframes',
     'motion-graphics',
   ],
-  review: ['watch'],
+  review: [],
   delivery: ['hyperframes-cli'],
 } as const satisfies Record<MotionStage, readonly string[]>
 
