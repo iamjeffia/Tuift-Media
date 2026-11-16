@@ -36,14 +36,18 @@ describe('the Motion role instruction', () => {
 })
 
 describe('the Motion role instruction with the stage tool', () => {
-  it('adds one sentence, before the closing lines, and stays within the same size class', () => {
+  it('adds the tool lines, before the closing lines, and stays within the same size class', () => {
     const [list, sentence, tail] = MOTION_ROLE_WITH_STAGE_TOOL.split(
       String.fromCharCode(10, 10),
     ).slice(-3)
     expect(list).toMatch(/10\. delivery: the final files and notes$/)
     expect(sentence).toMatch(/^When you move to another stage, call the motion_stage tool/)
     expect(tail).toMatch(/^The final wording/)
-    expect(MOTION_ROLE_WITH_STAGE_TOOL.length - MOTION_ROLE_INSTRUCTION.length).toBeLessThan(200)
+    // The scene lights a character while a helper with its name runs: the agent is told the names.
+    expect(sentence).toMatch(
+      /A helper agent named after a character \(Zig, Bun, Moss, Cloud, Penny or Pip\)/,
+    )
+    expect(MOTION_ROLE_WITH_STAGE_TOOL.length - MOTION_ROLE_INSTRUCTION.length).toBeLessThan(320)
     expect(MOTION_ROLE_WITH_STAGE_TOOL.length).toBeLessThan(1600)
     expect(MOTION_ROLE_WITH_STAGE_TOOL).not.toContain('—')
   })

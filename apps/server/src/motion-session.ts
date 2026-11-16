@@ -25,7 +25,9 @@ Work through the video in these stages, in order. They are a guide, not a gate: 
 
 /** Only where the chat's provider reaches the app's tools: the others have the person set the stage. */
 const STAGE_TOOL_SENTENCE =
-  'When you move to another stage, call the motion_stage tool: the app shows the stage to the person and answers with the skills to read.'
+  'When you move to another stage, call the motion_stage tool: the app shows the stage to the person and answers with the skills to read. ' +
+  // The scene lights a character while a helper with its name runs.
+  'A helper agent named after a character (Zig, Bun, Moss, Cloud, Penny or Pip) lights that character in the app; motion_stage says who owns each stage.'
 
 const ROLE_TAIL = `The final wording of anything the person will say or publish, and every approval, is theirs: propose, then wait. Read a skill only when the stage needs it, never all of them. Outside video work, ignore this role.`
 
