@@ -2003,7 +2003,9 @@ export class ClaudeCodeAdapter extends EventEmitter<ClaudeAdapterEvents> {
       return
     }
     this.emit('event', { type: 'thread.error', threadId: this.#threadId, message })
-    this.#completeStreamingItems('failed', this.#interruptRequested ? 'interrupted' : 'failed')
+    // The turn ended under its helpers: the session died or errored, so their run was cut short.
+    // That is not a failure of their own, and the row says interrupted, as it does after a Stop.
+    this.#completeStreamingItems('failed', 'interrupted')
     this.emit('event', {
       type: 'turn.completed',
       turnId,

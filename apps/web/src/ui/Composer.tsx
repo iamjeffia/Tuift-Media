@@ -88,6 +88,8 @@ import { LazyMediaViewer as MediaViewer, preloadMediaViewer } from './LazyMediaV
 import { preloadThread } from './LazyThread.js'
 import { ModelSearchField } from './ModelSearchField.js'
 import { ComposerErrors, useComposerError, type ComposerError } from './ComposerErrors.js'
+import { ComposerWorkStatus } from './ComposerWorkStatus.js'
+import type { ThreadFrameStore } from '../thread-frame-store.js'
 import { Skeleton, SkeletonRows, SkeletonStatus } from './Skeleton.js'
 import { droppedFilePath } from './composer-dropped-file.js'
 
@@ -649,6 +651,8 @@ function ComposerComponent(props: {
   onReady?: (() => void) | undefined
   queuedTurns: QueuedTurn[]
   canSteerQueue: boolean
+  /** The column's transcript store: while its chat runs, a status line shows above the prompt. */
+  frameStore?: ThreadFrameStore | undefined
   onModelSelectorOpen?: (() => void) | undefined
   onModelChange: (id: string) => void
   onEffortChange: (effort: string) => void
@@ -2081,6 +2085,9 @@ function ComposerComponent(props: {
             visible={props.errorsVisible ?? true}
             onDismiss={() => area.current?.focus()}
           />
+          {props.frameStore && props.running ? (
+            <ComposerWorkStatus frameStore={props.frameStore} />
+          ) : null}
           {resourcePickerMounted ? (
             <Suspense
               fallback={

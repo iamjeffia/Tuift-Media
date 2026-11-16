@@ -43,6 +43,13 @@ export class ThreadFrameStore {
   readonly getSnapshot = (): ThreadState => this.#snapshot
 
   /**
+   * When the newest event of the chat this store shows arrived, of any kind, or
+   * undefined when none is known. The controller points it at its own record, so
+   * the transcript can tell a quiet agent from a silent one without a render.
+   */
+  lastEventAt: () => number | undefined = () => undefined
+
+  /**
    * Text deltas keep every structural field stable. Consumers that lay out the
    * transcript subscribe here so a provider burst cannot rerun the virtual
    * list; the one changed row subscribes by index below.

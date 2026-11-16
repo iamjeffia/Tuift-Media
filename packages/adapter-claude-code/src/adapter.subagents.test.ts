@@ -284,6 +284,24 @@ describe('Claude subagents', () => {
     })
   })
 
+  it('ends a foreground agent as interrupted, not failed, when the session dies under the turn', async () => {
+    const { events, replay, query, turnId } = await session()
+    await replay(
+      captured.slice(
+        0,
+        index((message) => message.subtype === 'task_updated'),
+      ),
+    )
+    query().close()
+    await tick()
+
+    expect(events).toContainEqual({ type: 'turn.completed', turnId, status: 'failed' })
+    expect(itemsFor(events, FOREGROUND).at(-1)).toMatchObject({
+      status: 'failed',
+      subagent: { state: 'interrupted' },
+    })
+  })
+
   it('leaves agents that already reported alone when the session closes', async () => {
     const { adapter, events, replay } = await session()
     await replay(captured.slice(0, index((message) => message.type === 'result') + 1))

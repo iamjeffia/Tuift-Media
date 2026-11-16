@@ -12,6 +12,8 @@ export type TurnLifecycle = {
   completedAt?: number
   /** The turn ended with an interrupted status: the user stopped it. */
   interrupted?: true
+  /** The turn ended with a failed status: its agent or its process gave out, nobody stopped it. */
+  failed?: true
 }
 
 export type TurnTiming = Readonly<Record<string, TurnLifecycle>>

@@ -257,4 +257,18 @@ export const chatPt = {
   'chat.motion.stage.motion': 'Motion',
   'chat.motion.stage.review': 'Revisão',
   'chat.motion.stage.delivery': 'Entrega',
+
+  // The status line above the prompt box while a turn runs (the transcript itself stays English)
+  'chat.work.region': 'Trabalho em andamento',
+  'chat.work.working': 'Em andamento',
+  'chat.work.helper': 'Subagente {name}: “{title}”',
+  'chat.work.helperNamed': 'Subagente {name}',
+  'chat.work.helpers_one': '{count} subagente em execução',
+  'chat.work.helpers_other': '{count} subagentes em execução',
+  'chat.work.command': 'Executando {command}',
+  'chat.work.edit': 'Editando {target}',
+  'chat.work.tool': 'Usando {tool}',
+  'chat.work.idle': 'Última atividade há {time}',
+  'chat.work.calm':
+    'Sem novidades há um tempo. Etapas longas, como um render, podem levar minutos. O turno continua aberto e nenhum erro foi reportado.',
 } satisfies Record<keyof typeof chatEn, string>

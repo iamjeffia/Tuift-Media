@@ -141,6 +141,19 @@ describe('turn boundaries', () => {
     ).toMatchObject({ complete: false, stopped: false, finalAnswerIndex: undefined })
   })
 
+  it('marks a turn that failed as failed, not stopped, and never while it is the active one', () => {
+    const items: Item[] = [
+      { ...item('user', 't1'), role: 'user', createdAt: 1_000 },
+      { ...item('command', 't1'), type: 'command', status: 'failed', createdAt: 2_000 },
+    ]
+    const timing = { t1: { startedAt: 1_000, completedAt: 9_000, failed: true as const } }
+
+    expect(presentationsOf(items, timing).get('t1')).toMatchObject({ failed: true, stopped: false })
+    expect(projectThreadItems(items, timing, 't1').presentations.get('t1')).toMatchObject({
+      failed: false,
+    })
+  })
+
   it('ends a stopped turn at its work or its prompt when no answer came', () => {
     const timing = { t1: { startedAt: 1_000, completedAt: 3_000, interrupted: true as const } }
     const working: Item[] = [

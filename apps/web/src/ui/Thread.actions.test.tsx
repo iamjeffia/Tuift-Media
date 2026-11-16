@@ -672,7 +672,7 @@ describe('completed activity disclosure', () => {
         />,
       )
 
-      expect(screen.getByRole('button', { name: 'Stopped after 4s' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Interrupted after 4s' })).toBeTruthy()
       expect(screen.queryByText('Stopped by you')).toBeNull()
     })
 

@@ -1,8 +1,10 @@
-import { memo, useEffect, useRef } from 'react'
+import { memo } from 'react'
 import type { Item, Subagent } from '@harness/contracts'
 import { IconChevronRight as ChevronRight, IconSubtask as SubagentIcon } from '@tabler/icons-react'
 import { useDisclosure } from './disclosure.js'
 import { parseToolCall } from './tool-call-text.js'
+import { LiveElapsed } from './LiveElapsed.js'
+import { elapsedLabel, liveClockRunning } from './live-clock.js'
 import '../styles/subagent.css'
 
 /**
@@ -27,7 +29,7 @@ export function subagentActivityLabel(subagent: Subagent): string {
     case 'failed':
       return `${subagent.name ?? 'Subagent'} failed${task}`
     case 'interrupted':
-      return `${subagent.name ?? 'Subagent'} stopped${task}`
+      return `${subagent.name ?? 'Subagent'} interrupted${task}`
   }
 }
 
@@ -42,23 +44,70 @@ export function runningSubagentsText(count: number): string {
 }
 
 /**
- * What a live work summary says while subagents the main agent did not send to the
- * background are running: that one by name, or how many run. Undefined while only
- * background subagents run, because the main agent's own step is then the news.
+ * The subagents a live work summary waits on: those the main agent did not send to the
+ * background and that still run. Undefined while only background subagents run, because
+ * the main agent's own step is then the news.
  */
-export function waitingSubagentsLabel(items: readonly Item[]): string | undefined {
-  let only: Subagent | undefined
-  let running = 0
+export function waitingSubagents(
+  items: readonly Item[],
+): { count: number; only: Item; since: number } | undefined {
+  let only: Item | undefined
+  let count = 0
+  let since = Number.POSITIVE_INFINITY
   let foreground = false
   for (const item of items) {
     const subagent = item.subagent
     if (subagent?.state !== 'running') continue
-    running += 1
-    only = subagent
+    count += 1
+    only = item
+    since = Math.min(since, item.createdAt)
     foreground ||= subagent.background !== true
   }
-  if (!foreground || !only) return undefined
-  return running === 1 ? subagentActivityLabel(only) : `Running ${running} subagents`
+  return foreground && only ? { count, only, since } : undefined
+}
+
+/**
+ * What a live work summary says while subagents the main agent did not send to the
+ * background are running: that one by name, or how many run.
+ */
+export function waitingSubagentsLabel(items: readonly Item[]): string | undefined {
+  const waiting = waitingSubagents(items)
+  if (!waiting?.only.subagent) return undefined
+  return waiting.count === 1
+    ? subagentActivityLabel(waiting.only.subagent)
+    : `Running ${waiting.count} subagents`
+}
+
+/**
+ * What a running subagent is doing right now, in the provider's own words, and how many
+ * tools it has used. Only what the provider reported: Claude Code sends a progress line
+ * ("Reading notes.txt") and the tool's name, Codex, Grok and TUIFT Code's own subagents the
+ * tool's name, and a provider that sends nothing about a subagent's steps gets nothing here.
+ */
+export function subagentNow(
+  subagent: Subagent,
+): { doing: string | undefined; tools: number } | undefined {
+  if (subagent.state !== 'running') return undefined
+  const doing = oneLine(subagent.summary ?? subagent.lastTool ?? '') || undefined
+  const tools = subagent.toolUses ?? 0
+  return doing || tools > 0 ? { doing, tools } : undefined
+}
+
+/** The dim line under a running subagent: its latest step and how many tools it has used. */
+export function SubagentNow({ subagent }: { subagent: Subagent }) {
+  const now = subagentNow(subagent)
+  if (!now) return null
+  const tools = now.tools > 0 ? `${now.tools} ${now.tools === 1 ? 'tool' : 'tools'}` : undefined
+  return (
+    <p className="live-now" title={now.doing}>
+      {now.doing ? (
+        <span key={now.doing} className="live-now__text">
+          {now.doing}
+        </span>
+      ) : null}
+      {tools ? <span className="live-now__count">{tools}</span> : null}
+    </p>
+  )
 }
 
 export const SubagentRow = memo(function SubagentRow({ item }: { item: Item }) {
@@ -103,6 +152,7 @@ export const SubagentRow = memo(function SubagentRow({ item }: { item: Item }) {
           <ChevronRight className="aux__chevron" size={14} strokeWidth={1.8} aria-hidden />
         ) : null}
       </button>
+      <SubagentNow subagent={subagent} />
       {expandable ? (
         <div
           ref={disclosure.revealRef}
@@ -227,13 +277,13 @@ export function SubagentStatus({
     ) : subagent.state === 'failed' ? (
       <span className="subagent__part subagent__state is-failed">Failed</span>
     ) : subagent.state === 'interrupted' ? (
-      <span className="subagent__part subagent__state">Stopped</span>
+      <span className="subagent__part subagent__state">Interrupted</span>
     ) : null
   const tools = subagent.toolUses ?? 0
   const tokens = subagent.tokens ?? 0
   const time =
     subagent.state === 'running' ? (
-      <RunningTime since={startedAt} />
+      <LiveElapsed since={startedAt} className="subagent__elapsed" />
     ) : subagent.durationMs !== undefined && subagent.durationMs >= 1000 ? (
       elapsedLabel(subagent.durationMs)
     ) : null
@@ -251,40 +301,9 @@ export function SubagentStatus({
     </span>
   )
 }
-/** Time since the subagent started, kept current by the shared clock without a render. */
-function RunningTime({ since }: { since: number }) {
-  const text = useRef<HTMLSpanElement>(null)
-  useEffect(
-    () =>
-      onClockTick(() => {
-        if (text.current) text.current.textContent = elapsedLabel(Date.now() - since)
-      }),
-    [since],
-  )
-  return <span ref={text}>{elapsedLabel(Date.now() - since)}</span>
-}
-
-const tickListeners = new Set<() => void>()
-let clock: ReturnType<typeof setInterval> | undefined
-
-/** One clock for every running subagent on screen; it stops when the last one unmounts. */
-function onClockTick(listener: () => void): () => void {
-  tickListeners.add(listener)
-  clock ??= setInterval(() => {
-    if (globalThis.document?.visibilityState === 'hidden') return
-    for (const tick of tickListeners) tick()
-  }, 1_000)
-  return () => {
-    tickListeners.delete(listener)
-    if (tickListeners.size > 0 || clock === undefined) return
-    clearInterval(clock)
-    clock = undefined
-  }
-}
-
 /** Whether the shared clock is running, for tests. */
 export function subagentClockRunning(): boolean {
-  return clock !== undefined
+  return liveClockRunning()
 }
 
 /** What the main agent asked the subagent to do, when the call carries it. */
@@ -296,16 +315,6 @@ function subagentPrompt(item: Item): string | undefined {
 
 function oneLine(text: string): string {
   return text.replace(/\s+/g, ' ').trim()
-}
-
-function elapsedLabel(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000))
-  const hours = Math.floor(total / 3600)
-  const minutes = Math.floor((total % 3600) / 60)
-  const seconds = total % 60
-  if (hours > 0) return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`
-  if (minutes > 0) return seconds === 0 ? `${minutes}m` : `${minutes}m ${seconds}s`
-  return `${seconds}s`
 }
 
 function compactCount(count: number): string {

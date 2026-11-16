@@ -73,6 +73,8 @@ export class ThreadController {
   #shown: [string | undefined, string | undefined] = [undefined, undefined]
   #focused: PaneSlot = 0
   #states = new Map<string, ThreadState>()
+  /** When each running chat last sent an event of any kind, for the quiet-agent note. */
+  #lastEventAt = new Map<string, number>()
   #sequences = new Map<string, number>()
   #submissions = new Map<string, Map<string, PendingSubmission>>()
   #drafts: Map<string, ComposerDraft>
@@ -104,6 +106,12 @@ export class ThreadController {
     private draftStorage?: DraftStorage,
   ) {
     this.#drafts = parseComposerDrafts(draftStorage?.read() ?? null)
+    for (const slot of [0, 1] as const) {
+      this.columns[slot].lastEventAt = () => {
+        const id = this.#shown[slot]
+        return id === undefined ? undefined : this.#lastEventAt.get(id)
+      }
+    }
   }
 
   /** The focused column's frame store. */
@@ -385,6 +393,7 @@ export class ThreadController {
   }
   forget(id: string): void {
     this.#states.delete(id)
+    this.#lastEventAt.delete(id)
     this.#sequences.delete(id)
     this.#submissions.delete(id)
     this.#deltas.delete(id)
@@ -429,6 +438,8 @@ export class ThreadController {
     )
       return
     if (seq === undefined) this.#sequences.delete(id)
+    // Any event, a streamed word included, shows the agent is not silent.
+    this.#lastEventAt.set(id, Date.now())
     const buffers = this.#histories.get(id)
     if (buffers) for (const buffer of buffers) buffer.push({ seq, event })
     if (event.type === 'item.delta') {
@@ -451,6 +462,7 @@ export class ThreadController {
       this.flush(id, () => isProtected(id)),
       event,
     )
+    if (event.type === 'turn.completed') this.#lastEventAt.delete(id)
     this.update(id, next)
     // The flush can compact a background thread and drop its cursor on purpose;
     // the next selection must then replay it in full, not just a suffix.
@@ -543,6 +555,8 @@ export class ThreadController {
           buffer.reduce((latest, entry) => Math.max(latest, entry.seq ?? latest), lastSeq),
         )
       const visible = this.#preserveSubmissions(id, live)
+      // A turn found running has no event of ours yet: it counts as heard from now.
+      if (visible.running && !this.#lastEventAt.has(id)) this.#lastEventAt.set(id, Date.now())
       this.#deltas.delete(id)
       this.update(id, visible)
       this.#historyBases.delete(id)

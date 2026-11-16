@@ -1257,3 +1257,24 @@ describe('last sent prompt', () => {
     expect(lastSentPrompt(withImage)?.attachments).toEqual(['/images/a.png'])
   })
 })
+
+describe('a turn that failed', () => {
+  it('is remembered as failed, apart from one the user stopped', () => {
+    const started = {
+      type: 'turn.started' as const,
+      turn: { id: 'turn-f', threadId: 't', status: 'running' as const, createdAt: 100 },
+    }
+    const failed = reduce(reduce(emptyThread, started), {
+      type: 'turn.completed',
+      turnId: 'turn-f',
+      status: 'failed',
+    })
+    expect(failed.turnTiming['turn-f']).toEqual({ startedAt: 100, failed: true })
+    const stopped = reduce(reduce(emptyThread, started), {
+      type: 'turn.completed',
+      turnId: 'turn-f',
+      status: 'interrupted',
+    })
+    expect(stopped.turnTiming['turn-f']).toEqual({ startedAt: 100, interrupted: true })
+  })
+})

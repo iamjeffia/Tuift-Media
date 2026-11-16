@@ -309,11 +309,17 @@ function settledTurnLifecycle(
       ? { completedAt: timing?.completedAt ?? event.completedAt }
       : {}),
     ...(event.status === 'interrupted' ? { interrupted: true as const } : {}),
+    ...(event.status === 'failed' ? { failed: true as const } : {}),
   }
 }
 
 function settleTurnTiming(turnTiming: TurnTiming, event: TurnCompletedEvent): TurnTiming {
-  if (event.completedAt === undefined && event.status !== 'interrupted') return turnTiming
+  if (
+    event.completedAt === undefined &&
+    event.status !== 'interrupted' &&
+    event.status !== 'failed'
+  )
+    return turnTiming
   return {
     ...turnTiming,
     [event.turnId]: settledTurnLifecycle(turnTiming[event.turnId], event),
@@ -903,7 +909,11 @@ export function reduceEventLog(
     }
     if (event.type === 'turn.completed') {
       let timing = next.turnTiming
-      if (event.completedAt !== undefined || event.status === 'interrupted') {
+      if (
+        event.completedAt !== undefined ||
+        event.status === 'interrupted' ||
+        event.status === 'failed'
+      ) {
         const mutable = mutableTurnTiming()
         mutable[event.turnId] = settledTurnLifecycle(mutable[event.turnId], event)
         timing = mutable
