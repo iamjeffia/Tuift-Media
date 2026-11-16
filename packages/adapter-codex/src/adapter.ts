@@ -223,10 +223,23 @@ export function formatCodexWarning(notification: WarningNotification): string {
 
 export function mapCodexError(notification: ErrorNotification): DomainEvent | undefined {
   if (notification.willRetry) return undefined
+  // Codex classifies its own errors; `unauthorized` is its answer to a login it could not use.
+  // Never the words: a tool's output that says "unauthorized" is not this.
+  const unauthorized = notification.error.codexErrorInfo === 'unauthorized'
   return {
     type: 'thread.error',
     threadId: notification.threadId,
-    message: requestTooLargeMessage(notification.error.message) ?? notification.error.message,
+    message: unauthorized
+      ? 'Codex did not accept the login. Sign in again to continue.'
+      : (requestTooLargeMessage(notification.error.message) ?? notification.error.message),
+    ...(unauthorized
+      ? {
+          reason: {
+            code: 'auth_failed' as const,
+            message: notification.error.message.slice(0, 500),
+          },
+        }
+      : {}),
   }
 }
 

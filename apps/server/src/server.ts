@@ -308,7 +308,7 @@ export function startServer(
         browserCommands.cancelThread(threadId)
         if (orchestrator.awaitsProviderTitle(threadId)) void nameUnnamedChat(threadId)
       }
-      if (serializedEvent === undefined) {
+      if (serializedEvent === undefined || seq === undefined) {
         push.broadcast('thread.event', { threadId, event, seq })
       } else {
         push.broadcastRecordedEvent('thread.event', threadId, serializedEvent, seq)
@@ -316,7 +316,7 @@ export function startServer(
     },
     onSideEvent: (threadId, event, seq, serializedEvent) => {
       if (event.type === 'item.delta') streamQuiet.noteDelta()
-      if (serializedEvent === undefined) {
+      if (serializedEvent === undefined || seq === undefined) {
         push.broadcast('sideChat.event', { threadId, event, seq })
       } else {
         push.broadcastRecordedEvent('sideChat.event', threadId, serializedEvent, seq)

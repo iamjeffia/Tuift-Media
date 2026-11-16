@@ -5948,6 +5948,30 @@ describe('new chats', () => {
       )
     })
 
+    it('sends a refused login to where the person signs in, and keeps Continue beside it', async () => {
+      const row = await cutShort({ code: 'auth_failed' })
+      expect(row.message).toBe(
+        'Codex did not accept your login. Sign in again to continue. The chat and the files already written are kept.',
+      )
+      expect(row.action?.label).toBe('Sign in')
+      expect(row.secondaryAction?.label).toBe('Continue')
+      expect(transport.request).not.toHaveBeenCalledWith('thread.sendTurn', expect.anything())
+
+      await act(async () => row.secondaryAction!.run())
+      await waitFor(() =>
+        expect(transport.request).toHaveBeenCalledWith(
+          'thread.sendTurn',
+          expect.objectContaining({ threadId: 'chat-cut' }),
+        ),
+      )
+    })
+
+    it('goes on offering only Continue after a save that failed', async () => {
+      const row = await cutShort({ code: 'save_disk_full' })
+      expect(row.action?.label).toBe('Continue')
+      expect(row.secondaryAction).toBeUndefined()
+    })
+
     it('says in Portuguese that the app was closed while the chat worked', async () => {
       setLanguage('pt-BR', { persist: false })
       const row = await cutShort({ code: 'app_closed' })

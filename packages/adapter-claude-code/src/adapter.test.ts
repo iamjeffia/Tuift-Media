@@ -19,6 +19,7 @@ import {
   ClaudeCodeAdapter,
   CLAUDE_CAPABILITIES,
   CLAUDE_MODELS,
+  claudeAuthFailure,
   claudeUserMessage,
 } from './adapter.js'
 import type { ClaudeQueryFactory, ClaudeQueryRuntime } from './sdk-runtime.js'
@@ -3045,6 +3046,118 @@ describe('Claude plan-limit events', () => {
       },
     ])
     expect(logs.filter((line) => line.startsWith('rate limit'))).toEqual([])
+    await adapter.dispose()
+  })
+})
+
+describe('a login Claude Code refuses in the middle of a turn', () => {
+  /** What the CLI sends for a failed API call: a reply carrying `error`, then an error result. */
+  function failedReply(error: string): SDKMessage {
+    return { ...assistantMessage('msg-error', 'Please run /login'), error } as unknown as SDKMessage
+  }
+
+  async function runTurn(messages: SDKMessage[]) {
+    const fake = harness()
+    const adapter = new ClaudeCodeAdapter({ createQuery: fake.createQuery })
+    const events: DomainEvent[] = []
+    adapter.on('event', (event) => events.push(event))
+    const thread = await adapter.startThread('/repo')
+    await adapter.sendTurn(thread.id, 'Work')
+    for (const message of messages) fake.queries[0]!.emitMessage(message)
+    await tick()
+    await adapter.dispose()
+    return events
+  }
+
+  it.each([
+    ['authentication_failed', 'auth_failed'],
+    ['oauth_org_not_allowed', 'auth_no_access'],
+  ])('maps %s to %s, before the turn ends', async (error, code) => {
+    const events = await runTurn([failedReply(error), resultMessage(true)])
+    const errors = events.filter((event) => event.type === 'thread.error')
+    expect(errors).toMatchObject([{ reason: { code, message: 'failed' } }])
+    expect(events.at(-1)).toMatchObject({ type: 'turn.completed', status: 'failed' })
+    expect(events.indexOf(errors[0]!)).toBeLessThan(events.length - 1)
+  })
+
+  it.each([
+    'rate_limit',
+    'billing_error',
+    'overloaded',
+    'server_error',
+    'invalid_request',
+    'model_not_found',
+    'unknown',
+    'max_output_tokens',
+  ])('does not take %s for a login problem', async (error) => {
+    const events = await runTurn([failedReply(error), resultMessage(true)])
+    const [raised] = events.filter((event) => event.type === 'thread.error')
+    expect(raised).not.toHaveProperty('reason')
+    expect(claudeAuthFailure(error)).toBeUndefined()
+  })
+
+  it('does not take an ordinary tool error that says unauthorized for one', async () => {
+    const events = await runTurn([
+      assistantMessage('msg-1', 'The API answered 401 unauthorized, so I will use the other key.'),
+      resultMessage(true),
+    ])
+    expect(events.filter((event) => event.type === 'thread.error')).not.toMatchObject([
+      { reason: expect.anything() },
+    ])
+  })
+
+  it('forgets a login problem once a later reply went through', async () => {
+    const events = await runTurn([
+      failedReply('authentication_failed'),
+      assistantMessage('msg-2', 'Done after refreshing the token.'),
+      resultMessage(false),
+    ])
+    expect(events.some((event) => event.type === 'thread.error')).toBe(false)
+    expect(events.at(-1)).toMatchObject({ type: 'turn.completed', status: 'completed' })
+  })
+
+  it('does not report a login problem on a turn the person stopped', async () => {
+    const fake = harness()
+    const adapter = new ClaudeCodeAdapter({ createQuery: fake.createQuery })
+    const events: DomainEvent[] = []
+    adapter.on('event', (event) => events.push(event))
+    const thread = await adapter.startThread('/repo')
+    await adapter.sendTurn(thread.id, 'Work')
+    fake.queries[0]!.emitMessage(failedReply('authentication_failed'))
+    await tick()
+    await adapter.interrupt()
+    fake.queries[0]!.emitMessage(resultMessage(true))
+    await tick()
+    expect(events.some((event) => event.type === 'thread.error')).toBe(false)
+    await adapter.dispose()
+  })
+})
+
+describe('a failure inside the consume loop', () => {
+  it('ends the turn and logs when a listener throws while the turn is being failed', async () => {
+    const unhandled: unknown[] = []
+    const onUnhandled = (reason: unknown) => unhandled.push(reason)
+    process.on('unhandledRejection', onUnhandled)
+    const fake = harness()
+    const adapter = new ClaudeCodeAdapter({ createQuery: fake.createQuery })
+    const logs: string[] = []
+    const events: DomainEvent[] = []
+    adapter.on('log', (line) => logs.push(line))
+    let full = false
+    adapter.on('event', (event) => {
+      events.push(event)
+      // A listener that cannot record anything, as when the disk is full.
+      if (full) throw new Error('database or disk is full')
+    })
+    const thread = await adapter.startThread('/repo')
+    await adapter.sendTurn(thread.id, 'Work')
+    full = true
+    fake.queries[0]!.emitMessage(assistantMessage('msg-1', 'Hello'))
+    await tick()
+    await tick()
+    process.off('unhandledRejection', onUnhandled)
+    expect(unhandled).toEqual([])
+    expect(logs.join(' | ')).toContain('Claude session loop failed: database or disk is full')
     await adapter.dispose()
   })
 })

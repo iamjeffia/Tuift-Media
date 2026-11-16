@@ -414,7 +414,7 @@ export class AntigravityAdapter extends EventEmitter<AntigravityAdapterEvents> {
             return
           }
           finishProcess(error.message)
-          void killTree(child)
+          void killTree(child).catch(() => undefined)
         },
       },
     )

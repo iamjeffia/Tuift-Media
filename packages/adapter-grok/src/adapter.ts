@@ -720,7 +720,7 @@ export class GrokAdapter extends EventEmitter<GrokAdapterEvents> {
             return
           }
           finishProcess(error.message)
-          void killTree(child)
+          void killTree(child).catch(() => undefined)
         },
       },
     )

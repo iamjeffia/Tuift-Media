@@ -7,7 +7,17 @@ const MESSAGES = {
   process_provider_error: 'chat.crash.providerError',
   process_unknown: 'chat.crash.unknown',
   app_closed: 'chat.crash.appClosed',
+  save_disk_full: 'chat.crash.saveDiskFull',
+  save_locked: 'chat.crash.saveLocked',
+  save_failed: 'chat.crash.saveFailed',
+  auth_failed: 'chat.crash.authFailed',
+  auth_no_access: 'chat.crash.authNoAccess',
 } as const satisfies Record<ThreadErrorReason['code'], MessageKey>
+
+/** The provider refused the login: the way forward is to sign in, not only to try again. */
+export function isLoginFailure(reason: ThreadErrorReason | undefined): boolean {
+  return reason?.code === 'auth_failed' || reason?.code === 'auth_no_access'
+}
 
 /** A Windows status is read in hex; the number the platform gave stays beside it. */
 function exitCodeText(code: number): string {

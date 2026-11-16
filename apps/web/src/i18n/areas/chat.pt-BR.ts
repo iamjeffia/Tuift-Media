@@ -289,6 +289,16 @@ export const chatPt = {
     '{provider} foi encerrado de forma inesperada e não deu para saber o motivo. O chat e os arquivos já gravados foram mantidos.',
   'chat.crash.appClosed':
     'O app foi fechado enquanto este chat trabalhava. O chat e os arquivos já gravados foram mantidos.',
+  'chat.crash.saveDiskFull':
+    'O chat parou: o disco está cheio e o trabalho de {provider} não pôde ser salvo. Libere espaço e continue. O que já foi salvo foi mantido.',
+  'chat.crash.saveLocked':
+    'O chat parou: outro programa está usando o arquivo das conversas (um antivírus ou um programa de backup, por exemplo) e o trabalho de {provider} não pôde ser salvo. Tente continuar em instantes. O que já foi salvo foi mantido.',
+  'chat.crash.saveFailed':
+    'O chat parou: o trabalho de {provider} não pôde ser salvo. O que já foi salvo foi mantido.',
+  'chat.crash.authFailed':
+    '{provider} não aceitou o seu login. Entre de novo para continuar. O chat e os arquivos já gravados foram mantidos.',
+  'chat.crash.authNoAccess':
+    '{provider} recusou esta conta porque ela não tem permissão de uso. Entre com outra conta para continuar. O chat e os arquivos já gravados foram mantidos.',
   'chat.crash.continue': 'Continuar',
   'chat.crash.details': 'Detalhes técnicos: {details}',
   'chat.crash.exitCode': 'código de saída {code}',
