@@ -3,7 +3,7 @@ import type { StartupNotice } from '@harness/contracts'
 import { noticeView } from './notice'
 import { deviceLanguage, languageOf } from './strings'
 
-const aside = 'D:\data\chats.sqlite.damaged-20261116'
+const aside = 'D:/data/chats.sqlite.damaged-20261116'
 const restored: StartupNotice = {
   kind: 'database.restored',
   at: Date.UTC(2026, 10, 16, 12),

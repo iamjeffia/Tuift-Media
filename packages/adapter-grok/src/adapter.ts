@@ -757,7 +757,8 @@ export class GrokAdapter extends EventEmitter<GrokAdapterEvents> {
       const killReason = this.#killReasons.get(child)
       if (!killReason) {
         // The CLI's own error frame says the login is the problem: the notice offers to sign in.
-        const refused = reportedError !== undefined && grokLoginRefused(reportedError)
+        const said = reportedError
+        const refused = said !== undefined && grokLoginRefused(said)
         this.emit('event', {
           type: 'thread.error',
           threadId,
@@ -765,7 +766,7 @@ export class GrokAdapter extends EventEmitter<GrokAdapterEvents> {
             ? 'Grok did not accept the login. Sign in again to continue.'
             : errorMessage,
           ...(refused
-            ? { reason: { code: 'auth_failed' as const, message: reportedError.slice(0, 500) } }
+            ? { reason: { code: 'auth_failed' as const, message: said.slice(0, 500) } }
             : {}),
         })
       }
