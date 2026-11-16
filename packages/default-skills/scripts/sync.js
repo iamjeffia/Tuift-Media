@@ -12,7 +12,9 @@
 //
 // Layout of the bundle. A skill with no `pack` belongs to the base bundle: the
 // bundle root itself, as above. A skill with `"pack": "<name>"` (declared under
-// `packs` in skills.json) is laid out as a second plugin of its own:
+// `packs` in skills.json) is laid out as a second plugin of its own. `pack` may
+// also be a list of names, `["motion", "design"]`: the skill is then copied into
+// each of those packs, and its hashes are measured once.
 //
 //   bundle/                          base plugin: skills with no pack
 //     .claude-plugin/plugin.json
@@ -42,7 +44,14 @@ import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/p
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
-import { digestFiles, fetchArchive, isStray, omitFiles, skillFiles } from './skill-media.mjs'
+import {
+  archiveUrl,
+  digestFiles,
+  fetchArchive,
+  isStray,
+  omitFiles,
+  skillFiles,
+} from './skill-media.mjs'
 
 export { digestFiles, isStray, skillFiles, tarEntries } from './skill-media.mjs'
 
@@ -59,6 +68,12 @@ const SAFE_NAME = /^[\w.-]+$/
 
 export function isLocalSkill(skill) {
   return skill.source === 'local'
+}
+
+/** The packs a skill belongs to: none (the base bundle), one (`"pack": "a"`) or several (`"pack": ["a", "b"]`). */
+export function skillPacks(skill) {
+  if (skill.pack === undefined) return []
+  return Array.isArray(skill.pack) ? skill.pack : [skill.pack]
 }
 
 export function patchPath(skill, relative, root = patchesRoot) {
@@ -132,7 +147,7 @@ export function bundleLayout(manifest, root = bundleRoot) {
   const base = {
     dir: root,
     plugin: manifest.plugin,
-    skills: manifest.skills.filter((skill) => !skill.pack),
+    skills: manifest.skills.filter((skill) => skillPacks(skill).length === 0),
   }
   const packs = Object.entries(manifest.packs ?? {}).map(([name, pack]) => ({
     name,
@@ -142,16 +157,17 @@ export function bundleLayout(manifest, root = bundleRoot) {
       description: pack.description,
       ...(manifest.plugin.author ? { author: manifest.plugin.author } : {}),
     },
-    skills: manifest.skills.filter((skill) => skill.pack === name),
+    skills: manifest.skills.filter((skill) => skillPacks(skill).includes(name)),
   }))
   return [base, ...packs]
 }
 
-/** Where a skill's files go in a bundle (or staging) folder. */
-function skillDir(root, skill) {
-  return skill.pack
-    ? path.join(root, 'packs', skill.pack, 'skills', skill.folder)
-    : path.join(root, 'skills', skill.folder)
+/** Where a skill's files go in a bundle (or staging) folder: one place per pack it is in. */
+function skillDirs(root, skill) {
+  const packs = skillPacks(skill)
+  return packs.length
+    ? packs.map((pack) => path.join(root, 'packs', pack, 'skills', skill.folder))
+    : [path.join(root, 'skills', skill.folder)]
 }
 
 /** Mistakes in how skills.json declares packs: unsafe names, repeated folders, empty packs. */
@@ -164,15 +180,24 @@ export function manifestProblems(manifest) {
     if (!SAFE_NAME.test(pack?.plugin ?? '') || plugins.has(pack.plugin))
       problems.push(`pack ${name}: needs a plugin name of its own`)
     plugins.add(pack?.plugin)
-    if (!manifest.skills.some((skill) => skill.pack === name))
+    if (!manifest.skills.some((skill) => skillPacks(skill).includes(name)))
       problems.push(`pack ${name}: has no skills`)
   }
   const folders = new Set()
   for (const skill of manifest.skills) {
     if (folders.has(skill.folder)) problems.push(`${skill.folder}: listed more than once`)
     folders.add(skill.folder)
-    if (skill.pack !== undefined && !(skill.pack in packs))
-      problems.push(`${skill.folder}: pack ${skill.pack} is not declared under packs`)
+    const named = skillPacks(skill)
+    if (
+      skill.pack !== undefined &&
+      (named.length === 0 ||
+        named.some((pack) => typeof pack !== 'string') ||
+        new Set(named).size !== named.length)
+    )
+      problems.push(`${skill.folder}: pack must be a name or a list of different names`)
+    for (const pack of named)
+      if (typeof pack === 'string' && !Object.hasOwn(packs, pack))
+        problems.push(`${skill.folder}: pack ${pack} is not declared under packs`)
   }
   return problems
 }
@@ -318,13 +343,20 @@ export async function syncBundle(
   const staging = `${root}.staging-${process.pid}`
   await rm(staging, { recursive: true, force: true })
   const next = { ...manifest, skills: [] }
+  // Several skills come from one repository at one commit: one download serves them all.
+  const archives = new Map()
+  const archiveOf = (skill) => {
+    const url = archiveUrl(skill)
+    if (!archives.has(url)) archives.set(url, fetchArchive(skill, fetchImpl))
+    return archives.get(url)
+  }
   try {
     for (const skill of manifest.skills) {
       let archiveSha256
       let all
       if (isLocalSkill(skill)) all = await localSkillFiles(skill, locals)
       else {
-        const gz = await fetchArchive(skill, fetchImpl)
+        const gz = await archiveOf(skill)
         archiveSha256 = createHash('sha256').update(gz).digest('hex')
         if (!update && archiveSha256 !== skill.archiveSha256)
           throw new Error(
@@ -341,11 +373,12 @@ export async function syncBundle(
             ? `${skill.folder}: ${LOCAL_LABEL}/${skill.folder} changed since it was pinned; run sync.js --update`
             : `${skill.folder}: extracted files do not match the pinned tree hash`,
         )
-      for (const [relative, body] of [...files, ...patch.replacements]) {
-        const target = path.join(skillDir(staging, skill), ...relative.split('/'))
-        await mkdir(path.dirname(target), { recursive: true })
-        await writeFile(target, body)
-      }
+      for (const dir of skillDirs(staging, skill))
+        for (const [relative, body] of [...files, ...patch.replacements]) {
+          const target = path.join(dir, ...relative.split('/'))
+          await mkdir(path.dirname(target), { recursive: true })
+          await writeFile(target, body)
+        }
       next.skills.push({
         ...skill,
         ...(archiveSha256 ? { archiveSha256 } : {}),
@@ -353,7 +386,7 @@ export async function syncBundle(
         ...(patch.entry ? { patch: patch.entry } : {}),
       })
       log(
-        `${skill.pack ? `[${skill.pack}] ` : ''}${skill.folder}: ${digest.files + patch.replacements.size} files @ ${skill.commit ?? `${LOCAL_LABEL}/${skill.folder}`}` +
+        `${skill.pack ? `[${skillPacks(skill).join(', ')}] ` : ''}${skill.folder}: ${digest.files + patch.replacements.size} files @ ${skill.commit ?? `${LOCAL_LABEL}/${skill.folder}`}` +
           (skill.omit ? `, ${all.size - files.size - patch.replacements.size} left out` : '') +
           (patch.entry ? `, ${patch.replacements.size} patched` : ''),
       )

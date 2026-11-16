@@ -26,5 +26,13 @@ with its `LICENSE`, `NOTICE.md` and `THIRD_PARTY_LICENSES.txt`. `pnpm licenses:v
 bundle on disk that lacks them, and `verify-release-assets` fails an installer whose folder is not
 the pinned release.
 
+The Design pack's Agent Skills (`packages/default-skills`, pack `design`) are third-party files under
+their authors' own licences, MIT except `frontend-design` (Apache-2.0). Each is pinned to an exact commit
+of a public repository, ships unmodified in `resources/default-skills/packs/design` with the licence
+file of its source, and is listed in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) with its
+commit. A skill is added only when its licence permits redistribution; the Remotion, `transitions-*` and
+`21st-*` skills are not, and the installer carries none of them. `sync.js` refuses a pin whose archive or
+files differ from the recorded hashes.
+
 Apache-2.0 covers TasteCode source code. It does not grant rights to third-party product
 names, logos, provider services, or bundled dependencies beyond their own terms.

@@ -24,10 +24,12 @@ const MANIFEST = new URL('../../../packages/default-skills/skills.json', import.
 describe('the stage to skills table', () => {
   it('has a row for every stage and names only skills of the real Motion pack', () => {
     const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as {
-      skills: Array<{ folder: string; pack?: string }>
+      skills: Array<{ folder: string; pack?: string | string[] }>
     }
     const pack = new Set(
-      manifest.skills.filter((entry) => entry.pack === 'motion').map((entry) => entry.folder),
+      manifest.skills
+        .filter((entry) => [entry.pack ?? []].flat().includes('motion'))
+        .map((entry) => entry.folder),
     )
     expect(Object.keys(MOTION_STAGE_SKILLS)).toEqual([...MOTION_STAGES])
     const unknown = Object.values(MOTION_STAGE_SKILLS)

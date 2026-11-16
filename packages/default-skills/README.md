@@ -17,7 +17,9 @@ and the installer copies `bundle/` to `resources/default-skills`.
 
 A skill with no `pack` is in the base bundle and goes to every chat. A skill with
 `"pack": "<name>"` (declared once under `packs`, with its own plugin name) is in a pack, which no
-chat receives until the app turns it on.
+chat receives until the app turns it on. `pack` may also be a list, `["motion", "design"]`: the
+skill is then copied into each of those packs and hashed once (`stageshow` and `figma` are in both).
+A chat has one mode, so it loads one pack and a shared skill is never listed twice.
 
 ```
 bundle/                         base plugin ("tastecode"): skills with no pack
@@ -34,7 +36,10 @@ bundle/                         base plugin ("tastecode"): skills with no pack
 - Other providers: a short catalog of the pack, from `loadDefaultSkillPack` in
   `apps/server/src/default-skills.ts`.
 
-Packs today: `motion` (video and motion skills) and `design` (`ui-profissional`).
+Packs today: `motion` (video and motion skills) and `design` (36 skills: the team's own, and the
+third-party ones whose licences allow embedding, each pinned by commit; see
+`THIRD_PARTY_NOTICES.md`). A source whose archive is too large to fetch for one skill is copied into
+`.agents/skills/` instead and bundled as a local skill (`libraries-dev`).
 
 ## Commands
 

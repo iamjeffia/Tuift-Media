@@ -183,6 +183,99 @@ describe('ThreadMotionStore', () => {
     expect(entry(store, 'a')).toEqual({ mode: 'motion', stage: 'review' })
   })
 
+  describe('mirroring the Design toggle to the server', () => {
+    it('asks for the design mode when the toggle is on, and drops it when it is off', async () => {
+      const { store, setMode } = makeStore({})
+      store.adopt('a', { model: 'm' })
+      expect(store.designState('a')).toBe('none')
+      await store.setDesign('a', true)
+      expect(setMode).toHaveBeenLastCalledWith({ threadId: 'a', mode: 'design' })
+      expect(store.designState('a')).toBe('design')
+      await store.setDesign('a', false)
+      expect(setMode).toHaveBeenLastCalledWith({ threadId: 'a', mode: null })
+      expect(store.designState('a')).toBe('none')
+    })
+
+    it('asks nothing when the server already says what the toggle says', async () => {
+      const { store, setMode } = makeStore({})
+      store.adopt('a', { mode: 'design' })
+      store.adopt('b', { model: 'm' })
+      await store.setDesign('a', true)
+      await store.setDesign('b', false)
+      expect(setMode).not.toHaveBeenCalled()
+    })
+
+    it('waits for the settings of a chat it knows nothing about, and leaves a Motion chat alone', async () => {
+      const { store, setMode } = makeStore({})
+      expect(store.designState('a')).toBe('unknown')
+      await store.setDesign('a', true)
+      store.adopt('m', { mode: 'motion', motionStage: 'idea' })
+      expect(store.designState('m')).toBe('motion')
+      await store.setDesign('m', true)
+      await store.setDesign('m', false)
+      expect(setMode).not.toHaveBeenCalled()
+      expect(entry(store, 'm')).toEqual({ mode: 'motion', stage: 'idea' })
+    })
+
+    it('does not ask while a turn of the chat runs', async () => {
+      const { store, setMode } = makeStore({})
+      store.adopt('a', { model: 'm' })
+      store.watch('a', true)
+      await store.setDesign('a', true)
+      expect(setMode).not.toHaveBeenCalled()
+      store.watch('a', false)
+      await store.setDesign('a', true)
+      expect(setMode).toHaveBeenCalledTimes(1)
+    })
+
+    it('goes back to what the server said, and says why, when the server refuses', async () => {
+      const { store, onError } = makeStore({
+        setMode: async () => {
+          throw new Error('Wait for the current turn to finish.')
+        },
+      })
+      store.adopt('a', { model: 'm' })
+      await store.setDesign('a', true)
+      expect(store.designState('a')).toBe('none')
+      expect(onError).toHaveBeenCalledWith(expect.stringContaining('Wait for the current turn'))
+    })
+
+    it('does not ask again for what was just refused, until the turn state of the chat changes', async () => {
+      const { store, setMode, onError } = makeStore({
+        setMode: async () => {
+          throw new Error('refused')
+        },
+      })
+      store.adopt('a', { model: 'm' })
+      await store.setDesign('a', true)
+      await store.setDesign('a', true)
+      await store.setDesign('a', true)
+      expect(setMode).toHaveBeenCalledTimes(1)
+      expect(onError).toHaveBeenCalledTimes(1)
+      store.watch('a', false)
+      await store.setDesign('a', true)
+      expect(setMode).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not ask again when the server answers without applying the mode', async () => {
+      // An older server, or one that ignores the mode: asking at every render would never end.
+      const { store, setMode } = makeStore({ setMode: async () => ({}) })
+      store.adopt('a', { model: 'm' })
+      await store.setDesign('a', true)
+      await store.setDesign('a', true)
+      expect(setMode).toHaveBeenCalledTimes(1)
+      expect(store.designState('a')).toBe('none')
+    })
+
+    it('is replaced by Motion when Motion is turned on over it', async () => {
+      const { store, setMode } = makeStore({})
+      store.adopt('a', { mode: 'design' })
+      await store.set('a', true)
+      expect(setMode).toHaveBeenLastCalledWith({ threadId: 'a', mode: 'motion' })
+      expect(store.designState('a')).toBe('motion')
+    })
+  })
+
   describe('moving a Motion chat to another stage', () => {
     it('asks for the stage with the mode on, and shows what the server answers', async () => {
       const { store, setMode } = makeStore({})

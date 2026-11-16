@@ -605,6 +605,25 @@ Providers without real image input currently finish after Preview with an explic
 visual review was skipped. This is honest degradation, but it does not satisfy M4's full definition
 of done.
 
+## Design chats: role and skill pack
+
+A chat with Design on is also in the `design` mode of the server (the window sends `thread.setMode` when
+the toggle changes, and `thread.create` with the mode for a new chat). The mode gives the chat's
+session two things at start, by the same mechanism as Motion (`apps/server/src/motion-session.ts`): a
+short role instruction (references first, which skill family serves which request, check the result
+at a phone and a desktop width, never ship a machine-made look) and the Design skill pack: a plugin
+folder for Claude Code, the pack's catalog as text for the other providers. Turning Design on or off in
+the middle of a chat takes effect on the next turn, with the same restart rules as Motion, and a chat has
+one mode, so it never carries both packs.
+
+The pipeline runs its phase turns in that same session, so the role and the pack reach them. That is
+harmless by construction: every phase prompt already says not to invoke external design skills, the
+role says a message with its own phase instructions or a JSON-only answer comes first, and the pipeline
+sends its prompts exactly as written, wrapped only by the app's own progress-update lines
+(`orchestrator.design-mode.test.ts` proves the briefing prompt reaches the provider word for word and
+its JSON verdict is read as before). Follow-up turns after the run
+are ordinary turns and use the pack.
+
 ## Direct API sessions
 
 Removed with API connections on 2026-10-20. A user's own key now runs through OpenCode's

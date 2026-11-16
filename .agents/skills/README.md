@@ -12,7 +12,7 @@
 <h3 align="center">What the agents know how to do in this repository.</h3>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/skills-24-F9670E?style=flat-square&labelColor=141414" alt="24 skills" />
+  <img src="https://img.shields.io/badge/skills-25-F9670E?style=flat-square&labelColor=141414" alt="25 skills" />
   <img src="https://img.shields.io/badge/licences-Apache--2.0%20%C2%B7%20MIT-F9670E?style=flat-square&labelColor=141414" alt="Apache-2.0 and MIT licences" />
   <img src="https://img.shields.io/badge/sources-pinned%20by%20commit-F9670E?style=flat-square&labelColor=141414" alt="Sources pinned by commit" />
 </p>
@@ -81,6 +81,7 @@ CLI, use `npx skills add heygen-com/hyperframes --skill <workflow-name>`.
 | Skill               | For                                                                                                           | Origin      | Licence    |
 | ------------------- | ------------------------------------------------------------------------------------------------------------- | ----------- | ---------- |
 | `ui-profissional` | Building and reviewing screens (landing pages, stores, dashboards, apps) with rules that avoid a generic look | TUIFT Media | Apache-2.0 |
+| `libraries-dev`   | Using the Libraries.dev UI effect libraries (border beam, thinking orbs, gooey, voice, bot avatars, liquid metal, image) and finding where they fit | `Jakubantalik/Libraries.dev` | MIT |
 
 ### Writing
 
