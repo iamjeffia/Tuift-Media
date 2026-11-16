@@ -1,0 +1,16 @@
+.taste/assets.json
+.taste/brand.json
+.taste/brief.json
+.taste/page.json
+.taste/review.json
+assets/fonts/bricolage-grotesque/bricolage-grotesque-400-latin-ext.woff2
+assets/fonts/bricolage-grotesque/bricolage-grotesque-400-latin.woff2
+assets/fonts/bricolage-grotesque/bricolage-grotesque.css
+assets/fonts/bricolage-grotesque/OFL.txt
+assets/fonts/newsreader/newsreader-400-latin-ext.woff2
+assets/fonts/newsreader/newsreader-400-latin.woff2
+assets/fonts/newsreader/newsreader.css
+assets/fonts/newsreader/OFL.txt
+assets/schematic-map-campinas.svg
+index.html
+styles.css

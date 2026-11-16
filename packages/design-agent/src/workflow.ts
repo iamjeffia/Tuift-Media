@@ -2,6 +2,7 @@ import { type BoundaryRecord, list, record, string } from './parse.js'
 import { dashboardModeEnabled, parseDesignBrief } from './brief.js'
 import { DESIGN_CONTENT_GUIDANCE, LANDING_PAGE_GUIDANCE } from './content-guidance.js'
 import { parsePhaseJson } from './phase-json.js'
+import { type DesignRequestKind, isDesignRequestKind } from './request-kind.js'
 export { DESIGN_BRIEF_ATTACHMENT, isDesignBriefAttachment } from './attachment.js'
 
 export interface BriefingQuestion {
@@ -14,14 +15,31 @@ export interface BriefingQuestion {
 
 export type BriefingOutput =
   | { status: 'questions'; message: string; questions: BriefingQuestion[]; brief: null }
-  | { status: 'complete'; message: string; questions: []; brief: BoundaryRecord }
+  | {
+      status: 'complete'
+      message: string
+      questions: []
+      /** Absent (null) only for a review or a change, which run no brief, brand or page phase. */
+      brief: BoundaryRecord | null
+      /** What the model says the request is; the server reconciles it with the words (request-kind.ts). */
+      kind?: DesignRequestKind
+    }
   | { status: 'not_design'; message: string; questions: []; brief: null }
 
 const PROTOCOL = `Return JSON only, without Markdown fences, using exactly one of these shapes:
 
-{"status":"complete","message":"Brief complete.","questions":[],"brief":{"originalRequest":"...","subject":"...","pageType":"...","scope":"...","primaryGoal":"...","audience":"...","offer":"...","primaryAction":"...","requiredContent":["Section name: its actual content"],"constraints":[],"brandInputs":[],"creativeControl":"...","assumptions":["..."],"unresolved":[]}}
+{"status":"complete","kind":"build|redesign|change|review","message":"Brief complete.","questions":[],"brief":{"originalRequest":"...","subject":"...","pageType":"...","scope":"...","primaryGoal":"...","audience":"...","offer":"...","primaryAction":"...","requiredContent":["Section name: its actual content"],"constraints":[],"brandInputs":[],"creativeControl":"...","assumptions":["..."],"unresolved":[]}}
 
-{"status":"not_design","message":"This request is not a website or interface design task.","questions":[],"brief":null}`
+{"status":"not_design","message":"This request is not a website or interface design task.","questions":[],"brief":null}
+
+For kind "review" or "change", "brief" may be null: those requests run no brief, brand, page or asset phase.`
+
+const KIND_GUIDANCE = `Also decide what kind of request this is and return it as "kind":
+- "build": a new site, page or app screen.
+- "redesign": a new design for pages that already exist (the person wants them to look different as a whole).
+- "change": a specific change to what already exists: an animation, a hover, a component, one section, a colour, a fix, or fixing what an earlier review found. Do not turn it into a redesign.
+- "review": an audit or critique: the person wants to know what is wrong with a page, not to have it changed.
+When it is unclear which of two kinds the person means, answer the lighter one (review before change, change before redesign, redesign before build). A wrong heavy build costs a whole run; a light answer costs one more message.`
 
 const DASHBOARD_SURFACE_GUIDANCE = `Set pageType to "dashboard" for operating product interfaces such as admin, analytics, finance, health tracking or a customer workspace. Record their actual screens, data views, navigation and user actions in requiredContent; do not impose marketing sections or an eight-section minimum. A marketing website about a dashboard product is still pageType "landing_page" and follows the landing-page guidance; so is a site, one-pager, microsite, homepage, launch page, Webseite or Seite for an app, analytics or admin product.`
 
@@ -40,6 +58,8 @@ This is a focused classification and extraction step. Read the supplied request 
 This turn may only advance a design brief. Do not build, scaffold, edit, or generate a website, brand system, asset set, component, or implementation. TUIFT Code persists the brief and automatically continues the design.
 
 First decide whether the request is primarily about designing or redesigning a website, web page, landing page, portfolio, or product interface. The user already selected Design mode, so terse visual intent such as "Make it pop" refers to the existing page, or a new landing page when none exists. Return "not_design" only when the request is clearly unrelated to website or interface design.
+
+${KIND_GUIDANCE}
 
 For a valid design request:
 1. Work autonomously. Never ask questions, request confirmation, call a user-input tool, or pause for approval of the brief. Infer missing details and record reasoned assumptions.
@@ -129,11 +149,23 @@ export function parseBriefingOutput(text: string): BriefingOutput {
     }
   }
   if (value.status === 'complete') {
-    let brief: BoundaryRecord
+    // A kind the model made up is ignored: the words of the request decide instead.
+    const kind = isDesignRequestKind(value.kind) ? value.kind : undefined
+    const light = kind === 'review' || kind === 'change'
+    let brief: BoundaryRecord | null
     try {
       brief = record(value.brief, 'completed briefing output brief')
     } catch {
-      throw new Error('completed briefing output must contain a brief')
+      if (!light) throw new Error('completed briefing output must contain a brief')
+      brief = null
+    }
+    if (brief && light) {
+      // A light request never needs a complete brief; a half-written one is dropped, not an error.
+      try {
+        parseDesignBrief({ ...brief, explicitAnswers: [] })
+      } catch {
+        brief = null
+      }
     }
     return {
       status: 'complete',
@@ -142,7 +174,8 @@ export function parseBriefingOutput(text: string): BriefingOutput {
       // TUIFT Code records the questions it asked and their answers itself. A
       // model that lists request facts here is not malformed; the field is
       // never trusted, so it must not fail an otherwise complete brief.
-      brief: { ...parseDesignBrief({ ...brief, explicitAnswers: [] }) },
+      brief: brief ? { ...parseDesignBrief({ ...brief, explicitAnswers: [] }) } : null,
+      ...(kind ? { kind } : {}),
     }
   }
   if (

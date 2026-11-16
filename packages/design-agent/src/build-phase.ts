@@ -1,3 +1,4 @@
+import { DESIGN_PACK_NOTE } from './skills-note.js'
 import path from 'node:path'
 import {
   APP_SCREEN_KIT_PATH,
@@ -71,7 +72,7 @@ The only permitted font families are ${quotedList(brand.typefaces.map(({ family 
 
 In summary, report what tasteskill's run asks for (§2.8): the style and shell dealt, the face and the signature element, each screen's one question, any rule you broke and why. Begin the list of sample data that must be replaced with real data with "Verify before publishing:" and name where each value lives, so it can be found.
 
-Use the existing project implementation and the kit without invoking external design skills. Do not start a long-running preview server in this phase; TUIFT Code owns Preview next.
+Use the existing project implementation and the kit. ${DESIGN_PACK_NOTE} Do not start a long-running preview server in this phase; TUIFT Code owns Preview next.
 ${exactFiles ? `\nThe brief's deliverable boundary is exactly ${list(exactFiles)}. TUIFT Code validates the workspace before Preview; inline the kit instead of adding helper files.` : ''}
 
 ${appSheetGuidance(direction)}
@@ -160,7 +161,7 @@ ${dashboard ? '- Keep the dashboard shell and operational content from its refer
 - Check every reviewed viewport for text collision, clipping, horizontal overflow, unreadable narrow columns, and footer overlap. Content must have enough space to read; novelty never excuses broken geometry.
 - Ensure the app can render, not merely bundle. When writing JSX, use the project's configured automatic JSX transform; if none exists, import React in every JSX module that needs it. A successful production build with a blank runtime is a failed Build.
 
-Use the existing project implementation and motion tools without invoking external design skills. Do not start a long-running preview server in this phase; TUIFT Code owns Preview next.
+Use the existing project implementation and motion tools. ${DESIGN_PACK_NOTE} Do not start a long-running preview server in this phase; TUIFT Code owns Preview next.
 ${exactFiles ? `\nThe brief's deliverable boundary is exactly ${list(exactFiles)}. TUIFT Code validates the workspace before Preview; do not add helper or configuration files.` : ''}
 
 ${DESIGN_CONTENT_GUIDANCE}

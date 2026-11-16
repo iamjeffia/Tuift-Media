@@ -31,6 +31,8 @@ export class PreviewCaptureCoordinator<Client extends object = WebSocket> {
     private readonly send: (socket: Client, request: PreviewCaptureRequest) => void,
     private readonly timeoutMs = 35_000,
     private readonly cancel: (socket: Client, requestId: string) => void = () => undefined,
+    /** A capture that also records motion loads the page again several times. */
+    private readonly motionTimeoutMs = 80_000,
   ) {}
 
   get available(): boolean {
@@ -64,12 +66,19 @@ export class PreviewCaptureCoordinator<Client extends object = WebSocket> {
     viewports: PreviewViewport[],
     signal?: AbortSignal,
     threadId?: string,
+    options: { motion?: boolean } = {},
   ): Promise<PreviewScreenshot[]> {
     if (signal?.aborted) return Promise.reject(captureAborted())
     if (!this.available) return Promise.reject(new Error('Preview capture is unavailable'))
     if (this.#queue.length >= 16) return Promise.reject(new Error('Preview capture queue is full'))
 
-    const request = { requestId: randomUUID(), url, viewports, ...(threadId ? { threadId } : {}) }
+    const request = {
+      requestId: randomUUID(),
+      url,
+      viewports,
+      ...(threadId ? { threadId } : {}),
+      ...(options.motion ? { motion: true } : {}),
+    }
     return new Promise((resolve, reject) => {
       const onAbort = () => this.#abort(queued.resolve)
       const queued: QueuedCapture<Client> = {
@@ -138,12 +147,15 @@ export class PreviewCaptureCoordinator<Client extends object = WebSocket> {
       return
     }
     const queued = this.#queue.shift()!
-    const timer = setTimeout(() => {
-      this.#pending.delete(pending.request.requestId)
-      if (pending.socket) this.#cancel(pending.socket, pending.request.requestId)
-      queued.reject(new Error('Preview capture timed out'))
-      this.#dispatchNext()
-    }, this.timeoutMs)
+    const timer = setTimeout(
+      () => {
+        this.#pending.delete(pending.request.requestId)
+        if (pending.socket) this.#cancel(pending.socket, pending.request.requestId)
+        queued.reject(new Error('Preview capture timed out'))
+        this.#dispatchNext()
+      },
+      queued.request.motion ? this.motionTimeoutMs : this.timeoutMs,
+    )
     timer.unref()
     const pending = { socket, timer, ...queued }
     this.#pending.set(queued.request.requestId, pending)

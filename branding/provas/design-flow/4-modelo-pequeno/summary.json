@@ -1,0 +1,25 @@
+{
+  "scenario": "4-site-novo-modelo-pequeno",
+  "model": "haiku",
+  "effort": "low",
+  "turns": 12,
+  "turnSeconds": [29, 36, 107, 11, 76, 24, 5, 28, 37, 21, 29, 17],
+  "wallSeconds": 430,
+  "phases": [
+    "design:brief",
+    "design:brand",
+    "design:page",
+    "design:assets",
+    "design:build",
+    "design:build",
+    "design:preview",
+    "design:review",
+    "design:repair",
+    "design:review",
+    "design:repair",
+    "design:review"
+  ],
+  "capturedPages": ["/", "/", "/"],
+  "errors": [],
+  "finalText": "Website built. Not finished: 4 problems remain. Preview ready at http://127.0.0.1:4173/. Visual review stopped after 2 repair attempts with 4 problems remaining. Still open:\n1. /, 1440, hero_intro até about_bakery: A auditoria registra uma região vazia de 632 px, de 631 a 1263 px, logo abaixo do texto do hero. A moldura de cor do lado direito ocupa a altura da seção, mas a coluna de texto termina cerca de 350 px antes do fim da seção, deixando área sem conteúdo abaixo dos botões. What to do: Reduzir a altura mínima do hero de 70vh para cerca de 560 px no desktop, para que a moldura acompanhe o bloco de texto. Manter a composição de duas colunas e a centralização vertical do texto.\n2. /, 390, hero_intro e about_bakery: A auditoria registra uma região vazia de 954 px, de 373 a 1327 px, entre o texto do hero e o título de Sobre. Nessa faixa há duas molduras de cor sem texto nem forma interna, ocupando cerca de 268 px cada, o que a auditoria conta como vazio. What to do: No celular, reduzir a moldura do hero para 16:9 ou cerca de 220 px de altura, e a moldura de Sobre para 16:9 também. Se a equipe quiser manter as molduras grandes, acrescentar nelas o nome do item de destaque, como pede o briefing para os cards de destaque.\n3. /, 1440px wide, near \"Pães de fermentação longa, doces e salgados feitos na casa, \": a band 632px tall (63% of the window), from 631px to 1263px of the page, has no text, image or control. What to do: make the section as tall as its content needs (remove the fixed or full-window height and the large padding), or bring the content into that space.\n4. /, 1440 e 390, seção hours_location: A moldura de cor de 4:5 contém apenas uma linha preta horizontal no centro. Sem legenda, sem vias de referência e sem contexto, o traço solto parece um erro de desenho e não um esquema de Campinas. What to do: Remover o traço da moldura até que o esquema aprovado chegue, ou manter a moldura sem traços e registrar o recurso schematic_map_campinas como pendente. Não manter uma linha isolada como substituto do mapa. The full list is in .taste/review.json. The model haiku could not satisfy some of the checks of this run, so TUIFT Code completed them itself. The result is what a model of that size could do. Completed by TUIFT Code:\n- Page: the motion of the page plan was corrected."
+}

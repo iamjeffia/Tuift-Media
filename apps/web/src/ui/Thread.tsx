@@ -1,3 +1,5 @@
+import { t } from '../i18n/index.js'
+import { serverMessageText } from '../server-message.js'
 import {
   useContext,
   Fragment,
@@ -2452,7 +2454,7 @@ const Row = memo(function Row({
   }
 
   if (item.type === 'message') {
-    const text = responseText ?? item.text ?? ''
+    const text = serverMessageText(item) ?? responseText ?? item.text ?? ''
     const notice = item.id.startsWith('design-not-applicable-')
     return (
       <div className={`reply${notice ? ' reply--notice' : ''}${live ? ' is-streaming' : ''}`}>
@@ -4208,14 +4210,20 @@ function summariseLive(item: Item): string {
 }
 
 function designPhaseLabel(text: string): string | undefined {
-  if (text.includes('design:brief')) return 'Understanding the request'
-  if (text.includes('design:brand')) return 'Creating brand direction'
-  if (text.includes('design:page')) return 'Planning the page'
-  if (text.includes('design:assets')) return 'Gathering assets'
-  if (text.includes('design:build')) return 'Building the website'
-  if (text.includes('design:preview')) return 'Starting the preview'
-  if (text.includes('design:review')) return 'Reviewing the design'
-  if (text.includes('design:repair')) return 'Refining the website'
+  // The progress rows of a Design run are the pipeline's own, so they follow the app's language.
+  for (const phase of [
+    'brief',
+    'brand',
+    'page',
+    'assets',
+    'build',
+    'change',
+    'preview',
+    'review',
+    'repair',
+  ] as const) {
+    if (text.includes(`design:${phase}`)) return t(`design.phase.${phase}`)
+  }
   return undefined
 }
 

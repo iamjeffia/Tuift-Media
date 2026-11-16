@@ -1,0 +1,127 @@
+[
+  {
+    "width": 1440,
+    "height": 1000,
+    "domAudit": {
+      "h1Count": 1,
+      "interactiveTargetViolations": [
+        {
+          "selector": "nav > a:nth-of-type(1)",
+          "label": "Serviços",
+          "width": 61.359375,
+          "height": 17
+        },
+        {
+          "selector": "a:nth-of-type(2)",
+          "label": "Horário",
+          "width": 52.46875,
+          "height": 17
+        }
+      ],
+      "coverage": "complete"
+    },
+    "documentHeight": 1170,
+    "capturedHeight": 1170,
+    "measures": {
+      "documentWidth": 1426,
+      "documentHeight": 1170,
+      "bodyFontSize": 16,
+      "emptyRegions": [
+        {
+          "top": 304,
+          "height": 568,
+          "before": "Navalha Fina.",
+          "after": "Barbearia de corte e barba, com agendamento pelo WhatsApp."
+        }
+      ],
+      "headings": [
+        {
+          "selector": "body > main > section.hero > h1",
+          "tag": "h1",
+          "text": "Navalha Fina.",
+          "fontSize": 150,
+          "lines": 1,
+          "inFooter": false,
+          "top": 124
+        }
+      ],
+      "duplicateCtas": [
+        {
+          "text": "agendar pelo whatsapp",
+          "count": 2,
+          "top": 9
+        }
+      ],
+      "clippedText": [],
+      "overlappingText": [],
+      "imagesMissingAlt": {
+        "count": 0,
+        "examples": []
+      },
+      "lowContrast": {
+        "count": 0,
+        "worst": []
+      },
+      "coverage": "complete"
+    }
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "domAudit": {
+      "h1Count": 1,
+      "interactiveTargetViolations": [
+        {
+          "selector": "nav > a:nth-of-type(1)",
+          "label": "Serviços",
+          "width": 61.359375,
+          "height": 17
+        },
+        {
+          "selector": "a:nth-of-type(2)",
+          "label": "Horário",
+          "width": 52.46875,
+          "height": 17
+        }
+      ],
+      "coverage": "complete"
+    },
+    "documentHeight": 1024,
+    "capturedHeight": 1024,
+    "measures": {
+      "documentWidth": 375,
+      "documentHeight": 1024,
+      "bodyFontSize": 16,
+      "emptyRegions": [],
+      "headings": [
+        {
+          "selector": "body > main > section.hero > h1",
+          "tag": "h1",
+          "text": "Navalha Fina.",
+          "fontSize": 64,
+          "lines": 2,
+          "inFooter": false,
+          "top": 112
+        }
+      ],
+      "duplicateCtas": [
+        {
+          "text": "agendar pelo whatsapp",
+          "count": 2,
+          "top": 34
+        }
+      ],
+      "clippedText": [],
+      "overlappingText": [],
+      "imagesMissingAlt": {
+        "count": 0,
+        "examples": []
+      },
+      "lowContrast": {
+        "count": 0,
+        "worst": []
+      },
+      "coverage": "complete"
+    }
+  }
+]

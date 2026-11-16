@@ -1,3 +1,4 @@
+import { messageDisplayText } from '../server-message.js'
 import type { Item } from '@harness/contracts'
 import type { TurnTiming } from '../thread-state.js'
 
@@ -421,7 +422,7 @@ function presentTurnsRange(
 
     presentations.set(turnId, {
       activityGroups,
-      responseText: finalAnswer?.item.text ?? '',
+      responseText: finalAnswer ? messageDisplayText(finalAnswer.item) : '',
       firstResponseIndex: draft.firstResponseIndex,
       finalAnswerIndex: finalAnswer?.index,
       elapsedMs,

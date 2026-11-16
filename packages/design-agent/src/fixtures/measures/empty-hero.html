@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Navalha Fina</title>
+    <!-- Reproduces the diagnosis page "5-pasta-grande": a dark hero about 930px tall with the title at the top and the line and button at the bottom, nothing between them. -->
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        background: #fff6ec;
+        color: #14120a;
+        font-size: 16px;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 80px;
+        height: 64px;
+      }
+      header a.nav {
+        margin-right: 24px;
+        color: #14120a;
+      }
+      .cta {
+        display: inline-block;
+        background: #14120a;
+        color: #fff6ec;
+        padding: 14px 24px;
+        border-radius: 999px;
+        text-decoration: none;
+      }
+      .hero {
+        position: relative;
+        margin: 0 80px;
+        height: 930px;
+        border-radius: 32px;
+        background: linear-gradient(115deg, #14120a 55%, #4a4640 70%, #14120a 85%);
+        color: #f0ebe2;
+        padding: 60px 64px;
+      }
+      .hero h1 {
+        font-size: 150px;
+        line-height: 1;
+        font-weight: 800;
+        letter-spacing: -4px;
+      }
+      .marks {
+        position: absolute;
+        left: 40px;
+        right: 40px;
+        top: 540px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .marks span {
+        color: #999;
+        font-size: 16px;
+      }
+      .bottom {
+        position: absolute;
+        left: 58px;
+        right: 58px;
+        bottom: 58px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+      }
+      .bottom p {
+        font-size: 28px;
+        font-weight: 600;
+        max-width: 460px;
+      }
+      .card {
+        background: #fffdf8;
+        border-radius: 24px;
+        padding: 28px;
+      }
+      footer {
+        background: #0a0705;
+        color: #fff6ec;
+        padding: 24px 80px;
+        margin-top: 110px;
+      }
+      @media (max-width: 700px) {
+        header {
+          padding: 8px 16px;
+          height: auto;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .hero {
+          margin: 0 16px;
+          height: 760px;
+          padding: 24px;
+        }
+        .hero h1 {
+          font-size: 64px;
+          letter-spacing: -2px;
+        }
+        .marks {
+          display: none;
+        }
+        .bottom {
+          left: 24px;
+          right: 24px;
+          bottom: 24px;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 16px;
+        }
+        .bottom p {
+          font-size: 22px;
+        }
+        footer {
+          padding: 24px 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>navalha fina</strong>
+      <nav>
+        <a class="nav" href="#servicos">Serviços</a><a class="nav" href="#horario">Horário</a>
+      </nav>
+      <a class="cta" href="https://wa.me/5500000000000">Agendar pelo WhatsApp</a>
+    </header>
+    <main>
+      <section class="hero">
+        <h1>Navalha Fina.</h1>
+        <div class="marks"><span>+</span><span>+</span><span>+</span><span>+</span></div>
+        <div class="bottom">
+          <p>Barbearia de corte e barba, com agendamento pelo WhatsApp.</p>
+          <div class="card">
+            <a class="cta" href="https://wa.me/5500000000000">Agendar pelo WhatsApp</a>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer>© 2026 Navalha Fina</footer>
+  </body>
+</html>

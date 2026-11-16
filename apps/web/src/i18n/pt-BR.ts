@@ -7,6 +7,7 @@ import { workspacePt } from './areas/workspace.pt-BR.js'
 import { dialogsPt } from './areas/dialogs.pt-BR.js'
 import { chatPt } from './areas/chat.pt-BR.js'
 import { startupPt } from './areas/startup.pt-BR.js'
+import { designPt } from './areas/design.pt-BR.js'
 import type { MessageKey } from './en.js'
 
 /**
@@ -82,6 +83,7 @@ export const ptBR = {
   ...dialogsPt,
   ...chatPt,
   ...startupPt,
+  ...designPt,
   ...clubePt,
   ...soundsPt,
 } satisfies Record<MessageKey, string>

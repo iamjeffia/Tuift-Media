@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fio · Notificações</title>
+    <!-- Stands for the diagnosis page "2-tela-de-app": a compact settings screen that the review rightly approved. -->
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        background: #fbf7f8;
+        color: #241a1f;
+        font-size: 16px;
+      }
+      .shell {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        min-height: 100vh;
+      }
+      aside {
+        border-right: 1px solid #e6dce0;
+        padding: 24px 16px;
+      }
+      aside strong {
+        display: block;
+        margin-bottom: 24px;
+        font-size: 20px;
+      }
+      aside a {
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 12px;
+        color: #241a1f;
+        text-decoration: none;
+        border-radius: 8px;
+      }
+      aside a[aria-current] {
+        background: #f1e4ea;
+        font-weight: 700;
+      }
+      main {
+        padding: 32px 40px;
+        max-width: 760px;
+      }
+      h1 {
+        font-size: 28px;
+        margin-bottom: 8px;
+      }
+      .lead {
+        color: #5b4a52;
+        margin-bottom: 24px;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 64px;
+        border-top: 1px solid #e6dce0;
+      }
+      .row label {
+        font-weight: 600;
+      }
+      .row small {
+        display: block;
+        color: #5b4a52;
+        font-weight: 400;
+      }
+      button {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 0 20px;
+        border: 0;
+        border-radius: 10px;
+        background: #b8336a;
+        color: #fff;
+        font-size: 16px;
+      }
+      .preview {
+        margin-top: 24px;
+        padding: 20px;
+        background: #fff;
+        border: 1px solid #e6dce0;
+        border-radius: 12px;
+      }
+      .preview strong {
+        font-size: 28px;
+      }
+      @media (max-width: 700px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+        aside {
+          border-right: 0;
+          border-bottom: 1px solid #e6dce0;
+        }
+        main {
+          padding: 24px 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside>
+        <strong>Fio</strong><a href="#" aria-current="page">Notificações</a
+        ><a href="#">Categorias</a><a href="#">Moeda</a><a href="#">Perfil</a>
+      </aside>
+      <main>
+        <h1>Notificações</h1>
+        <p class="lead">Escolha quais avisos chegam e por onde.</p>
+        <div class="row">
+          <label for="a">Limite da categoria<small>Avisar ao chegar em 80% do limite</small></label
+          ><button id="a" type="button">Ativado</button>
+        </div>
+        <div class="row">
+          <label for="b">Resumo mensal<small>Todo dia 1, às 08:00</small></label
+          ><button id="b" type="button">Ativado</button>
+        </div>
+        <div class="row">
+          <label for="c">Alertas de gasto alto<small>Compras acima do seu padrão</small></label
+          ><button id="c" type="button">Desativado</button>
+        </div>
+        <div class="preview"><small>Prévia do valor</small><br /><strong>R$ 1.234,56</strong></div>
+      </main>
+    </div>
+  </body>
+</html>

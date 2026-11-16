@@ -1,0 +1,56 @@
+{
+  "documentWidth": 390,
+  "documentHeight": 1641,
+  "bodyFontSize": 16,
+  "emptyRegions": [],
+  "headings": [
+    {
+      "selector": "html > body > div.wrap > h1",
+      "tag": "h1",
+      "text": "Padaria Doce Trigo",
+      "fontSize": 56,
+      "lines": 2,
+      "inFooter": false,
+      "top": 109
+    },
+    {
+      "selector": "body > div.wrap > section.hero > h2",
+      "tag": "h2",
+      "text": "Bem-vindo",
+      "fontSize": 64,
+      "lines": 2,
+      "inFooter": false,
+      "top": 293
+    },
+    {
+      "selector": "body > div.wrap > section.menu > h2",
+      "tag": "h2",
+      "text": "Cardápio da semana",
+      "fontSize": 40,
+      "lines": 2,
+      "inFooter": false,
+      "top": 746
+    },
+    {
+      "selector": "body > footer > div.wrap > h2",
+      "tag": "h2",
+      "text": "Padaria Doce Trigo - Rua das Flores, 120 - Campinas",
+      "fontSize": 40,
+      "lines": 4,
+      "inFooter": true,
+      "top": 1196
+    }
+  ],
+  "duplicateCtas": [],
+  "clippedText": [],
+  "overlappingText": [],
+  "imagesMissingAlt": {
+    "count": 0,
+    "examples": []
+  },
+  "lowContrast": {
+    "count": 0,
+    "worst": []
+  },
+  "coverage": "complete"
+}

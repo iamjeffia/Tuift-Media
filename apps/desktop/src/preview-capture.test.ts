@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events'
 import type { BrowserWindow, WebContents } from 'electron'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PreviewCaptureOwner } from './preview-capture.js'
+import { PREVIEW_MEASURES_SCRIPT } from './preview-measures.js'
 import { PREVIEW_PAGE_HEIGHT_SCRIPT } from './preview-settle.js'
 import { configureRendererLifecycle } from './renderer-lifecycle.js'
 
@@ -20,7 +21,8 @@ const request = (index = 1) => ({
   viewports: [{ width: 1280, height: 720 }],
 })
 
-function fixture() {
+function fixture(options: { pageHeight?: number } = {}) {
+  const pageHeight = options.pageHeight ?? 100_000_000
   const session = {
     clearStorageData: vi.fn().mockResolvedValue(undefined),
     clearCache: vi.fn().mockResolvedValue(undefined),
@@ -31,7 +33,7 @@ function fixture() {
     executeJavaScriptInIsolatedWorld: vi.fn(
       async (_world: number, scripts: Array<{ code: string }>) =>
         scripts[0]!.code === PREVIEW_PAGE_HEIGHT_SCRIPT
-          ? { body: 100_000_000, documentElement: 100_000_000 }
+          ? { body: pageHeight, documentElement: pageHeight }
           : undefined,
     ),
     debugger: {
@@ -91,7 +93,7 @@ afterEach(() => {
 describe('desktop preview capture ownership', () => {
   it('releases a slow abandoned capture on renderer reload so its retry can run', async () => {
     vi.useFakeTimers()
-    const test = fixture()
+    const test = fixture({ pageHeight: 720 })
     const abandoned = deferred<never>()
     test.contents.debugger.sendCommand.mockReturnValueOnce(abandoned.promise)
     const renderer = Object.assign(new EventEmitter(), {
@@ -315,8 +317,99 @@ describe('desktop preview capture ownership', () => {
     expect(test.createWindow).toHaveBeenCalledTimes(2)
   })
 
+  it('captures a tall page in readable pieces that cover it from top to bottom', async () => {
+    const test = fixture({ pageHeight: 3_000 })
+    const result = await test.owner.capture(request())
+    if (result.status !== 'completed') throw new Error('capture failed')
+    const [shot] = result.screenshots
+    // The whole page in one file, and the same page in pieces of at most about a screen and a half.
+    expect(shot!.capturedHeight).toBe(3_000)
+    expect(shot!.tiles).toHaveLength(3)
+    expect(shot!.tiles!.map(({ top }) => top)).toEqual([0, 1_000, 2_000])
+    expect(shot!.tiles!.reduce((total, { height }) => total + height, 0)).toBe(3_000)
+    const clips = test.contents.debugger.sendCommand.mock.calls
+      .filter(([method]) => method === 'Page.captureScreenshot')
+      .map(([, params]) => (params as { clip: { y: number; height: number } }).clip)
+    expect(clips.slice(1).map(({ y, height }) => [y, height])).toEqual([
+      [0, 1_000],
+      [1_000, 1_000],
+      [2_000, 1_000],
+    ])
+    // The first file is the whole page; each piece has a file of its own.
+    expect(test.files.writeFile).toHaveBeenCalledTimes(4)
+  })
+
+  it('keeps a page of one screen as one image, with no pieces', async () => {
+    const test = fixture({ pageHeight: 720 })
+    const result = await test.owner.capture(request())
+    if (result.status !== 'completed') throw new Error('capture failed')
+    expect(result.screenshots[0]!.tiles).toBeUndefined()
+  })
+
+  it('carries what the page measured about itself, and still captures when the measuring fails', async () => {
+    const measures = {
+      documentWidth: 1280,
+      documentHeight: 720,
+      bodyFontSize: 16,
+      emptyRegions: [],
+      headings: [],
+      duplicateCtas: [],
+      clippedText: [],
+      overlappingText: [],
+      imagesMissingAlt: { count: 0, examples: [] },
+      lowContrast: { count: 0, worst: [] },
+    }
+    const test = fixture({ pageHeight: 720 })
+    test.dependencies.parseMeasures = vi.fn().mockResolvedValue(measures)
+    const measured = await new PreviewCaptureOwner(test.dependencies).capture(request())
+    if (measured.status !== 'completed') throw new Error('capture failed')
+    expect(measured.screenshots[0]!.measures).toEqual(measures)
+    // The script ran in the isolated world like the others.
+    const scripts = test.contents.executeJavaScriptInIsolatedWorld.mock.calls.map(
+      ([, list]) => list[0]!.code,
+    )
+    expect(scripts.some((code) => code === PREVIEW_MEASURES_SCRIPT)).toBe(true)
+
+    const broken = fixture({ pageHeight: 720 })
+    broken.dependencies.parseMeasures = vi.fn().mockRejectedValue(new Error('not measures'))
+    const survived = await new PreviewCaptureOwner(broken.dependencies).capture(request())
+    expect(survived).toMatchObject({ status: 'completed' })
+    if (survived.status === 'completed') expect(survived.screenshots[0]!.measures).toBeUndefined()
+  })
+
+  it('records motion only when asked, once, at the first desktop viewport', async () => {
+    const motion = {
+      moments: [],
+      animations: [],
+      animationCount: 0,
+      reducedMotionAnimationCount: 0,
+      hovers: [],
+      limits: ['script_animation'],
+    }
+    const test = fixture({ pageHeight: 720 })
+    test.dependencies.parseMotion = vi.fn().mockResolvedValue(motion)
+    const owner = new PreviewCaptureOwner(test.dependencies)
+    const plain = await owner.capture(request())
+    if (plain.status !== 'completed') throw new Error('capture failed')
+    expect(plain.screenshots[0]!.motion).toBeUndefined()
+    expect(test.dependencies.parseMotion).not.toHaveBeenCalled()
+
+    const asked = await owner.capture({
+      ...request(2),
+      motion: true,
+      viewports: [
+        { width: 1440, height: 1000 },
+        { width: 390, height: 844 },
+      ],
+    })
+    if (asked.status !== 'completed') throw new Error('capture failed')
+    expect(asked.screenshots[0]!.motion).toEqual(motion)
+    expect(asked.screenshots[1]!.motion).toBeUndefined()
+    expect(test.dependencies.parseMotion).toHaveBeenCalledTimes(1)
+  })
+
   it('preserves repeated viewport results while writing one exclusive file per size', async () => {
-    const test = fixture()
+    const test = fixture({ pageHeight: 720 })
     const capture = request()
     capture.viewports.push({ ...capture.viewports[0]! })
     const result = await test.owner.capture(capture)

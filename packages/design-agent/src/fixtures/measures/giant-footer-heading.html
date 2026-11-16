@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Padaria Doce Trigo</title>
+    <!-- Reproduces the diagnosis page "3-redesign": the footer's contact block set the address as a heading in display size. -->
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        background: #fff3e8;
+        color: #1a120b;
+        font-size: 16px;
+      }
+      .wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 0;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        padding: 24px 0;
+        border-bottom: 1px solid #d8c8b8;
+      }
+      header nav a {
+        margin-left: 24px;
+        color: #1a120b;
+      }
+      h1 {
+        font-size: 130px;
+        line-height: 1;
+        font-weight: 700;
+        margin: 24px 0;
+      }
+      .hero {
+        background: #2a1608;
+        color: #fff;
+        border-radius: 24px;
+        padding: 120px 40px;
+      }
+      .hero h2 {
+        font-size: 64px;
+      }
+      .hero p {
+        margin: 24px 0;
+        max-width: 360px;
+        line-height: 1.6;
+      }
+      .btn {
+        display: inline-block;
+        padding: 16px 22px;
+        border: 1px solid #fff;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 6px;
+      }
+      .menu {
+        padding: 80px 0;
+      }
+      .menu h2 {
+        font-size: 40px;
+        margin-bottom: 16px;
+      }
+      .menu li {
+        margin: 8px 0 8px 18px;
+      }
+      footer {
+        background: #ead9c8;
+        margin-top: 80px;
+        padding: 80px 0 40px;
+      }
+      footer h2 {
+        font-size: 64px;
+        line-height: 1.1;
+        max-width: 660px;
+        margin-bottom: 40px;
+      }
+      footer .btn {
+        background: #1a120b;
+        border-color: #1a120b;
+      }
+      footer nav {
+        margin-top: 80px;
+      }
+      footer nav a {
+        margin-right: 28px;
+        color: #1a120b;
+      }
+      footer small {
+        display: block;
+        margin-top: 24px;
+        color: #5a4c40;
+      }
+      @media (max-width: 700px) {
+        .wrap {
+          padding: 0 16px;
+        }
+        h1 {
+          font-size: 56px;
+        }
+        .hero {
+          padding: 48px 20px;
+        }
+        footer h2 {
+          font-size: 40px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <strong>Padaria Doce Trigo</strong>
+        <nav><a href="#">Início</a><a href="#">Cardápio</a><a href="#">Contato</a></nav>
+      </header>
+      <h1>Padaria Doce Trigo</h1>
+      <section class="hero">
+        <h2>Bem-vindo</h2>
+        <p>
+          Somos uma padaria de bairro desde 1998. Fazemos pães, bolos e salgados todos os dias, com
+          ingredientes simples.
+        </p>
+        <a class="btn" href="#">Ver o cardápio</a>
+      </section>
+      <section class="menu">
+        <h2>Cardápio da semana</h2>
+        <ul>
+          <li>Pão francês</li>
+          <li>Pão de queijo</li>
+          <li>Bolo de fubá</li>
+          <li>Café coado</li>
+        </ul>
+      </section>
+    </div>
+    <footer>
+      <div class="wrap">
+        <h2>Padaria Doce Trigo - Rua das Flores, 120 - Campinas</h2>
+        <a class="btn" href="#">Ver o cardápio</a>
+        <nav><a href="#">Início</a><a href="#">Cardápio</a><a href="#">Contato</a></nav>
+        <small>Padaria Doce Trigo, 2026</small>
+      </div>
+    </footer>
+  </body>
+</html>

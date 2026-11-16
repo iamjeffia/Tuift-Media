@@ -136,6 +136,15 @@ Text that code compares (`startsWith('Design mode failed')`, `/^unknown method/`
 `existingSession?.title === 'New session'`) is never translated; see
 `branding/i18n-texto-do-servidor.md` in the repository.
 
+**The one exception inside the transcript: what the Design pipeline writes itself.** Its progress
+notes, findings and closing summary are built from codes (`DESIGN_MESSAGES` in
+`packages/contracts/src/design-messages.ts`). The server sends the English text and its pieces
+beside it (`Item.parts`); `server-message.ts` translates each piece from the `design.msg.<code>`
+keys of `areas/design.*.ts`, a piece with no code (text a model wrote) stays as written, and a code
+this app does not know shows the English. The English catalog is generated from the server's table,
+so the two cannot drift (`server-message.test.ts`). The activity rows of a Design run
+(`design.phase.*`) are translated the same way.
+
 ## Wave 2: what is left to translate
 
 Counts are a static estimate (string attributes, JSX text and quoted sentences per file, tests

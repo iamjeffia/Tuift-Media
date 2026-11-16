@@ -224,12 +224,145 @@ export const PreviewDomAuditSchema = z.object({
 })
 export type PreviewDomAudit = z.infer<typeof PreviewDomAuditSchema>
 
+/** One horizontal piece of a captured page, in document pixels from the top. */
+export const PreviewTileSchema = z.object({
+  path: z.string().min(1),
+  top: z.number().int().nonnegative(),
+  height: z.number().int().positive(),
+})
+export type PreviewTile = z.infer<typeof PreviewTileSchema>
+
+const MeasureSelector = z.string().max(300)
+const MeasureText = z.string().max(200)
+
+/**
+ * What the capture measured in the page itself, as numbers, so a review can fail a page on them
+ * instead of leaving them to taste. Every list is bounded and holds the worst cases first.
+ */
+export const PreviewMeasuresSchema = z.object({
+  documentWidth: z.number().int().nonnegative(),
+  documentHeight: z.number().int().nonnegative(),
+  bodyFontSize: z.number().nonnegative(),
+  /** Bands of the page, full width, where nothing but background is drawn. */
+  emptyRegions: z
+    .array(
+      z.object({
+        top: z.number().int().nonnegative(),
+        height: z.number().int().positive(),
+        before: MeasureText.optional(),
+        after: MeasureText.optional(),
+      }),
+    )
+    .max(6),
+  /** Every heading element, in document order, with its size and the lines it takes. */
+  headings: z
+    .array(
+      z.object({
+        selector: MeasureSelector,
+        tag: z.string().max(4),
+        text: MeasureText,
+        fontSize: z.number().nonnegative(),
+        lines: z.number().int().nonnegative(),
+        inFooter: z.boolean(),
+        top: z.number().int(),
+      }),
+    )
+    .max(40),
+  /** The same button-like call to action more than once within one viewport height. */
+  duplicateCtas: z
+    .array(z.object({ text: MeasureText, count: z.number().int().min(2), top: z.number().int() }))
+    .max(6),
+  horizontalOverflow: z
+    .object({
+      overflowBy: z.number().int().positive(),
+      elements: z.array(z.object({ selector: MeasureSelector, right: z.number().int() })).max(6),
+    })
+    .optional(),
+  clippedText: z.array(z.object({ selector: MeasureSelector, text: MeasureText })).max(6),
+  overlappingText: z
+    .array(
+      z.object({
+        first: z.object({ selector: MeasureSelector, text: MeasureText }),
+        second: z.object({ selector: MeasureSelector, text: MeasureText }),
+      }),
+    )
+    .max(6),
+  imagesMissingAlt: z.object({
+    count: z.number().int().nonnegative(),
+    examples: z.array(z.string().max(200)).max(6),
+  }),
+  lowContrast: z.object({
+    count: z.number().int().nonnegative(),
+    worst: z
+      .array(
+        z.object({
+          selector: MeasureSelector,
+          text: MeasureText,
+          ratio: z.number().nonnegative(),
+          required: z.number().positive(),
+        }),
+      )
+      .max(6),
+  }),
+  coverage: z.enum(['complete', 'partial']).optional(),
+})
+export type PreviewMeasures = z.infer<typeof PreviewMeasuresSchema>
+
+/** What a page does over time and under input, for a change that cannot be proven by one still. */
+export const PreviewMotionEvidenceSchema = z.object({
+  /** First screen of the desktop viewport at the moments after the page loaded. */
+  moments: z
+    .array(z.object({ atMs: z.number().int().nonnegative(), path: z.string().min(1) }))
+    .max(4),
+  /** CSS animations, transitions and Web Animations running or scheduled right after load. */
+  animations: z
+    .array(
+      z.object({
+        name: z.string().max(120),
+        target: MeasureSelector,
+        durationMs: z.number().nonnegative(),
+        iterations: z.number().nonnegative().nullable(),
+      }),
+    )
+    .max(12),
+  animationCount: z.number().int().nonnegative(),
+  /** Animations still running after load with prefers-reduced-motion: reduce. */
+  reducedMotionAnimationCount: z.number().int().nonnegative(),
+  /** The first interactive elements, with the style they change on hover. */
+  hovers: z
+    .array(
+      z.object({
+        selector: MeasureSelector,
+        label: MeasureText,
+        changes: z
+          .array(
+            z.object({
+              property: z.string().max(40),
+              before: z.string().max(120),
+              after: z.string().max(120),
+            }),
+          )
+          .max(8),
+        beforePath: z.string().min(1).optional(),
+        afterPath: z.string().min(1).optional(),
+      }),
+    )
+    .max(3),
+  /** What the capture could not do, in plain words. */
+  limits: z.array(z.string().max(300)).max(6),
+})
+export type PreviewMotionEvidence = z.infer<typeof PreviewMotionEvidenceSchema>
+
 export const PreviewScreenshotSchema = PreviewViewportSchema.extend({
   path: z.string().min(1),
   domAudit: PreviewDomAuditSchema.optional(),
   /** Full document height; larger than `capturedHeight` when the bitmap cap cut the page. */
   documentHeight: z.number().int().positive().optional(),
   capturedHeight: z.number().int().positive().optional(),
+  /** The whole captured page in readable pieces, top to bottom; `path` is the same page in one file. */
+  tiles: z.array(PreviewTileSchema).max(16).optional(),
+  measures: PreviewMeasuresSchema.optional(),
+  motion: PreviewMotionEvidenceSchema.optional(),
 })
 export type PreviewScreenshot = z.infer<typeof PreviewScreenshotSchema>
 
@@ -239,6 +372,8 @@ export const PreviewCaptureRequestSchema = z.object({
   viewports: z.array(PreviewViewportSchema).min(1).max(4),
   /** The chat whose Design run asked for it; a window shows the preview with that chat only. */
   threadId: z.string().min(1).optional(),
+  /** Also record moments after load, animations, reduced motion and hover states (desktop viewport). */
+  motion: z.boolean().optional(),
 })
 export type PreviewCaptureRequest = z.infer<typeof PreviewCaptureRequestSchema>
 

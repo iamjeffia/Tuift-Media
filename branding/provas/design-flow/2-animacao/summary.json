@@ -1,0 +1,20 @@
+{
+  "scenario": "2-animacao",
+  "model": "default",
+  "effort": "low",
+  "turns": 7,
+  "turnSeconds": [7, 22, 23, 39, 16, 9, 7],
+  "wallSeconds": 129,
+  "phases": [
+    "design:brief",
+    "design:change",
+    "design:review",
+    "design:repair",
+    "design:review",
+    "design:repair",
+    "design:review"
+  ],
+  "capturedPages": ["/ (motion)", "/ (motion)", "/ (motion)"],
+  "errors": [],
+  "finalText": "Change made. Preview ready at http://127.0.0.1:4173/. Visual review passed after 2 repair attempts. To check the movement, TUIFT Code captured 3 moments of the first screen after load, listed 1 running animations (0 still running with reduced motion on) and tried hover on 3 controls. Not verified: animation driven by script (requestAnimationFrame, GSAP) does not appear in the animation list; only the moments show it. Not verified: states after a click or a key press were not captured. O título da página inicial agora entra subindo 24px com fade em 700ms, só na index.html (os títulos de Cardápio e Contato ficam como estavam). Os links do menu ganharam um sublinhado marrom (#2a1608, cor já usada no site) que cresce da esquerda para a direita em 220ms ao passar o mouse e também ao focar pelo teclado; como o CSS é compartilhado, o efeito vale no menu das três páginas. Com movimento reduzido ativado, o título aparece sem animação e o sublinhado aparece sem transição. Fontes, cores e espaçamentos não mudaram. Não abri a página no navegador nesta etapa: a conferência foi só por leitura do código, então o resultado visual ainda precisa ser visto na prévia."
+}

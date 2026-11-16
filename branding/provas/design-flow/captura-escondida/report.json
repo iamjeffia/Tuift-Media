@@ -1,0 +1,208 @@
+{
+  "empty-hero": {
+    "seconds": 0.567,
+    "shots": [
+      {
+        "width": 1440,
+        "documentHeight": 1170,
+        "tiles": 0,
+        "measures": {
+          "empty": [[304, 568]],
+          "headings": [["h1", 150, 1, false]],
+          "cta": [
+            {
+              "text": "agendar pelo whatsapp",
+              "count": 2,
+              "top": 9
+            }
+          ],
+          "overflow": 0,
+          "alt": 0,
+          "lowContrast": 0,
+          "clipped": 0,
+          "overlap": 0
+        },
+        "motion": null
+      },
+      {
+        "width": 390,
+        "documentHeight": 1024,
+        "tiles": 0,
+        "measures": {
+          "empty": [],
+          "headings": [["h1", 64, 2, false]],
+          "cta": [
+            {
+              "text": "agendar pelo whatsapp",
+              "count": 2,
+              "top": 34
+            }
+          ],
+          "overflow": 0,
+          "alt": 0,
+          "lowContrast": 0,
+          "clipped": 0,
+          "overlap": 0
+        },
+        "motion": null
+      }
+    ]
+  },
+  "giant-footer-heading": {
+    "seconds": 0.736,
+    "shots": [
+      {
+        "width": 1440,
+        "documentHeight": 1701,
+        "tiles": 2,
+        "measures": {
+          "empty": [],
+          "headings": [
+            ["h1", 130, 1, false],
+            ["h2", 64, 1, false],
+            ["h2", 40, 1, false],
+            ["h2", 64, 3, true]
+          ],
+          "cta": [
+            {
+              "text": "ver o cardápio",
+              "count": 2,
+              "top": 564
+            }
+          ],
+          "overflow": 0,
+          "alt": 0,
+          "lowContrast": 0,
+          "clipped": 0,
+          "overlap": 0
+        },
+        "motion": null
+      },
+      {
+        "width": 390,
+        "documentHeight": 1641,
+        "tiles": 2,
+        "measures": {
+          "empty": [],
+          "headings": [
+            ["h1", 56, 2, false],
+            ["h2", 64, 2, false],
+            ["h2", 40, 2, false],
+            ["h2", 40, 4, true]
+          ],
+          "cta": [],
+          "overflow": 0,
+          "alt": 0,
+          "lowContrast": 0,
+          "clipped": 0,
+          "overlap": 0
+        },
+        "motion": null
+      }
+    ]
+  },
+  "app-screen": {
+    "seconds": 0.319,
+    "shots": [
+      {
+        "width": 1440,
+        "documentHeight": 1002,
+        "tiles": 0,
+        "measures": {
+          "empty": [],
+          "headings": [["h1", 28, 1, false]],
+          "cta": [],
+          "overflow": 0,
+          "alt": 0,
+          "lowContrast": 0,
+          "clipped": 0,
+          "overlap": 0
+        },
+        "motion": null
+      },
+      {
+        "width": 390,
+        "documentHeight": 846,
+        "tiles": 0,
+        "measures": {
+          "empty": [],
+          "headings": [["h1", 28, 1, false]],
+          "cta": [],
+          "overflow": 0,
+          "alt": 0,
+          "lowContrast": 0,
+          "clipped": 0,
+          "overlap": 0
+        },
+        "motion": null
+      }
+    ]
+  },
+  "motion-page": {
+    "seconds": 5.584,
+    "shots": [
+      {
+        "width": 1440,
+        "documentHeight": 1002,
+        "tiles": 0,
+        "measures": {
+          "empty": [],
+          "headings": [["h1", 80, 2, false]],
+          "cta": [],
+          "overflow": 0,
+          "alt": 0,
+          "lowContrast": 0,
+          "clipped": 0,
+          "overlap": 0
+        },
+        "motion": {
+          "moments": 3,
+          "animations": [
+            {
+              "name": "rise",
+              "target": "html > body > h1",
+              "durationMs": 900,
+              "iterations": 1
+            }
+          ],
+          "animationCount": 1,
+          "reduced": 0,
+          "hovers": [
+            {
+              "label": "Início",
+              "changes": ["transform", "backgroundColor"],
+              "images": 2
+            },
+            {
+              "label": "Cardápio",
+              "changes": ["transform", "backgroundColor"],
+              "images": 2
+            },
+            {
+              "label": "Contato",
+              "changes": ["transform", "backgroundColor"],
+              "images": 2
+            }
+          ],
+          "limits": ["script_animation", "click_not_captured"]
+        }
+      },
+      {
+        "width": 390,
+        "documentHeight": 846,
+        "tiles": 0,
+        "measures": {
+          "empty": [],
+          "headings": [["h1", 80, 5, false]],
+          "cta": [],
+          "overflow": 0,
+          "alt": 0,
+          "lowContrast": 0,
+          "clipped": 0,
+          "overlap": 0
+        },
+        "motion": null
+      }
+    ]
+  }
+}
