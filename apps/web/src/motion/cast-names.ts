@@ -15,7 +15,7 @@ export const CAST_NAMES: readonly (readonly [CastId, string])[] = [
 ]
 
 /** What may follow a character's name inside a segment: "Zig - audio", "Bun (script)". */
-const NAME_SEPARATOR = /^\s*[\-–—·|_(,]/
+const NAME_SEPARATOR = /^\s*[-–—·|_(,]/
 
 /**
  * The character a helper agent is named after. A name is read as segments split
