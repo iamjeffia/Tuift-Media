@@ -53,7 +53,7 @@ Marcação: `[ ]` a fazer · `[~]` em andamento · `[x]` feito e testado · `[v]
   - [x] 2.5d Limpar e trazer `ui-profissional`, `gravar-janela`, `humanizer` e `stageshow`. No lugar da `better-portuguese`, que é de um autor externo e não tem licença, entrou a `escrita-pt-br`, escrita do zero pela casa (15/11).
   - [x] 2.5e Revisão de privacidade do coordenador antes de publicar: nenhum nome, marca interna, cliente, caminho do PC ou chave.
 - [~] 2.6 O instalador leva as skills de vídeo como pacote Motion (feito). Falta o agente enxergar o pacote num chat Motion (fase 3 do Motion).
-- [ ] 2.8 Ficam de fora por enquanto, pela licença de cada uma: `transitions-dev`, `transitions-polish` e `transitions-ui-generation` (a licença proíbe republicar), `remotion-best-practices` e as sete `21st-*` (sem licença declarada). Ideia: oferecer no app a instalação direto do repositório do autor, sem embutir.
+- [ ] 2.8 Skills de terceiros que não podem ir embutidas (decisão de 16/11): seção "Disponíveis para instalar" na página de Skills, com autor, licença declarada e link para a fonte; instala uma ou todas direto do repositório do autor, em versão fixada. Primeira lista: as do Remotion (sem licença declarada), as três `transitions-*` (a licença não deixa republicar) e as sete `21st-*` (fonte a confirmar). Depois de instaladas, as de design carregam no modo Design.
 - [x] 2.9 Medir o uso real das skills (transcrições das sessões e anotações de agosto a novembro) e levar só o que vale: 24 skills entram. Ficam de fora por falta de uso registrado: `edvid`, os pacotes de design de terceiros (Emil Kowalski, Jakub Krehel), as skills da Higgsfield, os fluxos e blocos extras do HyperFrames e as avulsas. Podem entrar depois, se passarem a ser usadas.
 - [x] 2.10 Decisão de 15/11: a skill `media-use` fica como o autor publicou, com o envio de uso anônimo e o aviso no índice das skills (quem quiser desliga pela variável de ambiente). As operações de movimento do MCP do After Effects usam o prefixo `tuift.` (decisão do dono do projeto); as skills já dizem `tuift.*`, e o nome antigo segue aceito pelo MCP para projetos existentes.
 - [ ] 2.11 O dono do projeto relê os trechos reescritos que as frentes marcaram (morph de UI, método de captura, rotas do After Effects, arco de trilha).
@@ -165,22 +165,27 @@ Decisão de 15/11: o MCP de After Effects da casa vem dentro do app, para o clie
 - [x] 11.4 After Effects ausente: aviso no boneco Cloud e na instrução do agente, em vez de erro.
 - [~] 11.5 Testes feitos com servidores e arquivos falsos e com o pacote real subindo sem After Effects. Falta a validação no app instalado com o After Effects aberto, em cada provedor.
 
-## 12. Tonal sounds dentro do app
+## 12. Sons e trilhas dentro do app
 
-Ideia de 15/11: a biblioteca de tonal sounds aparece dentro do app, só quando o botão Motion do chat está ligado.
+Decisão do dono do projeto (16/11): a biblioteca completa de sons (tonal sounds, efeitos e trilhas) fica hospedada e é usada dentro do app por quem assina o Clube do Motion e conectou a conta (item 17). Não vai no instalador e não existe download da biblioteca: o som usado num vídeo vira arquivo na pasta de áudio daquele projeto. Os agentes precisam saber que ela existe e usá-la na etapa de trilha, salvo quando o projeto já tem sons próprios ou a pessoa desligou.
 
-- [ ] 12.1 Definir quais sons o app pode distribuir e de onde vêm. O banco usado hoje é um pacote comprado de terceiros.
-- [ ] 12.2 Biblioteca de sons no modo Motion: ouvir, buscar e escolher (fase 8 do plano do Motion, bloqueada pelo 12.1).
-- [ ] 12.3 Ligação com a skill `composicao-trilha`.
-- [ ] 12.4 Testes e validação no app.
+- [ ] 12.1 Completar a biblioteca hospedada com os efeitos sonoros que faltam (pede o ok do dono do projeto na hora).
+- [ ] 12.2 Ferramentas do app para o agente: buscar som e usar som, com a conta conectada; as músicas do Clube entram na mesma busca, por tom, BPM e clima.
+- [ ] 12.3 Instrução no modo Motion e ajuste da skill `composicao-trilha`: usar a biblioteca do app; sons do projeto vêm primeiro; em Ajustes, apontar a própria pasta ou desligar.
+- [ ] 12.4 Sem assinatura ou sem conta conectada: o agente avisa, usa a pasta da pessoa ou a síntese de emergência, e o app convida a conectar.
+- [ ] 12.5 Aba Sons no painel em chats Motion: buscar, ouvir a prévia e mandar para o chat.
+- [ ] 12.6 Skill `ouvir`, a partir da earshot (MIT): descrever, comparar, medir volume e pico, mapa de eventos, transcrição da fala, tom e conferência de sincronia. `watch` e `ouvir` passam a valer em todo chat.
+- [ ] 12.7 Testes e validação no app.
 
-## 13. Modo Design carrega as skills de design
+## 13. Modo Design completo
 
-Decisão de 15/11: quando a sessão começa com o botão Design ligado, as skills de design, frontend e UI são carregadas, do mesmo jeito que o Motion carrega as de vídeo (item 9.3).
+Decisão de 16/11: o modo Design cobre tudo de UI/UX (site novo, tela de app, redesign, revisão e animação de interface) e carrega todas as skills de design que a casa usa, não só as próprias. O pacote Design já ia no instalador com a `ui-profissional`, mas nenhum chat o carregava.
 
-- [ ] 13.1 Lista das skills que formam o pacote Design. Na medição de uso, só `ui-profissional`, `stageshow` e `design-taste-frontend` têm uso registrado; falta decidir se o pacote leva também skills de design de terceiros que a casa ainda não usa. Decisão de 15/11: `design-taste-frontend` continua em todos os chats, como no TasteCode; o pacote Design leva as skills extras.
-- [ ] 13.2 Carregar o pacote quando a sessão começa com Design ligado, pelo mesmo mecanismo do pacote Motion (fase 7 do plano do Motion).
-- [ ] 13.3 Testes e validação no app.
+- [ ] 13.1 Pacote Design completo: as da casa (`ui-profissional`, `stageshow`, `figma`) e as de terceiros com licença que permite, em versão fixada e com a licença de cada uma. `design-taste-frontend` continua em todos os chats.
+- [ ] 13.2 Carregar o pacote em chats com Design ligado, pelo mesmo mecanismo do Motion, com instrução de papel: referências antes de desenhar, conferir no navegador do app, o que fazer em cada tipo de pedido.
+- [ ] 13.3 Diagnóstico com provedor de verdade (site novo, tela de app, redesign, pasta grande) e conserto do que quebrar, começando pela parada de emergência que ainda dispara a revisão e pela captura de tela sem janela aberta.
+- [ ] 13.4 As skills de design instaladas pelo botão do item 2.8 também carregam no Design.
+- [ ] 13.5 Testes e validação no app.
 
 ## 14. README bonito no GitHub
 
@@ -228,6 +233,16 @@ Pedido de 15/11, depois de um trabalho longo de vídeo em que o sistema ficou se
 - [ ] 16.20 Validação do dono do projeto no app instalado dos itens 16.6 a 16.16: nenhum foi visto com sono real, bandeja real, queda real, disco cheio ou banco danificado de verdade.
 - [ ] 16.21 O Swift do aviso no celular não foi compilado (não há Mac nesta máquina): falta gerar o app do iPhone e ver o alerta. O app do celular segue o idioma do aparelho, não o escolhido no computador.
 - [ ] 16.22 Login vencido ainda cru: Pi (sem mensagem de erro documentada e sem o programa instalado para capturar) e, em todos os quatro, conta sem acesso. Um processo que um comando do terminal separou do grupo sobrevive a uma queda e o registro não o alcança.
+
+## 17. Conexão com o Clube do Motion
+
+Decisão de 16/11: o Clube do Motion faz parte do ecossistema e pode ser citado no app. Quem assina o Clube usa no TUIFT Code todos os benefícios de assinante: MCP conectado, sons, trilhas, biblioteca, projetos e skills.
+
+- [ ] 17.1 Conectar com a conta do Clube pelo login que ele já oferece: passo opcional no onboarding e em Ajustes; o acesso fica guardado protegido e nunca aparece para o agente nem em arquivo de projeto.
+- [ ] 17.2 MCP do Clube ligado sozinho depois de conectar, em qualquer provedor; se a pessoa já tem o dela configurado, o dela vale.
+- [ ] 17.3 Do lado do Clube: cliente "TUIFT Code", sons para assinante e prévia que não conta no limite (publicar pede o ok do dono do projeto).
+- [ ] 17.4 Painel do Clube no app: buscar na biblioteca, baixar projeto para a pasta, instalar skills do Clube e ver os limites do dia.
+- [ ] 17.5 Testes e validação no app.
 
 ## Ondas de trabalho
 
