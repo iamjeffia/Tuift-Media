@@ -295,6 +295,9 @@ describe('the change request', () => {
       ],
     })
     expect(prompt).toContain('<motion-evidence>')
+    // Owner's decision (16 Nov): an older problem is reported when it is a bug or hurts use, not for taste.
+    expect(prompt).toContain('it plainly hurts reading or use')
+    expect(prompt).toContain('Leave taste, polish and redesign ideas out.')
     expect(prompt).toContain('fade-in')
     expect(prompt).toContain(
       'say, in one or two sentences, what was verified this way and what could not be',

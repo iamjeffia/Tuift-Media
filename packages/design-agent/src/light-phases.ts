@@ -208,7 +208,7 @@ ${
 
 ${BLOCKERS}
 
-Report findings about the change and about what it broke first. Report older problems of the page only when they are blocking. Every finding says where it is and what to do. ${DESIGN_CONTENT_GUIDANCE}
+Report findings about the change and about what it broke first. Report an older problem of the page, one the request did not mention, only when it is a real defect for the person using the page: it is blocking, it is a bug (something that does not work, overflows, overlaps, is cut off or cannot be reached), or it plainly hurts reading or use (text too small or too faint to read, a control too small to tap, a layout broken at a phone width). Begin such a finding by saying it was already there before the change. Leave taste, polish and redesign ideas out. Every finding says where it is and what to do. ${DESIGN_CONTENT_GUIDANCE}
 
 ${AUDIT_PROTOCOL}
 
