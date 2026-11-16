@@ -191,6 +191,8 @@ import {
   type BrowserToolsBroker,
 } from './agent-tools-mcp.js'
 import type { ClubeAccount } from './clube-account.js'
+import type { SoundLibrary } from './sound-library.js'
+import { detectProjectSounds, type SoundsSession } from './sound-session.js'
 import {
   CLUBE_SERVER_ID,
   clubeProvidedServer,
@@ -879,6 +881,7 @@ export class Orchestrator {
   /** TUIFT Code's agent tools; absent when this orchestrator serves none. */
   #agentTools: AgentToolsEndpoint | undefined
   #clube: ClubeAccount | undefined
+  #sounds: SoundLibrary | undefined
   /** Each parent chat's token for the agent tools, kept while it exists. */
   #agentToolGrants = new Map<string, AgentToolsGrant>()
   #activeTurns = new Set<string>()
@@ -1090,6 +1093,8 @@ export class Orchestrator {
       browserTools?: BrowserToolsBroker
       /** The link to a Clube do Motion account; once linked to a subscriber, its MCP server comes with every chat that gets the agent tools. */
       clube?: ClubeAccount
+      /** The Clube's sound library; with it, Motion chats get its tools and a line about it in their session start. */
+      sounds?: SoundLibrary
       /** A chat's settings changed from inside the server (an agent set its Motion stage): tell the clients. */
       onThreadSettings?: (threadId: string) => void
       onQueue?: (threadId: string, state: QueueState) => void
@@ -1237,9 +1242,16 @@ export class Orchestrator {
             (threadId) => this.afterEffectsState(threadId),
           ),
           handlers.clube,
+          handlers.sounds
+            ? {
+                library: handlers.sounds,
+                projectDir: (threadId) => this.#soundProjectDir(threadId),
+              }
+            : undefined,
         )
       : undefined
     this.#clube = handlers.clube
+    this.#sounds = handlers.sounds
     this.#onQueue = handlers.onQueue ?? (() => {})
     this.#onChatStatus = handlers.onChatStatus ?? (() => {})
     this.#onLog = handlers.onLog
@@ -1973,11 +1985,14 @@ export class Orchestrator {
       skills = true,
       mode,
       afterEffects,
+      sounds,
     }: {
       skills?: boolean
       mode?: ThreadMode | undefined
       /** What this session has of After Effects, for the Motion role. */
       afterEffects?: AfterEffectsDecision | undefined
+      /** Where this session's sounds can come from, for the Motion role. */
+      sounds?: SoundsSession | undefined
     } = {},
   ): Pick<StartOptions, 'instructions' | 'skillPlugin' | 'packPlugins'> {
     const bundled = skills ? this.#bundledSkills() : undefined
@@ -1990,6 +2005,7 @@ export class Orchestrator {
           (name) => this.#bundledPack(name),
           this.#offersAgentTools(provider),
           afterEffects?.state,
+          sounds,
         )
       : undefined
     const installed = skills ? this.#installedFor(mode, bundled) : undefined
@@ -2265,6 +2281,44 @@ export class Orchestrator {
       }
     }
     return { mcpServers, mcpCredentials }
+  }
+
+  /** The folder a chat's sounds are fetched into: its project, never a private checkout that goes away. */
+  #soundProjectDir(threadId: string): string | undefined {
+    const stored = this.#store.thread(threadId)
+    return stored ? resolveWorkspacePath(stored.projectPath) : undefined
+  }
+
+  /** Whether a session in `mode` is told about sounds. Synchronous, so other starts do not wait a tick. */
+  #wantsSounds(mode: ThreadMode | undefined): boolean {
+    return mode === 'motion' && this.#sounds !== undefined
+  }
+
+  /**
+   * What a Motion session is told about its sounds: the project's own, the app's library (and
+   * whether this provider reaches its tools), the person's folder. Awaited only for Motion chats,
+   * so other starts keep their timing and their text.
+   */
+  async #soundsSession(
+    provider: ProviderId,
+    mode: ThreadMode | undefined,
+    projectPath: string,
+  ): Promise<SoundsSession | undefined> {
+    const sounds = this.#sounds
+    if (!this.#wantsSounds(mode) || !sounds) return undefined
+    const own = detectProjectSounds(resolveWorkspacePath(projectPath))
+    const { ownFolder } = sounds.settings()
+    const availability = await sounds.availability().catch(() => 'ready' as const)
+    return {
+      ...(own ? { own } : {}),
+      library:
+        availability === 'ready'
+          ? this.#offersAgentTools(provider)
+            ? 'tools'
+            : 'panel'
+          : availability,
+      ...(ownFolder ? { folder: ownFolder } : {}),
+    }
   }
 
   /** Whether a session in `mode` decides about After Effects. Synchronous, so other starts keep their timing. */
@@ -2883,6 +2937,9 @@ export class Orchestrator {
         ...this.#sessionStart(target.provider, undefined, {
           mode,
           afterEffects: afterEffects.decision,
+          sounds: this.#wantsSounds(mode)
+            ? await this.#soundsSession(target.provider, mode, stored.projectPath)
+            : undefined,
         }),
         ...(this.#offersAgentTools(target.provider)
           ? (
@@ -3077,6 +3134,10 @@ export class Orchestrator {
     const afterEffects = this.#wantsAfterEffects(options.ephemeral ? undefined : options.mode)
       ? await this.#afterEffectsStart(provider, workspacePath, mcp)
       : { options: mcp }
+    const soundsMode = options.ephemeral ? undefined : options.mode
+    const sounds = this.#wantsSounds(soundsMode)
+      ? await this.#soundsSession(provider, soundsMode, workspacePath)
+      : undefined
     // Awaited only when offered, so other starts keep their timing.
     const agentTools = this.#offersAgentTools(provider)
       ? await this.#agentToolsOptions(
@@ -3095,6 +3156,7 @@ export class Orchestrator {
         generation,
         agentTools.options,
         afterEffects.decision,
+        sounds,
       )
       if (afterEffects.decision) this.#afterEffects.set(thread.id, afterEffects.decision)
       if (agentTools.grant) {
@@ -3124,6 +3186,7 @@ export class Orchestrator {
     generation: { dispose: number; panic: number; project: number },
     mcpOptions: StartOptions,
     afterEffects?: AfterEffectsDecision,
+    sounds?: SoundsSession,
   ): Promise<Thread> {
     const cancelled = () =>
       generation.dispose !== this.#disposeGeneration ||
@@ -3150,6 +3213,7 @@ export class Orchestrator {
         skills: !options.ephemeral,
         mode,
         afterEffects,
+        sounds,
       }),
       ...mcpOptions,
       ...this.#contextRuntimeOptions(provider, options.agent, accountId),
@@ -6684,6 +6748,13 @@ export class Orchestrator {
       skills: !stored.ephemeral,
       mode: this.#store.threadSettings(threadId).mode,
       afterEffects: afterEffects.decision,
+      sounds: this.#wantsSounds(this.#store.threadSettings(threadId).mode)
+        ? await this.#soundsSession(
+            stored.provider,
+            this.#store.threadSettings(threadId).mode,
+            stored.projectPath,
+          )
+        : undefined,
     })
     this.#recordAfterEffects(threadId, afterEffects.decision)
     let freshSessionId: string | undefined

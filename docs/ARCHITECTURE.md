@@ -636,6 +636,38 @@ sign-in would fail; the app registers the port it got and tries it again next ti
 server to Motion chats only (the owner asked for "MCP connected", and the Clube is not only for
 Motion).
 
+### The Clube's sound library
+
+A subscriber who linked the account uses the Clube's sounds (tonal sounds, effects and music) from the
+app, one file at a time (`sound-library.ts`). Searches, facets and previews go through the server with
+the account's token (`ClubeAccount.request` adds it; the library never sees it) and reach the page as
+`SoundItem`s, never as the Clube's own fields or a collection name; a preview comes back as base64
+so the page plays it without calling the Clube. There is no way to download the library: a sound is
+fetched only when it is used, into `<project>/audio/clube/` of the chat's project (the stored project
+folder, not a private checkout that goes away), under its real name, with a `manifest.json` beside
+it. The next use of the same id finds the file there and spends nothing; a restart forgets the
+searches but not the manifest. The SHA-256 header is checked (a mismatch is dropped, not kept, not
+counted), the folder's real path must stay inside the project's (a link that points out is refused),
+names lose every path and device character, and a track's zip is read entry by entry from a temporary
+file, keeping only file names. The Clube's ceilings (200 sound files and 60 tracks, over a rolling 24 hours, not a calendar day) are counted here as an estimate, kept in the database; a 429 with the daily reason is remembered so the next use does not ask. A track is different: the Clube answers its detail with a 200, and without `zip.url` when the account may not download now, with a sentence that says why (a limit starts with "Limite"); that sentence is what the person and the agent are shown. A missing or wrong SHA-256 is refused. A track's previews are open MP3 links that come with the search, so listening asks nothing of the account. Music has two sources the person sees apart: the soundtracks (`trilha`, sounds of the library: one MP3, key and BPM estimated, counted with the sounds) and the Clube's music (three aligned WAV versions, key and BPM catalogued).
+
+The agent reaches it on the agent tools channel, in Motion chats only (`sound_search`, `sound_use`,
+`music_search`, `music_use`; listed for a Motion chat the way `motion_stage` is). Outside Motion they
+would cost tokens in every chat and spend the person's daily files on work that is not a video. A
+closed library (no account, no subscription, a limit, turned off in Settings) answers as a tool result
+that says what the person can do, never as a broken call. The Motion session start says what the
+chat has: the project's own sounds (a cheap look at a few well-known folders, one level down, a few
+hundred entries at most), the library (with tools, or, for a provider the tools do not reach, the Sounds
+tab of the side panel) or why it is closed, and the person's own sounds folder, which is only a path.
+Settings (`sounds.settings`) are the library on or off and that folder; a paired phone calls no
+`sounds.*`.
+
+_Rejected:_ syncing or indexing the library (the owner's rule is one sound at a time) · an index of the
+person's own folder (the agent can list a folder; the app only says where it is) · a download folder
+outside the project (the After Effects tools and the skills read files, so the project is where they
+look) · naming files by id only (the name carries instrument, key and mode) · offering the tools to
+every chat.
+
 ---
 
 ## Storage
@@ -1167,3 +1199,4 @@ registry entry, which is deliberately a good first outside contribution.
 | 2026-11-15 | Pictures inside a saved transcript are kept as content-addressed files beside the pasted attachments; events carry the path, old inline pictures move out when the chat opens.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | 2026-11-16 | Gave the plan, the reasoning and the person's message a ceiling (256 KiB each; the message is refused, never cut), sent an event over the frame limit cut to fit instead of closing the socket, and wrote provider children to a registry the next start reads to end the ones a crash left behind.                                                                                                                                                                                                                                                                                                                       |
 | 2026-11-16 | Linked the app to a Clube do Motion account (OAuth 2.1 public client, tokens in the credential store) and offered the Clube's MCP server to every chat through the app's own endpoint.                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 2026-11-16 | Added the Clube's sound library to Motion chats: agent tools to search and use one sound or track at a time into the project's `audio/clube/`, a line about it in the Motion session start, two Settings rows and a Sounds tab in the side panel.                                                                                                                                                                                                                                                                                                                                                                         |

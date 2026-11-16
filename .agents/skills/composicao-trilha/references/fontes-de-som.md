@@ -4,12 +4,27 @@ Esta skill não traz áudio. Os sons que ela descreve (drone, loop, melodia, hit
 
 ## Ordem de busca
 
-1. **A biblioteca de sons do app**, quando existir na sessão. Procure por tipo, tom e duração.
-2. **Os arquivos do usuário:** pergunte uma vez, no começo, onde está a pasta de sons (um pacote comprado, efeitos próprios, trilhas licenciadas). Pergunte também de qual tom e modo cada pacote costuma ser organizado; muitos vêm em uma pasta por tom.
-3. **Fontes públicas com licença clara** (por exemplo bibliotecas de domínio público ou Creative Commons): confira a licença de cada arquivo e o uso em vídeo comercial antes de baixar. Peça autorização ao usuário antes de baixar.
-4. **Síntese de emergência** (abaixo), quando nada disso existe e o usuário quer seguir mesmo assim.
+Na etapa de trilha, procure nesta ordem e pare no primeiro lugar que resolve:
+
+1. **Os sons do próprio projeto.** Se o projeto já tem sons (uma pasta `audio/`, `sons/`, `sfx/` ou `music/` com arquivos), são os que o usuário escolheu: use esses primeiro. O app avisa no começo da sessão quando o projeto tem sons próprios e onde ficam; sem esse aviso, olhe essas pastas uma vez, de relance, sem abrir arquivo por arquivo. Só vá adiante para o que esses sons não cobrem.
+2. **A biblioteca de sons do app**, quando as ferramentas dela existem na sessão: `sound_search`, `sound_use`, `music_search` e `music_use`. É a biblioteca do Clube do Motion, aberta pela conta que o usuário conectou no app: sons tonais em todos os tons, efeitos, trilhas (música de fundo em um arquivo só) e músicas completas. Como usar está logo abaixo.
+3. **A pasta de sons do próprio usuário**, a que ele indicou nos Ajustes do app (o aviso do começo da sessão diz o caminho; nada nela é copiado nem indexado) ou, sem essa indicação, a que ele disser quando você perguntar uma vez, no começo. Pergunte também de qual tom e modo cada pacote costuma ser organizado; muitos vêm em uma pasta por tom.
+4. **Fontes públicas com licença clara** (por exemplo bibliotecas de domínio público ou Creative Commons): confira a licença de cada arquivo e o uso em vídeo comercial antes de baixar. Peça autorização ao usuário antes de baixar.
+5. **Síntese de emergência** (abaixo), quando nada disso existe e o usuário quer seguir mesmo assim.
 
 Pacotes comprados são do usuário: não copie, não redistribua e não os coloque em repositório público.
+
+## A biblioteca do app
+
+Ela é só o que o usuário tem direito de usar com a conta dele, e chega um som por vez, quando você o usa. Não há como baixar a biblioteca inteira e você não deve tentar.
+
+- **Busque antes de usar.** `sound_search` filtra por texto, tipo (`tonal`, `efeito`, `trilha`), categoria, tom, modo e faixa de BPM; `music_search`, por texto, gênero, clima, artista, tom e BPM. Buscar não gasta nada do limite do dia. Descreva o que precisa por função, tom, modo e duração (seção seguinte) e escolha pelo resultado.
+- **Qual música escolher.** Para uma cama de música sob a narração, que você escolhe por gênero, tom e andamento, prefira uma **trilha** (`sound_search` com `type: trilha`, o gênero vem em `category`): é um MP3 por faixa e conta como um som. Para uma música completa, com versões instrumental e só voz alinhadas no tempo, use `music_search` e `music_use`.
+- **Use só o que escolheu.** `sound_use` traz um arquivo para a pasta `audio/clube/` do projeto e responde o caminho absoluto, o formato, a duração e o volume (LUFS); `music_use` traz as três versões em WAV da faixa (completa, instrumental e vocal) para `audio/clube/music/<artista - título>/`. O nome do arquivo guarda o nome do som (instrumento, tom e modo estão nele). Pedir o mesmo som outra vez devolve o arquivo que já está lá, sem gastar o limite.
+- **Os limites são do usuário.** Uma conta tem cerca de 200 arquivos de som (as trilhas contam entre eles) e 60 faixas de música, numa janela de 24 horas que corre, não à meia-noite. Escolha antes de usar; não traga dez alternativas para ouvir. Se o limite acabar, ou o Clube disser que a faixa não pode ser baixada agora, a resposta traz a frase dele; avise o usuário e siga com o que o projeto já tem.
+- **Tom e BPM de uma trilha são estimativas** (os resultados avisam). Confira com a skill `ouvir` antes de montar a trilha sonora sobre eles. Os de uma música do Clube (`music_search`) são dados do catálogo, e os de um som tonal são de gravação: valem como estão.
+- **Se a ferramenta responde que não pode** (sem conta conectada, sem assinatura, biblioteca desligada nos Ajustes), diga ao usuário o que ele pode fazer, que a própria resposta traz, e passe para o próximo lugar da ordem. Nunca finja que usou um som que não veio.
+- **Se a sessão não tem as ferramentas** (alguns provedores não alcançam as ferramentas do app), peça ao usuário para escolher os sons na aba Sons do painel lateral: ela busca, toca a prévia e anexa o som escolhido ao chat. Trabalhe com os arquivos anexados.
 
 ## Descrever o som que se precisa
 

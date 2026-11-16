@@ -1,5 +1,6 @@
 import type { AfterEffectsState, ProviderId, ThreadMode } from '@harness/contracts'
 import type { DefaultSkillPack } from './default-skills.js'
+import { soundsSentence, type SoundsSession } from './sound-session.js'
 
 /**
  * What a chat in a mode adds to the session it starts: a short role instruction
@@ -46,8 +47,15 @@ export const AFTER_EFFECTS_SENTENCES = {
 const afterEffectsSentence = (state: AfterEffectsState | undefined) =>
   state === undefined ? '' : AFTER_EFFECTS_SENTENCES[state === 'ready' ? 'ready' : 'unavailable']
 
-const motionRole = (stageTool: boolean, afterEffects?: AfterEffectsState) =>
-  [ROLE_HEAD, afterEffectsSentence(afterEffects), stageTool ? STAGE_TOOL_SENTENCE : '', ROLE_TAIL]
+const motionRole = (stageTool: boolean, afterEffects?: AfterEffectsState, sounds?: SoundsSession) =>
+  [
+    ROLE_HEAD,
+    afterEffectsSentence(afterEffects),
+    stageTool ? STAGE_TOOL_SENTENCE : '',
+    // Where the soundtrack's sounds come from: the project's own, the app's library, the person's folder.
+    sounds ? soundsSentence(sounds) : '',
+    ROLE_TAIL,
+  ]
     .filter(Boolean)
     .join('\n\n')
 
@@ -95,7 +103,7 @@ export const DESIGN_ROLE_WITH_BROWSER = designRole(true)
 
 type ModeSession = {
   pack: string
-  role: (agentTools: boolean, afterEffects?: AfterEffectsState) => string
+  role: (agentTools: boolean, afterEffects?: AfterEffectsState, sounds?: SoundsSession) => string
   loaded: string
 }
 
@@ -136,7 +144,8 @@ export type ModeSessionStart = {
  * leaves the role instruction alone. `stageTool`: the chat's provider reaches the
  * app's tools, so the Motion role tells the agent to call `motion_stage` and the Design
  * role points it at the browser tools. `afterEffects`: what the
- * session has of After Effects; absent, the role says nothing about it.
+ * session has of After Effects; absent, the role says nothing about it. `sounds`: where the
+ * soundtrack's sounds can come from in this session; absent, the role says nothing about them.
  */
 export function modeSessionStart(
   mode: ThreadMode | undefined,
@@ -144,13 +153,16 @@ export function modeSessionStart(
   loadPack: (name: string) => DefaultSkillPack | undefined,
   stageTool = false,
   afterEffects?: AfterEffectsState,
+  sounds?: SoundsSession,
 ): ModeSessionStart | undefined {
   const session = modeSession(mode)
   if (!session) return undefined
   const pack = loadPack(session.pack)
   const skills = !pack ? '' : native ? session.loaded : pack.catalog
   return {
-    instructions: [session.role(stageTool, afterEffects), skills].filter(Boolean).join('\n\n'),
+    instructions: [session.role(stageTool, afterEffects, sounds), skills]
+      .filter(Boolean)
+      .join('\n\n'),
     plugins: pack && native ? [pack.pluginDir] : [],
   }
 }

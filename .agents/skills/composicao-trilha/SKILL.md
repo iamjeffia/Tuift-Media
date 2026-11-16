@@ -7,7 +7,7 @@ description: Compor a trilha sonora e o sound design de um vídeo de forma reati
 
 A trilha é composta, não colada. Ela nasce do mapa de emoções do roteiro e reage à fala, aos cortes e à imagem, para a pessoa sentir o que o vídeo quer. Esta skill é um método: escolher o tom, montar uma cama contínua, trocar de sentimento na virada, pontuar no quadro certo, deixar o silêncio trabalhar e mixar sem brigar com a voz.
 
-Ela não traz sons. Quem fornece os arquivos é o usuário ou a biblioteca de sons do app, quando existir. Ver [fontes-de-som.md](references/fontes-de-som.md), inclusive o que fazer quando não há nenhuma biblioteca.
+Ela não traz sons. Os arquivos vêm, nesta ordem, dos sons do próprio projeto, da biblioteca de sons do app (pelas ferramentas `sound_search`, `sound_use`, `music_search` e `music_use`, quando existem na sessão: sons tonais, efeitos, trilhas e músicas), da pasta de sons do usuário e, por último, de fontes públicas ou de síntese de emergência. Ver [fontes-de-som.md](references/fontes-de-som.md), que traz também o que fazer quando não há nenhuma biblioteca.
 
 ## O que é um som tonal
 
@@ -102,7 +102,7 @@ Modelo de partitura: [templates/partitura.md](templates/partitura.md). Para um f
 | [11-ferramentas-e-fluxo.md](references/11-ferramentas-e-fluxo.md) | medir, separar, montar, conferir, quem aprova |
 | [12-alavancas-e-arco.md](references/12-alavancas-e-arco.md) | um tom, cinco alavancas e um arco emocional |
 | [13-filme-sem-narracao.md](references/13-filme-sem-narracao.md) | filme curto com música original feita de camadas tonais |
-| [fontes-de-som.md](references/fontes-de-som.md) | de onde vêm os sons; o que fazer sem biblioteca; síntese de emergência |
+| [fontes-de-som.md](references/fontes-de-som.md) | de onde vêm os sons: os do projeto, a biblioteca do app, a pasta do usuário; o que fazer sem biblioteca; síntese de emergência |
 
 ## Créditos
 

@@ -8,6 +8,12 @@ import { ptBR } from '../i18n/pt-BR.js'
 import type { Transport } from '../transport.js'
 import { ClubeSettings } from './ClubeSettings.js'
 
+const picked = vi.hoisted(() => ({ folder: undefined as string | undefined }))
+vi.mock('../bridge.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../bridge.js')>()),
+  pickFolder: vi.fn(async () => picked.folder),
+}))
+
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
@@ -16,14 +22,33 @@ afterEach(() => {
 const account = { name: 'Pessoa de Teste', email: 'pessoa@example.test', plan: 'mensal' as const }
 const AUTH_URL = 'https://clubedomotion.com/oauth/autorizar?state=abc'
 
-function client(initial: ClubeStatus) {
+function client(
+  initial: ClubeStatus,
+  sounds: { enabled: boolean; ownFolder?: string } = { enabled: true },
+) {
   let status = initial
   const listeners = new Map<string, () => void>()
   const calls: string[] = []
   const transport = {
     state: 'open',
-    request: vi.fn(async (method: string) => {
+    request: vi.fn(async (method: string, params?: unknown) => {
       calls.push(method)
+      if (method === 'sounds.settings') return sounds
+      if (method === 'sounds.updateSettings') {
+        const patch = params as { enabled?: boolean; ownFolder?: string | null }
+        if (patch.ownFolder === 'C:\\refused') throw new Error('refused')
+        sounds = {
+          enabled: patch.enabled ?? sounds.enabled,
+          ...(patch.ownFolder === null
+            ? {}
+            : patch.ownFolder
+              ? { ownFolder: patch.ownFolder }
+              : sounds.ownFolder
+                ? { ownFolder: sounds.ownFolder }
+                : {}),
+        }
+        return sounds
+      }
       if (method === 'clube.status') return status
       if (method === 'clube.connect') {
         status = { state: 'connecting' }
@@ -59,7 +84,10 @@ describe('Clube do Motion settings', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Connect' }))
     await waitFor(() => expect(screen.getByText('Waiting for the browser…')).toBeTruthy())
-    expect(calls).toEqual(['clube.status', 'clube.connect'])
+    expect(calls.filter((call) => call.startsWith('clube.'))).toEqual([
+      'clube.status',
+      'clube.connect',
+    ])
     expect(open).toHaveBeenCalledWith(AUTH_URL, '_blank', 'noopener,noreferrer')
     expect(screen.getByRole('button', { name: 'Open the page again' })).toBeTruthy()
 
@@ -237,5 +265,75 @@ describe('Clube do Motion settings in Portuguese', () => {
     const view = render(<ClubeSettings transport={transport} />)
     expect(await screen.findByText(translate('pt-BR', 'settings.clube.description'))).toBeTruthy()
     view.unmount()
+  })
+})
+
+describe('the sounds rows of the Clube settings', () => {
+  it('turns the library on and off for the agents, and names what it needs', async () => {
+    const { transport, calls } = client({ state: 'connected', account, subscriber: true })
+    render(<ClubeSettings transport={transport} />)
+    const toggle = await screen.findByRole('switch', { name: "Use the app's sounds" })
+    await waitFor(() => expect((toggle as HTMLButtonElement).disabled).toBe(false))
+    expect(toggle.getAttribute('aria-checked')).toBe('true')
+    expect(screen.getByText(/The Sounds tab works either way\./)).toBeTruthy()
+    expect(screen.queryByText(/Needs a connected Clube do Motion account/)).toBeNull()
+
+    fireEvent.click(toggle)
+    await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('false'))
+    expect(calls).toContain('sounds.updateSettings')
+  })
+
+  it('says the library needs an account with a subscription when there is none', async () => {
+    const { transport } = client({ state: 'disconnected' })
+    render(<ClubeSettings transport={transport} />)
+    expect(
+      await screen.findByText(/Needs a connected Clube do Motion account with a subscription\./),
+    ).toBeTruthy()
+  })
+
+  it('keeps the folder only as a path: chooses, changes, removes, and says when it is refused', async () => {
+    const { transport } = client({ state: 'connected', account, subscriber: true })
+    render(<ClubeSettings transport={transport} />)
+    expect(await screen.findByText('No folder chosen')).toBeTruthy()
+
+    picked.folder = 'D:\\Sons\\meus'
+    fireEvent.click(screen.getByRole('button', { name: 'Choose folder' }))
+    expect(await screen.findByText(/D:\\Sons\\meus/)).toBeTruthy()
+    expect(screen.queryByText('No folder chosen')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Change' })).toBeTruthy()
+
+    picked.folder = 'C:\\refused'
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'That folder could not be used.',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
+    expect(await screen.findByText('No folder chosen')).toBeTruthy()
+  })
+
+  it('is worded in Portuguese', async () => {
+    setLanguage('pt-BR', { persist: false })
+    const { transport } = client(
+      { state: 'connected', account, subscriber: true },
+      { enabled: true, ownFolder: 'D:\\Sons\\meus' },
+    )
+    render(<ClubeSettings transport={transport} />)
+    expect(await screen.findByRole('heading', { name: 'Sons' })).toBeTruthy()
+    expect(screen.getByRole('switch', { name: 'Usar os sons do app' })).toBeTruthy()
+    expect(screen.getByText(/A aba Sons funciona de qualquer jeito\./)).toBeTruthy()
+    expect(screen.getByText('Minha pasta de sons')).toBeTruthy()
+    expect(screen.getByText(/Nada é copiado nem indexado\./)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Trocar' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remover' })).toBeTruthy()
+    cleanup()
+
+    const bare = client({ state: 'disconnected' })
+    render(<ClubeSettings transport={bare.transport} />)
+    expect(await screen.findByText('Nenhuma pasta escolhida')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Escolher pasta' })).toBeTruthy()
+    expect(
+      screen.getByText(/Precisa de uma conta do Clube do Motion conectada e com assinatura\./),
+    ).toBeTruthy()
   })
 })

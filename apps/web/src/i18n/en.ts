@@ -1,3 +1,4 @@
+import { soundsEn } from './areas/sounds.en.js'
 import { settingsEn } from './areas/settings.en.js'
 import { clubeEn } from './areas/clube.en.js'
 import { sidebarEn } from './areas/sidebar.en.js'
@@ -82,6 +83,7 @@ export const en = {
   ...chatEn,
   ...startupEn,
   ...clubeEn,
+  ...soundsEn,
 } as const
 
 export type MessageKey = keyof typeof en

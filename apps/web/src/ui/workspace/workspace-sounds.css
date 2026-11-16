@@ -1,0 +1,249 @@
+/* ---------- Sounds tab ----------
+
+   The Clube's sound library beside a Motion chat: a head with the kind, the search and two
+   filters; rows that keep the Agents tab's anatomy (a play button, the name over a muted detail,
+   one action); a foot with the count and what is left of the day. Everything comes from the
+   tokens the other tabs use. Loaded with the tab, never at startup. */
+
+.workspace-sounds {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.workspace-sounds__head {
+  flex: none;
+  display: grid;
+  gap: 8px;
+  padding: 10px 10px 8px;
+}
+
+.workspace-sounds__head .set-segmented {
+  display: flex;
+}
+
+.workspace-sounds__head .set-segmented__option {
+  flex: 1;
+}
+
+.workspace-sounds__search {
+  margin: 0;
+}
+
+.workspace-sounds__filters {
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+}
+
+.workspace-sounds__filters > .app-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.workspace-sounds__filters .app-select__trigger {
+  width: 100%;
+}
+
+.workspace-sounds__tempo > input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 9px;
+  background: var(--chrome-recessed);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+  outline: 0;
+}
+
+.workspace-sounds__tempo > input::placeholder {
+  color: var(--text-3);
+}
+
+.workspace-sounds__tempo > input:focus-visible {
+  border-color: var(--line-strong);
+}
+
+.workspace-sounds__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 6px 8px;
+  scrollbar-color: var(--surface-3) transparent;
+}
+
+.workspace-sounds__skeleton {
+  padding: 4px 10px;
+}
+
+.workspace-sounds__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sounds-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 6px 6px 6px 8px;
+  border-radius: var(--r-md);
+}
+
+.sounds-row[data-playing] {
+  background: var(--menu-hover);
+}
+
+.sounds-row__play {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: var(--chrome-raised);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--r-circle);
+  color: var(--text-2);
+  cursor: pointer;
+  transition:
+    background var(--dur-hover) var(--ease-out),
+    color var(--dur-hover) var(--ease-out);
+}
+
+.sounds-row__play[aria-pressed='true'] {
+  background: var(--light);
+  border-color: transparent;
+  color: var(--on-light);
+}
+
+.sounds-row__play:focus-visible,
+.sounds-row__send:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.sounds-row__text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.sounds-row__name,
+.sounds-row__detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sounds-row__name {
+  color: var(--text);
+  font-size: var(--t-sm);
+  font-weight: 500;
+}
+
+.sounds-row__detail {
+  color: var(--text-3);
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.sounds-row__send {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 9px;
+  background: none;
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--r-md);
+  color: var(--text-2);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-xs);
+  white-space: nowrap;
+  transition:
+    background var(--dur-hover) var(--ease-out),
+    color var(--dur-hover) var(--ease-out);
+}
+
+.sounds-row__send:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sounds-row__play:hover,
+  .sounds-row__send:hover:not(:disabled) {
+    background: var(--chrome-raised-hover);
+    color: var(--text);
+  }
+}
+
+.workspace-sounds__link {
+  text-decoration: none;
+}
+
+.workspace-sounds__more {
+  display: block;
+  margin: 6px auto 2px;
+}
+
+.workspace-sounds__notice {
+  flex: none;
+  display: grid;
+  gap: 2px;
+  margin: 0 10px 8px;
+  padding: 8px 10px;
+  background: var(--chrome-recessed);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--text-2);
+  font-size: var(--t-xs);
+  line-height: 1.45;
+}
+
+.workspace-sounds__notice strong {
+  color: var(--text);
+  font-weight: 520;
+}
+
+.workspace-sounds__notice[data-tone='error'] {
+  border-color: color-mix(in srgb, var(--error) 45%, var(--line));
+  color: var(--text);
+}
+
+.workspace-sounds__foot {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+  color: var(--text-3);
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.workspace-sounds__foot > span:last-child {
+  text-align: right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sounds-row__play,
+  .sounds-row__send {
+    transition: none;
+  }
+}
