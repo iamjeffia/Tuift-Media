@@ -25,6 +25,11 @@ export type DefaultSkills = {
 
 type BundledEntry = { folder?: unknown; summary?: unknown; pack?: unknown }
 
+/** The packs an entry of skills.json is in: `"pack": "a"` or `"pack": ["a", "b"]`; none for the base bundle. */
+function entryPacks(entry: BundledEntry): unknown[] {
+  return entry.pack === undefined ? [] : Array.isArray(entry.pack) ? entry.pack : [entry.pack]
+}
+
 const BUNDLE_NAME = /^[\w.-]+$/
 /** The longest command name or alias the contracts accept. */
 const MAX_COMMAND_NAME = 200
@@ -181,7 +186,7 @@ export function loadDefaultSkillPack(
   const skills: string[] = []
   const lines: string[] = []
   for (const entry of entries) {
-    if (entry.pack !== name || typeof entry.folder !== 'string') continue
+    if (!entryPacks(entry).includes(name) || typeof entry.folder !== 'string') continue
     if (!BUNDLE_NAME.test(entry.folder)) continue
     let markdown: string
     try {

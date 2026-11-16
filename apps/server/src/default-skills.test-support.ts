@@ -62,3 +62,33 @@ export async function writeDefaultSkillPackFixture(
     )
   }
 }
+
+/**
+ * Puts a skill of the fixture bundle in one more pack, the way sync.js lays out
+ * `"pack": ["motion", "design"]`: one entry listing both, and a copy in each pack's folder.
+ */
+export async function shareDefaultSkillBetweenPacks(
+  root: string,
+  folder: string,
+  packs: readonly string[],
+): Promise<void> {
+  const manifestPath = path.join(root, 'skills.json')
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as {
+    packs?: Record<string, unknown>
+    skills: Array<{ folder: string; pack?: unknown }>
+  }
+  for (const name of packs)
+    manifest.packs = { ...manifest.packs, [name]: { plugin: `tastecode-${name}` } }
+  const entry = manifest.skills.find((skill) => skill.folder === folder)
+  if (!entry) throw new Error(`${folder} is not in the fixture bundle`)
+  entry.pack = [...packs]
+  await writeFile(manifestPath, JSON.stringify(manifest))
+  for (const name of packs) {
+    const dir = path.join(root, 'packs', name, 'skills', folder)
+    await mkdir(dir, { recursive: true })
+    await writeFile(
+      path.join(dir, 'SKILL.md'),
+      `---\nname: ${folder}\ndescription: The long ${folder} description.\n---\n# ${folder}\n`,
+    )
+  }
+}

@@ -16,9 +16,11 @@ export function isStray(relative) {
 
 /**
  * Reads a tar archive (ustar with pax or GNU long names, as GitHub writes them).
- * Yields regular files only; links and devices are refused, not followed.
+ * Yields regular files only; links and devices are refused, not followed. With
+ * `links: true` a link is yielded as `{ name, link: true }` (still never followed),
+ * so the caller can refuse it only where it matters; devices stay refused.
  */
-export function* tarEntries(archive) {
+export function* tarEntries(archive, { links = false } = {}) {
   let offset = 0
   let longName
   let paxPath
@@ -50,6 +52,10 @@ export function* tarEntries(archive) {
     paxPath = undefined
     longName = undefined
     if (type === '5') continue
+    if (links && (type === '1' || type === '2')) {
+      yield { name, body: Buffer.alloc(0), link: true }
+      continue
+    }
     if (type !== '0' && type !== '7') throw new Error(`Refusing tar entry of type ${type}: ${name}`)
     yield { name, body }
   }
@@ -80,12 +86,17 @@ export function skillFiles(archive, skill) {
   const files = new Map()
   const base = skill.path ? `${skill.path.replace(/\/+$/, '')}/` : ''
   let license
-  for (const entry of tarEntries(archive)) {
+  // A repository may hold links elsewhere (AGENTS.md pointing at CLAUDE.md); one inside the skill is refused.
+  for (const entry of tarEntries(archive, { links: true })) {
     const parts = entry.name.split('/')
     const inRepo = parts.slice(1).join('/')
     if (!inRepo) continue
     if (parts.some((part) => part === '..') || path.isAbsolute(inRepo))
       throw new Error(`Unsafe path in archive: ${entry.name}`)
+    if (entry.link) {
+      if (inRepo.startsWith(base)) throw new Error(`Refusing tar entry of type 2: ${entry.name}`)
+      continue
+    }
     if (inRepo === skill.licenseFile) license = entry.body
     if (!inRepo.startsWith(base)) continue
     const relative = inRepo.slice(base.length)

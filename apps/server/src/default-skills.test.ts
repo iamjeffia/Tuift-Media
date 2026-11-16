@@ -11,6 +11,7 @@ import {
   loadDefaultSkills,
 } from './default-skills.js'
 import {
+  shareDefaultSkillBetweenPacks,
   writeDefaultSkillPackFixture,
   writeDefaultSkillsFixture,
 } from './default-skills.test-support.js'
@@ -307,6 +308,58 @@ describe('default skill packs', () => {
     expect(catalog).toContain('skill-29')
     expect(catalog).not.toContain('others')
   })
+
+  it('lists a skill that two packs share in each of them, once, and never in the base bundle', async () => {
+    const root = await writeDefaultSkillsFixture(await tempDir())
+    await writeDefaultSkillPackFixture(root, 'motion', motion)
+    await writeDefaultSkillPackFixture(root, 'design', [['ui-profissional', 'screens']])
+    await shareDefaultSkillBetweenPacks(root, 'stageshow', ['motion', 'design'])
+
+    expect(loadDefaultSkillPack('motion', root)?.skills).toEqual(['hyperframes', 'stageshow'])
+    const design = loadDefaultSkillPack('design', root)
+    expect(design?.skills).toEqual(['stageshow', 'ui-profissional'])
+    expect(design?.catalog.match(/- stageshow/g)).toHaveLength(1)
+    expect(loadDefaultSkills(root).skills.map((skill) => skill.name)).not.toContain('stageshow')
+    expect(loadDefaultSkills(root).catalog).not.toContain('stageshow')
+  })
+
+  it('takes the pack of a skill that is on disk in one of its packs only', async () => {
+    const root = await writeDefaultSkillsFixture(await tempDir())
+    await writeDefaultSkillPackFixture(root, 'motion', motion)
+    await shareDefaultSkillBetweenPacks(root, 'stageshow', ['motion', 'design'])
+    await rm(path.join(root, 'packs', 'design', 'skills', 'stageshow'), { recursive: true })
+    expect(loadDefaultSkillPack('design', root)).toBeUndefined()
+    expect(loadDefaultSkillPack('motion', root)?.skills).toEqual(['hyperframes', 'stageshow'])
+  })
+
+  it.skipIf(!existsSync(path.join(defaultSkillsRoot(), 'packs', 'design')))(
+    'fits the real Design pack within the cap: the team skills and the pinned third-party ones',
+    () => {
+      const pack = loadDefaultSkillPack('design')
+      expect(pack?.skills).toHaveLength(36)
+      expect(new Set(pack?.skills).size).toBe(36)
+      expect(pack?.skills).toEqual(
+        expect.arrayContaining([
+          'ui-profissional',
+          'stageshow',
+          'figma',
+          'frontend-design',
+          'libraries-dev',
+          'design-an-interface',
+          'emil-design-eng',
+          'better-interface',
+        ]),
+      )
+      // Skills whose licence does not allow embedding stay out.
+      expect(pack?.skills.some((folder) => /remotion|transitions|^21st/.test(folder))).toBe(false)
+      expect(pack?.catalog.length).toBeLessThanOrEqual(PACK_CATALOG_MAX_CHARS)
+      expect(pack?.catalog).toContain('- ui-profissional: ')
+      // Both packs hold the two shared skills, each as a folder of its own.
+      expect(loadDefaultSkillPack('motion')?.skills).toEqual(
+        expect.arrayContaining(['stageshow', 'figma']),
+      )
+    },
+  )
 
   it.skipIf(!existsSync(path.join(defaultSkillsRoot(), 'packs', 'motion')))(
     'fits the real Motion pack within the cap and lists the HyperFrames entry point',
