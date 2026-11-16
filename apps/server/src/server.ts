@@ -7,6 +7,7 @@ import {
   ErrorCode,
   methods,
   PROTOCOL_VERSION,
+  type ChatActivityMessage,
   type MethodName,
   type ProviderHistorySource,
   type ProviderId,
@@ -14,6 +15,7 @@ import {
   type ThreadSettings,
 } from '@harness/contracts'
 import { applyDesktopPath } from '@harness/proc/desktop-path'
+import { ChatActivityReporter } from './chat-activity.js'
 import { cliProbe, invalidateCliProbes } from './cli-probe.js'
 import {
   restoreProviderExecutablePaths,
@@ -162,6 +164,11 @@ export function startServer(
     rendererOrigin?: string
     /** Resolved by the entry point, which also removes it from the environment. */
     feedback?: FeedbackConfig
+    /**
+     * Where to tell the process that owns this server which chats are not at rest. Absent when
+     * nothing owns it (the CLI, a dev server), and then nothing is computed.
+     */
+    onChatActivity?: ((message: ChatActivityMessage) => void) | undefined
   } = {},
 ) {
   applyDesktopPath()
@@ -306,8 +313,10 @@ export function startServer(
   const memoryWatch = new MemoryWatch({
     onChange: (notice) => push.broadcast('system.memory', notice),
   })
+  let chatActivity: ChatActivityReporter | undefined
   const orchestrator = new Orchestrator(store, {
     memory: memoryWatch,
+    onChatStatus: (threadId) => chatActivity?.changed(threadId),
     onEvent: (threadId, event, seq, serializedEvent) => {
       if (event.type === 'item.delta') streamQuiet.noteDelta()
       else if (event.type === 'turn.completed') {
@@ -343,7 +352,10 @@ export function startServer(
     browserTools: {
       run: (caller, request, signal) => browserCommands.run(caller.threadId, request, signal),
     },
-    onQueue: (threadId, state) => push.broadcast('thread.queue', { threadId, ...state }),
+    onQueue: (threadId, state) => {
+      push.broadcast('thread.queue', { threadId, ...state })
+      chatActivity?.changed(threadId)
+    },
     onLog: (line) => console.log(`[agent] ${line}`),
     onLogin: (provider, result, accountId) => {
       push.broadcast('auth.event', { provider, ...(accountId ? { accountId } : {}), ...result })
@@ -416,6 +428,16 @@ export function startServer(
       return status ? providerVersionLabel(status.displayName, status.version) : undefined
     },
   })
+  if (options.onChatActivity) {
+    // After recovery, so the first report already says what the last run left behind.
+    chatActivity = new ChatActivityReporter({
+      status: (threadId, queued, unread) => orchestrator.inboxStatus(threadId, queued, unread),
+      thread: (threadId) => store.thread(threadId),
+      sidebar: () => ({ threads: store.sidebarThreads(), queued: store.queuedThreadIds() }),
+      send: options.onChatActivity,
+    })
+    chatActivity.start()
+  }
   const checkpointProtection = orchestrator.protectStoredCheckpoints()
   const projectList = createProjectListProjector({
     includeDefaults: process.env['HARNESS_PROJECT_LIST_INCLUDE_DEFAULTS'] === '1',
@@ -2044,6 +2066,7 @@ export function startServer(
       // stops them and each chat is marked, before anything below takes the server apart.
       await orchestrator.stopTurnsForShutdown().catch(() => undefined)
       memoryWatch.dispose()
+      chatActivity?.dispose()
       stopBackups?.()
       historyClosing = true
       clearTimeout(backgroundTimer)

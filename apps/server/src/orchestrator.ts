@@ -975,6 +975,7 @@ export class Orchestrator {
   #onEvent: RecordedEventHandler
   #onSideEvent: RecordedEventHandler
   #onQueue: (threadId: string, state: QueueState) => void
+  #onChatStatus: (threadId: string) => void
   #onLog: (line: string) => void
   #onLogin: (
     provider: ProviderId,
@@ -1065,6 +1066,8 @@ export class Orchestrator {
       /** A chat's settings changed from inside the server (an agent set its Motion stage): tell the clients. */
       onThreadSettings?: (threadId: string) => void
       onQueue?: (threadId: string, state: QueueState) => void
+      /** A chat's sidebar status may have changed, or the chat is gone. */
+      onChatStatus?: (threadId: string) => void
       onLog: (line: string) => void
       /** `accountId` is absent for the default account. */
       onLogin: (
@@ -1203,6 +1206,7 @@ export class Orchestrator {
         )
       : undefined
     this.#onQueue = handlers.onQueue ?? (() => {})
+    this.#onChatStatus = handlers.onChatStatus ?? (() => {})
     this.#onLog = handlers.onLog
     this.#onLogin = handlers.onLogin
     this.#onMcpOAuth = handlers.onMcpOAuth ?? (() => {})
@@ -4596,6 +4600,7 @@ export class Orchestrator {
   }
 
   forgetDeletedThread(threadId: string): void {
+    this.#onChatStatus(threadId)
     this.#latestUserPrompts.delete(threadId)
     this.#wrappedPrompts.delete(threadId)
     this.#revokeAgentTools(threadId)
@@ -4625,6 +4630,7 @@ export class Orchestrator {
   #recordSidebarStatusChange(threadId: string): void {
     this.#sidebarStatusRevision += 1
     this.#sidebarStatusChanges.push({ revision: this.#sidebarStatusRevision, threadId })
+    this.#onChatStatus(threadId)
     if (this.#sidebarStatusChanges.length > MAX_SIDEBAR_STATUS_CHANGES * 2) {
       this.#sidebarStatusChanges.splice(0, MAX_SIDEBAR_STATUS_CHANGES)
     }

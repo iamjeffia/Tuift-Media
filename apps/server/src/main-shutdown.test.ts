@@ -1,11 +1,16 @@
 import { EventEmitter } from 'node:events'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ close: vi.fn(), nodeModeAtStart: undefined as unknown }))
+const mocks = vi.hoisted(() => ({
+  close: vi.fn(),
+  nodeModeAtStart: undefined as unknown,
+  options: undefined as { onChatActivity?: ((message: unknown) => void) | undefined } | undefined,
+}))
 vi.mock('./server.js', () => ({
   DEFAULT_PORT: 4311,
-  startServer: () => {
+  startServer: (options: typeof mocks.options) => {
     mocks.nodeModeAtStart = process.env['ELECTRON_RUN_AS_NODE']
+    mocks.options = options
     return { close: mocks.close }
   },
 }))
@@ -132,5 +137,61 @@ describe('server main startup', () => {
     await import('./main.js')
     expect(mocks.nodeModeAtStart).toBeUndefined()
     expect(process.env['ELECTRON_RUN_AS_NODE']).toBeUndefined()
+  })
+})
+
+describe('server main parent channel', () => {
+  it('sends chat activity up the utility process port', async () => {
+    const postMessage = vi.fn()
+    Object.assign(parentPort, { postMessage })
+    await import('./main.js')
+    mocks.options?.onChatActivity?.({ type: 'harness:chatActivity', running: 1, chats: [] })
+    expect(postMessage).toHaveBeenCalledExactlyOnceWith({
+      type: 'harness:chatActivity',
+      running: 1,
+      chats: [],
+    })
+  })
+
+  it('sends it over Node IPC for the legacy launch, and not once the channel is closed', async () => {
+    Reflect.deleteProperty(process, 'parentPort')
+    const send = vi.fn()
+    const originalSend = Object.getOwnPropertyDescriptor(process, 'send')
+    const originalConnected = Object.getOwnPropertyDescriptor(process, 'connected')
+    Object.defineProperty(process, 'send', { configurable: true, value: send })
+    Object.defineProperty(process, 'connected', { configurable: true, value: true })
+    try {
+      await import('./main.js')
+      mocks.options?.onChatActivity?.('one')
+      expect(send).toHaveBeenCalledExactlyOnceWith(
+        'one',
+        undefined,
+        undefined,
+        expect.any(Function),
+      )
+      Object.defineProperty(process, 'connected', { configurable: true, value: false })
+      mocks.options?.onChatActivity?.('two')
+      expect(send).toHaveBeenCalledOnce()
+    } finally {
+      for (const [name, descriptor] of [
+        ['send', originalSend],
+        ['connected', originalConnected],
+      ] as const) {
+        if (descriptor) Object.defineProperty(process, name, descriptor)
+        else Reflect.deleteProperty(process, name)
+      }
+    }
+  })
+
+  it('has nowhere to report when nothing owns the server', async () => {
+    Reflect.deleteProperty(process, 'parentPort')
+    const originalSend = Object.getOwnPropertyDescriptor(process, 'send')
+    Reflect.deleteProperty(process, 'send')
+    try {
+      await import('./main.js')
+      expect(mocks.options?.onChatActivity).toBeUndefined()
+    } finally {
+      if (originalSend) Object.defineProperty(process, 'send', originalSend)
+    }
   })
 })
