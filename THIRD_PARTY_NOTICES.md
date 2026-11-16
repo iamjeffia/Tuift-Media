@@ -65,6 +65,23 @@ The default Agent Skills are pinned to exact commits in `packages/default-skills
 and ship as real files in the app's `resources/default-skills` folder, each with its own
 `LICENSE`.
 
+The Design pack's 33 third-party skills come from five public repositories, each pinned to an
+exact commit in `packages/default-skills/skills.json` (or, for `libraries-dev`, copied into
+`.agents/skills/` at the commit below) and each shipped unmodified with its own `LICENSE`. The pack
+holds only skills, never the other files of those repositories: from `Jakubantalik/Libraries.dev`
+it takes the skill alone, not the libraries or the `Magnet` and `VoicePosition` model files that
+its separate model licence covers. The Remotion, `transitions-*` and `21st-*` skills are not in
+the installer, because their licences do not allow embedding.
+
+<!-- prettier-ignore -->
+| Source repository | Design pack skills | License | Commit |
+| --- | --- | --- | --- |
+| [emilkowalski/skills](https://github.com/emilkowalski/skills) | `animate`, `animate-expo`, `animation-performance`, `animation-vocabulary`, `apple-design`, `ask-sonner`, `break-ui`, `choreograph`, `emil-design-eng`, `find-animation-opportunities`, `gestures`, `improve-animations`, `mobile-native`, `pick-ui-library`, `prototype`, `remove-animations`, `review-animations` | [MIT](./licenses/emilkowalski-skills-MIT.txt) | `64eb3de` |
+| [jakubkrehel/skills](https://github.com/jakubkrehel/skills) | `better-accessibility`, `better-colors`, `better-interface`, `better-layout`, `better-typography`, `better-ui`, `better-writing`, `break`, `build-design`, `explain-interface`, `interface-review`, `state-machine`, `variant` | [MIT](./licenses/jakubkrehel-skills-MIT.txt) | `6c21201` |
+| [mattpocock/skills](https://github.com/mattpocock/skills) | `design-an-interface` (retired upstream, so pinned at the last commit that holds it) | [MIT](./licenses/mattpocock-skills-MIT.txt) | `f958fa1` |
+| [Jakubantalik/Libraries.dev](https://github.com/Jakubantalik/Libraries.dev) | `libraries-dev` | [MIT](./licenses/libraries-dev-MIT.txt) | `387b049` |
+| [anthropics/skills](https://github.com/anthropics/skills) | `frontend-design` (licensed Apache-2.0 by its own `LICENSE.txt`, which stays in the skill folder) | [Apache-2.0](./licenses/anthropic-skills-Apache-2.0.txt) | `1780c5e` |
+
 `design-taste-frontend` (taste-skill v2.5.0) ships without its picture library. Its photographs,
 the sample photographs of its demos and hero templates, its demo icon sets, its objects kit's sample
 posters and sample product specs, and the credits files that list them are not in the installer, and
@@ -108,7 +125,8 @@ of them also ship in the installer, as separate packs next to the default Agent 
 app's `resources/default-skills/packs/` folder: the `motion` pack (`motion-app-ae`,
 `composicao-trilha`, `video-referencias`, `captura-de-movimento`, `animacao-saas`, `motion-narrado`,
 `stageshow`, `watch` and the twelve HyperFrames skills in the table below) and the `design` pack
-(`ui-profissional`). They are pinned by content hash in `packages/default-skills/skills.json`, and the
+(`ui-profissional`, `stageshow` and `figma`, which both packs hold, and the third-party skills of
+the table above). They are pinned by content hash in `packages/default-skills/skills.json`, and the
 release check fails when one differs from its pin. The other workspace skills (`humanizer`,
 `escrita-pt-br`, `gravar-janela`) are not shipped. Each third-party skill keeps the licence of its
 authors as a `LICENSE` file inside its folder, unmodified, and every shipped skill carries its own
@@ -122,3 +140,4 @@ TUIFT Media carry their own Apache-2.0 `LICENSE`.
 | [bradautomates/claude-video](https://github.com/bradautomates/claude-video) | `watch` | MIT | Commit `03ceb42`. |
 | [blader/humanizer](https://github.com/blader/humanizer) | `humanizer` | MIT | Adapted. |
 | [benjitaylor/skills](https://github.com/benjitaylor/skills) | `stageshow` | MIT | Its own `LICENSE` and `NOTICE.md` stay in the skill folder. |
+| [Jakubantalik/Libraries.dev](https://github.com/Jakubantalik/Libraries.dev) | `libraries-dev` | MIT | Commit `387b049`. Only the skill folder, unmodified, with the repository's `LICENSE`. |
