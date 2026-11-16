@@ -65,6 +65,33 @@ final class ChatsController: UIViewController, UICollectionViewDelegate, UISearc
     navigationController?.setToolbarHidden(false, animated: animated)
   }
 
+  override func viewDidAppear(_ animated: Bool) {
+    super.viewDidAppear(animated)
+    showNotice(model.notice)
+  }
+
+  /// The alert showing the computer's notice, while it is up.
+  private weak var noticeAlert: UIAlertController?
+
+  /// The computer's notice stays on screen until it is dismissed, here or on the computer or
+  /// another phone: dismissing it tells the computer, which stops sending it everywhere.
+  private func showNotice(_ notice: NoticeView?) {
+    guard let notice else {
+      noticeAlert?.dismiss(animated: true)
+      noticeAlert = nil
+      return
+    }
+    guard noticeAlert == nil, presentedViewController == nil, view.window != nil else { return }
+    let alert = UIAlertController(
+      title: notice.title, message: notice.message + "\n\n" + notice.detail, preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: notice.dismiss, style: .default) { [weak self] _ in
+      self?.noticeAlert = nil
+      self?.model.send(["type": "notice.dismiss"])
+    })
+    noticeAlert = alert
+    present(alert, animated: true)
+  }
+
   /// What the list was last built from.
   private var applied: (chats: ChatsView, link: LinkView?, seen: [String: Double])?
 
@@ -75,6 +102,9 @@ final class ChatsController: UIViewController, UICollectionViewDelegate, UISearc
     let chats = model.chats
     let link = model.link
     let seen = model.seenChats
+    // Read here so UIKit runs this again when it changes; shown after this pass, not inside it.
+    let notice = model.notice
+    DispatchQueue.main.async { [weak self] in self?.showNotice(notice) }
     if let applied, applied.chats == chats, applied.link == link, applied.seen == seen { return }
     applied = (chats, link, seen)
     reload(animated: view.window != nil)

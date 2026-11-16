@@ -4,12 +4,14 @@ import { loadPairing, parsePairingLink, savePairing, type Pairing } from '../lin
 import { Store } from '../store'
 import { Catalog } from './catalog'
 import { Projects } from './projects'
+import { StartupNotices } from './startup-notice'
 import { ThreadSessions } from './thread-session'
 
 type AppState = {
   connection: Connection
   projects: Projects
   catalog: Catalog
+  startupNotices: StartupNotices
   sessions: ThreadSessions
   pairing: Store<Pairing | undefined>
 }
@@ -20,6 +22,7 @@ function create(): AppState {
     connection,
     projects: new Projects(connection),
     catalog: new Catalog(connection),
+    startupNotices: new StartupNotices(connection),
     sessions: new ThreadSessions(connection),
     pairing: new Store<Pairing | undefined>(loadPairing()),
   }
@@ -32,7 +35,7 @@ function create(): AppState {
 const holder = globalThis as typeof globalThis & { __tastecode?: AppState }
 const state = (holder.__tastecode ??= create())
 
-export const { connection, projects, catalog, sessions, pairing } = state
+export const { connection, projects, catalog, startupNotices, sessions, pairing } = state
 
 /** Connects to the paired computer, if there is one. */
 export function startLink(): void {
@@ -51,6 +54,7 @@ export function pairWith(link: string): Pairing {
   projects.state.set({ status: 'idle', error: undefined, projects: [], activity: {} })
   catalog.state.set({ status: 'idle', sources: [] })
   catalog.hidden.set(new Set())
+  startupNotices.state.set(undefined)
   savePairing(next)
   pairing.set(next)
   connection.start(next)
@@ -66,4 +70,5 @@ export function forgetComputer(): void {
   projects.state.set({ status: 'idle', error: undefined, projects: [], activity: {} })
   catalog.state.set({ status: 'idle', sources: [] })
   catalog.hidden.set(new Set())
+  startupNotices.state.set(undefined)
 }

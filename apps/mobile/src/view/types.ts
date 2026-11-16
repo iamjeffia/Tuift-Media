@@ -229,6 +229,16 @@ export type NewChatView = {
   setup: SetupView
 }
 
+/** A notice the computer keeps until it is dismissed, already worded in the phone's language. */
+export type NoticeView = {
+  title: string
+  message: string
+  /** Where things were kept, on the computer. */
+  detail: string
+  /** The button that dismisses it. */
+  dismiss: string
+}
+
 /** What the native screens ask for. Requests carry an id and expect `resolve`. */
 export type Action =
   | { type: 'pair'; link: string }
@@ -237,6 +247,7 @@ export type Action =
   | { type: 'attachment.read'; threadId: string; path: string }
   | { type: 'computer.rename'; name: string }
   | { type: 'refresh' }
+  | { type: 'notice.dismiss' }
   | { type: 'thread.open'; threadId: string }
   | { type: 'thread.close'; threadId: string }
   | { type: 'thread.loadOlder'; threadId: string }

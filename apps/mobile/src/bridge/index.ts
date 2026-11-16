@@ -1,9 +1,19 @@
 import { TasteLink } from '../../modules/tastecode-link'
 import { TasteUI, type ActionEvent } from '../../modules/tastecode-ui'
-import { catalog, connection, forgetComputer, pairing, pairWith, projects } from '../state/app'
+import {
+  catalog,
+  connection,
+  forgetComputer,
+  pairing,
+  pairWith,
+  projects,
+  startupNotices,
+} from '../state/app'
 import { message } from '../state/thread-session'
 import { catalogView } from '../view/catalog'
 import { chatsView } from '../view/chats'
+import { noticeView } from '../view/notice'
+import { deviceLanguage } from '../view/strings'
 import type { Action, LinkView } from '../view/types'
 import { NewChat } from './new-chat'
 import { OpenThread } from './open-thread'
@@ -72,6 +82,9 @@ async function perform(action: Action): Promise<unknown> {
       return null
     case 'computer.rename':
       connection.relabel(action.name.trim() || undefined)
+      return null
+    case 'notice.dismiss':
+      await startupNotices.dismiss()
       return null
     case 'refresh':
       await projects.refresh()
@@ -201,6 +214,12 @@ export function startBridge(): void {
   catalog.state.subscribe(pushCatalog)
   catalog.hidden.subscribe(pushCatalog)
   pushCatalog()
+  const pushNotice = () => {
+    const notice = startupNotices.state.get()
+    update('notice', notice ? noticeView(notice, deviceLanguage()) : null)
+  }
+  startupNotices.state.subscribe(pushNotice)
+  pushNotice()
   newChat = new NewChat((view) => update('newChat', view))
   newChat.flush()
 }
