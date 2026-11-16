@@ -8,7 +8,12 @@ import {
 import { clientCapabilities } from './browser-capability.js'
 import { parseStartupMethodResult } from './transport-startup-validation.js'
 
-type WireError = { message?: string; detail?: string }
+type WireError = {
+  message?: string
+  detail?: string
+  key?: string
+  params?: Record<string, string | number>
+}
 type WireResponse = { id: string; result: unknown } | { id: string; error: WireError }
 type IncomingFrame = { kind: 'response'; data: WireResponse } | { kind: 'push'; data: Push }
 type TransportValidation = typeof import('./transport-validation.js')
@@ -62,11 +67,15 @@ export function parseResponseFrame(value: unknown): WireResponse | undefined {
     (detail === undefined || typeof detail === 'string')
   if (!legacyError && !canonicalError) return undefined
 
+  const key = error['key']
+  const params = error['params']
   return {
     id: value['id'],
     error: {
       ...(typeof message === 'string' ? { message } : {}),
       ...(typeof detail === 'string' ? { detail } : {}),
+      ...(typeof key === 'string' ? { key } : {}),
+      ...(isRecord(params) ? { params: params as Record<string, string | number> } : {}),
     },
   }
 }
@@ -162,6 +171,21 @@ export const REFUSED_SERVER_RETRY_MS = 5_000
  * nothing answers there any more (`gone`): the own server gave up meanwhile.
  */
 export type MissingServer = 'other-app' | 'gone'
+
+/**
+ * A refusal the server worded in English and also named in the app's own catalog (`key`), so the
+ * screen can say it in the reader's language. The English `message` is what logs and clients that
+ * do not know the key show.
+ */
+export class ServerError extends Error {
+  constructor(
+    message: string,
+    readonly key?: string,
+    readonly params?: Record<string, string | number>,
+  ) {
+    super(message)
+  }
+}
 
 /** The server may have accepted a transmitted mutation before its reply was lost. */
 export class IndeterminateRequestError extends Error {
@@ -626,7 +650,14 @@ class WebSocketTransport implements Transport {
         // A frame without a message must not surface as the literal string
         // "undefined" in the notice bar.
         const text = message.error.message || 'The server reported an error.'
-        call.reject(new Error(message.error.detail ? `${text} (${message.error.detail})` : text))
+        const { key, params } = message.error
+        call.reject(
+          new ServerError(
+            message.error.detail ? `${text} (${message.error.detail})` : text,
+            key,
+            params,
+          ),
+        )
       } else {
         // The budget bounds replies piling up behind the validator. One reply
         // is always admitted: it is already in memory, and refusing it alone

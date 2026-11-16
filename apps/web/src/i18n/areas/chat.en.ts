@@ -163,6 +163,8 @@ export const chatEn = {
   'chat.attach.dropDesktopOnly': 'Dropping files is available in the desktop app.',
   'chat.attach.failed': 'Couldn’t attach “{name}”. Use the file picker instead.',
   'chat.attach.thatFile': 'that file',
+  'chat.send.tooLong': 'This message is {size}; the limit is {limit}. Attach it as a file instead.',
+  'chat.send.attachAsFile': 'Attach as file',
   'chat.queue.removeFailed': 'Could not remove the queued prompt.',
   'chat.queue.removeFailedStarted':
     'Could not remove the queued prompt. It may have already started; no copy was added.',

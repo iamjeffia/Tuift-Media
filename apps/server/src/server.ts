@@ -54,7 +54,9 @@ import type { PushSocket } from './push-bus.js'
 import { showsImage } from './markdown-images.js'
 import { imageFileName, materializeAttachment, readAttachmentImage } from './uploaded-attachment.js'
 import type { UsageHistoryService } from './usage-history.js'
+import { reapOrphanedChildren } from './orphaned-children.js'
 import { usageSummaryWithLimits } from './usage-summary.js'
+import { assertUserMessageFits, UserMessageTooLongError } from './user-message-limit.js'
 import { listWorkspaceBranches, readWorkspace } from './workspace.js'
 import { commitCheckout, pushCheckout } from './workspace-git.js'
 import {
@@ -174,6 +176,7 @@ export function startServer(
     throw error
   }
   restoreProviderExecutablePaths(store)
+  const orphansReaped = reapOrphanedChildren(databasePath)
   const ownWindow = options.instanceToken ? instanceProtocol(options.instanceToken) : undefined
   let wss: WebSocketServer
   try {
@@ -837,6 +840,10 @@ export function startServer(
       }
       if (error instanceof InvalidHistoryCursorError) {
         respondError(socket, id, ErrorCode.BAD_REQUEST, error.message)
+        return
+      }
+      if (error instanceof UserMessageTooLongError) {
+        respondError(socket, id, ErrorCode.BAD_REQUEST, error.message, undefined, error)
         return
       }
       respondError(
@@ -1803,8 +1810,10 @@ export function startServer(
 
       case 'thread.sendTurn': {
         const p = parseParams(method, params)
+        assertUserMessageFits(p.text)
         // A Stop sent right behind the prompt waits for it, history read included.
         const result = await orchestrator.trackSubmission(p.threadId, async () => {
+          await orphansReaped
           await loadProviderHistory(p.threadId)
           return orchestrator.submitTurn(
             p.threadId,
@@ -1979,13 +1988,19 @@ export function startServer(
     code: string,
     message: string,
     detail?: string,
+    named?: { key: string; params: Record<string, string | number> },
   ): void {
     if (socket.readyState !== socket.OPEN) return
     push.reply(
       socket,
       JSON.stringify({
         id,
-        error: { code, message, ...(detail ? { detail } : {}) },
+        error: {
+          code,
+          message,
+          ...(detail ? { detail } : {}),
+          ...(named ? { key: named.key, params: named.params } : {}),
+        },
       }),
     )
   }

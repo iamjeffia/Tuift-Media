@@ -90,6 +90,7 @@ import { StartupCleanupError } from './provider-session.js'
 import { REPLY_STYLE_INSTRUCTIONS } from './reply-style.js'
 import { DatabaseSync } from './sqlite.js'
 import { Store } from './store.js'
+import { PushBus, type PushSocket } from './push-bus.js'
 import { subagentRunItem } from './subagent-runs.js'
 import type { StoredSubagentRun } from './subagent-runs.js'
 import * as checkpoint from './checkpoint.js'
@@ -1968,6 +1969,171 @@ describe('machine output in the log', () => {
     } finally {
       await orchestrator.disposeAll()
       store.close()
+    }
+  })
+})
+
+describe('an event too heavy for one frame', () => {
+  it('is cut in the log and on the wire, the socket stays open, and a replay shows the same event', async () => {
+    const { orchestrator, sessions, received, store } = harness()
+    try {
+      const thread = await orchestrator.startThread('codex', process.cwd())
+      const session = sessions[0]!
+      session.emit(turnStarted(thread.id, 't1'))
+      // An error far over the 8 MiB the channel carries in one frame, of a kind that has no
+      // ceiling of its own.
+      session.emit({
+        type: 'thread.error',
+        threadId: thread.id,
+        message: `first line${'e'.repeat(12 * 1024 * 1024)}last line`,
+      })
+      session.emit({
+        type: 'item.completed',
+        item: {
+          id: 'reply',
+          turnId: 't1',
+          type: 'message',
+          role: 'assistant',
+          status: 'completed',
+          text: 'after it',
+          createdAt: 2,
+        },
+      })
+      const replay = (await orchestrator.history(thread.id)).map(({ event }) => event)
+
+      // What the server does with each recorded event: send it down the one client's socket.
+      const frames: string[] = []
+      let terminated = 0
+      const client: PushSocket = {
+        OPEN: 1,
+        readyState: 1,
+        send: (frame, done) => {
+          frames.push(frame)
+          done?.()
+        },
+        terminate: () => {
+          terminated += 1
+        },
+      }
+      const bus = new PushBus()
+      bus.add(client)
+      for (const { threadId, event, seq, serializedEvent } of received) {
+        if (serializedEvent === undefined) bus.broadcast('thread.event', { threadId, event, seq })
+        else bus.broadcastRecordedEvent('thread.event', threadId, serializedEvent, seq)
+      }
+
+      expect(terminated).toBe(0)
+      const live = frames.map(
+        (frame) => (JSON.parse(frame) as { data: { event: DomainEvent } }).data.event,
+      )
+      // Every frame fits, none was left out, and the client holds exactly what the log holds, so
+      // a reconnect that reads the log again changes nothing.
+      expect(frames.every((frame) => Buffer.byteLength(frame) < 8 * 1024 * 1024)).toBe(true)
+      expect(live).toEqual(received.map(({ event }) => event))
+      const error = live.find((event) => event.type === 'thread.error')
+      expect(error?.type === 'thread.error' && error.message.startsWith('first line')).toBe(true)
+      expect(error?.type === 'thread.error' && error.message.endsWith('last line')).toBe(true)
+      expect(error?.type === 'thread.error' && error.message).toMatch(/characters omitted/)
+      for (const event of live) expect(replay).toContainEqual(event)
+      // The event after it still arrives, in order.
+      expect(live.at(-1)).toMatchObject({ type: 'item.completed', item: { id: 'reply' } })
+    } finally {
+      await orchestrator.disposeAll()
+      store.close()
+    }
+  })
+
+  it('cuts a plan and a reasoning over their ceilings in the log and on the wire', async () => {
+    const { orchestrator, sessions, received, store } = harness()
+    try {
+      const thread = await orchestrator.startThread('codex', process.cwd())
+      const session = sessions[0]!
+      session.emit(turnStarted(thread.id, 't1'))
+      for (const type of ['plan', 'reasoning'] as const) {
+        session.emit({
+          type: 'item.completed',
+          item: {
+            id: type,
+            turnId: 't1',
+            type,
+            status: 'completed',
+            text: `${'a'.repeat(300 * 1024)}${'z'.repeat(300 * 1024)}`,
+            createdAt: 1,
+          },
+        })
+      }
+      const replay = (await orchestrator.history(thread.id)).map(({ event }) => event)
+
+      for (const events of [replay, received.map(({ event }) => event)]) {
+        for (const type of ['plan', 'reasoning']) {
+          const done = events.find(
+            (event) => event.type === 'item.completed' && event.item.id === type,
+          )
+          const text = done?.type === 'item.completed' ? (done.item.text ?? '') : ''
+          expect(text.length).toBeLessThan(256 * 1024 + 64)
+          expect(text.startsWith('a')).toBe(true)
+          expect(text.endsWith('z')).toBe(true)
+          expect(text).toMatch(/\n… \d+ characters omitted …\n/)
+        }
+      }
+    } finally {
+      await orchestrator.disposeAll()
+      store.close()
+    }
+  })
+
+  it('opens a chat whose log holds a plan, a reasoning and a message over their ceilings, uncut in the database', async () => {
+    const directory = mkdtempSync(path.join(os.tmpdir(), 'tuift-late-ceilings-'))
+    const databasePath = path.join(directory, 'chat.db')
+    const { orchestrator, store } = harness(undefined, new Store(databasePath))
+    try {
+      const thread = await orchestrator.startThread('codex', process.cwd())
+      const huge = `H${'m'.repeat(600 * 1024)}T`
+      // Written the way an older build wrote them: straight into the log, no ceiling.
+      for (const [id, type, role] of [
+        ['mine', 'message', 'user'],
+        ['thought', 'reasoning', undefined],
+        ['the-plan', 'plan', undefined],
+      ] as const) {
+        store.append(thread.id, {
+          type: 'item.completed',
+          item: {
+            id,
+            turnId: 'old',
+            type,
+            ...(role ? { role } : {}),
+            status: 'completed',
+            text: huge,
+            createdAt: 1,
+          },
+        })
+      }
+
+      const opened = (await orchestrator.history(thread.id)).map(({ event }) => event)
+      for (const id of ['mine', 'thought', 'the-plan']) {
+        const event = opened.find(
+          (entry) => entry.type === 'item.completed' && entry.item.id === id,
+        )
+        const text = event?.type === 'item.completed' ? (event.item.text ?? '') : ''
+        expect(text.length).toBeLessThan(256 * 1024 + 64)
+        expect(text.startsWith('H')).toBe(true)
+        expect(text.endsWith('T')).toBe(true)
+      }
+      // Opened cut, but the database was not rewritten: its rows still hold the whole text.
+      const rows = new DatabaseSync(databasePath)
+      try {
+        const payloads = rows
+          .prepare(`SELECT payload FROM events WHERE payload LIKE '%"turnId":"old"%'`)
+          .all() as Array<{ payload: string }>
+        expect(payloads).toHaveLength(3)
+        expect(payloads.every(({ payload }) => payload.length > 600 * 1024)).toBe(true)
+      } finally {
+        rows.close()
+      }
+    } finally {
+      await orchestrator.disposeAll()
+      store.close()
+      rmSync(directory, { recursive: true, force: true })
     }
   })
 })

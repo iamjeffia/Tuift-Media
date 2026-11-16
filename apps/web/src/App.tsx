@@ -71,6 +71,7 @@ import { useChatMotion, useThreadMotion, type LegacyMotionFlag } from './motion/
 import { AppUpdateToast } from './ui/AppUpdateToast.js'
 import { QuitConfirmNotice } from './ui/QuitConfirmNotice.js'
 import { NoticeBody } from './ui/Notice.js'
+import { serverErrorText } from './message-limit.js'
 import { IndeterminateRequestError, Transport, type MissingServer } from './transport.js'
 import { OptimisticMutations } from './optimistic-mutations.js'
 import {
@@ -5314,7 +5315,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
             publishThread(threadId, next)
           }
         }
-        if (!stoppedBeforeStart) reportError(error instanceof Error ? error.message : String(error))
+        if (!stoppedBeforeStart) reportError(serverErrorText(error))
       }
     },
     [

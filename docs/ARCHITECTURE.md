@@ -776,6 +776,53 @@ most disposable process) · whole-DB encryption (the DB holds no credentials by 
 
 Removed with API connections on 2026-10-20.
 
+### One text, one ceiling; one event, one frame
+
+Every kind of text an item can carry has a ceiling in `packages/contracts/src/item-limits.ts`,
+applied by `item-output-bounds.ts` before the log and the wire, and read by the renderer from the
+same table: 64 KiB of machine output, 1 MiB of the agent's message and of a diff, 256 KiB of its
+plan (an item, or the steps of a `plan.updated`) and 256 KiB of its reasoning. A text over its
+ceiling keeps its start and its end with a line saying how much was dropped. The plan and the
+reasoning are drawn as a document behind a disclosure and every replay pays for each character,
+so they got a quarter of a message. What the person sends is the one text that is never cut:
+above 256 KiB the prompt box refuses to send and offers to move the text into a file, and
+`thread.sendTurn` answers `bad_request` with a catalog `key` and `params`, so the screen says it
+in the reader's language and the socket stays open.
+
+No event is sent or stored above 4 MiB serialized, whatever its kind (`fitEvent`): long strings are
+cut, largest first, until it fits. The push channel closes a socket sent a frame over 8 MiB, and a
+client that reconnects reads the log and meets the same frame again, so the bus sends such a frame
+cut to fit with its own sequence and `seq`; one that cannot be cut is left out and the sequence it
+used shows the client a gap, which makes it read the log again. A chat stored before these
+ceilings is cut as it is read (`boundStoredEvent`, in the store's parse and in a saved replay);
+the database is never rewritten, and the full text stays in the log.
+
+_Rejected:_ cutting what the person sends (a prompt that silently loses its tail is worse than a
+refusal) · terminating the socket and letting the client reconnect (it loops) · rewriting old rows
+(a migration over a log of hundreds of thousands of events for a display problem) · one ceiling for
+every kind (a plan nobody reads at 1 MiB, a diff somebody does).
+
+### Provider processes an app crash leaves behind
+
+On Windows Node ends its direct children when it dies (libuv's job object, which lets a child's own
+children out), so a `.cmd` shim goes and the provider CLI behind it runs on with its memory, its
+files and its MCP servers; nothing used to end it. `spawnOwned` (every provider, `spawnCli`
+included) tells `packages/proc/src/child-registry.ts` about each child that lives past 1.5 s;
+the registry writes it and everything below it, as the system reports them (pid, own start time,
+executable, and the app process that started them), to `child-processes.json` beside the database
+(atomically; one file per data folder; a damaged file or another user's is ignored). The server
+reads it before any provider starts (`orphaned-children.ts`, off the port's path) and ends an entry
+and its tree only while its pid still has that start time and that executable and the app that
+wrote it is gone; anything else is dropped, never ended. A child that ends takes its entries out.
+A crash in the first 1.5 s of a child is not covered, and the registry costs one process list (a
+PowerShell start, about 0.4 s) per provider start and per start after a crash.
+
+_Rejected:_ a Windows job object (no way to create one from plain Node, a native module is
+off the table, and a PowerShell helper per spawn costs more than the list) · a watcher process that
+ends the tree the moment the app dies (works, costs a process per app, left to the owner) · ending
+by pid alone, or by parent link alone (pids are reused at once on Windows) · writing every child,
+`git status` included (a file write per command).
+
 ## Long threads must feel instant
 
 Threads exceed 200 messages of streamed markdown, code, diffs and tool output. This is the
@@ -1071,3 +1118,4 @@ registry entry, which is deliberately a good first outside contribution.
 | 2026-11-06 | Kept the Browser's recently used pages in renderer storage, recorded only from tabs the user opened.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | 2026-11-15 | A provider process that dies is classified once, in the orchestrator, from the adapters' own end sentences (`process-exit.ts`), into a `reason` on `thread.error` the renderer words with a Continue action; closing the app stops running turns like Stop and marks them; the quit asks first while chats work; a low memory warning (`system.memory`) reads free physical memory per tick while a turn runs and the commit charge only when that is low. Rejected: structured exit data from every adapter (eight edits for what one parser covers), auto-resuming after a crash, polling the commit charge on a timer. |
 | 2026-11-15 | Pictures inside a saved transcript are kept as content-addressed files beside the pasted attachments; events carry the path, old inline pictures move out when the chat opens.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 2026-11-16 | Gave the plan, the reasoning and the person's message a ceiling (256 KiB each; the message is refused, never cut), sent an event over the frame limit cut to fit instead of closing the socket, and wrote provider children to a registry the next start reads to end the ones a crash left behind.                                                                                                                                                                                                                                                                                                                       |

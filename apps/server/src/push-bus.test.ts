@@ -359,3 +359,78 @@ describe('PushBus', () => {
     expect(broken.terminated).toBe(1)
   })
 })
+
+describe('PushBus with an event over the frame limit', () => {
+  const error = (message: string) => ({
+    type: 'thread.error' as const,
+    threadId: 'thread-1',
+    message,
+  })
+  const eventOf = (frame: string) =>
+    JSON.parse(frame) as { sequence: number; data: { event: { message: string }; seq: number } }
+
+  it('sends it cut to fit, with its own sequence and seq, and keeps the socket open', () => {
+    const bus = new PushBus()
+    const client = socket()
+    bus.add(client)
+    const huge = `start${'x'.repeat(MAX_PUSH_BUFFER_BYTES + 1024)}end`
+
+    bus.broadcast('thread.event', { threadId: 'thread-1', event: error(huge), seq: 41 })
+    bus.broadcast('usage.changed', { provider: 'codex' })
+
+    expect(client.terminated).toBe(0)
+    expect(sequences(client)).toEqual([1, 2])
+    const frame = eventOf(client.sent[0]!)
+    expect(frame.data.seq).toBe(41)
+    expect(frame.data.event.message.startsWith('start')).toBe(true)
+    expect(frame.data.event.message.endsWith('end')).toBe(true)
+    expect(frame.data.event.message).toMatch(/characters omitted/)
+    expect(Buffer.byteLength(client.sent[0]!)).toBeLessThan(MAX_PUSH_BUFFER_BYTES)
+  })
+
+  it('does the same for stored event JSON, which is what a recorded event is sent from', () => {
+    const bus = new PushBus()
+    const client = socket()
+    bus.add(client)
+    const stored = JSON.stringify(error('y'.repeat(MAX_PUSH_BUFFER_BYTES * 2)))
+
+    bus.broadcastRecordedEvent('thread.event', 'thread-1', stored, 9)
+
+    expect(client.terminated).toBe(0)
+    expect(eventOf(client.sent[0]!).data.seq).toBe(9)
+    expect(Buffer.byteLength(client.sent[0]!)).toBeLessThan(MAX_PUSH_BUFFER_BYTES)
+  })
+
+  it('leaves out a frame it cannot cut, still closes nothing, and the gap tells the client to read again', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const bus = new PushBus()
+    const client = socket()
+    bus.add(client)
+    bus.broadcast('usage.changed', { provider: 'codex' })
+    const steps = Array.from({ length: 700_000 }, () => ({ text: 'step', status: 'pending' }))
+
+    bus.broadcast('thread.event', {
+      threadId: 'thread-1',
+      event: { type: 'plan.updated', turnId: 't', steps },
+      seq: 3,
+    } as never)
+    bus.broadcast('usage.changed', { provider: 'codex' })
+
+    expect(client.terminated).toBe(0)
+    // The frame in between used sequence 2 and never left: the client sees 3 after 1 and re-reads.
+    expect(sequences(client)).toEqual([1, 3])
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
+  it('still closes a client that is simply too far behind', () => {
+    const bus = new PushBus()
+    const client = socket()
+    bus.add(client)
+    Object.defineProperty(client, 'bufferedAmount', { value: MAX_PUSH_BUFFER_BYTES })
+
+    bus.broadcast('usage.changed', { provider: 'codex' })
+
+    expect(client.terminated).toBe(1)
+  })
+})

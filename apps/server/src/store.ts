@@ -51,7 +51,7 @@ import type { TurnOptions } from './adapters.js'
 import { AttachmentFiles, hasInlineAttachment } from './attachment-files.js'
 import { canonicalDataPath } from './data-lease.js'
 import type { HistoryCarry } from './history-page.js'
-import { boundItemEvent, boundOutputEvent } from './item-output-bounds.js'
+import { boundItemEvent, boundOutputEvent, boundStoredEvent } from './item-output-bounds.js'
 import {
   historyIndexKeys,
   HISTORY_STATE_EVENT_TYPES,
@@ -4053,7 +4053,7 @@ export class Store {
       seq,
       row.payload,
       seq === this.lastSeq(threadId),
-    )
+    )?.entries
     return entries ? { seq, entries } : undefined
   }
 
@@ -4072,6 +4072,7 @@ export class Store {
     const row = sqliteRow<ReplaySnapshotRow>(this.#readReplaySnapshotBase, threadId)
     if (!row || Number(row.seq) !== seq) return undefined
     return this.#cacheReplaySnapshot(threadId, seq, row.payload, seq === this.lastSeq(threadId))
+      ?.entries
   }
 
   /** Preserve SQLite's JSON for the first response after a process restart. */
@@ -4087,8 +4088,8 @@ export class Store {
     }
     const row = sqliteRow<ReplaySnapshotRow>(this.#readTailReplaySnapshot, threadId)
     if (!row) return undefined
-    const entries = this.#cacheReplaySnapshot(threadId, Number(row.seq), row.payload, true)
-    return entries ? { entries, serializedEntries: row.payload } : undefined
+    const saved = this.#cacheReplaySnapshot(threadId, Number(row.seq), row.payload, true)
+    return saved ? { entries: saved.entries, serializedEntries: saved.payload } : undefined
   }
 
   #cacheReplaySnapshot(
@@ -4096,11 +4097,17 @@ export class Store {
     seq: number,
     payload: string,
     tail: boolean,
-  ): ReplayEntry[] | undefined {
+  ): { entries: ReplayEntry[]; payload: string } | undefined {
     try {
-      const entries = ReplaySnapshotSchema.parse(JSON.parse(payload))
+      let entries = ReplaySnapshotSchema.parse(JSON.parse(payload))
+      // A saved replay can hold a plan, a reasoning or a message over its ceiling from before
+      // they had one. It is cut as it is read; the saved row is left as it is.
+      if (entries.some(({ event }) => boundStoredEvent(event) !== event)) {
+        entries = entries.map((entry) => ({ ...entry, event: boundStoredEvent(entry.event) }))
+        payload = JSON.stringify(entries)
+      }
       this.#rememberReplaySnapshot(threadId, seq, entries, payload.length, tail)
-      return entries
+      return { entries, payload }
     } catch {
       this.#deleteReplaySnapshot.run(threadId)
       this.#deleteCachedReplaySnapshot(threadId)
@@ -5770,7 +5777,7 @@ function parseDomainEvent(serialized: string, context: string): DomainEvent | un
     }
   }
   const parsed = DomainEventSchema.safeParse(value)
-  if (parsed.success) return parsed.data
+  if (parsed.success) return boundStoredEvent(parsed.data)
   const type =
     value !== null && typeof value === 'object' ? (value as { type?: unknown }).type : undefined
   console.warn(

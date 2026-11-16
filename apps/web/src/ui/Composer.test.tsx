@@ -3,6 +3,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { attachToComposer, canAttachToComposer } from '../composer-attach.js'
 import { rememberedChipTokens, resetRememberedChipTokens } from '../composer-chip-memory.js'
+import { MAX_USER_MESSAGE_CHARS } from '@harness/contracts'
+import { setLanguage } from '../i18n/index.js'
 import { emptyThread, reduce } from '../thread-store.js'
 import type { Transport } from '../transport.js'
 import { TestTransport } from '../test-transport.js'
@@ -27,6 +29,7 @@ const bridge = vi.hoisted(() => ({
   previewViewedImage: vi.fn(),
   revealPath: vi.fn(),
   savePastedFile: vi.fn(),
+  canSavePastedFiles: true,
 }))
 const preloadThread = vi.hoisted(() => vi.fn())
 
@@ -36,6 +39,7 @@ vi.mock('../bridge.js', () => ({
   previewViewedImage: bridge.previewViewedImage,
   revealPath: bridge.revealPath,
   savePastedFile: bridge.savePastedFile,
+  canSavePastedFiles: bridge.canSavePastedFiles,
 }))
 vi.mock('./LazyThread.js', () => ({ preloadThread }))
 
@@ -1003,6 +1007,78 @@ describe('Composer media attachments', () => {
     fireEvent.keyDown(composer, { key: 'Enter' })
 
     expect(onSend).toHaveBeenCalledWith('Inspect this attachment', [path])
+  })
+})
+
+describe('Composer text over the ceiling of one message', () => {
+  const tooLong = 'a'.repeat(MAX_USER_MESSAGE_CHARS + 1000)
+  const typeIn = (value: string) =>
+    fireEvent.change(screen.getByPlaceholderText('Do anything'), { target: { value } })
+
+  it('refuses it before sending, in the reader language, with the size and the limit', () => {
+    setLanguage('pt-BR', { persist: false })
+    const onSend = vi.fn()
+    renderComposer(onSend)
+    typeIn(tooLong)
+
+    expect(
+      screen.getByText('Esta mensagem tem 257 KB e o limite é 256 KB. Anexe o texto como arquivo.'),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Anexar como arquivo' })).toBeTruthy()
+    const send = screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement
+    expect(send.disabled).toBe(true)
+    fireEvent.keyDown(screen.getByPlaceholderText('Do anything'), { key: 'Enter' })
+    expect(onSend).not.toHaveBeenCalled()
+    // The draft is still there: nothing was cut.
+    expect((screen.getByPlaceholderText('Do anything') as HTMLTextAreaElement).value).toBe(tooLong)
+  })
+
+  it('says the same in English, and lets go once the text is short enough', () => {
+    const onSend = vi.fn()
+    renderComposer(onSend)
+    typeIn(tooLong)
+
+    expect(
+      screen.getByText('This message is 257 KB; the limit is 256 KB. Attach it as a file instead.'),
+    ).toBeTruthy()
+    typeIn('a'.repeat(MAX_USER_MESSAGE_CHARS))
+    expect(screen.queryByText(/the limit is/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    expect(onSend).toHaveBeenCalledTimes(1)
+  })
+
+  it('moves the whole text into a file with one action, and keeps it until the file is saved', async () => {
+    let save!: (value: { path: string; name: string }) => void
+    bridge.savePastedFile.mockReturnValueOnce(
+      new Promise((done) => {
+        save = done
+      }),
+    )
+    renderComposer(vi.fn())
+    typeIn(tooLong)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Attach as file' }))
+    expect((screen.getByPlaceholderText('Do anything') as HTMLTextAreaElement).value).toBe(tooLong)
+    await act(async () => save({ path: '/work/pasted-text.txt', name: 'pasted-text.txt' }))
+
+    await waitFor(() =>
+      expect((screen.getByPlaceholderText('Do anything') as HTMLTextAreaElement).value).toBe(''),
+    )
+    expect(screen.queryByText(/the limit is/)).toBeNull()
+    const file = bridge.savePastedFile.mock.calls.at(-1)![0] as File
+    expect(file.name).toBe('pasted-text.txt')
+    expect(file.size).toBe(tooLong.length)
+  })
+
+  it('keeps the text and says so when the file cannot be saved', async () => {
+    bridge.savePastedFile.mockResolvedValueOnce(undefined)
+    renderComposer(vi.fn())
+    typeIn(tooLong)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Attach as file' }))
+
+    expect(await screen.findByText(/Couldn’t attach “pasted-text.txt”/)).toBeTruthy()
+    expect((screen.getByPlaceholderText('Do anything') as HTMLTextAreaElement).value).toBe(tooLong)
   })
 })
 

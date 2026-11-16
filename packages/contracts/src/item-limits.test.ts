@@ -9,6 +9,9 @@ import {
   MAX_DIFF_CHARS,
   MAX_ITEM_OUTPUT_CHARS,
   MAX_MESSAGE_CHARS,
+  MAX_PLAN_CHARS,
+  MAX_REASONING_CHARS,
+  MAX_USER_MESSAGE_CHARS,
   streamCutMarker,
 } from './item-limits.js'
 
@@ -24,11 +27,28 @@ describe('itemTextLimit', () => {
     expect(MAX_DIFF_CHARS).toBe(1024 * 1024)
   })
 
-  it('leaves what the user typed, the reasoning and the rest without a limit', () => {
-    for (const type of ['reasoning', 'plan', 'unknown', 'notice'] as const) {
+  it('limits the plan and the reasoning to 256 KiB each, cut like a message', () => {
+    expect(itemTextLimit({ type: 'plan' })).toEqual({
+      max: MAX_PLAN_CHARS,
+      noun: 'plan',
+      keepEnd: true,
+    })
+    expect(itemTextLimit({ type: 'reasoning' })).toEqual({
+      max: MAX_REASONING_CHARS,
+      noun: 'reasoning',
+      keepEnd: true,
+    })
+    expect(MAX_PLAN_CHARS).toBe(256 * 1024)
+    expect(MAX_REASONING_CHARS).toBe(256 * 1024)
+  })
+
+  it('leaves what the user typed and the rest without a limit that cuts', () => {
+    for (const type of ['unknown', 'notice'] as const) {
       expect(itemTextLimit({ type })).toBeUndefined()
     }
+    // A message of the user is refused above its ceiling, never cut on the way in.
     expect(itemTextLimit({ type: 'message', role: 'user' })).toBeUndefined()
+    expect(MAX_USER_MESSAGE_CHARS).toBe(256 * 1024)
   })
 
   it('keeps the end of a message and of output, and only the start of a diff', () => {
@@ -43,6 +63,8 @@ describe('the cut markers', () => {
     expect(streamCutMarker('message')).toBe('\n… message truncated …\n')
     expect(endsWithStreamCut(`text${streamCutMarker('output')}`)).toBe(true)
     expect(endsWithStreamCut(`text${streamCutMarker('diff')}`)).toBe(true)
+    expect(endsWithStreamCut(`text${streamCutMarker('plan')}`)).toBe(true)
+    expect(endsWithStreamCut(`text${streamCutMarker('reasoning')}`)).toBe(true)
     expect(endsWithStreamCut('text … output truncated …')).toBe(false)
   })
 
