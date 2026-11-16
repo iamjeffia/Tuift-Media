@@ -28,6 +28,17 @@ if (new URLSearchParams(window.location.search).get('bridge') === 'files') {
       revealProjectFile: async (path: string) => void asked.push(path),
       previewProjectFile: async (path: string) => demoMedia(path),
       writeClipboardText: async (text: string) => void copied.push(text),
+      // `?quit=2` holds a quit with two chats running, as the desktop shell asks for it.
+      ...(Number(new URLSearchParams(window.location.search).get('quit')) > 0
+        ? {
+            onQuitRequested: (listener: (chats: number) => void) => {
+              const chats = Number(new URLSearchParams(window.location.search).get('quit'))
+              const timer = setTimeout(() => listener(chats), 1500)
+              return () => clearTimeout(timer)
+            },
+            answerQuit: (quit: boolean) => void asked.push(quit ? 'quit' : 'keep working'),
+          }
+        : {}),
       // Read by a design review to see what a menu did.
       sandboxAsked: asked,
       sandboxCopied: copied,

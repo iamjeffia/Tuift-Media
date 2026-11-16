@@ -26,6 +26,7 @@ import { providerUpdatesStore } from './provider-updates.js'
 import { mockKeyboardModifierState } from './test-keyboard.js'
 import { NEWEST_HISTORY_TURNS } from './thread-controller.js'
 import { composerWireText } from './ui/composer-chips.js'
+import { setLanguage } from './i18n/index.js'
 
 const NEWEST_PAGE = { turnLimit: NEWEST_HISTORY_TURNS }
 const PENDING_CHAT_DELETES_KEY = 'harness.pendingChatDeletes.v1'
@@ -5871,6 +5872,91 @@ describe('new chats', () => {
         expect.objectContaining({ threadId: 'chat-next' }),
       ),
     )
+  })
+
+  describe('a turn that was cut short', () => {
+    const cutShort = async (reason: unknown) => {
+      serverProjects[0]!.sessions = [
+        { id: 'chat-cut', title: 'Render the reel', provider: 'codex', createdAt: 1 },
+      ]
+      const request = transport.request.getMockImplementation()
+      if (!request) throw new Error('missing request mock')
+      transport.request.mockImplementation((method: string, params: unknown) => {
+        if (method === 'thread.history' && (params as { threadId: string }).threadId === 'chat-cut')
+          return Promise.resolve({
+            events: [
+              {
+                seq: 1,
+                event: {
+                  type: 'item.completed',
+                  item: {
+                    id: 'ask',
+                    turnId: 'turn-1',
+                    type: 'message',
+                    role: 'user',
+                    status: 'completed',
+                    text: 'Render the reel',
+                    createdAt: 1,
+                  },
+                },
+              },
+              {
+                seq: 2,
+                event: { type: 'thread.error', threadId: 'chat-cut', message: 'raw', reason },
+              },
+              { seq: 3, event: { type: 'turn.completed', turnId: 'turn-1', status: 'failed' } },
+            ],
+            running: false,
+            approval: 'ask',
+          })
+        return request(method, params)
+      })
+      const errors = () => composerProps().errors ?? []
+      render(<App />)
+      fireEvent.click(await waitFor(() => treeChatRow('Render the reel')))
+      return await waitFor(() => {
+        const row = errors().find((error) => error.id.startsWith('chat:chat-cut:'))
+        expect(row).toBeDefined()
+        expect(row!.message).not.toBe('raw')
+        return row!
+      })
+    }
+
+    it('explains a provider that ended for lack of memory and continues only when asked', async () => {
+      const row = await cutShort({
+        code: 'process_memory',
+        certainty: 'likely',
+        exitCode: 3221226505,
+      })
+      expect(row.message).toBe(
+        'Codex was ended, most likely because the system ran out of memory. The chat and the files already written are kept.',
+      )
+      expect(row.detail).toBe('Technical details: exit code 0xC0000409 (3221226505)')
+      expect(row.action?.label).toBe('Continue')
+      // Offered, never sent on its own.
+      expect(transport.request).not.toHaveBeenCalledWith('thread.sendTurn', expect.anything())
+
+      await act(async () => row.action!.run())
+      await waitFor(() =>
+        expect(transport.request).toHaveBeenCalledWith(
+          'thread.sendTurn',
+          expect.objectContaining({
+            threadId: 'chat-cut',
+            text: 'Continue from where you stopped and finish my previous request.',
+          }),
+        ),
+      )
+    })
+
+    it('says in Portuguese that the app was closed while the chat worked', async () => {
+      setLanguage('pt-BR', { persist: false })
+      const row = await cutShort({ code: 'app_closed' })
+      expect(row.message).toBe(
+        'O app foi fechado enquanto este chat trabalhava. O chat e os arquivos já gravados foram mantidos.',
+      )
+      expect(row.detail).toBeUndefined()
+      expect(row.action?.label).toBe('Continuar')
+    })
   })
 
   it('switches an open chat to another provider with its next message', async () => {

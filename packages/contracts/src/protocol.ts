@@ -2657,6 +2657,19 @@ export const channels = {
     items: z.array(QueuedTurnSchema),
     canSteer: z.boolean(),
   }),
+  /**
+   * The system is close to running out of memory while a turn runs (`low`, once per episode),
+   * or it recovered (`ok`). `consumers` are the largest programs by memory, largest first.
+   */
+  'system.memory': z.object({
+    state: z.enum(['low', 'ok']),
+    /** Share of the commit limit in use, 0 to 100, when the platform tells. */
+    committedPercent: z.number().min(0).max(100).optional(),
+    consumers: z
+      .array(z.object({ name: z.string().min(1).max(80), bytes: z.number().nonnegative() }))
+      .max(5)
+      .optional(),
+  }),
   /** The desktop hid or showed models in its picker. */
   'models.hidden': z.object({ keys: z.array(z.string()) }),
   /** The desktop added or removed a provider. */

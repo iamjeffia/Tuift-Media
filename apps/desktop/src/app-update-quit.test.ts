@@ -14,6 +14,7 @@ function fixture(
   status = 'preparing',
   serverSupervisor?: { stop: () => Promise<void> },
   runningAgents = 0,
+  quitConfirmed = false,
 ) {
   const events: Array<{ preventDefault: ReturnType<typeof vi.fn> }> = []
   const app = Object.assign(new EventEmitter(), {
@@ -33,6 +34,8 @@ function fixture(
     runningAgents,
     waitingForUpdateCleanup: false,
     waitingForServerShutdown: false,
+    quitConfirmed,
+    quitRequest: { request: vi.fn() },
     serverSupervisor,
     appIsQuitting: false,
     previewCaptures: { cancelAll: vi.fn() },
@@ -132,7 +135,8 @@ describe('quit during an app update', () => {
     const stop = vi.fn(async () => {
       calls.push('server')
     })
-    const { app, appUpdater, context } = fixture(() => {}, 'ready', { stop }, 2)
+    // The person agreed to stop the chats, or no one asked: the quit goes on.
+    const { app, appUpdater, context } = fixture(() => {}, 'ready', { stop }, 2, true)
     appUpdater.prepareForQuit.mockImplementation((running) => {
       calls.push(`prepare ${running}`)
     })
@@ -165,5 +169,46 @@ describe('quit during an app update', () => {
     expect(calls).toEqual(['update', 'server'])
     expect(events).toHaveLength(3)
     expect(events[2]!.preventDefault).not.toHaveBeenCalled()
+  })
+})
+
+describe('quit while chats are running', () => {
+  it('holds the quit and asks, once per request, when a chat works', () => {
+    const stop = vi.fn(async () => {})
+    const { app, appUpdater, context, events, quitRequest, mainWindowStatePersistence } = fixture(
+      () => {},
+      'ready',
+      { stop },
+      2,
+    )
+
+    app.quit()
+
+    expect(events[0]!.preventDefault).toHaveBeenCalledOnce()
+    expect(quitRequest.request).toHaveBeenCalledOnce()
+    // Nothing started to wind down: no update decision, no server stop, no quit flag.
+    expect(appUpdater.prepareForQuit).not.toHaveBeenCalled()
+    expect(stop).not.toHaveBeenCalled()
+    expect(context.appIsQuitting).toBe(false)
+    expect(mainWindowStatePersistence.saveAndStop).not.toHaveBeenCalled()
+  })
+
+  it('does not ask when no chat works', () => {
+    const { app, events, quitRequest } = fixture(() => {}, 'idle', undefined, 0)
+    app.quit()
+    expect(events[0]!.preventDefault).not.toHaveBeenCalled()
+    expect(quitRequest.request).not.toHaveBeenCalled()
+  })
+
+  it('lets the quit through once the person agreed, and stops the server', async () => {
+    const stop = vi.fn(async () => {})
+    const { app, events, quitRequest, context } = fixture(() => {}, 'idle', { stop }, 3, true)
+    app.quit()
+    await flush()
+    expect(quitRequest.request).not.toHaveBeenCalled()
+    expect(stop).toHaveBeenCalledOnce()
+    expect(events[0]!.preventDefault).toHaveBeenCalledOnce()
+    expect(events.at(-1)!.preventDefault).not.toHaveBeenCalled()
+    expect(context.appIsQuitting).toBe(true)
   })
 })

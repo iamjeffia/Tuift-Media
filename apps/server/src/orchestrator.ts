@@ -221,6 +221,7 @@ import {
   type InboxProjection,
 } from './inbox-projection.js'
 import { retryableLazy } from './retryable-lazy.js'
+import { classifyProcessExit, describeProcessExit, parseProcessExit } from './process-exit.js'
 import { storeLocation } from './data-location.js'
 
 type RecordedEventHandler = (
@@ -726,6 +727,11 @@ function designRecoveryState(history: Array<{ event: DomainEvent }>): DesignReco
 
   return { unresolved, openTurnId }
 }
+
+/** How long closing the app waits for running turns to confirm their Stop. */
+const SHUTDOWN_STOP_MS = 1_500
+const APP_CLOSED_MESSAGE =
+  'Turn interrupted: TUIFT Code was closed while this chat was working. Send a new message to continue.'
 const PANIC_STOP_TIMEOUT_MS = 5_000
 /**
  * How long a stopped turn's agent may take to report the turn's end before its process
@@ -834,6 +840,8 @@ export class Orchestrator {
   /** Each parent chat's token for the agent tools, kept while it exists. */
   #agentToolGrants = new Map<string, AgentToolsGrant>()
   #activeTurns = new Set<string>()
+  /** Told how many turns run, and asked whether the system was low on memory. */
+  #memory: { setActiveTurns(count: number): void; lowRecently(): boolean } | undefined
   #activeTurnIds = new Map<string, string>()
   #serverOwnedUserTurns = new Set<string>()
   #suppressedUserItems = new Map<string, Set<string>>()
@@ -1109,9 +1117,12 @@ export class Orchestrator {
       defaultSkillsRoot?: string
       /** Attaches the After Effects server to Motion chats; absent, Motion chats never mention it. */
       afterEffects?: AfterEffectsSource
+      /** Watches memory while turns run, and says whether a dead process died on a starved system. */
+      memory?: { setActiveTurns(count: number): void; lowRecently(): boolean }
     },
   ) {
     this.#store = store
+    this.#memory = handlers.memory
     this.#recordedDeltas = new RecordedDeltaBuffer(
       (threadId, event) => this.#commitRecordedDelta(threadId, event),
       { commitBatch: (records) => this.#commitRecordedDeltas(records) },
@@ -4085,9 +4096,15 @@ export class Orchestrator {
       if (starting) starting.turnCompleted = true
       event = { ...event, completedAt: Date.now() }
     }
+    if (event.type === 'thread.error' && event.reason === undefined)
+      event = this.#explainProcessExit(event)
     if (event.type === 'thread.error') {
       this.#pendingTurnStarts.delete(threadId)
       this.#acceptedTurnStarts.delete(threadId)
+      // Nothing goes out on its own after a provider process died: the system may be starved,
+      // and whether to try again is the person's call. The prompts stay queued.
+      if (event.reason?.code.startsWith('process_') && this.#hasQueuedTurns(threadId))
+        this.#heldQueues.add(threadId)
     }
     if (event.type === 'turn.started') {
       this.#touchThreadRuntime(threadId)
@@ -4178,6 +4195,14 @@ export class Orchestrator {
       if (this.#activeTurns.size > 0) this.#scheduleIdleRuntimePrune()
       else this.#pruneIdleThreadRuntimes()
     }
+  }
+
+  /** Names why a provider's process ended, when the adapter's error says it did. */
+  #explainProcessExit(event: Extract<DomainEvent, { type: 'thread.error' }>): DomainEvent {
+    const exit = parseProcessExit(event.message)
+    if (!exit) return event
+    const reason = classifyProcessExit(exit, { lowMemory: this.#memory?.lowRecently() ?? false })
+    return { ...event, message: describeProcessExit(event.message, exit, reason), reason }
   }
 
   #recordUserSubmission(threadId: string, turnId: string, submission: UserSubmission): void {
@@ -4500,11 +4525,13 @@ export class Orchestrator {
   #addSidebarStatus(set: Set<string>, threadId: string): void {
     if (set.has(threadId)) return
     set.add(threadId)
+    if (set === this.#activeTurns) this.#memory?.setActiveTurns(set.size)
     this.#recordSidebarStatusChange(threadId)
   }
 
   #deleteSidebarStatus(set: Set<string>, threadId: string): void {
     if (!set.delete(threadId)) return
+    if (set === this.#activeTurns) this.#memory?.setActiveTurns(set.size)
     this.#recordSidebarStatusChange(threadId)
   }
 
@@ -5688,6 +5715,39 @@ export class Orchestrator {
     return stopped.catch((error: unknown) =>
       this.#onLog(`Could not end the stopped agent: ${errorMessage(error)}`),
     )
+  }
+
+  /**
+   * The app is closing: every chat with a running turn is stopped the way its Stop button stops
+   * it, so the provider session stays resumable and queued prompts stay queued, and each one is
+   * marked as interrupted by the app closing. The caller bounds the wait; whatever has not
+   * confirmed by then is ended with its runtime. Returns the chats it marked.
+   */
+  async stopTurnsForShutdown(timeoutMs = SHUTDOWN_STOP_MS): Promise<string[]> {
+    const running = [...this.#threads.keys()].filter(
+      (threadId) =>
+        this.isTurnRunning(threadId) &&
+        !this.#sideParents.has(threadId) &&
+        !this.#subagentParents.has(threadId),
+    )
+    if (running.length === 0) return []
+    let timer: NodeJS.Timeout | undefined
+    await Promise.race([
+      Promise.allSettled(running.map((threadId) => this.interrupt(threadId))),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, timeoutMs)
+      }),
+    ]).finally(() => clearTimeout(timer))
+    for (const threadId of running) {
+      if (!this.#store.thread(threadId)) continue
+      this.#record(threadId, {
+        type: 'thread.error',
+        threadId,
+        message: APP_CLOSED_MESSAGE,
+        reason: { code: 'app_closed' },
+      })
+    }
+    return running
   }
 
   /** Overlapping callers share one stop, so none can lift the guard while another still runs. */

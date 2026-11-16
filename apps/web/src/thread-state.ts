@@ -3,6 +3,7 @@ import type {
   ApprovalReview,
   Item,
   PlanStep,
+  ThreadErrorReason,
   Usage,
   UserInputRequest,
 } from '@harness/contracts'
@@ -24,7 +25,7 @@ export type LiveItemUpdate = {
 
 export type ThreadState = {
   /** Latest user-facing failure, derived at lifecycle boundaries rather than during streaming. */
-  error?: { id: string; message: string } | undefined
+  error?: { id: string; message: string; reason?: ThreadErrorReason } | undefined
   items: Item[]
   liveItems: ReadonlyMap<number, LiveItemUpdate>
   itemVersion: number

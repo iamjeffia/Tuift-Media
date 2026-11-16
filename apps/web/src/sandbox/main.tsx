@@ -16,7 +16,7 @@ import {
 } from '../theme.js'
 import { backdropColorScheme } from '../theme-colors.js'
 import { applyDocumentLanguage } from '../i18n/index.js'
-import { MotionStageSchema } from '@harness/contracts'
+import { MotionStageSchema, ThreadErrorReasonSchema } from '@harness/contracts'
 import { DemoTransport } from './demo-transport.js'
 import '../styles/tokens.css'
 import '../styles/app.css'
@@ -52,7 +52,22 @@ const usageResetSeconds = Number(new URLSearchParams(window.location.search).get
 const [motionChat, motionStage] = (
   new URLSearchParams(window.location.search).get('motion') ?? ''
 ).split(':')
+// `?cutShort=demo-focus-ring:process_memory` ends that chat's last turn for that reason.
+const [cutShortChat, cutShortCode] = (
+  new URLSearchParams(window.location.search).get('cutShort') ?? ''
+).split(':')
+const cutShortReason = ThreadErrorReasonSchema.safeParse({
+  code: cutShortCode,
+  ...(cutShortCode === 'process_memory'
+    ? { certainty: 'likely', exitCode: 3221226505 }
+    : cutShortCode === 'process_signal'
+      ? { signal: 'SIGKILL' }
+      : cutShortCode === 'process_provider_error'
+        ? { message: 'Credit balance is too low' }
+        : {}),
+}).data
 const transport = new DemoTransport({
+  ...(cutShortChat && cutShortReason ? { cutShortChats: { [cutShortChat]: cutShortReason } } : {}),
   ...(usageResetSeconds > 0 && Number.isFinite(usageResetSeconds)
     ? { usageResetMs: Math.min(usageResetSeconds, 604_800) * 1000 }
     : {}),
@@ -61,6 +76,22 @@ const transport = new DemoTransport({
     : {}),
 })
 Object.assign(window, { sandboxTransport: transport })
+// `?memory=low` pushes the low memory warning, as the server does once per episode.
+if (new URLSearchParams(window.location.search).get('memory') === 'low') {
+  const GIB = 1024 ** 3
+  setTimeout(
+    () =>
+      transport.server.announce('system.memory', {
+        state: 'low',
+        committedPercent: 94,
+        consumers: [
+          { name: 'After Effects', bytes: 9.2 * GIB },
+          { name: 'TUIFT Code', bytes: 3.1 * GIB },
+        ],
+      }),
+    1500,
+  )
+}
 
 createRoot(root).render(
   <StrictMode>

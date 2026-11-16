@@ -111,6 +111,12 @@ export const en = {
   'dialog.windowCrashed.detail':
     'Your core server is still running. Reload the window to reconnect.',
   'dialog.windowCrashed.reload': 'Reload',
+  'dialog.quitRunning.message_one': '{count} chat is still working.',
+  'dialog.quitRunning.message_other': '{count} chats are still working.',
+  'dialog.quitRunning.detail':
+    'Quitting stops them where they are. You can continue them when you open the app again.',
+  'dialog.quitRunning.quit': 'Quit and stop',
+  'dialog.quitRunning.keep': 'Keep working',
   'dialog.notNow': 'Not now',
   'dialog.pickFolder.title': 'Choose a project folder',
   'dialog.pickSkillFolder.title': 'Choose an Agent Skill folder',
@@ -209,6 +215,12 @@ export const ptBR = {
   'dialog.windowCrashed.detail':
     'Seu servidor principal continua em execução. Recarregue a janela para reconectar.',
   'dialog.windowCrashed.reload': 'Recarregar',
+  'dialog.quitRunning.message_one': '{count} chat ainda está trabalhando.',
+  'dialog.quitRunning.message_other': '{count} chats ainda estão trabalhando.',
+  'dialog.quitRunning.detail':
+    'Sair interrompe o trabalho onde está. Você pode continuar quando abrir o app de novo.',
+  'dialog.quitRunning.quit': 'Sair e parar',
+  'dialog.quitRunning.keep': 'Continuar trabalhando',
   'dialog.notNow': 'Agora não',
   'dialog.pickFolder.title': 'Escolher uma pasta de projeto',
   'dialog.pickSkillFolder.title': 'Escolher uma pasta de Agent Skill',

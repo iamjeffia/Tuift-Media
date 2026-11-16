@@ -18,6 +18,7 @@ import {
   type SessionSearchResult,
   type SidebarSettings,
   type SubagentSettings,
+  type ThreadErrorReason,
   type ThreadLifecycle,
   type ThreadSettings,
   type UsageHistoryRange,
@@ -68,6 +69,8 @@ export type DemoServerOptions = {
   usageResetMs?: number
   /** Chats that start as Motion chats at the given stage, as a server would have kept them. */
   motionChats?: Record<string, MotionStage>
+  /** Chats whose last turn was cut short for the given reason, as a server writes it. */
+  cutShortChats?: Record<string, ThreadErrorReason>
   /**
    * What every Motion chat reports for After Effects, as a server computes it. Absent,
    * the URL's `?afterEffects=ready|not-installed|unavailable` says; without either,
@@ -175,6 +178,10 @@ export class DemoServer {
       const thread = this.#threads.get(id)
       if (thread) thread.settings = { ...thread.settings, mode: 'motion', motionStage: stage }
     }
+    for (const [id, reason] of Object.entries(options.cutShortChats ?? {})) {
+      const thread = this.#threads.get(id)
+      if (thread) this.#cutShort(thread, reason)
+    }
     if (this.#usageResetAt !== undefined) {
       const thread = this.#thread('demo-focus-ring')
       const turnId = 'demo-usage-limited'
@@ -212,6 +219,40 @@ export class DemoServer {
       })
     }
     this.#handlers = this.#createHandlers()
+  }
+
+  /** A turn that ended in an error the server could explain, as the history keeps it. */
+  #cutShort(thread: DemoThread, reason: ThreadErrorReason): void {
+    const turnId = 'demo-cut-short'
+    const at = this.#now()
+    this.#append(thread, {
+      type: 'turn.started',
+      turn: { id: turnId, threadId: thread.id, status: 'running', createdAt: at - 1000 },
+    })
+    this.#append(thread, {
+      type: 'item.completed',
+      item: {
+        id: 'demo-cut-short-request',
+        turnId,
+        type: 'message',
+        role: 'user',
+        status: 'completed',
+        text: 'Render the whole video and export it as a reel.',
+        createdAt: at - 1000,
+      },
+    })
+    this.#append(thread, {
+      type: 'thread.error',
+      threadId: thread.id,
+      message: 'The provider ended unexpectedly.',
+      reason,
+    })
+    this.#append(thread, { type: 'turn.completed', turnId, status: 'failed', completedAt: at })
+  }
+
+  /** Sends what the real server would push on its own, such as the low memory warning. */
+  announce<C extends ChannelName>(channel: C, data: DataOf<C>): void {
+    this.#push(channel, data)
   }
 
   /** The seeded or live answer to one request, or undefined for a method the sandbox ignores. */

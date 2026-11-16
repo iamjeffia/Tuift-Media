@@ -187,6 +187,9 @@ vi.mock('./orchestrator.js', () => ({
     async closeAllTerminals() {
       state.shutdown.push('terminals')
     }
+    async stopTurnsForShutdown() {
+      return []
+    }
     async disposeAll() {}
     historyPage(threadId: string, page: unknown) {
       return state.historyPage(threadId, page) as unknown

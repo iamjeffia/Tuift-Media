@@ -158,6 +158,20 @@ const api = {
     ipcRenderer.on('harness:openChat', handler)
     return () => ipcRenderer.removeListener('harness:openChat', handler)
   },
+  /**
+   * The shell holds a quit while chats work and asks the page to ask the person. The page
+   * answers with `answerQuit`; the shell shows its own dialog when no page confirms it listens.
+   */
+  onQuitRequested: (listener: (chats: number) => void): (() => void) => {
+    const handler = (_event: IpcRendererEvent, chats: unknown) => {
+      if (typeof chats !== 'number' || !Number.isSafeInteger(chats) || chats < 0) return
+      ipcRenderer.send('harness:quitRequestShown')
+      listener(chats)
+    }
+    ipcRenderer.on('harness:quitRequested', handler)
+    return () => ipcRenderer.removeListener('harness:quitRequested', handler)
+  },
+  answerQuit: (quit: boolean): void => ipcRenderer.send('harness:answerQuit', quit === true),
   onZoomChange: (listener: (factor: number) => void): (() => void) => {
     const handler = (_event: IpcRendererEvent, factor: unknown) => {
       if (isFiniteNumber(factor)) listener(factor)

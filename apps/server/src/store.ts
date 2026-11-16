@@ -3557,7 +3557,12 @@ export class Store {
         if (!state.hasResumableInput) {
           this.#appendEvent(
             threadId,
-            { type: 'thread.error', threadId, message: RESTART_INTERRUPTION_MESSAGE },
+            {
+              type: 'thread.error',
+              threadId,
+              message: RESTART_INTERRUPTION_MESSAGE,
+              reason: { code: 'app_closed' },
+            },
             at,
           )
         }

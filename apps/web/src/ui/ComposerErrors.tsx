@@ -15,6 +15,8 @@ import '../styles/notice.css'
 export type ComposerError = {
   id: string
   message: string
+  /** A quieter line under the message, such as an exit code kept for support. */
+  detail?: string | undefined
   role?: 'alert' | 'status'
   /** A note rather than a problem: drawn neutral, never red. */
   tone?: 'info'
@@ -86,6 +88,9 @@ export function ComposerErrors({
                 role={error.role ?? 'alert'}
               >
                 {error.message}
+                {error.detail ? (
+                  <span className="composer__provider-detail">{error.detail}</span>
+                ) : null}
               </span>
               {error.action ? (
                 <button className="notice-action" type="button" onClick={error.action.run}>
