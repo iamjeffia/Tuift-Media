@@ -93,6 +93,24 @@ if (new URLSearchParams(window.location.search).get('memory') === 'low') {
   )
 }
 
+// `?startup=restored` or `?startup=empty` pushes the notice the server sends after it put a
+// damaged database right.
+const startup = new URLSearchParams(window.location.search).get('startup')
+if (startup === 'restored' || startup === 'empty') {
+  setTimeout(
+    () =>
+      transport.server.announce('server.startupNotice', {
+        notice: {
+          kind: 'database.restored',
+          at: Date.now(),
+          backupAt: startup === 'restored' ? Date.now() - 20 * 60 * 60 * 1000 : null,
+          asidePath: 'C:/Users/you/AppData/Roaming/TUIFT Code/tastecode.db.damaged-20261116-081500',
+        },
+      }),
+    1500,
+  )
+}
+
 createRoot(root).render(
   <StrictMode>
     <RendererErrorBoundary>

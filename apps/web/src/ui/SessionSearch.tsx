@@ -95,6 +95,8 @@ function SessionSearchComponent(props: {
   const [searching, setSearching] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string>()
+  // The server is still rebuilding its search index after an update.
+  const [indexing, setIndexing] = useState(false)
   const [retry, setRetry] = useState(0)
   const [selectedKey, setSelectedKey] = useState<string>()
   const revision = useRef(0)
@@ -189,6 +191,7 @@ function SessionSearchComponent(props: {
     setLoadingMore(false)
     if (!term || !searchable) {
       setResults([])
+      setIndexing(false)
       setSearching(false)
       return
     }
@@ -206,6 +209,7 @@ function SessionSearchComponent(props: {
           if (revision.current !== current) return
           setResults(page.results)
           setNextCursor(page.nextCursor)
+          setIndexing(page.indexing === true)
         })
         .catch((cause) => {
           if (revision.current === current) {
@@ -390,6 +394,11 @@ function SessionSearchComponent(props: {
               <button className="ghost" onClick={() => setRetry((value) => value + 1)}>
                 {t('sidebar.search.retry')}
               </button>
+            </div>
+          ) : null}
+          {indexing && term && searchable ? (
+            <div className="session-search__state session-search__state--info" role="status">
+              <span>{t('startup.search.indexing')}</span>
             </div>
           ) : null}
           {!term ? (

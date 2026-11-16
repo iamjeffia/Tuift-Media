@@ -104,6 +104,9 @@ vi.mock('./store.js', () => ({
       return { session: none, today: none }
     }
     recoverInterruptedThreads() {}
+    rebuildIndexesInSlices() {
+      return Promise.resolve()
+    }
     nextLifecycleRefreshAt() {}
     threadApproval(threadId: string) {
       return state.approvals.get(threadId)

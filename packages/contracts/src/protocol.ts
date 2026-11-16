@@ -1090,6 +1090,11 @@ export const methods = {
     params: z.object({}),
     result: PanicStopResultSchema,
   },
+  /** The person read the start-up notice: it stops coming on every window and phone. */
+  'startup.dismissNotice': {
+    params: z.object({}),
+    result: z.object({}),
+  },
   /**
    * Compare the running checkout against the GitHub default branch. The
    * server does the network call — the renderer's CSP deliberately talks to
@@ -1389,6 +1394,8 @@ export const methods = {
     result: z.object({
       results: z.array(SessionSearchResultSchema),
       nextCursor: z.string().min(1).nullable(),
+      /** Present while the search index is being rebuilt after an update: results may be incomplete. */
+      indexing: z.literal(true).optional(),
     }),
   },
   'pullRequests.list': {
@@ -2550,6 +2557,22 @@ export const PushSchema = z.object({
 })
 export type Push = z.infer<typeof PushSchema>
 
+/**
+ * Something the server did while starting that the person must hear about, and keeps hearing
+ * about, on every window and paired phone, until it is dismissed.
+ */
+export const StartupNoticeSchema = z.object({
+  /** The database was damaged: it was set aside and the app started from a copy, or empty. */
+  kind: z.literal('database.restored'),
+  /** When the damaged database was set aside (epoch milliseconds). */
+  at: z.number(),
+  /** When the restored copy was made; null when no copy opened and the app started empty. */
+  backupAt: z.number().nullable(),
+  /** Where the damaged database was kept. Nothing is deleted. */
+  asidePath: z.string(),
+})
+export type StartupNotice = z.infer<typeof StartupNoticeSchema>
+
 export const channels = {
   'preview.captureRequested': PreviewCaptureRequestSchema,
   'preview.captureCancelled': z.object({ requestId: z.string().uuid() }),
@@ -2560,6 +2583,11 @@ export const channels = {
     serverVersion: z.string(),
     protocolVersion: z.number(),
   }),
+  /**
+   * Sent after the welcome while a start-up notice is waiting, and with `notice: null` when it
+   * was dismissed from another window or phone.
+   */
+  'server.startupNotice': z.object({ notice: StartupNoticeSchema.nullable() }),
   'auth.event': z.object({
     provider: ProviderIdSchema,
     agent: z.string().min(1).optional(),

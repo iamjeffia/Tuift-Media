@@ -112,7 +112,12 @@ import {
 import { PDF_PARTITION } from './pdf-guest.js'
 import { PreviewCaptureOwner } from './preview-capture.js'
 import { configureRendererLifecycle } from './renderer-lifecycle.js'
-import { ServerSupervisor, type SupervisedServerProcess } from './server-supervisor.js'
+import { recordServerExit, serverExitLogFile, serverFailureText } from './server-failure.js'
+import {
+  ServerSupervisor,
+  type ServerExit,
+  type SupervisedServerProcess,
+} from './server-supervisor.js'
 import { createQuitRequest } from './quit-request.js'
 import { startupSettleDelay, summarizeAppMetrics } from './startup-metrics.js'
 import { StartupIdleGate } from './startup-idle.js'
@@ -323,19 +328,32 @@ let serverSupervisor: ServerSupervisor | undefined
 /** Proves to this app's window that the server it reaches is the one this app started. */
 let ownServerToken: string | undefined
 let serverFailureNoticeOpen = false
+/** The port this app's own server was told to use, for the notice when something else holds it. */
+let ownServerPort: string | undefined
+/** The last failure the supervisor gave up on, so the notice can still say why when the window opens late. */
+let lastServerFailure: ServerExit | undefined
 
-function showServerFailureNotice(): void {
+function showServerFailureNotice(failure?: ServerExit): void {
+  if (failure) lastServerFailure = failure
   const window = mainWindow
   if (!serverSupervisor?.gaveUp || serverFailureNoticeOpen || !window || window.isDestroyed())
     return
   serverFailureNoticeOpen = true
+  const text = serverFailureText(lastServerFailure?.cause, {
+    port: ownServerPort,
+    file: serverExitLogFile(localDiagnosticsDirectory(app.getPath('userData'))),
+  })
+  const vars = (own: Record<string, string> | undefined) => ({ appName: nativeAppName, ...own })
   void dialog
     .showMessageBox(window, {
       type: 'error',
       title: nativeAppName,
-      message: t('dialog.serverCrashed.message'),
-      detail: t('dialog.serverCrashed.detail'),
-      buttons: [t('dialog.serverCrashed.restart'), t('dialog.notNow')],
+      message: t(text.message.key, vars(text.message.vars)),
+      detail: t(text.detail.key, vars(text.detail.vars)),
+      buttons: [
+        t(text.named ? 'dialog.serverFailed.retry' : 'dialog.serverCrashed.restart'),
+        t('dialog.notNow'),
+      ],
       defaultId: 0,
       cancelId: 1,
     })
@@ -585,6 +603,7 @@ function startOwnedServer(): boolean {
   // server cannot start, and the window must not work against that app instead.
   ownServerToken = randomBytes(24).toString('base64url')
   serverEnv = { ...serverEnv, HARNESS_INSTANCE_TOKEN: ownServerToken }
+  ownServerPort = serverEnv['HARNESS_PORT']
   const serverEntry = app.isPackaged
     ? require.resolve('@harness/server')
     : path.join(here, '../../server/dist/main.js')
@@ -597,6 +616,8 @@ function startOwnedServer(): boolean {
         finishStartupBenchmarkIfReady()
       }
     },
+    onExit: (exit: ServerExit) =>
+      recordServerExit(localDiagnosticsDirectory(app.getPath('userData')), exit),
     onGaveUp: showServerFailureNotice,
   }
   serverSupervisor =

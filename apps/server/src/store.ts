@@ -244,6 +244,8 @@ export type SessionSearchOptions = {
 }
 
 export type SessionSearchPage = {
+  /** True while the search index is still being rebuilt: the results may be incomplete. */
+  indexing?: true
   results: SessionSearchResult[]
   nextCursor: string | null
 }
@@ -315,6 +317,26 @@ const USER_SUBMISSION_INDEX_VERSION = 'user_submission_items_v1'
 const TURN_DIFF_INDEX_VERSION = 'turn_diff_events_v1'
 // v3 retains running sub-agents after their launcher completed, including old logs.
 const RECOVERY_STATE_VERSION = 'recovery_lifecycles_v3'
+// The indexes an update can ask to rebuild after the port is open, in slices that yield to
+// requests. Recovery and user submissions are not among them: recoverInterruptedThreads reads
+// the first before any request, and a retried send is refused by the second, so a half-built
+// one would let a message through twice.
+type DeferredIndex = 'search' | 'usage' | 'inbox' | 'turnDiff'
+type DeferredRebuild = { indexes: Set<DeferredIndex>; cursor: number; cleared: boolean }
+const DEFERRED_INDEX_VERSIONS = {
+  search: SEARCH_INDEX_VERSION,
+  usage: USAGE_INDEX_VERSION,
+  inbox: INBOX_INDEX_VERSION,
+  turnDiff: TURN_DIFF_INDEX_VERSION,
+} as const satisfies Record<DeferredIndex, string>
+// Where a rebuild stopped, so an app closed in the middle resumes instead of starting over.
+const INDEX_REBUILD_PROGRESS_SETTING = 'derived_index_rebuild_v1'
+// A slice indexes for about this long, then commits (a full-text commit costs two to three
+// times its inserts) and lets requests in. Measured on a 437 MB database: slices of 10 to 40 ms.
+const INDEX_REBUILD_SLICE_MS = 8
+const INDEX_REBUILD_BATCH = 25
+// While rebuilding, the log is folded into the database this often, by the caller's checkpoint.
+const INDEX_REBUILD_CHECKPOINT_MS = 2_000
 const BOUNDED_REPLAY_SNAPSHOTS_VERSION = 'bounded_replay_snapshots_v1'
 const CHRONOLOGICAL_REPLAY_SNAPSHOTS_VERSION = 'chronological_replay_snapshots_v1'
 // Every row this build writes lands in the history index in the same step. A
@@ -1083,8 +1105,20 @@ export class Store {
    */
   #historyDeltaRuns = new Map<string, { itemId: string; turnId: string }>()
 
-  /** `:memory:` in tests; a file under the user's data directory in the app. */
-  constructor(location: string) {
+  /** Search, usage, inbox and diff indexes still being rebuilt in slices. */
+  #deferred: DeferredRebuild | undefined
+  #deferredRun: Promise<void> | undefined
+  #closed = false
+
+  /**
+   * `:memory:` in tests; a file under the user's data directory in the app. `options.database`
+   * is a connection the caller opened (and closes if this throws); `deferDerivedIndexes` leaves
+   * the rebuild of derived indexes to `rebuildIndexesInSlices`, so the port can open first.
+   */
+  constructor(
+    location: string,
+    options: { database?: DatabaseSync; deferDerivedIndexes?: boolean } = {},
+  ) {
     if (location !== ':memory:') location = canonicalDataPath(location)
     this.location = location
     this.checkpointNamespace = createHash('sha256')
@@ -1092,7 +1126,7 @@ export class Store {
       .digest('hex')
       .slice(0, 32)
     if (location !== ':memory:') mkdirSync(path.dirname(location), { recursive: true })
-    this.#db = new DatabaseSync(location)
+    this.#db = options.database ?? new DatabaseSync(location)
     this.#attachments = new AttachmentFiles(
       location === ':memory:'
         ? path.join(os.tmpdir(), 'TUIFT Code', `memory-store-${randomUUID()}`)
@@ -1553,6 +1587,13 @@ export class Store {
       turnDiff: !completedMigrations.has(TURN_DIFF_INDEX_VERSION),
       recovery: !completedMigrations.has(RECOVERY_STATE_VERSION),
     }
+    if (options.deferDerivedIndexes) {
+      const pending = (Object.keys(DEFERRED_INDEX_VERSIONS) as DeferredIndex[]).filter(
+        (name) => rebuild[name],
+      )
+      for (const name of pending) rebuild[name] = false
+      if (pending.length > 0) this.#deferred = this.#deferredRebuildState(pending)
+    }
     if (Object.values(rebuild).some(Boolean)) this.#rebuildDerivedIndexes(rebuild)
     if (!completedMigrations.has(CHRONOLOGICAL_REPLAY_SNAPSHOTS_VERSION)) {
       this.#transaction(() => {
@@ -1663,6 +1704,7 @@ export class Store {
   }
 
   close(): void {
+    this.#closed = true
     this.#searchSnapshots.clear()
     try {
       // Every row so far was indexed as it landed. A failed write only costs
@@ -3758,11 +3800,18 @@ export class Store {
     }
     const historyKeys = historyIndexKeys(event)
     const historyState = HISTORY_STATE_EVENT_TYPES.has(event.type)
-    const searchEntry = this.#ephemeralThreads.has(threadId) ? undefined : searchableEntry(event)
-    const usageEvent = event.type === 'usage.updated'
-    const inboxEvent = affectsInboxProjection(event)
+    // An index being rebuilt in slices does not take live rows: the rebuild reaches this
+    // row in order, and an in-order replay is the one thing that keeps a resolve after a request.
+    const rebuilding = this.#deferred?.indexes
+    const searchEntry =
+      this.#ephemeralThreads.has(threadId) || rebuilding?.has('search')
+        ? undefined
+        : searchableEntry(event)
+    const usageEvent = event.type === 'usage.updated' && !rebuilding?.has('usage')
+    const inboxEvent = affectsInboxProjection(event) && !rebuilding?.has('inbox')
     const userSubmissionId = userSubmissionItemId(event)
-    const turnDiffId = event.type === 'diff.updated' ? event.turnId : undefined
+    const turnDiffId =
+      event.type === 'diff.updated' && !rebuilding?.has('turnDiff') ? event.turnId : undefined
     const recovery = recoveryMutation(event)
     // A lone SQLite insert is already atomic. Only open an explicit
     // transaction when the event and a derived index row must commit together.
@@ -3864,12 +3913,17 @@ export class Store {
       return seq
     }
     this.#indexHistory(seq, threadId, event)
-    if (!this.#ephemeralThreads.has(threadId)) this.#indexEvent(seq, threadId, at, event)
-    if (event.type === 'usage.updated') this.#indexUsageEvent(seq, threadId, at, payload)
-    if (affectsInboxProjection(event)) this.#indexInboxEvent(seq, threadId, event, payload)
+    const rebuilding = this.#deferred?.indexes
+    if (!this.#ephemeralThreads.has(threadId) && !rebuilding?.has('search'))
+      this.#indexEvent(seq, threadId, at, event)
+    if (event.type === 'usage.updated' && !rebuilding?.has('usage'))
+      this.#indexUsageEvent(seq, threadId, at, payload)
+    if (affectsInboxProjection(event) && !rebuilding?.has('inbox'))
+      this.#indexInboxEvent(seq, threadId, event, payload)
     const userSubmissionId = userSubmissionItemId(event)
     if (userSubmissionId) this.#indexUserSubmission(seq, threadId, userSubmissionId)
-    if (event.type === 'diff.updated') this.#indexTurnDiff(seq, threadId, event.turnId)
+    if (event.type === 'diff.updated' && !rebuilding?.has('turnDiff'))
+      this.#indexTurnDiff(seq, threadId, event.turnId)
     const recovery = recoveryMutation(event)
     if (recovery) this.#indexRecoveryMutation(seq, threadId, recovery, payload)
     return seq
@@ -4334,6 +4388,7 @@ export class Store {
             position: Number(last.position),
           })
         : null,
+      ...(this.searchIndexing ? { indexing: true as const } : {}),
     }
   }
 
@@ -4462,7 +4517,8 @@ export class Store {
     this.#upsertRecoveryError.run(threadId, seq)
   }
 
-  #rebuildDerivedIndexes(rebuild: DerivedIndexRebuild): void {
+  /** The event types the indexes named in `rebuild` are made from. */
+  #derivedEventTypes(rebuild: DerivedIndexRebuild): DomainEvent['type'][] {
     const eventTypes = new Set<DomainEvent['type']>()
     const include = (...types: DomainEvent['type'][]) => {
       for (const type of types) eventTypes.add(type)
@@ -4496,78 +4552,256 @@ export class Store {
         'approval.review.completed',
       )
     }
+    return [...eventTypes]
+  }
 
-    const types = [...eventTypes]
+  #derivedEventBatch(types: DomainEvent['type'][], limit: number): StatementSync {
     const placeholders = types.map(() => '?').join(', ')
-    const batch = this.#db.prepare(
+    return this.#db.prepare(
       `SELECT seq, thread_id, at, payload FROM events
        WHERE seq > ?
          AND json_extract(CASE WHEN json_valid(payload) THEN payload END, '$.type') IN (${placeholders})
          AND seq NOT IN (SELECT event_seq FROM provider_history_events WHERE active = 0)
-       ORDER BY seq LIMIT 5000`,
+       ORDER BY seq LIMIT ${limit}`,
     )
+  }
+
+  #clearDerivedIndexes(rebuild: DerivedIndexRebuild): void {
+    // Deleting every full-text row first tokenizes all of them again to
+    // record deletions. A new table starts with an empty index.
+    if (rebuild.search) this.#db.exec(`DROP TABLE session_search; ${SESSION_SEARCH_TABLE}`)
+    if (rebuild.usage) this.#db.exec(`DELETE FROM usage_events`)
+    if (rebuild.inbox) this.#db.exec(`DELETE FROM inbox_events`)
+    if (rebuild.userSubmission) this.#db.exec(`DELETE FROM user_submission_items`)
+    if (rebuild.turnDiff) this.#db.exec(`DELETE FROM turn_diff_events`)
+    if (rebuild.recovery) {
+      this.#db.exec(`DELETE FROM recovery_lifecycles; DELETE FROM recovery_errors`)
+    }
+  }
+
+  #indexRebuiltRow(rebuild: DerivedIndexRebuild, row: EventRow): void {
+    const event = parseDomainEvent(
+      row.payload,
+      `derived index rebuild at event seq ${Number(row.seq)}`,
+    )
+    if (event === undefined) return
+    const seq = Number(row.seq)
+    const at = Number(row.at)
+    if (rebuild.search) this.#indexEvent(seq, row.thread_id, at, event)
+    if (rebuild.usage && event.type === 'usage.updated') {
+      this.#indexUsageEvent(seq, row.thread_id, at, row.payload)
+    }
+    if (rebuild.inbox && affectsInboxProjection(event)) {
+      this.#indexInboxEvent(seq, row.thread_id, event, row.payload)
+    }
+    if (rebuild.userSubmission) {
+      const itemId = userSubmissionItemId(event)
+      if (itemId) this.#indexUserSubmission(seq, row.thread_id, itemId)
+    }
+    if (rebuild.turnDiff && event.type === 'diff.updated') {
+      this.#indexTurnDiff(seq, row.thread_id, event.turnId)
+    }
+    if (rebuild.recovery) {
+      const mutation = recoveryMutation(event)
+      if (mutation) {
+        this.#indexRecoveryMutation(seq, row.thread_id, mutation, row.payload)
+      }
+    }
+  }
+
+  #saveRebuiltIndexes(rebuild: DerivedIndexRebuild): void {
     const saveMigration = this.#db.prepare(
       `INSERT OR REPLACE INTO schema_migrations (name) VALUES (?)`,
     )
+    if (rebuild.search) saveMigration.run(SEARCH_INDEX_VERSION)
+    if (rebuild.usage) saveMigration.run(USAGE_INDEX_VERSION)
+    if (rebuild.inbox) saveMigration.run(INBOX_INDEX_VERSION)
+    if (rebuild.userSubmission) saveMigration.run(USER_SUBMISSION_INDEX_VERSION)
+    if (rebuild.turnDiff) saveMigration.run(TURN_DIFF_INDEX_VERSION)
+    if (rebuild.recovery) saveMigration.run(RECOVERY_STATE_VERSION)
+  }
+
+  #rebuildDerivedIndexes(rebuild: DerivedIndexRebuild): void {
+    const types = this.#derivedEventTypes(rebuild)
+    const batch = this.#derivedEventBatch(types, 5000)
     this.#db.exec('BEGIN IMMEDIATE')
     try {
-      // Deleting every full-text row first tokenizes all of them again to
-      // record deletions. A new table starts with an empty index.
-      if (rebuild.search) this.#db.exec(`DROP TABLE session_search; ${SESSION_SEARCH_TABLE}`)
-      if (rebuild.usage) this.#db.exec(`DELETE FROM usage_events`)
-      if (rebuild.inbox) this.#db.exec(`DELETE FROM inbox_events`)
-      if (rebuild.userSubmission) this.#db.exec(`DELETE FROM user_submission_items`)
-      if (rebuild.turnDiff) this.#db.exec(`DELETE FROM turn_diff_events`)
-      if (rebuild.recovery) {
-        this.#db.exec(`DELETE FROM recovery_lifecycles; DELETE FROM recovery_errors`)
-      }
+      this.#clearDerivedIndexes(rebuild)
 
       let cursor = 0
       for (;;) {
         const rows = sqliteRows<EventRow>(batch, cursor, ...types)
         if (rows.length === 0) break
-        for (const row of rows) {
-          const event = parseDomainEvent(
-            row.payload,
-            `derived index rebuild at event seq ${Number(row.seq)}`,
-          )
-          if (event === undefined) continue
-          const seq = Number(row.seq)
-          const at = Number(row.at)
-          if (rebuild.search) this.#indexEvent(seq, row.thread_id, at, event)
-          if (rebuild.usage && event.type === 'usage.updated') {
-            this.#indexUsageEvent(seq, row.thread_id, at, row.payload)
-          }
-          if (rebuild.inbox && affectsInboxProjection(event)) {
-            this.#indexInboxEvent(seq, row.thread_id, event, row.payload)
-          }
-          if (rebuild.userSubmission) {
-            const itemId = userSubmissionItemId(event)
-            if (itemId) this.#indexUserSubmission(seq, row.thread_id, itemId)
-          }
-          if (rebuild.turnDiff && event.type === 'diff.updated') {
-            this.#indexTurnDiff(seq, row.thread_id, event.turnId)
-          }
-          if (rebuild.recovery) {
-            const mutation = recoveryMutation(event)
-            if (mutation) {
-              this.#indexRecoveryMutation(seq, row.thread_id, mutation, row.payload)
-            }
-          }
-        }
+        for (const row of rows) this.#indexRebuiltRow(rebuild, row)
         cursor = Number(rows.at(-1)?.seq ?? cursor)
       }
 
-      if (rebuild.search) {
+      if (rebuild.search)
         this.#db.exec(`INSERT INTO session_search (session_search) VALUES ('optimize')`)
-        saveMigration.run(SEARCH_INDEX_VERSION)
-      }
-      if (rebuild.usage) saveMigration.run(USAGE_INDEX_VERSION)
-      if (rebuild.inbox) saveMigration.run(INBOX_INDEX_VERSION)
-      if (rebuild.userSubmission) saveMigration.run(USER_SUBMISSION_INDEX_VERSION)
-      if (rebuild.turnDiff) saveMigration.run(TURN_DIFF_INDEX_VERSION)
-      if (rebuild.recovery) saveMigration.run(RECOVERY_STATE_VERSION)
+      this.#saveRebuiltIndexes(rebuild)
       this.#db.exec('COMMIT')
+    } catch (error) {
+      this.#db.exec('ROLLBACK')
+      throw error
+    }
+  }
+
+  /**
+   * Where a rebuild of `pending` indexes stands: the cursor an earlier run saved when it covers
+   * these same indexes, else the start. The saved cursor and the rows up to it were committed
+   * together, so resuming from it covers every row once.
+   */
+  #deferredRebuildState(pending: DeferredIndex[]): DeferredRebuild {
+    const indexes = new Set(pending)
+    let saved: { names?: unknown; cursor?: unknown } | undefined
+    try {
+      const value = sqliteRow<StringValueRow>(
+        this.#readAppSetting,
+        INDEX_REBUILD_PROGRESS_SETTING,
+      )?.value
+      saved = value === undefined ? undefined : (JSON.parse(value) as typeof saved)
+    } catch {
+      saved = undefined
+    }
+    const names = Array.isArray(saved?.names) ? (saved.names as unknown[]) : []
+    const cursor = saved?.cursor
+    if (
+      typeof cursor === 'number' &&
+      Number.isSafeInteger(cursor) &&
+      cursor > 0 &&
+      names.length === indexes.size &&
+      names.every((name) => indexes.has(name as DeferredIndex))
+    )
+      return { indexes, cursor, cleared: true }
+    return { indexes, cursor: 0, cleared: false }
+  }
+
+  /** True while the search index is being rebuilt: a search finds only what it has covered. */
+  get searchIndexing(): boolean {
+    return this.#deferred?.indexes.has('search') ?? false
+  }
+
+  /** True while any index handed to `rebuildIndexesInSlices` still has events to cover. */
+  get indexesRebuilding(): boolean {
+    return this.#deferred !== undefined
+  }
+
+  /**
+   * Rebuilds, after the port is open, the indexes an update asked for: search, usage, inbox
+   * and turn diffs. One short transaction per slice, then the event loop
+   * gets the next request before the next slice. The cursor is saved with each slice, so an
+   * app closed in the middle resumes where it stopped. Rows written while it runs are not
+   * indexed live; the rebuild reaches them in order, so none is lost or counted twice.
+   *
+   * SQLite folds the log into the database from the thread that commits, and that stalled the
+   * event loop for a fifth of a second every few megabytes. With `checkpoint`, the automatic
+   * fold is off while this runs and the caller's checkpoint (a passive one on another thread
+   * and connection) does it every couple of seconds instead.
+   */
+  rebuildIndexesInSlices(
+    options: {
+      yieldToRequests?: () => Promise<void>
+      checkpoint?: () => Promise<void>
+      /** Rows per query and milliseconds per slice; tests make slices small. */
+      batch?: number
+      sliceMs?: number
+    } = {},
+  ): Promise<void> {
+    this.#deferredRun ??= this.#runDeferredRebuild(
+      options.yieldToRequests ?? (() => new Promise((resolve) => setImmediate(resolve))),
+      options.checkpoint,
+      options.batch ?? INDEX_REBUILD_BATCH,
+      options.sliceMs ?? INDEX_REBUILD_SLICE_MS,
+    )
+    return this.#deferredRun
+  }
+
+  async #runDeferredRebuild(
+    yieldToRequests: () => Promise<void>,
+    checkpoint: (() => Promise<void>) | undefined,
+    batchSize: number,
+    sliceMs: number,
+  ): Promise<void> {
+    const state = this.#deferred
+    if (!state) return
+    const flags: DerivedIndexRebuild = {
+      search: state.indexes.has('search'),
+      usage: state.indexes.has('usage'),
+      inbox: state.indexes.has('inbox'),
+      userSubmission: false,
+      turnDiff: state.indexes.has('turnDiff'),
+      recovery: false,
+    }
+    const types = this.#derivedEventTypes(flags)
+    const batch = this.#derivedEventBatch(types, batchSize)
+    const names = [...state.indexes].sort()
+    let folding: Promise<void> | undefined
+    let foldedAt = Date.now()
+    if (checkpoint) this.#db.exec('PRAGMA wal_autocheckpoint = 0')
+    try {
+      while (!this.#closed) {
+        if (this.#rebuildSlice(state, flags, types, batch, names, sliceMs)) {
+          // What was written since the last fold goes into the database off this thread too,
+          // so the automatic fold restored below finds almost nothing to do.
+          await checkpoint?.().catch(() => undefined)
+          return
+        }
+        if (checkpoint && !folding && Date.now() - foldedAt >= INDEX_REBUILD_CHECKPOINT_MS) {
+          folding = checkpoint()
+            .catch(() => undefined)
+            .finally(() => {
+              folding = undefined
+              foldedAt = Date.now()
+            })
+        }
+        await yieldToRequests()
+      }
+    } finally {
+      await folding
+      // The default of SQLite, restored for the writes that follow.
+      if (checkpoint && !this.#closed) this.#db.exec('PRAGMA wal_autocheckpoint = 1000')
+    }
+  }
+
+  /** One transaction: true when the last event was covered and the indexes are complete. */
+  #rebuildSlice(
+    state: DeferredRebuild,
+    flags: DerivedIndexRebuild,
+    types: DomainEvent['type'][],
+    batch: StatementSync,
+    names: string[],
+    sliceMs: number,
+  ): boolean {
+    this.#db.exec('BEGIN IMMEDIATE')
+    try {
+      if (!state.cleared) this.#clearDerivedIndexes(flags)
+      let cursor = state.cursor
+      let finished = false
+      const started = performance.now()
+      do {
+        const rows = sqliteRows<EventRow>(batch, cursor, ...types)
+        if (rows.length === 0) {
+          finished = true
+          break
+        }
+        for (const row of rows) this.#indexRebuiltRow(flags, row)
+        cursor = Number(rows.at(-1)?.seq ?? cursor)
+      } while (performance.now() - started < sliceMs)
+      if (finished) {
+        this.#saveRebuiltIndexes(flags)
+        this.#db
+          .prepare(`DELETE FROM app_settings WHERE key = ?`)
+          .run(INDEX_REBUILD_PROGRESS_SETTING)
+      } else {
+        this.#writeAppSetting.run(INDEX_REBUILD_PROGRESS_SETTING, JSON.stringify({ names, cursor }))
+      }
+      this.#db.exec('COMMIT')
+      state.cursor = cursor
+      state.cleared = true
+      // Same tick as the commit: from here on live rows are indexed again, with no gap.
+      if (finished) this.#deferred = undefined
+      this.#searchRevision += 1
+      return finished
     } catch (error) {
       this.#db.exec('ROLLBACK')
       throw error
@@ -5136,18 +5370,22 @@ export class Store {
         )
         if (parsed === undefined) continue
         this.#indexHistory(event.seq, event.thread_id, parsed)
-        this.#indexEvent(event.seq, event.thread_id, event.at, parsed)
-        if (parsed.type === 'usage.updated') {
+        // A restored row keeps its old sequence number. One the rebuild has not reached yet is
+        // left to it; one behind its cursor would be missed, so it is indexed here.
+        const left = (index: DeferredIndex) =>
+          this.#deferred?.indexes.has(index) === true && event.seq > this.#deferred.cursor
+        if (!left('search')) this.#indexEvent(event.seq, event.thread_id, event.at, parsed)
+        if (parsed.type === 'usage.updated' && !left('usage')) {
           this.#indexUsageEvent(event.seq, event.thread_id, event.at, event.payload)
         }
-        if (affectsInboxProjection(parsed)) {
+        if (affectsInboxProjection(parsed) && !left('inbox')) {
           this.#indexInboxEvent(event.seq, event.thread_id, parsed, event.payload)
         }
         const userSubmissionId = userSubmissionItemId(parsed)
         if (userSubmissionId) {
           this.#indexUserSubmission(event.seq, event.thread_id, userSubmissionId)
         }
-        if (parsed.type === 'diff.updated') {
+        if (parsed.type === 'diff.updated' && !left('turnDiff')) {
           this.#indexTurnDiff(event.seq, event.thread_id, parsed.turnId)
         }
         const recovery = recoveryMutation(parsed)

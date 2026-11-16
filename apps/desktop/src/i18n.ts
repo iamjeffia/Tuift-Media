@@ -107,6 +107,27 @@ export const en = {
   'dialog.serverCrashed.detail':
     'Restart the server to try again. If this keeps happening, reinstall the app.',
   'dialog.serverCrashed.restart': 'Restart server',
+  // The core server could not start: what happened, and what to do (server-failure.ts).
+  'dialog.serverFailed.retry': 'Try again',
+  'dialog.serverFailed.portInUse.message': 'Port {port} is already in use.',
+  'dialog.serverFailed.portInUse.detail':
+    'Another copy of {appName} or another program is using port {port}. Close it, then try again.',
+  'dialog.serverFailed.dataFolderInUse.message': 'Another copy of {appName} is using your data.',
+  'dialog.serverFailed.dataFolderInUse.detail': 'Close the other copy, then try again.',
+  'dialog.serverFailed.databaseLocked.message': 'Your chat database is busy.',
+  'dialog.serverFailed.databaseLocked.detail':
+    'Another copy of {appName} or another program has it open. Close it, then try again.',
+  'dialog.serverFailed.databaseDamaged.message': 'Your chat database could not be repaired.',
+  'dialog.serverFailed.databaseDamaged.detail':
+    '{appName} could not set the damaged file aside and start again. Nothing was deleted. Details: {file}',
+  'dialog.serverFailed.databaseNoAccess.message': '{appName} cannot open its data folder.',
+  'dialog.serverFailed.databaseNoAccess.detail':
+    'Check that this account can read and write the folder, and that no security program is blocking it. Details: {file}',
+  'dialog.serverFailed.diskFull.message': 'The disk is full.',
+  'dialog.serverFailed.diskFull.detail':
+    'Free some space, then try again. Your chats were not touched.',
+  'dialog.serverFailed.unknown.detail':
+    'Restart the server to try again. If this keeps happening, reinstall the app. Details for support: {file}',
   'dialog.windowCrashed.message': 'The window stopped unexpectedly.',
   'dialog.windowCrashed.detail':
     'Your core server is still running. Reload the window to reconnect.',
@@ -212,6 +233,28 @@ export const ptBR = {
   'dialog.serverCrashed.detail':
     'Reinicie o servidor para tentar de novo. Se continuar acontecendo, reinstale o app.',
   'dialog.serverCrashed.restart': 'Reiniciar servidor',
+  'dialog.serverFailed.retry': 'Tentar de novo',
+  'dialog.serverFailed.portInUse.message': 'A porta {port} já está em uso.',
+  'dialog.serverFailed.portInUse.detail':
+    'Outra cópia do {appName} ou outro programa está usando a porta {port}. Feche-o e tente de novo.',
+  'dialog.serverFailed.dataFolderInUse.message': 'Outra cópia do {appName} está usando seus dados.',
+  'dialog.serverFailed.dataFolderInUse.detail': 'Feche a outra cópia e tente de novo.',
+  'dialog.serverFailed.databaseLocked.message': 'O banco de dados dos chats está ocupado.',
+  'dialog.serverFailed.databaseLocked.detail':
+    'Outra cópia do {appName} ou outro programa está com ele aberto. Feche-o e tente de novo.',
+  'dialog.serverFailed.databaseDamaged.message':
+    'Não foi possível reparar o banco de dados dos chats.',
+  'dialog.serverFailed.databaseDamaged.detail':
+    'O {appName} não conseguiu separar o arquivo danificado e começar de novo. Nada foi apagado. Detalhes: {file}',
+  'dialog.serverFailed.databaseNoAccess.message':
+    'O {appName} não consegue abrir a pasta de dados.',
+  'dialog.serverFailed.databaseNoAccess.detail':
+    'Confira se esta conta pode ler e gravar na pasta e se nenhum programa de segurança está bloqueando. Detalhes: {file}',
+  'dialog.serverFailed.diskFull.message': 'O disco está cheio.',
+  'dialog.serverFailed.diskFull.detail':
+    'Libere espaço e tente de novo. Seus chats não foram alterados.',
+  'dialog.serverFailed.unknown.detail':
+    'Reinicie o servidor para tentar de novo. Se continuar acontecendo, reinstale o app. Detalhes para o suporte: {file}',
   'dialog.windowCrashed.message': 'A janela parou de funcionar de repente.',
   'dialog.windowCrashed.detail':
     'Seu servidor principal continua em execução. Recarregue a janela para reconectar.',

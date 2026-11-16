@@ -31,6 +31,10 @@ import { FeedbackService, providerVersionLabel } from './feedback.js'
 import { PushBus } from './push-bus.js'
 import { storeLocation } from './data-location.js'
 import { acquireDataLease } from './data-lease.js'
+import { checkpointDatabaseInWorker, startBackupSchedule } from './database-backup.js'
+import { openStoreWithRecovery } from './database-recovery.js'
+import { SERVER_EXIT } from './exit-codes.js'
+import { StartupNotices } from './startup-notice.js'
 import { BrowserCommandCoordinator } from './browser-commands.js'
 import { PreviewCaptureCoordinator } from './preview-capture.js'
 import type { CheckoutPullRequests } from './checkout-pull-request.js'
@@ -166,9 +170,10 @@ export function startServer(
   assertSafeBind(host, options.accessToken)
   const databasePath = storeLocation()
   const releaseDataLease = acquireDataLease(databasePath)
+  const startupNotices = new StartupNotices(databasePath)
   let store: Store
   try {
-    store = new Store(databasePath)
+    store = openStoreWithRecovery(databasePath, startupNotices)
   } catch (error) {
     releaseDataLease()
     throw error
@@ -234,7 +239,7 @@ export function startServer(
         `[server] port ${port} is already in use — another TUIFT Code server is ` +
           `probably still running. Stop it, or set HARNESS_PORT to a free port.`,
       )
-      process.exit(1)
+      process.exit(SERVER_EXIT.portInUse)
     }
     console.error(`[server] ${error.message}`)
     process.exit(1)
@@ -704,8 +709,27 @@ export function startServer(
     },
     onChanged: (status) => push.broadcast('phone.changed', status),
   })
+  let stopBackups: (() => void) | undefined
   wss.once('listening', () => {
+    // Said only now: the desktop reads this line as "the port is open".
+    console.log(`[server] listening on ws://${host}:${port}`)
     void phoneAccess.resume().catch(() => undefined)
+    // After the port is open: indexes an update asked to rebuild are filled in slices that
+    // yield to requests, and the daily backup waits a minute more.
+    void store
+      .rebuildIndexesInSlices({ checkpoint: () => checkpointDatabaseInWorker(databasePath) })
+      .catch((error: unknown) =>
+        console.error(
+          `[server] index rebuild stopped; it resumes at the next start: ${String(error)}`,
+        ),
+      )
+    stopBackups = startBackupSchedule({
+      database: databasePath,
+      onResult: (result) => {
+        if (result.status === 'failed')
+          console.error(`[server] backup failed: ${String(result.error)}`)
+      },
+    })
   })
 
   let listChange: ReturnType<typeof setTimeout> | undefined
@@ -773,6 +797,9 @@ export function startServer(
 
     push.add(socket)
     push.send(socket, 'server.welcome', welcome)
+    // Every window and paired phone hears it, again on each connection, until it is dismissed.
+    const startupNotice = startupNotices.current()
+    if (startupNotice) push.send(socket, 'server.startupNotice', { notice: startupNotice })
 
     const removeSocket = () => {
       previewCapture.remove(socket)
@@ -886,6 +913,11 @@ export function startServer(
 
       case 'system.panicStop':
         return orchestrator.panicStop()
+
+      case 'startup.dismissNotice':
+        startupNotices.dismiss()
+        push.broadcast('server.startupNotice', { notice: null })
+        return {}
 
       case 'system.updateCheck':
         return checkForUpdates()
@@ -1990,8 +2022,6 @@ export function startServer(
     )
   }
 
-  console.log(`[server] listening on ws://${host}:${port}`)
-
   return {
     port,
     close: async () => {
@@ -1999,6 +2029,7 @@ export function startServer(
       // stops them and each chat is marked, before anything below takes the server apart.
       await orchestrator.stopTurnsForShutdown().catch(() => undefined)
       memoryWatch.dispose()
+      stopBackups?.()
       historyClosing = true
       clearTimeout(backgroundTimer)
       historySchedule.stop()
