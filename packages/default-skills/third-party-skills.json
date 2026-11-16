@@ -1,0 +1,550 @@
+{
+  "version": 1,
+  "skills": [
+    {
+      "id": "remotion-best-practices",
+      "name": "Remotion best practices",
+      "summary": {
+        "en": "Router for all Remotion work. It carries the other Remotion skills inside it, so this one alone covers them.",
+        "pt-BR": "Ponto de entrada para tudo de Remotion. Traz as outras skills do Remotion dentro dela, então só esta já cobre as demais."
+      },
+      "author": "Remotion",
+      "category": "motion",
+      "set": "remotion",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "remotion-dev/skills",
+        "commit": "3e20ac75161bc34468845df714701cc9bf6075f4",
+        "archiveSha256": "01429d42cf43cf16c4b080f5178b8166ea05bd22d55c6a3d9c36f84a61be1816",
+        "archiveBytes": 281581,
+        "path": "skills/remotion-best-practices",
+        "url": "https://github.com/remotion-dev/skills/tree/3e20ac75161bc34468845df714701cc9bf6075f4/skills/remotion-best-practices"
+      },
+      "license": {
+        "name": null
+      }
+    },
+    {
+      "id": "remotion-captions",
+      "name": "Remotion captions",
+      "summary": {
+        "en": "Transcribe speech, then show and animate captions in Remotion videos.",
+        "pt-BR": "Transcrever a fala e exibir e animar legendas em vídeos do Remotion."
+      },
+      "author": "Remotion",
+      "category": "motion",
+      "set": "remotion",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "remotion-dev/skills",
+        "commit": "3e20ac75161bc34468845df714701cc9bf6075f4",
+        "archiveSha256": "01429d42cf43cf16c4b080f5178b8166ea05bd22d55c6a3d9c36f84a61be1816",
+        "archiveBytes": 281581,
+        "path": "skills/remotion-captions",
+        "url": "https://github.com/remotion-dev/skills/tree/3e20ac75161bc34468845df714701cc9bf6075f4/skills/remotion-captions"
+      },
+      "license": {
+        "name": null
+      }
+    },
+    {
+      "id": "remotion-create",
+      "name": "Remotion create",
+      "summary": {
+        "en": "Start a new Remotion project or video composition.",
+        "pt-BR": "Criar um projeto ou uma composição de vídeo nova no Remotion."
+      },
+      "author": "Remotion",
+      "category": "motion",
+      "set": "remotion",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "remotion-dev/skills",
+        "commit": "3e20ac75161bc34468845df714701cc9bf6075f4",
+        "archiveSha256": "01429d42cf43cf16c4b080f5178b8166ea05bd22d55c6a3d9c36f84a61be1816",
+        "archiveBytes": 281581,
+        "path": "skills/remotion-create",
+        "url": "https://github.com/remotion-dev/skills/tree/3e20ac75161bc34468845df714701cc9bf6075f4/skills/remotion-create"
+      },
+      "license": {
+        "name": null
+      }
+    },
+    {
+      "id": "remotion-docs",
+      "name": "Remotion docs",
+      "summary": {
+        "en": "Search the Remotion documentation and read its pages as Markdown.",
+        "pt-BR": "Buscar na documentação do Remotion e ler as páginas em Markdown."
+      },
+      "author": "Remotion",
+      "category": "motion",
+      "set": "remotion",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "remotion-dev/skills",
+        "commit": "3e20ac75161bc34468845df714701cc9bf6075f4",
+        "archiveSha256": "01429d42cf43cf16c4b080f5178b8166ea05bd22d55c6a3d9c36f84a61be1816",
+        "archiveBytes": 281581,
+        "path": "skills/remotion-docs",
+        "url": "https://github.com/remotion-dev/skills/tree/3e20ac75161bc34468845df714701cc9bf6075f4/skills/remotion-docs"
+      },
+      "license": {
+        "name": null
+      }
+    },
+    {
+      "id": "remotion-interactivity",
+      "name": "Remotion interactivity",
+      "summary": {
+        "en": "Structure Remotion markup so layers, timing and styles can be edited in Remotion Studio.",
+        "pt-BR": "Estruturar o markup do Remotion para editar camadas, tempo e estilos no Remotion Studio."
+      },
+      "author": "Remotion",
+      "category": "motion",
+      "set": "remotion",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "remotion-dev/skills",
+        "commit": "3e20ac75161bc34468845df714701cc9bf6075f4",
+        "archiveSha256": "01429d42cf43cf16c4b080f5178b8166ea05bd22d55c6a3d9c36f84a61be1816",
+        "archiveBytes": 281581,
+        "path": "skills/remotion-interactivity",
+        "url": "https://github.com/remotion-dev/skills/tree/3e20ac75161bc34468845df714701cc9bf6075f4/skills/remotion-interactivity"
+      },
+      "license": {
+        "name": null
+      }
+    },
+    {
+      "id": "remotion-license",
+      "name": "Remotion license",
+      "summary": {
+        "en": "Point to the Remotion license terms, its FAQ and where to buy a license.",
+        "pt-BR": "Indicar os termos da licença do Remotion, as perguntas frequentes e onde comprar a licença."
+      },
+      "author": "Remotion",
+      "category": "motion",
+      "set": "remotion",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "remotion-dev/skills",
+        "commit": "3e20ac75161bc34468845df714701cc9bf6075f4",
+        "archiveSha256": "01429d42cf43cf16c4b080f5178b8166ea05bd22d55c6a3d9c36f84a61be1816",
+        "archiveBytes": 281581,
+        "path": "skills/remotion-license",
+        "url": "https://github.com/remotion-dev/skills/tree/3e20ac75161bc34468845df714701cc9bf6075f4/skills/remotion-license"
+      },
+      "license": {
+        "name": null
+      }
+    },
+    {
+      "id": "remotion-maps",
+      "name": "Remotion maps",
+      "summary": {
+        "en": "Animated maps in Remotion: routes, markers and geographic flyovers.",
+        "pt-BR": "Mapas animados no Remotion: rotas, marcadores e sobrevoos geográficos."
+      },
+      "author": "Remotion",
+      "category": "motion",
+      "set": "remotion",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "remotion-dev/skills",
+        "commit": "3e20ac75161bc34468845df714701cc9bf6075f4",
+        "archiveSha256": "01429d42cf43cf16c4b080f5178b8166ea05bd22d55c6a3d9c36f84a61be1816",
+        "archiveBytes": 281581,
+        "path": "skills/remotion-maps",
+        "url": "https://github.com/remotion-dev/skills/tree/3e20ac75161bc34468845df714701cc9bf6075f4/skills/remotion-maps"
+      },
+      "license": {
+        "name": null
+      }
+    },
+    {
+      "id": "remotion-markup",
+      "name": "Remotion markup",
+      "summary": {
+        "en": "Best practices for Remotion React markup: compositions, animation, layout, text, media and effects.",
+        "pt-BR": "Boas práticas para o markup React do Remotion: composições, animação, layout, texto, mídia e efeitos."
+      },
+      "author": "Remotion",
+      "category": "motion",
+      "set": "remotion",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "remotion-dev/skills",
+        "commit": "3e20ac75161bc34468845df714701cc9bf6075f4",
+        "archiveSha256": "01429d42cf43cf16c4b080f5178b8166ea05bd22d55c6a3d9c36f84a61be1816",
+        "archiveBytes": 281581,
+        "path": "skills/remotion-markup",
+        "url": "https://github.com/remotion-dev/skills/tree/3e20ac75161bc34468845df714701cc9bf6075f4/skills/remotion-markup"
+      },
+      "license": {
+        "name": null
+      }
+    },
+    {
+      "id": "remotion-multimedia",
+      "name": "Remotion multimedia",
+      "summary": {
+        "en": "Trim, crop and read the metadata of videos in the browser with Mediabunny.",
+        "pt-BR": "Cortar, recortar e ler os metadados de vídeos no navegador com o Mediabunny."
+      },
+      "author": "Remotion",
+      "category": "motion",
+      "set": "remotion",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "remotion-dev/skills",
+        "commit": "3e20ac75161bc34468845df714701cc9bf6075f4",
+        "archiveSha256": "01429d42cf43cf16c4b080f5178b8166ea05bd22d55c6a3d9c36f84a61be1816",
+        "archiveBytes": 281581,
+        "path": "skills/remotion-multimedia",
+        "url": "https://github.com/remotion-dev/skills/tree/3e20ac75161bc34468845df714701cc9bf6075f4/skills/remotion-multimedia"
+      },
+      "license": {
+        "name": null
+      }
+    },
+    {
+      "id": "remotion-render",
+      "name": "Remotion render",
+      "summary": {
+        "en": "Export a Remotion video, a still image or an editable timeline.",
+        "pt-BR": "Exportar um vídeo, uma imagem estática ou uma linha do tempo editável do Remotion."
+      },
+      "author": "Remotion",
+      "category": "motion",
+      "set": "remotion",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "remotion-dev/skills",
+        "commit": "3e20ac75161bc34468845df714701cc9bf6075f4",
+        "archiveSha256": "01429d42cf43cf16c4b080f5178b8166ea05bd22d55c6a3d9c36f84a61be1816",
+        "archiveBytes": 281581,
+        "path": "skills/remotion-render",
+        "url": "https://github.com/remotion-dev/skills/tree/3e20ac75161bc34468845df714701cc9bf6075f4/skills/remotion-render"
+      },
+      "license": {
+        "name": null
+      }
+    },
+    {
+      "id": "remotion-saas",
+      "name": "Remotion SaaS",
+      "summary": {
+        "en": "Build an app that renders videos with Remotion from your own product.",
+        "pt-BR": "Criar um app que gera vídeos com o Remotion a partir do seu próprio produto."
+      },
+      "author": "Remotion",
+      "category": "motion",
+      "set": "remotion",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "remotion-dev/skills",
+        "commit": "3e20ac75161bc34468845df714701cc9bf6075f4",
+        "archiveSha256": "01429d42cf43cf16c4b080f5178b8166ea05bd22d55c6a3d9c36f84a61be1816",
+        "archiveBytes": 281581,
+        "path": "skills/remotion-saas",
+        "url": "https://github.com/remotion-dev/skills/tree/3e20ac75161bc34468845df714701cc9bf6075f4/skills/remotion-saas"
+      },
+      "license": {
+        "name": null
+      }
+    },
+    {
+      "id": "remotion-studio",
+      "name": "Remotion Studio",
+      "summary": {
+        "en": "Open Remotion Studio to preview a video before exporting it.",
+        "pt-BR": "Abrir o Remotion Studio para ver o vídeo antes de exportar."
+      },
+      "author": "Remotion",
+      "category": "motion",
+      "set": "remotion",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "remotion-dev/skills",
+        "commit": "3e20ac75161bc34468845df714701cc9bf6075f4",
+        "archiveSha256": "01429d42cf43cf16c4b080f5178b8166ea05bd22d55c6a3d9c36f84a61be1816",
+        "archiveBytes": 281581,
+        "path": "skills/remotion-studio",
+        "url": "https://github.com/remotion-dev/skills/tree/3e20ac75161bc34468845df714701cc9bf6075f4/skills/remotion-studio"
+      },
+      "license": {
+        "name": null
+      }
+    },
+    {
+      "id": "remotion-upgrade",
+      "name": "Remotion upgrade",
+      "summary": {
+        "en": "Upgrade Remotion and its related packages.",
+        "pt-BR": "Atualizar o Remotion e os pacotes relacionados."
+      },
+      "author": "Remotion",
+      "category": "motion",
+      "set": "remotion",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "remotion-dev/skills",
+        "commit": "3e20ac75161bc34468845df714701cc9bf6075f4",
+        "archiveSha256": "01429d42cf43cf16c4b080f5178b8166ea05bd22d55c6a3d9c36f84a61be1816",
+        "archiveBytes": 281581,
+        "path": "skills/remotion-upgrade",
+        "url": "https://github.com/remotion-dev/skills/tree/3e20ac75161bc34468845df714701cc9bf6075f4/skills/remotion-upgrade"
+      },
+      "license": {
+        "name": null
+      }
+    },
+    {
+      "id": "transitions-dev",
+      "name": "Transitions.dev",
+      "summary": {
+        "en": "Ready-made CSS transitions for web UI: menus, modals, toasts, tabs, number changes and more.",
+        "pt-BR": "Transições CSS prontas para interface web: menus, modais, avisos, abas, troca de números e mais."
+      },
+      "author": "Jakub Antalik",
+      "category": "design",
+      "set": "transitions-dev",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "Jakubantalik/transitions.dev",
+        "commit": "738de6da39c042fd71ae10c8d819b42630880a29",
+        "archiveSha256": "8edcf956fa4b0c69291b2f9545476cb5c63fdc6b33e399568f52c0b83692c857",
+        "archiveBytes": 30345174,
+        "path": "skills/transitions-dev",
+        "url": "https://github.com/Jakubantalik/transitions.dev/tree/738de6da39c042fd71ae10c8d819b42630880a29/skills/transitions-dev"
+      },
+      "license": {
+        "name": "Transitions.dev License",
+        "file": "LICENSE",
+        "sha256": "4e46c9a6c0c05a2a19b0c2914c98d912bed920462f4edcf741f43c6cbcf3b37a"
+      }
+    },
+    {
+      "id": "transitions-polish",
+      "name": "Transitions polish",
+      "summary": {
+        "en": "Audit and tune the motion you already have: duration, distance, easing and stagger.",
+        "pt-BR": "Revisar e ajustar a animação que você já tem: duração, distância, easing e atraso entre itens."
+      },
+      "author": "Jakub Antalik",
+      "category": "design",
+      "set": "transitions-dev",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "Jakubantalik/transitions.dev",
+        "commit": "738de6da39c042fd71ae10c8d819b42630880a29",
+        "archiveSha256": "8edcf956fa4b0c69291b2f9545476cb5c63fdc6b33e399568f52c0b83692c857",
+        "archiveBytes": 30345174,
+        "path": "skills/transitions-polish",
+        "url": "https://github.com/Jakubantalik/transitions.dev/tree/738de6da39c042fd71ae10c8d819b42630880a29/skills/transitions-polish"
+      },
+      "license": {
+        "name": "Transitions.dev License",
+        "file": "LICENSE",
+        "sha256": "4e46c9a6c0c05a2a19b0c2914c98d912bed920462f4edcf741f43c6cbcf3b37a"
+      }
+    },
+    {
+      "id": "transitions-ui-generation",
+      "name": "Transitions UI generation",
+      "summary": {
+        "en": "Play an \"agent is drawing this\" reveal over a UI, a headline or an image.",
+        "pt-BR": "Mostrar uma revelação de \"o agente está desenhando isto\" sobre uma interface, um título ou uma imagem."
+      },
+      "author": "Jakub Antalik",
+      "category": "design",
+      "set": "transitions-dev",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "Jakubantalik/transitions.dev",
+        "commit": "738de6da39c042fd71ae10c8d819b42630880a29",
+        "archiveSha256": "8edcf956fa4b0c69291b2f9545476cb5c63fdc6b33e399568f52c0b83692c857",
+        "archiveBytes": 30345174,
+        "path": "skills/transitions-ui-generation",
+        "url": "https://github.com/Jakubantalik/transitions.dev/tree/738de6da39c042fd71ae10c8d819b42630880a29/skills/transitions-ui-generation"
+      },
+      "license": {
+        "name": "Transitions.dev License",
+        "file": "LICENSE",
+        "sha256": "4e46c9a6c0c05a2a19b0c2914c98d912bed920462f4edcf741f43c6cbcf3b37a"
+      }
+    },
+    {
+      "id": "21st-ai",
+      "name": "21st AI",
+      "summary": {
+        "en": "Sketch and edit UI variants with 21st AI from the terminal.",
+        "pt-BR": "Esboçar e editar variações de interface com a 21st AI pelo terminal."
+      },
+      "author": "21st.dev",
+      "category": "design",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "21st-dev/skill",
+        "commit": "15c7436c41dc88c54094f1be93ce53bda456b114",
+        "archiveSha256": "eaa236cd69a15852bfe0b90f886fe7d6f1e464b89b204b9791ade125a3420d85",
+        "archiveBytes": 20822,
+        "path": "skills/21st-ai",
+        "url": "https://github.com/21st-dev/skill/tree/15c7436c41dc88c54094f1be93ce53bda456b114/skills/21st-ai"
+      },
+      "license": {
+        "name": "Apache-2.0",
+        "file": "LICENSE",
+        "sha256": "ac17c29e5529b0d977b8521353838c06c46f814d83de12da221418d62102de6f"
+      }
+    },
+    {
+      "id": "21st-cli-use",
+      "name": "21st CLI",
+      "summary": {
+        "en": "Search the 21st.dev catalog and install components, themes and templates.",
+        "pt-BR": "Buscar no catálogo da 21st.dev e instalar componentes, temas e templates."
+      },
+      "author": "21st.dev",
+      "category": "design",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "21st-dev/skill",
+        "commit": "15c7436c41dc88c54094f1be93ce53bda456b114",
+        "archiveSha256": "eaa236cd69a15852bfe0b90f886fe7d6f1e464b89b204b9791ade125a3420d85",
+        "archiveBytes": 20822,
+        "path": "skills/21st-cli-use",
+        "url": "https://github.com/21st-dev/skill/tree/15c7436c41dc88c54094f1be93ce53bda456b114/skills/21st-cli-use"
+      },
+      "license": {
+        "name": "Apache-2.0",
+        "file": "LICENSE",
+        "sha256": "ac17c29e5529b0d977b8521353838c06c46f814d83de12da221418d62102de6f"
+      }
+    },
+    {
+      "id": "21st-design-sync",
+      "name": "21st design sync",
+      "summary": {
+        "en": "Publish the project's design tokens to 21st.dev as a shareable theme.",
+        "pt-BR": "Publicar os tokens de design do projeto na 21st.dev como um tema compartilhável."
+      },
+      "author": "21st.dev",
+      "category": "design",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "21st-dev/skill",
+        "commit": "15c7436c41dc88c54094f1be93ce53bda456b114",
+        "archiveSha256": "eaa236cd69a15852bfe0b90f886fe7d6f1e464b89b204b9791ade125a3420d85",
+        "archiveBytes": 20822,
+        "path": "skills/21st-design-sync",
+        "url": "https://github.com/21st-dev/skill/tree/15c7436c41dc88c54094f1be93ce53bda456b114/skills/21st-design-sync"
+      },
+      "license": {
+        "name": "Apache-2.0",
+        "file": "LICENSE",
+        "sha256": "ac17c29e5529b0d977b8521353838c06c46f814d83de12da221418d62102de6f"
+      }
+    },
+    {
+      "id": "21st-registry",
+      "name": "21st registry",
+      "summary": {
+        "en": "Publish and manage your components, themes and templates on 21st.dev.",
+        "pt-BR": "Publicar e gerenciar seus componentes, temas e templates na 21st.dev."
+      },
+      "author": "21st.dev",
+      "category": "design",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "21st-dev/skill",
+        "commit": "15c7436c41dc88c54094f1be93ce53bda456b114",
+        "archiveSha256": "eaa236cd69a15852bfe0b90f886fe7d6f1e464b89b204b9791ade125a3420d85",
+        "archiveBytes": 20822,
+        "path": "skills/21st-registry",
+        "url": "https://github.com/21st-dev/skill/tree/15c7436c41dc88c54094f1be93ce53bda456b114/skills/21st-registry"
+      },
+      "license": {
+        "name": "Apache-2.0",
+        "file": "LICENSE",
+        "sha256": "ac17c29e5529b0d977b8521353838c06c46f814d83de12da221418d62102de6f"
+      }
+    },
+    {
+      "id": "21st-ui-build",
+      "name": "21st UI build",
+      "summary": {
+        "en": "Build production UI that follows the project's design context.",
+        "pt-BR": "Construir interface de produção que segue o contexto de design do projeto."
+      },
+      "author": "21st.dev",
+      "category": "design",
+      "set": "21st-ui",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "21st-dev/skill",
+        "commit": "15c7436c41dc88c54094f1be93ce53bda456b114",
+        "archiveSha256": "eaa236cd69a15852bfe0b90f886fe7d6f1e464b89b204b9791ade125a3420d85",
+        "archiveBytes": 20822,
+        "path": "skills/21st-ui-build",
+        "url": "https://github.com/21st-dev/skill/tree/15c7436c41dc88c54094f1be93ce53bda456b114/skills/21st-ui-build"
+      },
+      "license": {
+        "name": "Apache-2.0",
+        "file": "LICENSE",
+        "sha256": "ac17c29e5529b0d977b8521353838c06c46f814d83de12da221418d62102de6f"
+      }
+    },
+    {
+      "id": "21st-ui-explore",
+      "name": "21st UI explore",
+      "summary": {
+        "en": "Compare several distinct UI directions before choosing one.",
+        "pt-BR": "Comparar várias direções de interface bem diferentes antes de escolher uma."
+      },
+      "author": "21st.dev",
+      "category": "design",
+      "set": "21st-ui",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "21st-dev/skill",
+        "commit": "15c7436c41dc88c54094f1be93ce53bda456b114",
+        "archiveSha256": "eaa236cd69a15852bfe0b90f886fe7d6f1e464b89b204b9791ade125a3420d85",
+        "archiveBytes": 20822,
+        "path": "skills/21st-ui-explore",
+        "url": "https://github.com/21st-dev/skill/tree/15c7436c41dc88c54094f1be93ce53bda456b114/skills/21st-ui-explore"
+      },
+      "license": {
+        "name": "Apache-2.0",
+        "file": "LICENSE",
+        "sha256": "ac17c29e5529b0d977b8521353838c06c46f814d83de12da221418d62102de6f"
+      }
+    },
+    {
+      "id": "21st-ui-review",
+      "name": "21st UI review",
+      "summary": {
+        "en": "Review a UI for accessibility, responsiveness and consistency.",
+        "pt-BR": "Revisar uma interface quanto a acessibilidade, responsividade e consistência."
+      },
+      "author": "21st.dev",
+      "category": "design",
+      "set": "21st-ui",
+      "source": {
+        "host": "codeload.github.com",
+        "repository": "21st-dev/skill",
+        "commit": "15c7436c41dc88c54094f1be93ce53bda456b114",
+        "archiveSha256": "eaa236cd69a15852bfe0b90f886fe7d6f1e464b89b204b9791ade125a3420d85",
+        "archiveBytes": 20822,
+        "path": "skills/21st-ui-review",
+        "url": "https://github.com/21st-dev/skill/tree/15c7436c41dc88c54094f1be93ce53bda456b114/skills/21st-ui-review"
+      },
+      "license": {
+        "name": "Apache-2.0",
+        "file": "LICENSE",
+        "sha256": "ac17c29e5529b0d977b8521353838c06c46f814d83de12da221418d62102de6f"
+      }
+    }
+  ]
+}

@@ -43,3 +43,20 @@ pnpm --filter @harness/default-skills sync      build bundle/ (fetches only what
 pnpm --filter @harness/default-skills verify    check bundle/ against skills.json
 pnpm --filter @harness/default-skills test
 ```
+
+## Skills from their authors
+
+Some skills cannot ship inside the app: their repositories declare no licence, or one that forbids
+republishing. `third-party-skills.json` lists them instead (author, licence as the repository
+declares it, the exact commit, the archive's SHA-256 and size). The Skills page offers them under
+"Available to install"; an install downloads the pinned archive straight from the author's host
+(`apps/server/src/skill-catalog.ts`, `skill-download.ts`), checks it, unpacks only the skill's folder
+and hands it to the same path "Install from folder" uses. Nothing of those skills is in this
+repository. Before a release, run `pnpm --filter @harness/default-skills check:third-party`: it
+downloads each pinned archive and checks the commit, hash, folders and licence text against the
+network.
+
+What an install leaves in the project: the skill's folder under `.agents/skills/<id>` and
+`.agents/skills/.tuift-catalog.json`, `{ version: 1, skills: { <id>: { commit, category, set?,
+installedAt } } }`. The category (`motion`, `design`, `general`) is there for whatever later loads
+installed `design` skills into Design chats; read it with `readCatalogRecord(projectPath)`.

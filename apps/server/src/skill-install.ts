@@ -5,7 +5,7 @@ import { z } from 'zod'
 
 const WINDOWS_RESERVED = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i
 
-function inside(root: string, candidate: string): boolean {
+export function inside(root: string, candidate: string): boolean {
   const relative = path.relative(root, candidate)
   return (
     relative === '' ||
