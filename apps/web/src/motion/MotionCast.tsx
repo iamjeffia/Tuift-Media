@@ -1,4 +1,4 @@
-import { IconAlertTriangle } from '@tabler/icons-react'
+import { IconAlertTriangle, IconMessageDots } from '@tabler/icons-react'
 import { memo, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useI18n } from '../i18n/index.js'
 import { Menu, MenuItem } from '../ui/Menu.js'
@@ -15,6 +15,7 @@ import {
   STAGE_LABEL,
   STAGE_OWNER,
   stagesOf,
+  type CastId,
   type CastMember,
   type MotionStageId,
 } from './cast.js'
@@ -40,6 +41,13 @@ export type MotionCastProps = {
    * Cloud shows a notice when it cannot; `ready` and absent say nothing.
    */
   afterEffects?: AfterEffectsState | undefined
+  /**
+   * The chat is stopped because it needs the person (an approval or a question
+   * is open). The highlighted character stops breathing and says so.
+   */
+  waiting?: boolean | undefined
+  /** The characters a helper agent of this chat, named after them, is running as. */
+  working?: readonly CastId[] | undefined
 }
 
 type MemberStyle = CSSProperties & { '--cast-color': string; '--cast-index': number }
@@ -59,13 +67,15 @@ export const MotionCast = memo(function MotionCast(props: MotionCastProps) {
 
   const problem = afterEffectsProblem(props.afterEffects)
   const note = problem ? t(AFTER_EFFECTS_NOTE[problem]) : ''
-  const said = useRef<{ stage: string; note: string } | undefined>(undefined)
+  const said = useRef<{ stage: string; note: string; waiting: boolean } | undefined>(undefined)
+  const waiting = props.waiting === true
 
   // A live region only speaks about changes made after it exists, so the text
   // goes in one render after the scene appears. The first text says the mode
   // is on; after that every new stage, chosen here or pushed by the server, is
   // said once with its character. The After Effects notice is said once when
-  // the scene appears with it and again each time it changes.
+  // the scene appears with it and again each time it changes, and so is the
+  // chat starting to wait for the person (its end is not said).
   useEffect(() => {
     if (!props.mode || !leader) {
       said.current = undefined
@@ -79,10 +89,12 @@ export const MotionCast = memo(function MotionCast(props: MotionCastProps) {
       lines.push(t(key, { stage: stageLabel, name: leader.name }))
     }
     if (note && before?.note !== note) lines.push(note)
-    said.current = { stage: stageText, note }
+    if (waiting && !before?.waiting)
+      lines.push(t('chat.motion.announceWaiting', { name: leader.name }))
+    said.current = { stage: stageText, note, waiting }
     setAnnouncement(lines.join(' '))
     return () => setAnnouncement('')
-  }, [props.mode, leader, stageLabel, note, t])
+  }, [props.mode, leader, stageLabel, note, waiting, t])
 
   if (!present) return null
   return (
@@ -92,7 +104,7 @@ export const MotionCast = memo(function MotionCast(props: MotionCastProps) {
       role="group"
       aria-label={t('chat.motion.group')}
       data-state={props.mode ? 'open' : 'closed'}
-      data-running={props.running ? '' : undefined}
+      data-running={props.running && !waiting ? '' : undefined}
     >
       {CAST.map((member, index) => (
         <Member
@@ -100,6 +112,8 @@ export const MotionCast = memo(function MotionCast(props: MotionCastProps) {
           member={member}
           index={index}
           current={member.id === leader?.id}
+          waiting={waiting && member.id === leader?.id}
+          working={props.working?.includes(member.id) === true}
           stage={stage}
           onStageChange={props.onStageChange}
           locked={props.locked}
@@ -117,6 +131,10 @@ function Member(props: {
   member: CastMember
   index: number
   current: boolean
+  /** The chat waits for the person: only the highlighted character says it. */
+  waiting: boolean
+  /** A helper agent named after this character is running. */
+  working: boolean
   stage: MotionStageId
   onStageChange: MotionCastProps['onStageChange']
   locked: boolean | undefined
@@ -124,7 +142,7 @@ function Member(props: {
   problem: AfterEffectsProblem | undefined
 }) {
   const { t } = useI18n()
-  const { member, current, problem, onStageChange } = props
+  const { member, current, waiting, working, problem, onStageChange } = props
   const role = t(member.role)
   const stageLabel = t(STAGE_LABEL[props.stage])
   const state = problem ? t(AFTER_EFFECTS_NAME[problem]) : ''
@@ -132,7 +150,16 @@ function Member(props: {
     ? t('chat.motion.memberCurrent', { name: member.name, role, stage: stageLabel })
     : t('chat.motion.member', { name: member.name, role })
   const label = problem ? t('chat.motion.memberAfterEffects', { label: named, state }) : named
-  const title = problem ? `${member.name} · ${role} · ${state}` : `${member.name} · ${role}`
+  // What else is going on with this character, whole in the accessible name and short in the tooltip.
+  const states = [
+    ...(waiting ? [t('chat.motion.waiting')] : []),
+    ...(working ? [t('chat.motion.working')] : []),
+  ]
+  const described = states.reduce(
+    (text, line) => t('chat.motion.memberState', { label: text, state: line }),
+    label,
+  )
+  const title = [member.name, role, ...(problem ? [state] : []), ...states].join(' · ')
   const style: MemberStyle = {
     '--cast-color': `var(--composer-motion-${member.color})`,
     '--cast-index': props.index,
@@ -146,15 +173,30 @@ function Member(props: {
             <IconAlertTriangle size={11} stroke={2.25} />
           </span>
         ) : null}
+        {waiting ? (
+          <span className="motion-cast__wait" aria-hidden>
+            <IconMessageDots size={11} stroke={2.25} />
+          </span>
+        ) : null}
       </span>
-      {current ? <span className="motion-cast__label">{stageLabel}</span> : null}
+      {current ? (
+        <span className="motion-cast__label">
+          {waiting ? t('chat.motion.labelWaiting', { stage: stageLabel }) : stageLabel}
+        </span>
+      ) : null}
     </span>
   )
   return (
-    <span className="motion-cast__member" style={style} data-current={current ? '' : undefined}>
+    <span
+      className="motion-cast__member"
+      style={style}
+      data-current={current ? '' : undefined}
+      data-waiting={waiting ? '' : undefined}
+      data-working={working ? '' : undefined}
+    >
       {onStageChange ? (
         <Menu
-          label={label}
+          label={described}
           triggerTitle={title}
           drop="down"
           triggerClassName="motion-cast__trigger"
@@ -184,7 +226,7 @@ function Member(props: {
           )}
         </Menu>
       ) : (
-        <span role="img" aria-label={label} title={title}>
+        <span role="img" aria-label={described} title={title}>
           {body}
         </span>
       )}

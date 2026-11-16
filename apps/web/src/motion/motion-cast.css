@@ -170,9 +170,36 @@
   pointer-events: none;
 }
 
-.motion-cast__mark svg {
+.motion-cast__mark svg,
+.motion-cast__wait svg {
   width: 70%;
   height: 70%;
+}
+
+/* The chat waits for the person: a speech bubble with dots cut into the head's
+   upper edge, the other corner from the After Effects triangle, so Cloud can
+   carry both. Same warning colour the sidebar's needs-you dot uses; the shape
+   says it. It appears with one quiet pop and then stays still. */
+.motion-cast__wait {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  display: grid;
+  place-items: center;
+  width: var(--cast-mark);
+  height: var(--cast-mark);
+  color: var(--warning);
+  background: var(--bg);
+  border-radius: var(--r-circle);
+  animation: motion-cast-wait-in var(--dur-fast) var(--ease-out) backwards;
+  pointer-events: none;
+}
+
+@keyframes motion-cast-wait-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
 }
 
 /* The ring in the character's colour and the breath share one outline. */
@@ -207,19 +234,30 @@
   transform: none;
 }
 
-/* While a turn runs, only the highlighted character breathes: one slow ring
-   that swells and fades, the shape of the working dot, on the compositor only
-   (transform and opacity). Idle is still. */
-.motion-cast[data-running] .motion-cast__member[data-current] .motion-cast__head::before {
+/* A helper agent named after the character runs: the same ring, lighter than
+   the stage owner's, which stays the main one. */
+.motion-cast__member[data-working] .motion-cast__head::after {
+  opacity: 0.45;
+  transform: none;
+}
+
+.motion-cast__member[data-current][data-working] .motion-cast__head::after {
+  opacity: 1;
+}
+
+/* While a turn runs, the highlighted character breathes, and so does every
+   character a running helper is named after: one slow ring that swells and
+   fades, the shape of the working dot, on the compositor only (transform and
+   opacity). Idle is still, and so is a character the chat waits on (the scene
+   leaves `data-running` off then). */
+.motion-cast[data-running] .motion-cast__member[data-current] .motion-cast__head::before,
+.motion-cast__member[data-working] .motion-cast__head::before {
   animation: motion-cast-breathe 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   will-change: transform, opacity;
 }
 
 /* Behind Settings nothing is looking at it, so the breath stops. */
-.shell__body[data-covered]
-  .motion-cast[data-running]
-  .motion-cast__member[data-current]
-  .motion-cast__head::before {
+.shell__body[data-covered] .motion-cast__head::before {
   animation-play-state: paused;
 }
 
@@ -238,7 +276,7 @@
 
 .motion-cast__label {
   min-width: 0;
-  max-width: 16ch;
+  max-width: var(--cast-label-max, 16ch);
   margin-inline: 4px 6px;
   overflow: hidden;
   color: var(--text-2);
@@ -246,6 +284,11 @@
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* "Stage · waiting for you" is longer than a stage name. */
+.motion-cast__member[data-waiting] {
+  --cast-label-max: 36ch;
 }
 
 /* In a new chat the label hangs under the highlighted head, so the row stays
@@ -304,7 +347,7 @@
   .is-new-session > .motion-cast .motion-cast__label {
     position: static;
     margin-inline: 4px 6px;
-    max-width: 16ch;
+    max-width: var(--cast-label-max, 16ch);
     transform: none;
   }
 }
@@ -314,6 +357,7 @@
   .motion-cast,
   .motion-cast__member,
   .motion-cast__head,
+  .motion-cast__wait,
   .motion-cast__head::before,
   .motion-cast__head::after {
     animation: none;

@@ -74,7 +74,39 @@ export type DemoServerOptions = {
    * Motion chats report nothing, as a server built without After Effects does.
    */
   afterEffects?: AfterEffectsState
+  /**
+   * What a turn in a Motion chat plays instead of the usual reply, to show how the scene
+   * reacts. Absent, the URL's `?motionScene=` says; without either, Motion chats reply as
+   * every other chat does.
+   */
+  motionScene?: MotionScene
 }
+
+/**
+ * A scripted turn for Motion chats: helper agents that start and keep running (one per name),
+ * and an approval request the turn waits on. It ends when the approval is answered, or when
+ * the turn is stopped.
+ */
+export type MotionScene = { waiting: boolean; helpers: string[] }
+
+/**
+ * The sandbox URL's `motionScene` value: `waiting` and helper names, separated by commas, such
+ * as `?motionScene=waiting` or `?motionScene=Moss,Pip` or `?motionScene=waiting,Explorer`.
+ */
+export function motionSceneFromSearch(search: string): MotionScene | undefined {
+  const parts = (new URLSearchParams(search).get('motionScene') ?? '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+  if (parts.length === 0) return undefined
+  return {
+    waiting: parts.some((part) => part.toLowerCase() === 'waiting'),
+    helpers: parts.filter((part) => part.toLowerCase() !== 'waiting'),
+  }
+}
+
+/** How long a scripted scene holds before the turn ends by itself. */
+const SCENE_HOLD_MS = 10 * 60_000
 
 /** The sandbox URL's `afterEffects` value, when it is one of the three states. */
 export function afterEffectsFromSearch(search: string): AfterEffectsState | undefined {
@@ -124,6 +156,10 @@ type Run = {
   /** Items started and not completed yet, with the text streamed so far. */
   open: Map<string, Item>
   timer: ReturnType<typeof setTimeout> | undefined
+  /** The approval request the turn waits on, in a scripted Motion scene. */
+  approval?: string
+  /** What finishes a scripted scene once its approval is answered. */
+  ending?: () => Step[]
 }
 
 const DAY = 24 * 60 * 60_000
@@ -158,12 +194,16 @@ export class DemoServer {
   #skillOverrides = new Map<string, boolean>()
   readonly #handlers: Handlers
   readonly #afterEffects: AfterEffectsState | undefined
+  readonly #motionScene: MotionScene | undefined
 
   constructor(options: DemoServerOptions) {
     this.#push = options.push
     this.#afterEffects =
       options.afterEffects ??
       (typeof location === 'undefined' ? undefined : afterEffectsFromSearch(location.search))
+    this.#motionScene =
+      options.motionScene ??
+      (typeof location === 'undefined' ? undefined : motionSceneFromSearch(location.search))
     this.#now = options.now ?? Date.now
     this.#usageResetAt =
       options.usageResetMs === undefined ? undefined : this.#now() + options.usageResetMs
@@ -389,7 +429,12 @@ export class DemoServer {
     this.#record(thread, { type: 'item.completed', item: this.#promptItem(submission, turnId) })
     const run: Run = { turnId, steps: [], open: new Map(), timer: undefined }
     this.#runs.set(thread.id, run)
-    run.steps.push(...this.#replySteps(thread, run, submission.text))
+    const scene = thread.settings.mode === 'motion' ? this.#motionScene : undefined
+    run.steps.push(
+      ...(scene
+        ? this.#sceneSteps(thread, run, scene)
+        : this.#replySteps(thread, run, submission.text)),
+    )
     this.#advance(thread, run)
     return turnId
   }
@@ -429,6 +474,62 @@ export class DemoServer {
       run: () => this.#completeItem(thread, run, toolId, { text: `${call}\n${reply.toolOutput}` }),
     })
     steps.push(...this.#answerSteps(thread, run, reply.answer))
+    return steps
+  }
+
+  /** A Motion scene: the helpers start and run, an approval may open, and then the turn holds. */
+  #sceneSteps(thread: DemoThread, run: Run, scene: MotionScene): Step[] {
+    const running = scene.helpers.map((name, index) => ({
+      itemId: `item-${randomId()}`,
+      subagent: {
+        id: `demo-helper-${index + 1}`,
+        name,
+        description: `Work for the video: ${name}`,
+        state: 'running' as const,
+        background: true,
+      },
+    }))
+    const steps: Step[] = running.map(({ itemId, subagent }) => ({
+      delay: this.#timing.stepMs,
+      run: () =>
+        this.#startItem(thread, run, itemId, {
+          type: 'tool_call',
+          text: `spawn_agent\n${JSON.stringify({ agent_type: subagent.name })}`,
+          subagent,
+        }),
+    }))
+    if (scene.waiting) {
+      steps.push({
+        delay: this.#timing.stepMs,
+        run: () => {
+          const id = `approval-${randomId()}`
+          run.approval = id
+          this.#record(thread, {
+            type: 'approval.requested',
+            request: {
+              id,
+              kind: 'command',
+              command: 'ffmpeg -i narration.wav -af loudnorm narration-mastered.wav',
+              reason: 'Master the narration before the audio approval.',
+              createdAt: this.#now(),
+            },
+          })
+        },
+      })
+    }
+    // The turn holds here until the approval is answered, or it is stopped.
+    steps.push({ delay: SCENE_HOLD_MS, run: () => undefined })
+    // Everything that finishes the scene: the helpers complete, then the answer.
+    run.ending = () => [
+      ...running.map(({ itemId, subagent }) => ({
+        delay: this.#timing.stepMs,
+        run: () =>
+          this.#completeItem(thread, run, itemId, {
+            subagent: { ...subagent, state: 'completed' },
+          }),
+      })),
+      ...this.#answerSteps(thread, run, 'Done. The scene is only a demonstration of the sandbox.'),
+    ]
     return steps
   }
 
@@ -520,10 +621,18 @@ export class DemoServer {
     for (const item of run.open.values()) {
       this.#record(thread, {
         type: 'item.completed',
-        item: { ...item, status: item.type === 'tool_call' ? 'failed' : 'completed' },
+        item: {
+          ...item,
+          status: item.type === 'tool_call' ? 'failed' : 'completed',
+          // A helper cut off with its turn is settled, as the real server settles it.
+          ...(item.subagent?.state === 'running'
+            ? { subagent: { ...item.subagent, state: 'interrupted' as const } }
+            : {}),
+        },
       })
     }
     run.open.clear()
+    if (run.approval) this.#record(thread, { type: 'approval.resolved', id: run.approval })
     const now = this.#now()
     if (status === 'completed') {
       thread.tokens += 2_600
@@ -634,6 +743,7 @@ export class DemoServer {
   }
 
   #sessionStatus(thread: DemoThread) {
+    if (this.#runs.get(thread.id)?.approval) return 'approval' as const
     if (this.#runs.has(thread.id)) return 'working' as const
     if (thread.queue.length > 0) return 'queued' as const
     return thread.unread ? ('ready' as const) : ('idle' as const)
@@ -1153,6 +1263,22 @@ export class DemoServer {
         }
       },
       'thread.sendTurn': (params) => this.#submit(params),
+      'thread.respondToApproval': ({ threadId, approvalId }) => {
+        const thread = this.#thread(threadId)
+        const run = this.#runs.get(threadId)
+        if (!run || run.approval !== approvalId) return {}
+        this.#record(thread, { type: 'approval.resolved', id: approvalId })
+        delete run.approval
+        // A scripted scene goes on to its end once the person answers.
+        if (run.ending) {
+          clearTimeout(run.timer)
+          run.timer = undefined
+          run.steps = run.ending()
+          delete run.ending
+          this.#advance(thread, run)
+        }
+        return {}
+      },
       'thread.interrupt': ({ threadId }) => {
         this.#interrupt(threadId)
         return {}

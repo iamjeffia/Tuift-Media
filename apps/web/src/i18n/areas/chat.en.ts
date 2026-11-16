@@ -210,6 +210,7 @@ export const chatEn = {
   'chat.motion.group': 'Motion team',
   'chat.motion.announce': 'Motion mode on. Current stage: {stage}, with {name}.',
   'chat.motion.announceStage': 'Current stage: {stage}, with {name}.',
+  'chat.motion.announceWaiting': '{name} is waiting for you.',
   'chat.motion.afterEffects.notInstalled':
     'After Effects was not found on this computer. The video will be built in HyperFrames.',
   'chat.motion.afterEffects.notInstalledName': 'After Effects not found',
@@ -220,6 +221,10 @@ export const chatEn = {
   'chat.motion.member': '{name}, {role}',
   'chat.motion.memberCurrent': '{name}, {role}. Current stage: {stage}',
   'chat.motion.memberAfterEffects': '{label}. {state}',
+  'chat.motion.memberState': '{label}. {state}',
+  'chat.motion.labelWaiting': '{stage} · waiting for you',
+  'chat.motion.waiting': 'Waiting for you',
+  'chat.motion.working': 'Working',
   'chat.motion.role.zig': 'Leads',
   'chat.motion.role.moss': 'Finds the references',
   'chat.motion.role.bun': 'Writes the script',

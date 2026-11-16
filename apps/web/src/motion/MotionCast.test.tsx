@@ -358,6 +358,209 @@ describe('MotionCast After Effects notice', () => {
   })
 })
 
+describe('MotionCast waiting for you', () => {
+  const status = () => screen.getByRole('status').textContent
+  const waits = () => Array.from(document.querySelectorAll('.motion-cast__wait'))
+  const memberOf = (name: string) =>
+    screen.getByRole('img', { name: new RegExp(`^${name},`) }).closest('.motion-cast__member')
+
+  it('marks the highlighted head, writes it next to the stage, and carries it in the name and the tooltip', () => {
+    render(<MotionCast mode stage="script" waiting />)
+    expect(waits()).toHaveLength(1)
+    const bun = screen.getByRole('img', { name: /^Bun,/ })
+    // A shape on the head, hidden from the accessible tree: the words carry it.
+    expect(bun.querySelector('.motion-cast__head > .motion-cast__wait svg')).not.toBeNull()
+    expect(waits()[0]?.getAttribute('aria-hidden')).toBe('true')
+    expect(bun.getAttribute('aria-label')).toBe(
+      'Bun, Writes the script. Current stage: Script. Waiting for you',
+    )
+    expect(bun.getAttribute('title')).toBe('Bun · Writes the script · Waiting for you')
+    expect(bun.textContent).toBe('Script · waiting for you')
+    expect(memberOf('Moss')?.hasAttribute('data-waiting')).toBe(false)
+    expect(memberOf('Bun')?.hasAttribute('data-waiting')).toBe(true)
+  })
+
+  it('stops the breathing, and the highlight stays', () => {
+    const { rerender } = render(<MotionCast mode stage="script" running />)
+    expect(screen.getByRole('group').hasAttribute('data-running')).toBe(true)
+    rerender(<MotionCast mode stage="script" running waiting />)
+    expect(screen.getByRole('group').hasAttribute('data-running')).toBe(false)
+    expect(memberOf('Bun')?.hasAttribute('data-current')).toBe(true)
+  })
+
+  it('announces once when the wait begins, and never when it ends or goes on', () => {
+    const { rerender } = render(<MotionCast mode stage="script" running />)
+    expect(status()).toBe('Motion mode on. Current stage: Script, with Bun.')
+    rerender(<MotionCast mode stage="script" running waiting />)
+    expect(status()).toBe('Bun is waiting for you.')
+    // Other props, and the same wait again, say nothing new.
+    rerender(<MotionCast mode stage="script" waiting />)
+    expect(status()).toBe('Bun is waiting for you.')
+    rerender(<MotionCast mode stage="narration" waiting />)
+    expect(status()).toBe('Current stage: Narration, with Bun.')
+    rerender(<MotionCast mode stage="narration" />)
+    expect(status()).toBe('')
+    rerender(<MotionCast mode stage="narration" waiting />)
+    expect(status()).toBe('Bun is waiting for you.')
+  })
+
+  it('says it with the scene when the chat already waits as it appears', () => {
+    render(<MotionCast mode stage="review" waiting />)
+    expect(status()).toBe(
+      'Motion mode on. Current stage: Review, with Penny. Penny is waiting for you.',
+    )
+  })
+
+  it('leaves when the person answers: mark, words and breathing come back as they were', () => {
+    const { rerender } = render(<MotionCast mode stage="script" running waiting />)
+    rerender(<MotionCast mode stage="script" running />)
+    expect(waits()).toHaveLength(0)
+    const bun = screen.getByRole('img', { name: /^Bun,/ })
+    expect(bun.getAttribute('aria-label')).toBe('Bun, Writes the script. Current stage: Script')
+    expect(bun.getAttribute('title')).toBe('Bun · Writes the script')
+    expect(bun.textContent).toBe('Script')
+    expect(screen.getByRole('group').hasAttribute('data-running')).toBe(true)
+  })
+
+  it('is not there when the chat does not wait', () => {
+    render(<MotionCast mode stage="script" running />)
+    expect(waits()).toHaveLength(0)
+    expect(screen.getByRole('status').textContent).not.toMatch(/waiting/)
+  })
+
+  it('shares Cloud with the After Effects notice: two marks, two corners, both in the name', () => {
+    render(
+      <MotionCast
+        mode
+        stage="motion"
+        afterEffects="not-installed"
+        waiting
+        onStageChange={vi.fn()}
+      />,
+    )
+    const trigger = screen.getByRole('button', { name: /^Cloud,/ })
+    const head = trigger.querySelector('.motion-cast__head')!
+    expect(head.querySelectorAll('.motion-cast__mark')).toHaveLength(1)
+    expect(head.querySelectorAll('.motion-cast__wait')).toHaveLength(1)
+    expect(head.querySelector('.motion-cast__mark svg')?.outerHTML).not.toBe(
+      head.querySelector('.motion-cast__wait svg')?.outerHTML,
+    )
+    expect(trigger.getAttribute('aria-label')).toBe(
+      'Cloud, Builds the video in After Effects. Current stage: Motion. After Effects not found. Waiting for you',
+    )
+    expect(trigger.getAttribute('title')).toBe(
+      'Cloud · Builds the video in After Effects · After Effects not found · Waiting for you',
+    )
+    expect(status()).toBe(
+      'Motion mode on. Current stage: Motion, with Cloud. After Effects was not found on this computer. The video will be built in HyperFrames. Cloud is waiting for you.',
+    )
+  })
+
+  it('keeps each pane to its own chat', () => {
+    render(
+      <>
+        <MotionCast mode stage="script" waiting />
+        <MotionCast mode stage="script" />
+      </>,
+    )
+    const panes = screen.getAllByRole('group', { name: 'Motion team' })
+    expect(panes[0]?.querySelectorAll('.motion-cast__wait')).toHaveLength(1)
+    expect(panes[1]?.querySelectorAll('.motion-cast__wait')).toHaveLength(0)
+  })
+
+  it('speaks Portuguese', () => {
+    setLanguage('pt-BR', { persist: false })
+    const { rerender } = render(<MotionCast mode stage="script" />)
+    rerender(<MotionCast mode stage="script" waiting />)
+    const bun = screen.getByRole('img', { name: /^Bun,/ })
+    expect(bun.getAttribute('aria-label')).toBe(
+      'Bun, Escreve o roteiro. Etapa atual: Roteiro. Esperando você',
+    )
+    expect(bun.getAttribute('title')).toBe('Bun · Escreve o roteiro · Esperando você')
+    expect(bun.textContent).toBe('Roteiro · esperando você')
+    expect(status()).toBe('Bun está esperando você.')
+  })
+})
+
+describe('MotionCast helpers at work', () => {
+  const lit = () =>
+    Array.from(document.querySelectorAll('.motion-cast__member')).map((cell) =>
+      cell.hasAttribute('data-working'),
+    )
+  const waits = () => document.querySelectorAll('.motion-cast__wait')
+
+  it('lights the character a helper is named after, lighter than the stage owner, who stays the main one', () => {
+    render(<MotionCast mode stage="idea" working={['moss']} />)
+    expect(lit()).toEqual([false, true, false, false, false, false])
+    expect(currentCells()).toEqual([true, false, false, false, false, false])
+    const moss = screen.getByRole('img', { name: /^Moss,/ })
+    expect(moss.getAttribute('aria-label')).toBe('Moss, Finds the references. Working')
+    expect(moss.getAttribute('title')).toBe('Moss · Finds the references · Working')
+    // Only the stage owner writes its stage; a helper adds no mark and no words.
+    expect(moss.textContent).toBe('')
+    expect(moss.querySelector('.motion-cast__mark, .motion-cast__wait')).toBeNull()
+    expect(screen.getByRole('img', { name: /^Zig,/ }).getAttribute('aria-label')).toBe(
+      'Zig, Leads. Current stage: Idea',
+    )
+  })
+
+  it('lights several at once', () => {
+    render(<MotionCast mode stage="script" working={['moss', 'pip', 'penny']} />)
+    expect(lit()).toEqual([false, true, false, true, false, true])
+    expect(currentCells()).toEqual([false, false, true, false, false, false])
+  })
+
+  it('lights nobody when no helper has a character name, and goes back to rest when it finishes', () => {
+    const { rerender } = render(<MotionCast mode stage="idea" working={[]} />)
+    expect(lit()).toEqual([false, false, false, false, false, false])
+    rerender(<MotionCast mode stage="idea" working={['cloud']} />)
+    expect(lit()[4]).toBe(true)
+    rerender(<MotionCast mode stage="idea" working={[]} />)
+    expect(lit()).toEqual([false, false, false, false, false, false])
+    rerender(<MotionCast mode stage="idea" />)
+    expect(lit()).toEqual([false, false, false, false, false, false])
+  })
+
+  it('works on the stage owner too: it keeps the main highlight and says it works', () => {
+    render(<MotionCast mode stage="idea" working={['zig']} />)
+    expect(lit()[0]).toBe(true)
+    expect(currentCells()[0]).toBe(true)
+    expect(screen.getByRole('img', { name: /^Zig,/ }).getAttribute('aria-label')).toBe(
+      'Zig, Leads. Current stage: Idea. Working',
+    )
+  })
+
+  it('does not announce a helper: the scene speaks about waiting, the name carries the rest', () => {
+    const { rerender } = render(<MotionCast mode stage="idea" />)
+    const before = screen.getByRole('status').textContent
+    rerender(<MotionCast mode stage="idea" working={['moss']} />)
+    expect(screen.getByRole('status').textContent).toBe(before)
+    expect(before).not.toMatch(/Moss|working/i)
+  })
+
+  it('lights a helper while the chat waits, and the wait stays on the highlighted head', () => {
+    render(<MotionCast mode stage="idea" running waiting working={['moss']} />)
+    expect(waits()).toHaveLength(1)
+    expect(waits()[0]?.closest('.motion-cast__member')?.hasAttribute('data-current')).toBe(true)
+    expect(lit()).toEqual([false, true, false, false, false, false])
+  })
+
+  it('says the state in the name when the head is the trigger of a menu', () => {
+    render(<MotionCast mode stage="idea" working={['moss']} onStageChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /^Moss,/ }).getAttribute('aria-label')).toBe(
+      'Moss, Finds the references. Working',
+    )
+  })
+
+  it('speaks Portuguese', () => {
+    setLanguage('pt-BR', { persist: false })
+    render(<MotionCast mode stage="idea" working={['moss']} />)
+    const moss = screen.getByRole('img', { name: /^Moss,/ })
+    expect(moss.getAttribute('aria-label')).toBe('Moss, Pesquisa as referências. Trabalhando')
+    expect(moss.getAttribute('title')).toBe('Moss · Pesquisa as referências · Trabalhando')
+  })
+})
+
 describe('cast data', () => {
   it('lists the six characters in the order of the scene, each with a distinct image', () => {
     expect(CAST.map((member) => member.name)).toEqual(ORDER)
