@@ -6867,6 +6867,7 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
     },
     [],
   )
+  const openClubeSettings = useCallback(() => openSettings('clube'), [openSettings])
   // A CLI's /resume, /config, /mcp, ... screen, as TUIFT Code's own.
   const openAppScreen = useCallback(
     (screen: AppScreen) => {
@@ -8405,6 +8406,8 @@ export function App({ transport: givenTransport }: { transport?: Transport } = {
                 onAnnotationDraft={stageBrowserAnnotations}
                 designPreviewRequest={workspaceDesignPreviewRequest}
                 onOpenPullRequest={openCheckoutPullRequest}
+                motion={motionMode}
+                onOpenClubeSettings={openClubeSettings}
                 providerLogin={
                   providerLoginTerminal?.visible
                     ? {

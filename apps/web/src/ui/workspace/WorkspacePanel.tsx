@@ -20,6 +20,7 @@ import {
   IconMessageCirclePlus as MessageCirclePlus,
   IconSubtask as Subtask,
   IconTerminal2 as SquareTerminal,
+  IconWaveSine as WaveSine,
   IconX as X,
   IconPlus as Plus,
   type TablerIcon,
@@ -77,6 +78,9 @@ const WorkspaceSideChat = lazy(() =>
 const WorkspaceAgents = lazy(() =>
   import('./WorkspaceAgents.js').then((module) => ({ default: module.WorkspaceAgents })),
 )
+const WorkspaceSounds = lazy(() =>
+  import('./WorkspaceSounds.js').then((module) => ({ default: module.WorkspaceSounds })),
+)
 
 export type WorkspaceProviderLoginRequest = {
   id: number
@@ -85,7 +89,8 @@ export type WorkspaceProviderLoginRequest = {
   canCancelSignIn?: boolean
 }
 
-export type WorkspaceTool = 'review' | 'terminal' | 'browser' | 'files' | 'side-chat' | 'agents'
+export type WorkspaceTool =
+  'review' | 'terminal' | 'browser' | 'files' | 'side-chat' | 'agents' | 'sounds'
 
 type WorkspaceTab =
   | {
@@ -138,6 +143,12 @@ const TOOLS: Array<{
     title: 'workspace.tool.agents',
     Icon: Subtask,
   },
+  // The Clube's sound library: offered in Motion chats only.
+  {
+    kind: 'sounds',
+    title: 'workspace.tool.sounds',
+    Icon: WaveSine,
+  },
 ]
 
 const MIN_CHAT_WIDTH = 360
@@ -180,9 +191,17 @@ function WorkspacePanelComponent(props: {
   designPreviewRequest?: BrowserNavigationRequest | undefined
   /** Opens the Pull requests surface on the pull request the Review tab shows. */
   onOpenPullRequest?: ((target: PullRequestTarget) => void) | undefined
+  /** The chat is in Motion mode: its Sounds tab is offered. */
+  motion?: boolean | undefined
+  /** Opens Settings on the Clube page, for the Sounds tab of an account that is not linked. */
+  onOpenClubeSettings?: (() => void) | undefined
 }) {
   const { t } = useI18n()
   const bottom = props.placement === 'bottom'
+  const tools = useMemo(
+    () => TOOLS.filter((item) => item.kind !== 'sounds' || props.motion),
+    [props.motion],
+  )
   const [tabs, setTabs] = useState<WorkspaceTab[]>([])
   const [activeId, setActiveId] = useState<string>()
   const tool = tabs.find((tab) => tab.id === activeId) ?? tabs.at(-1)
@@ -698,7 +717,7 @@ function WorkspacePanelComponent(props: {
         >
           {(close) => (
             <>
-              {TOOLS.map((item) => (
+              {tools.map((item) => (
                 <MenuItem
                   key={item.kind}
                   title={t(item.title)}
@@ -736,6 +755,7 @@ function WorkspacePanelComponent(props: {
                   sideChatStartOptions={props.sideChatStartOptions}
                   sideChatPromptRequest={props.sideChatPromptRequest}
                   onOpenPullRequest={props.onOpenPullRequest}
+                  onOpenClubeSettings={props.onOpenClubeSettings}
                   browserNavigation={tab.id === DESIGN_PREVIEW_TAB_ID ? designPreview : undefined}
                   imagesSupported={props.imagesSupported}
                   onAnnotationDraft={props.onAnnotationDraft}
@@ -749,7 +769,7 @@ function WorkspacePanelComponent(props: {
             </div>
           ))
         ) : (
-          <WorkspaceSelector onOpen={openTool} />
+          <WorkspaceSelector tools={tools} onOpen={openTool} />
         )}
       </div>
     </aside>
@@ -791,6 +811,7 @@ function WorkspaceToolSurface(props: {
   sideChatStartOptions: SideChatStartOptions
   sideChatPromptRequest?: SideChatPromptRequest | undefined
   onOpenPullRequest?: ((target: PullRequestTarget) => void) | undefined
+  onOpenClubeSettings?: (() => void) | undefined
   imagesSupported?: boolean | undefined
   onAnnotationDraft?: ((draft: AnnotationDraft) => void) | undefined
   browserNavigation?: BrowserNavigationRequest | undefined
@@ -882,6 +903,17 @@ function WorkspaceToolSurface(props: {
       />
     )
   }
+  if (props.tab.kind === 'sounds') {
+    return (
+      <WorkspaceSounds
+        active={props.active}
+        transport={props.transport}
+        threadId={props.threadId}
+        projectPath={props.projectPath}
+        onOpenClubeSettings={props.onOpenClubeSettings}
+      />
+    )
+  }
   return (
     <WorkspaceSideChat
       active={props.active}
@@ -919,12 +951,18 @@ function ProviderLoginCancel(props: { transport: Transport; installKey: string }
   )
 }
 
-function WorkspaceSelector({ onOpen }: { onOpen: (kind: WorkspaceTool) => void }) {
+function WorkspaceSelector({
+  tools,
+  onOpen,
+}: {
+  tools: typeof TOOLS
+  onOpen: (kind: WorkspaceTool) => void
+}) {
   const { t } = useI18n()
   return (
     <div className="workspace-selector">
       <div className="workspace-selector__list">
-        {TOOLS.map((tool) => {
+        {tools.map((tool) => {
           const Icon = tool.Icon
           return (
             <button type="button" key={tool.kind} onClick={() => onOpen(tool.kind)}>

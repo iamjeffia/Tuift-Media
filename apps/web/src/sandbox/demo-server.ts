@@ -1,3 +1,4 @@
+import { DemoSounds } from './demo-sounds.js'
 import {
   AfterEffectsStateSchema,
   PROTOCOL_VERSION,
@@ -323,6 +324,8 @@ export class DemoServer {
   #clube: ClubeStatus = demoClubeStatus(
     typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('clube'),
   )
+  // The Clube's sound library; `?sounds=` picks what it answers (see demo-sounds.ts).
+  #sounds = new DemoSounds(typeof location === 'undefined' ? '' : location.search)
   #hiddenModels: string[] = []
   #roster: string[] | null = null
   #contextSettings: ProviderContextSettingsMap = {}
@@ -1392,6 +1395,12 @@ export class DemoServer {
         this.#push('clube.changed', {})
         return this.#clube
       },
+      'sounds.settings': () => this.#sounds.settings(),
+      'sounds.updateSettings': (patch) => this.#sounds.update(patch),
+      'sounds.search': (params) => this.#sounds.search(params),
+      'sounds.facets': () => this.#sounds.facets(),
+      'sounds.preview': () => this.#sounds.preview(),
+      'sounds.use': ({ shelf, id }) => this.#sounds.use(shelf, id),
       'phone.status': () => ({
         available: false,
         enabled: false,
