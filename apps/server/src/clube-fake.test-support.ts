@@ -52,6 +52,10 @@ export class FakeClube {
   fileHash: string | null | undefined
   /** The `Retry-After` the daily-limit answer carries. */
   dailyRetryAfter: number | undefined
+  /** Ids asked of `/musicas/:id`, in order. */
+  readonly detailCalls: string[] = []
+  /** The plan does not include the music download: no `zip.url`, and a sentence that says so. */
+  musicPlanBlocked = false
   #filesToday = 0
   #zipsToday = 0
 
@@ -205,6 +209,14 @@ export class FakeClube {
     if (url.pathname.startsWith('/api/v1/sons') || url.pathname.startsWith('/api/v1/musicas')) {
       return this.#library(url, request, response, json, bearer)
     }
+    // The previews are open to anyone: no token, and the request is not recorded as one.
+    const preview = /^\/previas\/([^/]+)\/(completa|instrumental|vocal)\.mp3$/.exec(url.pathname)
+    if (preview) {
+      this.previewCalls.push(`${preview[1]}/${preview[2]}`)
+      return void response
+        .writeHead(200, { 'content-type': 'audio/mpeg' })
+        .end(Buffer.from('ID3-preview'))
+    }
     if (url.pathname.startsWith('/zips/')) {
       const id = url.pathname.slice('/zips/'.length).replace(/\.zip$/, '')
       const track = this.musicas.find((entry) => entry.id === id)
@@ -212,7 +224,7 @@ export class FakeClube {
       this.zipCalls.push(id)
       return void response
         .writeHead(200, { 'content-type': 'application/zip' })
-        .end(zip(track.versions ?? defaultVersions(track.nome)))
+        .end(zip(track.versions ?? defaultVersions(`${track.artista} - ${track.titulo}`)))
     }
     if (url.pathname === '/mcp') {
       this.seen.push({
@@ -258,6 +270,28 @@ export class FakeClube {
       return json(200, { jsonrpc: '2.0', id: message.id, error: { code: -32601, message: 'no' } })
     }
     response.writeHead(404).end()
+  }
+
+  #summary(track: FakeMusica) {
+    const previas = Object.fromEntries(
+      ['completa', 'instrumental', 'vocal'].map((v) => [
+        v,
+        `${this.origin}/previas/${track.id}/${v}.mp3`,
+      ]),
+    )
+    const minutes = Math.floor(track.duracao_s / 60)
+    const { versions: _versions, ...rest } = track
+    return {
+      ...rest,
+      duracao: `${minutes}:${String(track.duracao_s % 60).padStart(2, '0')}`,
+      capa: null,
+      spotify: null,
+      previas,
+      separacao: 'demucs',
+      usada_em: [],
+      zip_mb: 98,
+      pagina: `${this.origin}/musicas/${track.id}`,
+    }
   }
 
   /** `/api/v1/sons*` and `/api/v1/musicas*`: the sound library, from the contract. */
@@ -353,39 +387,77 @@ export class FakeClube {
     }
     if (rest === '/musicas') {
       const q = (query.get('q') ?? '').toLowerCase()
+      const bpm = query.get('bpm')
+      const filtered =
+        query.get('genero') ||
+        query.get('clima') ||
+        query.get('artista') ||
+        query.get('tom') ||
+        bpm ||
+        query.get('bpm_min') ||
+        query.get('bpm_max') ||
+        q
       const found = this.musicas.filter(
         (track) =>
-          has([track.nome, track.genero, track.clima, track.artista], q) &&
+          has([track.titulo, track.genero, ...track.climas, track.artista], q) &&
           (!query.get('genero') || track.genero === query.get('genero')) &&
-          (!query.get('clima') || track.clima === query.get('clima')) &&
+          (!query.get('clima') || track.climas.includes(query.get('clima')!)) &&
           (!query.get('artista') || track.artista === query.get('artista')) &&
           (!query.get('tom') || track.tom === query.get('tom')) &&
+          (!bpm || Math.abs(track.bpm - Number(bpm)) <= 4) &&
           inRange(track.bpm, query),
       )
-      const limite = Math.min(50, Number(query.get('limite') ?? 20))
+      const limite = Number(query.get('limite') ?? 20)
+      const shown = found.slice(0, limite)
+      const count = (values: string[]) =>
+        Object.fromEntries(
+          [...new Set(values)].map((v) => [v, values.filter((x) => x === v).length]),
+        )
       return json(200, {
         total: found.length,
-        musicas: found.slice(0, limite).map(({ versions: _versions, ...track }) => track),
+        mostrando: shown.length,
+        versoes: 'Cada musica tem tres versoes alinhadas: completa, instrumental e vocal.',
+        musicas: shown.map((track) => this.#summary(track)),
+        // Only for a request without a filter, or one that found nothing.
+        ...(!filtered || found.length === 0
+          ? {
+              filtros_disponiveis: {
+                genero: count(this.musicas.map((track) => track.genero)),
+                clima: count(this.musicas.flatMap((track) => track.climas)),
+                tom: count(this.musicas.map((track) => track.tom)),
+                artista: count(this.musicas.map((track) => track.artista)),
+                bpm: {
+                  min: Math.min(...this.musicas.map((track) => track.bpm)),
+                  max: Math.max(...this.musicas.map((track) => track.bpm)),
+                },
+              },
+            }
+          : {}),
+        ...(found.length === 0 ? { aviso: 'Nenhuma musica encontrada com esses filtros.' } : {}),
       })
     }
-    const detail = /^\/musicas\/([^/]+)(?:\/previa\/(\d))?$/.exec(rest)
+    const detail = /^\/musicas\/([^/]+)$/.exec(rest)
     if (detail) {
       const track = this.musicas.find((entry) => entry.id === detail[1])
-      if (!track) return json(404, { error: 'nao_encontrado' })
-      if (detail[2]) {
-        return void response
-          .writeHead(200, { 'content-type': 'audio/mpeg' })
-          .end(Buffer.from('ID3-preview'))
-      }
-      if (this.#zipsToday >= this.dailyMusic) {
-        return json(429, { error: 'limite', motivo: 'musicas_dia' })
-      }
-      this.#zipsToday += 1
-      const { versions: _versions, ...record } = track
+      if (!track) return json(404, { error: 'musica nao encontrada' })
+      this.detailCalls.push(track.id)
+      // No 429 for the music limit: a 200 without `zip.url` and a sentence that says why.
+      const refusal = this.musicPlanBlocked
+        ? 'Seu plano nao inclui o download das musicas.'
+        : this.#zipsToday >= this.dailyMusic
+          ? `Limite de ${this.dailyMusic} arquivos por dia atingido (${this.#zipsToday} hoje): o link volta amanha.`
+          : undefined
+      if (!refusal) this.#zipsToday += 1
       return json(200, {
-        musica: record,
-        previas: [1, 2, 3].map((n) => `/api/v1/musicas/${track.id}/previa/${n}`),
-        download: { url: `${this.origin}/zips/${track.id}.zip`, expira_em: '6h' },
+        ...this.#summary(track),
+        zip: {
+          conteudo: 'Tres WAV (44.1 kHz, 16 bit, estereo) e um leia-me.',
+          tamanho_mb: 98,
+          ...(refusal ? {} : { url: `${this.origin}/zips/${track.id}.zip`, validade: '6 horas' }),
+        },
+        ...(refusal ? { aviso: refusal } : {}),
+        comandos: { curl: 'curl -O <url>' },
+        depois: 'Rode o comando em outro produto.',
       })
     }
     return json(404, { error: 'nao_encontrado' })
@@ -426,13 +498,12 @@ export type FakeSom = {
 
 export type FakeMusica = {
   id: string
-  nome: string
+  titulo: string
   artista: string
   genero: string
-  clima: string
-  tom?: string
-  modo?: string
-  bpm?: number
+  climas: string[]
+  tom: string
+  bpm: number
   duracao_s: number
   /** The files of the track's zip; three versions by default. */
   versions?: Array<{ name: string; data: Buffer }>
@@ -496,6 +567,31 @@ export function defaultSons(): FakeSom[] {
       familia: 'Synth',
       lufs: -16,
     },
+    // Music tracks that are sounds of the library: one MP3 each, the genre as the category, an estimated key and BPM.
+    {
+      id: '201',
+      nome: 'Quiet Morning',
+      tipo: 'trilha',
+      nota: 'D',
+      modo: 'maior',
+      duracao_s: 150,
+      categoria: 'Ambient',
+      lufs: -18,
+      bpm: 72,
+      fmt: 'mp3',
+    },
+    {
+      id: '202',
+      nome: 'City Pulse',
+      tipo: 'trilha',
+      nota: 'A',
+      modo: 'menor',
+      duracao_s: 128,
+      categoria: 'Electronic',
+      lufs: -14,
+      bpm: 118,
+      fmt: 'mp3',
+    },
   ]
 }
 
@@ -503,20 +599,20 @@ export function defaultMusicas(): FakeMusica[] {
   return [
     {
       id: 'm1',
-      nome: 'Slow Burn',
+      titulo: 'Slow Burn',
       artista: 'Artista Um',
       genero: 'cinematic',
-      clima: 'tenso',
+      climas: ['tenso', 'sombrio'],
       tom: 'Am',
       bpm: 84,
       duracao_s: 120,
     },
     {
       id: 'm2',
-      nome: 'Bright Day',
+      titulo: 'Bright Day',
       artista: 'Artista Dois',
       genero: 'pop',
-      clima: 'alegre',
+      climas: ['alegre'],
       tom: 'C',
       bpm: 120,
       duracao_s: 95,
@@ -524,11 +620,15 @@ export function defaultMusicas(): FakeMusica[] {
   ]
 }
 
+/** The zip of a track: three WAV versions and a read-me, inside one folder named like the track. */
 export function defaultVersions(name: string): Array<{ name: string; data: Buffer }> {
-  return ['Full', 'No drums', 'Stem'].map((version) => ({
-    name: `${name} - ${version}.wav`,
-    data: Buffer.from(`RIFF-${name}-${version}`),
-  }))
+  return [
+    ...['completa', 'instrumental', 'vocal'].map((version) => ({
+      name: `${name}/${name} - ${version}.wav`,
+      data: Buffer.from(`RIFF-${name}-${version}`),
+    })),
+    { name: `${name}/LEIA-ME.txt`, data: Buffer.from('read me') },
+  ]
 }
 
 function inRange(bpm: number | undefined, query: URLSearchParams): boolean {

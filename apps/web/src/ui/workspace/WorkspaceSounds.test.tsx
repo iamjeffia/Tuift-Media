@@ -66,6 +66,21 @@ const TRACKS: SoundItem[] = [
   },
 ]
 
+const TRILHAS: SoundItem[] = [
+  {
+    id: '201',
+    name: 'Quiet morning',
+    shelf: 'sound',
+    type: 'trilha',
+    key: 'D',
+    mode: 'maior',
+    bpm: 72,
+    durationS: 150,
+    category: 'Ambient',
+    estimated: true,
+  },
+]
+
 const FACETS: SoundFacetsResult = {
   ok: true,
   total: 3,
@@ -73,9 +88,9 @@ const FACETS: SoundFacetsResult = {
     { type: 'tonal', category: 'Drones', total: 1 },
     { type: 'tonal', category: 'Loops', total: 1 },
     { type: 'efeito', category: 'Whoosh', total: 1 },
-    { type: 'trilha', category: 'Cinematic', total: 1 },
+    { type: 'trilha', category: 'Ambient', total: 1 },
   ],
-  keys: ['A', 'C'],
+  keys: ['A', 'C', 'D'],
   daily: { used: 12, limit: 200 },
 }
 
@@ -97,8 +112,18 @@ function open(answers: Answers = {}, props: Partial<Parameters<typeof WorkspaceS
       case 'sounds.search': {
         const request = params as Record<string, unknown>
         if (answers.search) return answers.search(request)
-        const items = request['shelf'] === 'music' ? TRACKS : SOUNDS
-        return { ok: true, total: items.length, offset: 0, items, daily: { used: 12, limit: 200 } }
+        const items =
+          request['shelf'] === 'music' ? TRACKS : request['type'] === 'trilha' ? TRILHAS : SOUNDS
+        return {
+          ok: true,
+          total: items.length,
+          offset: 0,
+          items,
+          daily: { used: 12, limit: 200 },
+          ...(request['shelf'] === 'music'
+            ? { available: { category: ['Cinematic'], mood: [], key: ['Am'], artist: [] } }
+            : {}),
+        }
       }
       case 'sounds.preview':
         return answers.preview?.() ?? { ok: true, mime: 'audio/ogg', data: btoa('OggS') }
@@ -191,24 +216,66 @@ describe('the Sounds tab: the library', () => {
     expect(rows[0]!.textContent).toContain('Cello drone')
     expect(rows[0]!.textContent).toContain('A minor · 0:42 · Drones')
     expect(screen.getByText('2 results')).toBeTruthy()
-    expect(screen.getByText('188 of 200 files left today')).toBeTruthy()
+    expect(screen.getByText('188 of 200 files left in 24 h')).toBeTruthy()
   })
 
-  it('switches to effects and music, and says a track key and BPM are estimated', async () => {
+  it('has three tabs, and under Music two sources: soundtracks first, then the Clube music', async () => {
     const { transport } = open()
     await screen.findByRole('list', { name: 'Sounds' })
+    const last = () =>
+      transport.requests.filter((entry) => entry.method === 'sounds.search').at(-1)?.params
     fireEvent.click(screen.getByRole('radio', { name: 'Music' }))
-    const row = await screen.findByText('Slow burn')
-    const detail = row.closest('.sounds-row')!.textContent!
-    expect(detail).toContain('Am · 84 BPM · estimated · 2:08')
-    const music = transport.requests.filter((entry) => entry.method === 'sounds.search').at(-1)
-    expect(music?.params).toMatchObject({ shelf: 'music' })
-    fireEvent.click(screen.getByRole('radio', { name: 'Effects' }))
-    await waitFor(() =>
-      expect(
-        transport.requests.filter((entry) => entry.method === 'sounds.search').at(-1)?.params,
-      ).toMatchObject({ shelf: 'sound', type: 'efeito' }),
+    // Soundtracks are sounds of the library, and their key and BPM are estimates.
+    const trilha = await screen.findByText('Quiet morning')
+    expect(trilha.closest('.sounds-row')!.textContent).toContain(
+      'D major · 72 BPM · estimated · 2:30',
     )
+    expect(last()).toMatchObject({ shelf: 'sound', type: 'trilha' })
+    expect(screen.getByRole('combobox', { name: 'Genre' })).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: 'Key' })).toBeTruthy()
+    expect(screen.getByRole('spinbutton', { name: 'BPM min' })).toBeTruthy()
+    expect(screen.getByRole('spinbutton', { name: 'BPM max' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Clube music' }))
+    const row = await screen.findByText('Slow burn')
+    // A Clube track's key and BPM are catalogued, so nothing says "estimated".
+    const detail = row.closest('.sounds-row')!.textContent!
+    expect(detail).toContain('Am · 84 BPM · 2:08')
+    expect(detail).not.toContain('estimated')
+    expect(last()).toMatchObject({ shelf: 'music' })
+    expect(screen.getByText('188 of 200 tracks left in 24 h')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Effects' }))
+    await waitFor(() => expect(last()).toMatchObject({ shelf: 'sound', type: 'efeito' }))
+    // Effects have no key and no tempo to filter by.
+    expect(screen.queryByRole('combobox', { name: 'Key' })).toBeNull()
+    expect(screen.queryByRole('spinbutton', { name: 'BPM min' })).toBeNull()
+  })
+
+  it('filters soundtracks by a BPM range, after the short pause', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const { transport } = open()
+      await screen.findByRole('list', { name: 'Sounds' })
+      fireEvent.click(screen.getByRole('radio', { name: 'Music' }))
+      await screen.findByText('Quiet morning')
+      fireEvent.change(screen.getByRole('spinbutton', { name: 'BPM min' }), {
+        target: { value: '100' },
+      })
+      fireEvent.change(screen.getByRole('spinbutton', { name: 'BPM max' }), {
+        target: { value: '130' },
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(400)
+      })
+      await waitFor(() =>
+        expect(
+          transport.requests.filter((entry) => entry.method === 'sounds.search').at(-1)?.params,
+        ).toMatchObject({ shelf: 'sound', type: 'trilha', bpmMin: 100, bpmMax: 130 }),
+      )
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('narrows by the words, after a short pause, and by a category and a key from the facets', async () => {
@@ -293,7 +360,7 @@ describe('the Sounds tab: sending a sound to the chat', () => {
     ])
     expect(await screen.findByText('In the chat')).toBeTruthy()
     // The day's count follows what the server said.
-    expect(screen.getByText('187 of 200 files left today')).toBeTruthy()
+    expect(screen.getByText('187 of 200 files left in 24 h')).toBeTruthy()
   })
 
   it('shows what is left and stops sending when the day is used up', async () => {
@@ -306,9 +373,9 @@ describe('the Sounds tab: sending a sound to the chat', () => {
         daily: { used: 200, limit: 200 },
       }),
     })
-    expect(await screen.findByText("Today's files are used up")).toBeTruthy()
-    expect(screen.getByText(/the count starts again tomorrow/)).toBeTruthy()
-    expect(screen.getByText('0 of 200 files left today')).toBeTruthy()
+    expect(await screen.findByText('The file limit is reached')).toBeTruthy()
+    expect(screen.getByText(/files free up gradually over the next 24 hours/)).toBeTruthy()
+    expect(screen.getByText('0 of 200 files left in 24 h')).toBeTruthy()
     const send = screen.getByRole('button', {
       name: 'Send Cello drone to the chat',
     }) as HTMLButtonElement
@@ -318,10 +385,16 @@ describe('the Sounds tab: sending a sound to the chat', () => {
   })
 
   it('learns the day ran out from the server when a send is refused', async () => {
-    open({ use: () => failure('daily-limit', { daily: { used: 200, limit: 200 } }) })
+    open({
+      use: () =>
+        failure('daily-limit', {
+          daily: { used: 200, limit: 200 },
+          message: 'Limite de 60 arquivos por dia atingido (60 hoje): o link volta amanha.',
+        }),
+    })
     await screen.findByRole('list', { name: 'Sounds' })
     fireEvent.click(screen.getByRole('button', { name: 'Send Cello drone to the chat' }))
-    expect((await screen.findAllByText("Today's files are used up")).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('The file limit is reached')).length).toBeGreaterThan(0)
     expect(attach).not.toHaveBeenCalled()
   })
 
@@ -416,17 +489,27 @@ describe('the Sounds tab in Portuguese', () => {
     expect(screen.getByRole('combobox', { name: 'Categoria' })).toBeTruthy()
     expect(screen.getByRole('combobox', { name: 'Tom' })).toBeTruthy()
     expect(screen.getByText('2 resultados')).toBeTruthy()
-    expect(screen.getByText('188 de 200 arquivos restantes hoje')).toBeTruthy()
+    expect(screen.getByText('188 de 200 arquivos restantes em 24 h')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Ouvir a prévia de Cello drone' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Enviar Cello drone ao chat' })).toBeTruthy()
     expect(screen.getAllByText('Enviar').length).toBeGreaterThan(0)
 
     fireEvent.click(screen.getByRole('radio', { name: 'Músicas' }))
+    const trilha = await screen.findByText('Quiet morning')
+    expect(trilha.closest('.sounds-row')!.textContent).toContain(
+      'D maior · 72 BPM · estimado · 2:30',
+    )
+    expect(screen.getByRole('radiogroup', { name: 'Tipo de música' })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: 'Trilhas' })).toBeTruthy()
+    expect(screen.getByPlaceholderText('Buscar por nome ou gênero')).toBeTruthy()
+    expect(screen.getByRole('spinbutton', { name: 'BPM mín.' })).toBeTruthy()
+    expect(screen.getByRole('spinbutton', { name: 'BPM máx.' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('radio', { name: 'Músicas do Clube' }))
     const track = await screen.findByText('Slow burn')
-    expect(track.closest('.sounds-row')!.textContent).toContain('Am · 84 BPM · estimado · 2:08')
+    expect(track.closest('.sounds-row')!.textContent).toContain('Am · 84 BPM · 2:08')
     expect(screen.getByPlaceholderText('Buscar por título, artista ou clima')).toBeTruthy()
     expect(screen.getByRole('combobox', { name: 'Gênero' })).toBeTruthy()
-    expect(screen.getByText('188 de 200 músicas restantes hoje')).toBeTruthy()
+    expect(screen.getByText('188 de 200 músicas restantes em 24 h')).toBeTruthy()
   })
 
   it('words the preview, the send and the day running out', async () => {
@@ -486,8 +569,8 @@ describe('the Sounds tab in Portuguese', () => {
         daily: { used: 200, limit: 200 },
       }),
     })
-    expect(await screen.findByText('Os arquivos de hoje acabaram')).toBeTruthy()
-    expect(screen.getByText(/e a contagem recomeça amanhã/)).toBeTruthy()
+    expect(await screen.findByText('O limite de arquivos foi atingido')).toBeTruthy()
+    expect(screen.getByText(/e os arquivos voltam aos poucos nas próximas 24 horas/)).toBeTruthy()
   })
 
   it('words the empty and failed lists, the minute limit and the loading line', async () => {

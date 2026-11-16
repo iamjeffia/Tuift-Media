@@ -20,7 +20,7 @@ import type {
 const sound = (
   id: string,
   name: string,
-  type: 'tonal' | 'efeito',
+  type: 'tonal' | 'efeito' | 'trilha',
   durationS: number,
   extra: Partial<SoundItem> = {},
 ): SoundItem => ({ id, name, shelf: 'sound', type, durationS, ...extra })
@@ -59,6 +59,42 @@ const SOUNDS: SoundItem[] = [
     bpm: 110,
   }),
   sound('t8', 'Glass bells', 'tonal', 12, { key: 'G', mode: 'maior', category: 'Melodias' }),
+  // Soundtracks: music tracks that are sounds of the library; their key and BPM are estimates.
+  sound('r1', 'Quiet morning', 'trilha', 150, {
+    key: 'D',
+    mode: 'maior',
+    category: 'Ambiente',
+    bpm: 72,
+    estimated: true,
+  }),
+  sound('r2', 'City pulse', 'trilha', 128, {
+    key: 'A',
+    mode: 'menor',
+    category: 'Eletrônica',
+    bpm: 118,
+    estimated: true,
+  }),
+  sound('r3', 'Warm light', 'trilha', 176, {
+    key: 'C',
+    mode: 'maior',
+    category: 'Cinematográfica',
+    bpm: 84,
+    estimated: true,
+  }),
+  sound('r4', 'Slow tide', 'trilha', 201, {
+    key: 'E',
+    mode: 'menor',
+    category: 'Ambiente',
+    bpm: 64,
+    estimated: true,
+  }),
+  sound('r5', 'Open road', 'trilha', 143, {
+    key: 'G',
+    mode: 'maior',
+    category: 'Pop',
+    bpm: 112,
+    estimated: true,
+  }),
   sound('e1', 'Whoosh, fast', 'efeito', 1.2, { category: 'Whoosh' }),
   sound('e2', 'Soft click', 'efeito', 0.2, { category: 'Interface' }),
   sound('e3', 'Card slide in', 'efeito', 0.6, { category: 'Interface' }),
@@ -142,6 +178,9 @@ export class DemoSounds {
     const query = (params.query ?? '').toLowerCase()
     const pool =
       params.shelf === 'music' ? MUSIC : SOUNDS.filter((item) => item.type === params.type)
+    const filtered = Boolean(
+      query || params.category || params.key || params.bpmMin || params.bpmMax,
+    )
     const found =
       this.#mode === 'empty'
         ? []
@@ -153,7 +192,9 @@ export class DemoSounds {
                   .toLowerCase()
                   .includes(query)) &&
               (!params.category || item.category === params.category) &&
-              (!params.key || item.key === params.key),
+              (!params.key || item.key === params.key) &&
+              (params.bpmMin === undefined || (item.bpm ?? 0) >= params.bpmMin) &&
+              (params.bpmMax === undefined || (item.bpm ?? 1e9) <= params.bpmMax),
           )
     const offset = params.offset ?? 0
     return {
@@ -162,6 +203,17 @@ export class DemoSounds {
       offset,
       items: found.slice(offset, offset + (params.limit ?? 30)),
       daily: this.#daily(params.shelf),
+      // The Clube music search says what it can be filtered by, with an unfiltered search.
+      ...(params.shelf === 'music' && !filtered
+        ? {
+            available: {
+              category: [...new Set(MUSIC.map((item) => item.category ?? ''))],
+              mood: [],
+              key: [...new Set(MUSIC.map((item) => item.key ?? ''))],
+              artist: [...new Set(MUSIC.map((item) => item.artist ?? ''))],
+            },
+          }
+        : {}),
     }
   }
 
@@ -177,7 +229,7 @@ export class DemoSounds {
     }
     return {
       ok: true,
-      total: SOUNDS.length + MUSIC.length,
+      total: SOUNDS.length,
       categories: [
         ...count(
           SOUNDS.filter((item) => item.type === 'tonal'),
@@ -187,7 +239,10 @@ export class DemoSounds {
           SOUNDS.filter((item) => item.type === 'efeito'),
           'efeito',
         ),
-        ...count(MUSIC, 'trilha'),
+        ...count(
+          SOUNDS.filter((item) => item.type === 'trilha'),
+          'trilha',
+        ),
       ],
       keys: ['A', 'C', 'D', 'E', 'G'],
       daily: this.#daily('sound'),
@@ -206,16 +261,17 @@ export class DemoSounds {
     if (!item) return { ok: false, reason: 'not-found' }
     this.#used[shelf] += 1
     const folder = ['C:', 'Users', 'demo', 'tuift', 'audio', 'clube'].join('\\')
-    const file = `${folder}\\${item.name}.${shelf === 'music' ? 'wav' : 'flac'}`
+    const ext = shelf === 'music' ? 'wav' : item.type === 'trilha' ? 'mp3' : 'flac'
+    const file = `${folder}\\${item.name}.${ext}`
     return {
       ok: true,
       sound: {
         path: file,
-        name: `${item.name}.${shelf === 'music' ? 'wav' : 'flac'}`,
-        format: shelf === 'music' ? 'wav' : 'flac',
+        name: `${item.name}.${ext}`,
+        format: ext,
         ...(item.durationS === undefined ? {} : { durationS: item.durationS }),
         reused: false,
-        files: [{ version: 'Full', path: file, format: shelf === 'music' ? 'wav' : 'flac' }],
+        files: [{ version: 'Full', path: file, format: ext }],
       },
       daily: this.#daily(shelf),
     }

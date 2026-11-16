@@ -105,7 +105,7 @@ describe('searching the library', () => {
     // Only a sound that has a measure can be inside a range.
     expect(bpm.items.map((item) => item.id)).toEqual(['102'])
     const page = await library.search({ shelf: 'sound', limit: 2, offset: 3 })
-    expect(page).toMatchObject({ ok: true, total: 5, offset: 3 })
+    expect(page).toMatchObject({ ok: true, total: 7, offset: 3 })
     if (!page.ok) throw new Error('unreachable')
     expect(page.items.map((item) => item.id)).toEqual(['104', '105'])
   })
@@ -119,6 +119,7 @@ describe('searching the library', () => {
       key: 'Am',
     })
     if (!found.ok) throw new Error('unreachable')
+    // A catalogued track: its key and BPM are facts, so nothing marks them as estimated.
     expect(found.items).toEqual([
       {
         id: 'm1',
@@ -128,14 +129,56 @@ describe('searching the library', () => {
         durationS: 120,
         category: 'cinematic',
         artist: 'Artista Um',
-        mood: 'tenso',
+        mood: 'tenso, sombrio',
         bpm: 84,
       },
     ])
+    expect(found.available).toBeUndefined()
     const fast = await library.search({ shelf: 'music', bpmMin: 100 })
     if (!fast.ok) throw new Error('unreachable')
     expect(fast.items.map((item) => item.id)).toEqual(['m2'])
     expect(fast.daily).toEqual({ used: 0, limit: 60 })
+  })
+
+  it('tells what a music search can be filtered by when it has no filter, or finds nothing', async () => {
+    const { library } = await setup()
+    const open = await library.search({ shelf: 'music' })
+    if (!open.ok) throw new Error('unreachable')
+    expect(open.available).toEqual({
+      category: ['cinematic', 'pop'],
+      mood: ['alegre', 'sombrio', 'tenso'],
+      key: ['Am', 'C'],
+      artist: ['Artista Dois', 'Artista Um'],
+    })
+    const none = await library.search({ shelf: 'music', category: 'nothing' })
+    if (!none.ok) throw new Error('unreachable')
+    expect(none.items).toEqual([])
+    expect(none.notice).toMatch(/Nenhuma/)
+    expect(none.available?.category).toContain('pop')
+  })
+
+  it('reaches the soundtracks: a type of sound whose key and BPM are estimates', async () => {
+    const { library } = await setup()
+    const found = await library.search({ shelf: 'sound', type: 'trilha', bpmMin: 100 })
+    if (!found.ok) throw new Error('unreachable')
+    expect(found.items).toEqual([
+      {
+        id: '202',
+        name: 'City Pulse',
+        shelf: 'sound',
+        type: 'trilha',
+        key: 'A',
+        mode: 'menor',
+        durationS: 128,
+        category: 'Electronic',
+        lufs: -14,
+        bpm: 118,
+        estimated: true,
+      },
+    ])
+    const tonal = await library.search({ shelf: 'sound', type: 'tonal' })
+    if (!tonal.ok) throw new Error('unreachable')
+    expect(tonal.items.some((item) => item.estimated)).toBe(false)
   })
 
   it('reads the facets: categories per type and the notes', async () => {
@@ -143,11 +186,12 @@ describe('searching the library', () => {
     const facets = await library.facets()
     expect(facets).toMatchObject({
       ok: true,
-      total: 5,
-      keys: ['A', 'C'],
+      total: 7,
+      keys: ['A', 'C', 'D'],
     })
     if (!facets.ok) throw new Error('unreachable')
     expect(facets.categories).toContainEqual({ type: 'efeito', category: 'Whoosh', total: 1 })
+    expect(facets.categories).toContainEqual({ type: 'trilha', category: 'Ambient', total: 1 })
   })
 
   it('fetches a preview through the server and does not count it in the day', async () => {
@@ -158,9 +202,17 @@ describe('searching the library', () => {
       mime: 'audio/ogg',
       data: Buffer.from('OggS-preview').toString('base64'),
     })
+    // A track's preview is the open MP3 its search showed: no token, no call to its detail.
+    expect(await library.preview('music', 'm1')).toEqual({ ok: false, reason: 'not-found' })
+    await library.search({ shelf: 'music' })
     const music = await library.preview('music', 'm1')
-    expect(music).toMatchObject({ ok: true, mime: 'audio/mpeg' })
-    expect(fake.previewCalls).toEqual(['101'])
+    expect(music).toEqual({
+      ok: true,
+      mime: 'audio/mpeg',
+      data: Buffer.from('ID3-preview').toString('base64'),
+    })
+    expect(fake.previewCalls).toEqual(['101', 'm1/completa'])
+    expect(fake.detailCalls).toEqual([])
     expect(library.daily('sound').used).toBe(0)
     expect((await library.preview('sound', 'nope')).ok).toBe(false)
   })
@@ -295,11 +347,23 @@ describe('using a sound', () => {
     expect((await library.use(project, 'sound', '101')).ok).toBe(true)
   })
 
-  it('accepts a file that comes without a checksum', async () => {
+  it('refuses a file that comes without a checksum', async () => {
     const { library, project, fake } = await setup()
     await search(library)
     fake.fileHash = null
-    expect((await library.use(project, 'sound', '101')).ok).toBe(true)
+    expect(await library.use(project, 'sound', '101')).toEqual({ ok: false, reason: 'damaged' })
+    expect(readdirSync(folderOf(project))).toEqual([])
+  })
+
+  it('fetches a soundtrack like any sound: one MP3', async () => {
+    const { library, project } = await setup()
+    await library.search({ shelf: 'sound', type: 'trilha' })
+    const used = await library.use(project, 'sound', '201')
+    expect(used).toMatchObject({
+      ok: true,
+      sound: { name: 'Quiet Morning.mp3', format: 'mp3', durationS: 150, reused: false },
+      daily: { used: 1, limit: 200 },
+    })
   })
 
   it('keeps two sounds with one name apart, and never writes outside the folder', async () => {
@@ -349,7 +413,7 @@ describe('using a sound', () => {
       sound: { reused: true },
     })
     expect((await library.search({ shelf: 'sound' })).ok).toBe(true)
-    // The next day the count starts again.
+    // The window rolls: a day later the files are free again, with no promise of a midnight.
     clock.now += 25 * 3_600_000
     expect(library.daily('sound')).toEqual({ used: 0, limit: 200 })
     fake.dailySounds = 200
@@ -393,26 +457,29 @@ describe('using a sound', () => {
 })
 
 describe('using a track', () => {
-  it('unpacks the zip into a folder named after the track, and finds it again for free', async () => {
+  const FOLDER = 'Artista Um - Slow Burn'
+
+  it('unpacks the zip into a folder named after artist and title, and finds it again for free', async () => {
     const { library, project, fake } = await setup()
     await library.search({ shelf: 'music' })
     const used = await library.use(project, 'music', 'm1')
     expect(used.ok).toBe(true)
     if (!used.ok) throw new Error('unreachable')
-    const folder = path.join(folderOf(project), 'music', 'Slow Burn')
+    const folder = path.join(folderOf(project), 'music', FOLDER)
     expect(used.sound.path).toBe(folder)
     expect(used.sound.files.map((file) => file.version).sort()).toEqual([
-      'Slow Burn - Full',
-      'Slow Burn - No drums',
-      'Slow Burn - Stem',
+      `${FOLDER} - completa`,
+      `${FOLDER} - instrumental`,
+      `${FOLDER} - vocal`,
     ])
+    // The three WAV versions only: the read-me inside the zip is not an audio file.
     expect(readdirSync(folder).sort()).toEqual([
-      'Slow Burn - Full.wav',
-      'Slow Burn - No drums.wav',
-      'Slow Burn - Stem.wav',
+      `${FOLDER} - completa.wav`,
+      `${FOLDER} - instrumental.wav`,
+      `${FOLDER} - vocal.wav`,
     ])
-    expect(readFileSync(path.join(folder, 'Slow Burn - No drums.wav'), 'utf8')).toBe(
-      'RIFF-Slow Burn-No drums',
+    expect(readFileSync(path.join(folder, `${FOLDER} - instrumental.wav`), 'utf8')).toBe(
+      `RIFF-${FOLDER}-instrumental`,
     )
     expect(used.daily).toEqual({ used: 1, limit: 60 })
     // The zip's temporary file is gone.
@@ -423,8 +490,18 @@ describe('using a track', () => {
       sound: { reused: true },
     })
     expect(fake.zipCalls).toEqual(['m1'])
+    expect(fake.detailCalls).toEqual(['m1'])
     // Sounds and tracks do not share a count.
     expect(library.daily('sound').used).toBe(0)
+  })
+
+  it('needs no earlier search: the track names itself from its own detail', async () => {
+    const { library, project } = await setup()
+    expect(await library.use(project, 'music', 'm2')).toMatchObject({
+      ok: true,
+      sound: { name: 'Bright Day' },
+    })
+    expect(await library.use(project, 'music', 'nope')).toEqual({ ok: false, reason: 'not-found' })
   })
 
   it('keeps only the file name of an entry, never a path from the archive', async () => {
@@ -437,22 +514,38 @@ describe('using a track', () => {
     await library.search({ shelf: 'music' })
     const used = await library.use(project, 'music', 'm1')
     expect(used.ok).toBe(true)
-    expect(readdirSync(path.join(folderOf(project), 'music', 'Slow Burn')).sort()).toEqual([
+    expect(readdirSync(path.join(folderOf(project), 'music', FOLDER)).sort()).toEqual([
       'escape.wav',
       'ok.wav',
     ])
     expect(existsSync(path.join(project, 'escape.wav'))).toBe(false)
   })
 
-  it('has its own daily limit, and a free account gets no track', async () => {
+  it('reads a 200 without a zip link as "cannot download now", and shows the Clube sentence', async () => {
     const { library, project, fake } = await setup()
     fake.dailyMusic = 0
-    await library.search({ shelf: 'music' })
-    expect(await library.use(project, 'music', 'm1')).toMatchObject({
+    const limited = await library.use(project, 'music', 'm1')
+    expect(limited).toMatchObject({
       ok: false,
       reason: 'daily-limit',
+      message: 'Limite de 0 arquivos por dia atingido (0 hoje): o link volta amanha.',
+      daily: { used: 60, limit: 60 },
     })
     expect(readdirSync(folderOf(project))).toEqual([])
+    // The Clube's word is remembered as a wait: the next track does not even ask.
+    const asked = fake.detailCalls.length
+    expect(await library.use(project, 'music', 'm2')).toMatchObject({ reason: 'daily-limit' })
+    expect(fake.detailCalls).toHaveLength(asked)
+  })
+
+  it('says a plan without the download as no subscription, with the Clube sentence', async () => {
+    const { library, project, fake } = await setup()
+    fake.musicPlanBlocked = true
+    expect(await library.use(project, 'music', 'm1')).toEqual({
+      ok: false,
+      reason: 'no-subscription',
+      message: 'Seu plano nao inclui o download das musicas.',
+    })
   })
 
   it('refuses a damaged archive without leaving anything', async () => {

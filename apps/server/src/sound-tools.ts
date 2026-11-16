@@ -20,7 +20,7 @@ const FRAME =
 export const SOUND_TOOLS = [
   {
     name: 'sound_search',
-    description: `Search the sound library for tonal sounds (musical, recorded in a key: drones, loops, melodies, hits, risers) and sound effects. ${FRAME} Results carry an id for sound_use, the key and mode of a tonal sound, duration and loudness. Searching is free; the filters narrow the list, and a BPM range returns only sounds that have a measure.`,
+    description: `Search the sound library for tonal sounds (musical, recorded in a key: drones, loops, melodies, hits, risers), sound effects, and soundtracks (type trilha: music tracks of the library, one MP3 each, with the genre as the category). ${FRAME} Results carry an id for sound_use, the key and mode, duration and loudness. For a bed of music under narration that you can pick by genre, key and tempo, prefer a trilha here; for a full song with separate instrumental and vocal versions, use music_search. A trilha's key, mode and BPM are the Clube's estimates (results say so). Searching is free; the filters narrow the list, and a BPM range returns only sounds that have a measure.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -30,8 +30,9 @@ export const SOUND_TOOLS = [
         },
         type: {
           type: 'string',
-          enum: ['tonal', 'efeito', 'ir'],
-          description: 'tonal, efeito (sound effect) or ir (impulse response).',
+          enum: ['tonal', 'efeito', 'ir', 'trilha'],
+          description:
+            'tonal, efeito (sound effect), ir (impulse response) or trilha (a music track, one MP3).',
         },
         category: { type: 'string' },
         key: { type: 'string', description: 'A note as the results show it, for example A.' },
@@ -47,7 +48,7 @@ export const SOUND_TOOLS = [
   },
   {
     name: 'sound_use',
-    description: `Fetch one sound from a sound_search result into this chat's project (${LIBRARY_FOLDER}/) and answer its absolute path, format, duration and loudness. A sound already there is reused without spending the day's files (about 200 a day per account), so use only what you have chosen. ${FRAME}`,
+    description: `Fetch one sound from a sound_search result into this chat's project (${LIBRARY_FOLDER}/) and answer its absolute path, format, duration and loudness. A sound already there is reused without spending files (about 200 per rolling 24 hours per account), so use only what you have chosen. It works for every type, a trilha included (one MP3). ${FRAME}`,
     inputSchema: {
       type: 'object',
       properties: { id: { type: 'string', description: 'The id from a sound_search result.' } },
@@ -63,7 +64,7 @@ export const SOUND_TOOLS = [
   },
   {
     name: 'music_search',
-    description: `Search the library's music tracks. ${FRAME} A track's key and BPM are estimates, so confirm them before you build on them. Results carry an id for music_use.`,
+    description: `Search the Clube's music tracks: full songs, each with three versions aligned in time (completa, instrumental without voice, vocal only). ${FRAME} A track's key and BPM are catalogued facts. Results carry an id for music_use. For a plain music bed picked by genre, key and tempo, a trilha from sound_search may fit better.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -71,7 +72,7 @@ export const SOUND_TOOLS = [
         genre: { type: 'string' },
         mood: { type: 'string' },
         artist: { type: 'string' },
-        key: { type: 'string', description: 'An estimated key as the results show it.' },
+        key: { type: 'string', description: 'A key as the results show it, for example Am.' },
         bpm_min: { type: 'number' },
         bpm_max: { type: 'number' },
         limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
@@ -82,7 +83,7 @@ export const SOUND_TOOLS = [
   },
   {
     name: 'music_use',
-    description: `Fetch one track from a music_search result into this chat's project (${LIBRARY_FOLDER}/music/): its WAV versions, in a folder named after the track. Answers the folder and each file's absolute path. A track already there is reused without spending the day's files (about 60 a day per account). ${FRAME}`,
+    description: `Fetch one track from a music_search result into this chat's project (${LIBRARY_FOLDER}/music/): its WAV versions, in a folder named after the track. Answers the folder and each file's absolute path. A track already there is reused without spending files (about 60 per day per account). If the Clube says the track cannot be downloaded now, the answer carries its sentence. ${FRAME}`,
     inputSchema: {
       type: 'object',
       properties: { id: { type: 'string', description: 'The id from a music_search result.' } },
@@ -105,7 +106,7 @@ export const isSoundTool = (name: unknown): name is SoundToolName =>
 
 const SearchArgs = z.strictObject({
   query: z.string().max(200).optional(),
-  type: z.enum(['tonal', 'efeito', 'ir']).optional(),
+  type: z.enum(['tonal', 'efeito', 'ir', 'trilha']).optional(),
   category: z.string().max(100).optional(),
   key: z.string().max(20).optional(),
   mode: z.string().max(40).optional(),
@@ -142,7 +143,7 @@ function failureText(failure: SoundFailure): string {
     case 'not-linked':
       return "No Clube do Motion account is linked to TUIFT Code, so the sound library is not available. Tell the user to link the account in Settings > Clube do Motion, or to point you to a sounds folder of their own. Meanwhile use the project's own sounds or the fallbacks of the soundtrack skill."
     case 'no-subscription':
-      return `The linked Clube do Motion account has no subscription, so the sound library is not available. Tell the user: the plans are at ${CLUBE_PLANS_URL}. Meanwhile use the project's own sounds, a folder of their own, or the fallbacks of the soundtrack skill.`
+      return `${failure.message ? `The Clube says: ${failure.message} ` : ''}The linked Clube do Motion account has no subscription that covers this, so it is not available. Tell the user: the plans are at ${CLUBE_PLANS_URL}. Meanwhile use the project's own sounds, a folder of their own, or the fallbacks of the soundtrack skill.`
     case 'rate-limit':
       return `The library's per-minute limit for this account was reached. ${
         failure.retryAfterS
@@ -150,7 +151,7 @@ function failureText(failure: SoundFailure): string {
           : 'Try again in a minute.'
       }`
     case 'daily-limit':
-      return `The library's files for today are used up (the Clube allows about ${failure.daily?.limit ?? 200} a day per account). Searching and previews still work. Tell the user, and go on with the sounds already in the project (${LIBRARY_FOLDER}/) or their own folder; the count starts again tomorrow.`
+      return `${failure.message ? `The Clube says: ${failure.message} ` : ''}The library's file limit is reached (the Clube allows about ${failure.daily?.limit ?? 200} per rolling 24 hours per account, so files free up gradually, not at midnight). Searching and previews still work. Tell the user, and go on with the sounds already in the project (${LIBRARY_FOLDER}/) or their own folder.`
     case 'not-found':
       return 'The library does not know that id. Search again and use an id from the new results.'
     case 'damaged':
@@ -179,6 +180,7 @@ function resultItem(item: SoundItem) {
     ...(item.mood ? { mood: item.mood } : {}),
     ...(item.lufs === undefined ? {} : { lufs: item.lufs }),
     ...(item.bpm === undefined ? {} : { bpm: item.bpm }),
+    ...(item.estimated ? { estimated_key_and_bpm: true } : {}),
   }
 }
 
@@ -209,7 +211,7 @@ export async function runSoundTool(
       const result = await library.search({
         shelf: 'sound',
         ...(args.data.query ? { query: args.data.query } : {}),
-        ...(args.data.type ? { type: args.data.type as 'tonal' | 'efeito' } : {}),
+        ...(args.data.type ? { type: args.data.type as 'tonal' | 'efeito' | 'trilha' } : {}),
         ...(args.data.category ? { category: args.data.category } : {}),
         ...(args.data.key ? { key: args.data.key } : {}),
         ...(args.data.mode ? { mode: args.data.mode } : {}),
@@ -223,7 +225,10 @@ export async function runSoundTool(
         total: result.total,
         offset: result.offset,
         results: result.items.map(resultItem),
-        files_left_today_estimate: Math.max(0, result.daily.limit - result.daily.used),
+        ...(result.items.some((item) => item.estimated)
+          ? { note: 'Key, mode and BPM of a trilha are estimates.' }
+          : {}),
+        files_left_in_24h_estimate: Math.max(0, result.daily.limit - result.daily.used),
       })
     }
     case 'music_search': {
@@ -244,8 +249,8 @@ export async function runSoundTool(
       return answer({
         total: result.total,
         results: result.items.map(resultItem),
-        note: 'Key and BPM are estimates.',
-        tracks_left_today_estimate: Math.max(0, result.daily.limit - result.daily.used),
+        ...(result.notice ? { notice: result.notice } : {}),
+        tracks_left_in_24h_estimate: Math.max(0, result.daily.limit - result.daily.used),
       })
     }
     case 'sound_use':
@@ -267,7 +272,7 @@ export async function runSoundTool(
         ...(sound.durationS === undefined ? {} : { duration_s: sound.durationS }),
         ...(sound.lufs === undefined ? {} : { lufs: sound.lufs }),
         reused: sound.reused,
-        files_left_today_estimate: Math.max(0, result.daily.limit - result.daily.used),
+        files_left_in_24h_estimate: Math.max(0, result.daily.limit - result.daily.used),
       })
     }
   }

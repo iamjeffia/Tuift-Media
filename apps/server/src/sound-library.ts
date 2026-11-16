@@ -6,6 +6,7 @@ import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { z } from 'zod'
 import type {
+  MusicAvailable,
   SoundDaily,
   SoundFacetsResult,
   SoundFailure,
@@ -75,19 +76,18 @@ const SomSchema = z.looseObject({
   bpm: number,
 })
 
+/** A Clube music track as `/musicas` and `/musicas/:id` give it (the detail answers the same summary, flat). */
 const MusicaSchema = z.looseObject({
   id: z.preprocess((value) => (value == null ? undefined : String(value)), z.string().min(1)),
-  nome: text,
   titulo: text,
   artista: text,
   genero: text,
-  clima: text,
-  tom: text,
-  nota: text,
-  modo: text,
+  climas: z.array(z.string()).catch([]),
   bpm: number,
+  tom: text,
   duracao_s: number,
-  duracao: number,
+  /** The MP3 previews, open to anyone, keyed by version. */
+  previas: z.record(z.string(), z.string()).catch({}),
 })
 
 const total = z.preprocess(
@@ -108,22 +108,22 @@ function fromSom(raw: z.infer<typeof SomSchema>): SoundItem {
     ...(raw.categoria ? { category: raw.categoria } : {}),
     ...(raw.lufs !== undefined ? { lufs: raw.lufs } : {}),
     ...(raw.bpm !== undefined ? { bpm: raw.bpm } : {}),
+    // The key and BPM of a `trilha` are the Clube's estimates.
+    ...(raw.tipo === 'trilha' ? { estimated: true } : {}),
   }
 }
 
 function fromMusica(raw: z.infer<typeof MusicaSchema>): SoundItem {
-  const key = raw.tom ?? raw.nota
-  const duration = raw.duracao_s ?? raw.duracao
   return {
     id: raw.id,
-    name: raw.nome ?? raw.titulo ?? raw.id,
+    name: raw.titulo ?? raw.id,
     shelf: 'music',
-    ...(key ? { key } : {}),
-    ...(raw.modo ? { mode: raw.modo } : {}),
-    ...(duration !== undefined ? { durationS: duration } : {}),
+    // A track's key and BPM are catalogued facts, not estimates.
+    ...(raw.tom ? { key: raw.tom } : {}),
+    ...(raw.duracao_s !== undefined ? { durationS: raw.duracao_s } : {}),
     ...(raw.genero ? { category: raw.genero } : {}),
     ...(raw.artista ? { artist: raw.artista } : {}),
-    ...(raw.clima ? { mood: raw.clima } : {}),
+    ...(raw.climas.length > 0 ? { mood: raw.climas.join(', ') } : {}),
     ...(raw.bpm !== undefined ? { bpm: raw.bpm } : {}),
   }
 }
@@ -174,14 +174,17 @@ const ManifestSchema = z.object({
 })
 type Manifest = z.infer<typeof ManifestSchema>
 
+/** The files fetched in the last 24 hours (the Clube's window rolls, it is not a calendar day). */
 const QuotaSchema = z.object({
-  day: z.string(),
-  sound: z.number().default(0),
-  music: z.number().default(0),
-  /** When each shelf's day ran out and the Clube said to wait (ms since the epoch). */
+  sound: z.array(z.number()).default([]),
+  music: z.array(z.number()).default([]),
+  /** Until when the Clube said to wait, per shelf (ms since the epoch). */
   blocked: z.object({ sound: z.number().optional(), music: z.number().optional() }).default({}),
 })
 type Quota = z.infer<typeof QuotaSchema>
+const WINDOW_MS = 24 * 3_600_000
+/** Without a `Retry-After`, a refused day is asked about again after this long. */
+const BLOCK_MS = 3_600_000
 
 // -------------------------------------------------------------------- the class
 
@@ -204,7 +207,7 @@ export type SoundLibraryOptions = {
 
 const fail = (
   reason: SoundFailureReason,
-  extra: Partial<Pick<SoundFailure, 'retryAfterS' | 'daily'>> = {},
+  extra: Partial<Pick<SoundFailure, 'retryAfterS' | 'daily' | 'message'>> = {},
 ): SoundFailure => ({ ok: false, reason, ...extra })
 
 const isFailure = (value: unknown): value is SoundFailure =>
@@ -236,6 +239,8 @@ export class SoundLibrary {
   readonly #log: (line: string) => void
   /** Records seen in searches, by `shelf:id`: a use needs the real name of what it fetches. */
   readonly #records = new Map<string, SoundItem>()
+  /** The open MP3 preview (the full mix) of each music track a search showed. */
+  readonly #previews = new Map<string, string>()
   #facets: { at: number; value: Extract<SoundFacetsResult, { ok: true }> } | undefined
   /** Uses run one at a time: they share a folder and a manifest. */
   #queue: Promise<unknown> = Promise.resolve()
@@ -286,23 +291,23 @@ export class SoundLibrary {
 
   // --------------------------------------------------------------------- daily
 
-  /** What the day has left, as this app counts it. */
+  /** What the last 24 hours have left, as this app counts it. */
   daily(shelf: SoundShelf): SoundDaily {
-    return { used: this.#quota()[shelf], limit: DAILY_LIMITS[shelf] }
-  }
-
-  #today(): string {
-    const date = new Date(this.#now())
-    const pad = (value: number) => String(value).padStart(2, '0')
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+    const limit = DAILY_LIMITS[shelf]
+    // A day the Clube refused is full whatever this app counted (other devices share the account).
+    if (this.#blockedFor(shelf) !== undefined) return { used: limit, limit }
+    return { used: this.#quota()[shelf].length, limit }
   }
 
   #quota(): Quota {
     const parsed = QuotaSchema.safeParse(this.#store.soundQuota())
-    const day = this.#today()
-    return parsed.success && parsed.data.day === day
-      ? parsed.data
-      : { day, sound: 0, music: 0, blocked: {} }
+    const quota = parsed.success ? parsed.data : { sound: [], music: [], blocked: {} }
+    const since = this.#now() - WINDOW_MS
+    return {
+      sound: quota.sound.filter((at) => at > since),
+      music: quota.music.filter((at) => at > since),
+      blocked: quota.blocked,
+    }
   }
 
   #setQuota(change: (quota: Quota) => void): void {
@@ -316,6 +321,14 @@ export class SoundLibrary {
     return until !== undefined && until > this.#now()
       ? Math.ceil((until - this.#now()) / 1_000)
       : undefined
+  }
+
+  /** The Clube refused the rest of the window: ask again after `seconds`. */
+  #block(shelf: SoundShelf, seconds: number | undefined): void {
+    const until = this.#now() + (seconds ?? BLOCK_MS / 1_000) * 1_000
+    this.#setQuota((quota) => {
+      quota.blocked[shelf] = until
+    })
   }
 
   // ---------------------------------------------------------------- the Clube
@@ -341,11 +354,7 @@ export class SoundLibrary {
       const retryAfterS = Number.isFinite(retry) && retry > 0 ? Math.ceil(retry) : undefined
       const reason = String(body['motivo'] ?? '')
       if (body['error'] === 'limite' && /_dia$|^dia/.test(reason)) {
-        const until = this.#now() + (retryAfterS ?? secondsToMidnight(this.#now())) * 1_000
-        this.#setQuota((quota) => {
-          quota.blocked[shelf] = until
-          quota[shelf] = Math.max(quota[shelf], DAILY_LIMITS[shelf])
-        })
+        this.#block(shelf, retryAfterS)
         return fail('daily-limit', {
           ...(retryAfterS === undefined ? {} : { retryAfterS }),
           daily: this.daily(shelf),
@@ -377,7 +386,6 @@ export class SoundLibrary {
       add('tom', params.key)
       add('bpm_min', params.bpmMin)
       add('bpm_max', params.bpmMax)
-      add('inicio', params.offset)
     } else {
       query.set('detalhe', '1')
       add('tipo', params.type)
@@ -392,10 +400,7 @@ export class SoundLibrary {
     if (isFailure(asked)) return asked
     const body = await readJson(asked.response)
     if (body === undefined) return fail('unreachable')
-    const raw = listOf(
-      body,
-      music ? ['musicas', 'resultados', 'itens', 'items'] : ['sons', 'itens', 'items'],
-    )
+    const raw = listOf(body, music ? ['musicas'] : ['sons'])
     const items: SoundItem[] = []
     for (const entry of raw) {
       const parsed = music ? MusicaSchema.safeParse(entry) : SomSchema.safeParse(entry)
@@ -409,12 +414,24 @@ export class SoundLibrary {
     }
     for (const item of items) this.#remember(item)
     const meta = objectOf(body)
+    if (music) {
+      for (const entry of raw) {
+        const parsed = MusicaSchema.safeParse(entry)
+        // The previews are open links; the full mix is the one to hear.
+        const preview = parsed.success ? parsed.data.previas['completa'] : undefined
+        if (parsed.success && preview) this.#previews.set(parsed.data.id, preview)
+      }
+    }
+    const available = music ? availableOf(meta['filtros_disponiveis']) : undefined
+    const notice = text.parse(meta['aviso'])
     return {
       ok: true,
       total: total.parse(meta['total']) ?? items.length,
       offset: total.parse(meta['inicio']) ?? params.offset ?? 0,
       items,
       daily: this.daily(params.shelf),
+      ...(available ? { available } : {}),
+      ...(notice ? { notice } : {}),
     }
   }
 
@@ -465,9 +482,8 @@ export class SoundLibrary {
         data: bytes.toString('base64'),
       }
     }
-    const detail = await this.#musicDetail(id)
-    if (isFailure(detail)) return detail
-    const link = detail.previews[0]
+    // A track's previews come with the search; asking its detail for one would be a second call.
+    const link = this.#previews.get(id)
     if (!link) return fail('not-found')
     const bytes = await this.#fetchLink(link, MAX_PREVIEW_BYTES)
     if (!bytes) return fail('unreachable')
@@ -476,21 +492,26 @@ export class SoundLibrary {
 
   // ----------------------------------------------------------------- the music
 
+  /**
+   * `/musicas/:id`: the same summary as the search, flat, and the zip. A `zip.url` means the account
+   * may download now; without it the answer is still a 200 and `aviso` says why (a limit starting
+   * with `Limite`, or a plan that does not include it).
+   */
   async #musicDetail(
     id: string,
-  ): Promise<{ record: SoundItem; previews: string[]; zip: string | undefined } | SoundFailure> {
+  ): Promise<
+    { record: SoundItem; zip: string | undefined; notice: string | undefined } | SoundFailure
+  > {
     const asked = await this.#ask('music', `/musicas/${encodeURIComponent(id)}`)
     if (isFailure(asked)) return asked
     const body = objectOf(await readJson(asked.response))
-    const inner = objectOf(body['musica'] ?? body['record'] ?? body)
-    const parsed = MusicaSchema.safeParse({ id, ...inner })
+    const parsed = MusicaSchema.safeParse({ id, ...body })
     if (!parsed.success) return fail('unreachable')
-    const previews = listOf(body, ['previas', 'previews']).flatMap((entry) => {
-      const link = linkOf(entry)
-      return link ? [link] : []
-    })
-    const zip = linkOf(body['zip'] ?? body['download'] ?? body['download_url'] ?? body['baixar'])
-    return { record: fromMusica(parsed.data), previews, zip }
+    return {
+      record: fromMusica(parsed.data),
+      zip: linkOf(objectOf(body['zip'])['url']),
+      notice: text.parse(body['aviso']),
+    }
   }
 
   /**
@@ -563,17 +584,19 @@ export class SoundLibrary {
     if (blocked !== undefined)
       return fail('daily-limit', { retryAfterS: blocked, daily: this.daily(shelf) })
     const record = this.#records.get(key)
-    if (!record) return fail('not-found')
+    // A track's name comes from its own detail; a sound's, from the search that showed it.
+    if (!record && shelf === 'sound') return fail('not-found')
 
     const made =
       shelf === 'sound'
-        ? await this.#fetchSound(folder, manifest, record)
-        : await this.#fetchTrack(folder, manifest, record)
+        ? await this.#fetchSound(folder, manifest, record!)
+        : await this.#fetchTrack(folder, manifest, id)
     if (isFailure(made)) return made
     manifest.items[key] = made
     await writeManifest(folder, manifest)
+    const now = this.#now()
     this.#setQuota((quota) => {
-      quota[shelf] += 1
+      quota[shelf].push(now)
     })
     this.#log(`[sounds] fetched a ${shelf}`)
     const files = made.files.map((file) => ({
@@ -593,15 +616,11 @@ export class SoundLibrary {
     const { response } = asked
     const bytes = await readCapped(response, MAX_SOUND_BYTES)
     if (!bytes) return fail('unreachable')
+    // The hash is always sent, in lowercase hex: a file without one, or with another, is not kept.
     const claimed = response.headers.get('x-som-sha256')?.trim()
-    if (claimed) {
-      const digest = createHash('sha256').update(bytes)
-      const hex = digest.copy().digest('hex')
-      const base64 = digest.digest('base64')
-      if (claimed.toLowerCase() !== hex && claimed !== base64) {
-        this.#log('[sounds] a file did not match its checksum and was dropped')
-        return fail('damaged')
-      }
+    if (!claimed || claimed !== createHash('sha256').update(bytes).digest('hex')) {
+      this.#log('[sounds] a file did not match its checksum and was dropped')
+      return fail('damaged')
     }
     const format = formatOf(response.headers.get('x-som-fmt'), response.headers.get('content-type'))
     const file = await freeName(folder, manifest, sanitizeName(record.name), format, record.id)
@@ -620,17 +639,26 @@ export class SoundLibrary {
   async #fetchTrack(
     folder: string,
     manifest: Manifest,
-    record: SoundItem,
+    id: string,
   ): Promise<Manifest['items'][string] | SoundFailure> {
-    const detail = await this.#musicDetail(record.id)
+    const detail = await this.#musicDetail(id)
     if (isFailure(detail)) return detail
-    if (!detail.zip) return fail('no-subscription')
+    const record = detail.record
+    if (!detail.zip) {
+      const message = detail.notice
+      if (message && /^limite/i.test(message)) {
+        // The Clube's own sentence is the truth of the day; this app's count is only its estimate.
+        this.#block('music', undefined)
+        return fail('daily-limit', { message, daily: this.daily('music') })
+      }
+      return fail('no-subscription', message ? { message } : {})
+    }
     const response = await this.#linkResponse(detail.zip)
     if (!response?.body) return fail('unreachable')
     const directory = await freeName(
       folder,
       manifest,
-      `${MUSIC_FOLDER}/${sanitizeName(record.name)}`,
+      `${MUSIC_FOLDER}/${sanitizeName(record.artist ? `${record.artist} - ${record.name}` : record.name)}`,
       '',
       record.id,
     )
@@ -799,6 +827,20 @@ function usedSound(
 
 // ---------------------------------------------------------------------- helpers
 
+/** The genres, moods, keys and artists a music search says it can filter by (names of an object of counts). */
+function availableOf(value: unknown): MusicAvailable | undefined {
+  const raw = objectOf(value)
+  if (Object.keys(raw).length === 0) return undefined
+  const names = (field: string) =>
+    Object.keys(objectOf(raw[field])).sort((a, b) => a.localeCompare(b))
+  return {
+    category: names('genero'),
+    mood: names('clima'),
+    key: names('tom'),
+    artist: names('artista'),
+  }
+}
+
 function formatOf(header: string | null, contentType: string | null): string {
   const named = header?.trim().toLowerCase()
   if (named && /^[a-z0-9]{2,5}$/.test(named)) return named
@@ -817,12 +859,6 @@ const finite = (value: string | null): number | undefined => {
 const positive = (value: string | null): number | undefined => {
   const parsed = finite(value)
   return parsed !== undefined && parsed > 0 ? parsed : undefined
-}
-
-function secondsToMidnight(now: number): number {
-  const date = new Date(now)
-  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
-  return Math.max(60, Math.ceil((next.getTime() - now) / 1_000))
 }
 
 /** An answer's JSON, bounded; anything else is undefined. */

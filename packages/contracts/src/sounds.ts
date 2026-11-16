@@ -11,8 +11,11 @@ import { z } from 'zod'
 export const SoundShelfSchema = z.enum(['sound', 'music'])
 export type SoundShelf = z.infer<typeof SoundShelfSchema>
 
-/** Which kind of single sound: `tonal` (musical, recorded in a key) or `efeito` (a sound effect). */
-export const SoundTypeSchema = z.enum(['tonal', 'efeito'])
+/**
+ * Which kind of single sound: `tonal` (musical, recorded in a key), `efeito` (a sound effect) or
+ * `trilha` (a music track that is a sound of the library: one MP3, its key and BPM estimated).
+ */
+export const SoundTypeSchema = z.enum(['tonal', 'efeito', 'trilha'])
 export type SoundType = z.infer<typeof SoundTypeSchema>
 
 /** What the person turned on or off in Settings. */
@@ -33,7 +36,7 @@ export const SoundItemSchema = z.object({
   id: z.string(),
   name: z.string(),
   shelf: SoundShelfSchema,
-  /** `tonal` or `efeito` for a sound; absent for music. */
+  /** `tonal`, `efeito` or `trilha` for a sound; absent for a Clube music track. */
   type: z.string().optional(),
   role: z.string().optional(),
   key: z.string().optional(),
@@ -45,6 +48,8 @@ export const SoundItemSchema = z.object({
   mood: z.string().optional(),
   lufs: z.number().optional(),
   bpm: z.number().optional(),
+  /** The key and BPM are the Clube's estimates (a `trilha`); a Clube music track's are catalogued facts. */
+  estimated: z.boolean().optional(),
 })
 export type SoundItem = z.infer<typeof SoundItemSchema>
 
@@ -74,6 +79,8 @@ export const SoundFailureSchema = z.object({
   reason: SoundFailureReasonSchema,
   retryAfterS: z.number().optional(),
   daily: SoundDailySchema.optional(),
+  /** The Clube's own sentence, when it said why (a track that cannot be downloaded now). */
+  message: z.string().optional(),
 })
 export type SoundFailure = z.infer<typeof SoundFailureSchema>
 
@@ -96,6 +103,15 @@ export const SoundSearchParamsSchema = z.object({
 })
 export type SoundSearchParams = z.infer<typeof SoundSearchParamsSchema>
 
+/** What the Clube music search says can be filtered on; it sends it with an unfiltered or empty search. */
+export const MusicAvailableSchema = z.object({
+  category: z.array(z.string()),
+  mood: z.array(z.string()),
+  key: z.array(z.string()),
+  artist: z.array(z.string()),
+})
+export type MusicAvailable = z.infer<typeof MusicAvailableSchema>
+
 export const SoundSearchResultSchema = z.union([
   z.object({
     ok: z.literal(true),
@@ -103,6 +119,10 @@ export const SoundSearchResultSchema = z.union([
     offset: z.number(),
     items: z.array(SoundItemSchema),
     daily: SoundDailySchema,
+    /** Music only: the genres, moods, keys and artists to filter by. */
+    available: MusicAvailableSchema.optional(),
+    /** The Clube's sentence when nothing was found. */
+    notice: z.string().optional(),
   }),
   SoundFailureSchema,
 ])

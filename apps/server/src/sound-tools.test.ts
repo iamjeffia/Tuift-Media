@@ -145,16 +145,53 @@ describe('the sound tools on the agent tools channel', () => {
       category: 'Drones',
       lufs: -23,
     })
-    expect(body.files_left_today_estimate).toBe(200)
+    expect(body.files_left_in_24h_estimate).toBe(200)
   })
 
-  it('search music and say the key and BPM are estimates', async () => {
+  it('search music, whose key and BPM are catalogued facts and not marked as estimates', async () => {
     const { call } = await open()
     const found = await call('music_search', { genre: 'cinematic' })
     const body = found.json()
     expect(body.results).toHaveLength(1)
     expect(body.results[0]).toMatchObject({ id: 'm1', name: 'Slow Burn', key: 'Am', bpm: 84 })
+    expect(body.results[0].estimated_key_and_bpm).toBeUndefined()
+    expect(body.note).toBeUndefined()
+  })
+
+  it('search soundtracks (trilha), say their key and BPM are estimates, and use one as a sound', async () => {
+    const { call, project } = await open()
+    const found = await call('sound_search', { type: 'trilha', bpm_min: 100, key: 'A' })
+    const body = found.json()
+    expect(body.results).toHaveLength(1)
+    expect(body.results[0]).toMatchObject({
+      id: '202',
+      name: 'City Pulse',
+      type: 'trilha',
+      key: 'A',
+      mode: 'menor',
+      bpm: 118,
+      category: 'Electronic',
+      estimated_key_and_bpm: true,
+    })
     expect(body.note).toMatch(/estimates/)
+    const used = (await call('sound_use', { id: '202' })).json()
+    expect(used).toMatchObject({
+      path: path.join(project, 'audio', 'clube', 'City Pulse.mp3'),
+      format: 'mp3',
+      reused: false,
+    })
+  })
+
+  it('tell the agent when to prefer a trilha and when a Clube music track', () => {
+    const description = (name: string) =>
+      SOUND_TOOLS.find((tool) => tool.name === name)!.description
+    expect(description('sound_search')).toMatch(/trilha/)
+    expect(description('sound_search')).toMatch(/bed of music under narration/)
+    expect(description('sound_search')).toMatch(/instrumental and vocal versions, use music_search/)
+    expect(description('music_search')).toMatch(/instrumental without voice/)
+    expect(
+      SOUND_TOOLS.find((tool) => tool.name === 'sound_search')!.inputSchema.properties.type.enum,
+    ).toContain('trilha')
   })
 
   it('use a sound: fetch it into the chat project and answer its path, format, duration and loudness', async () => {
@@ -170,12 +207,12 @@ describe('the sound tools on the agent tools channel', () => {
       duration_s: 42,
       lufs: -23,
       reused: false,
-      files_left_today_estimate: 199,
+      files_left_in_24h_estimate: 199,
     })
     expect(readFileSync(file, 'utf8')).toBe('audio:101:Cello Drone A minor')
     const again = (await call('sound_use', { id: '101' })).json()
     expect(again.reused).toBe(true)
-    expect(again.files_left_today_estimate).toBe(199)
+    expect(again.files_left_in_24h_estimate).toBe(199)
     expect(fake.fileCalls).toEqual(['101'])
   })
 
@@ -183,11 +220,12 @@ describe('the sound tools on the agent tools channel', () => {
     const { call, project } = await open()
     await call('music_search', {})
     const body = (await call('music_use', { id: 'm2' })).json()
-    expect(body.path).toBe(path.join(project, 'audio', 'clube', 'music', 'Bright Day'))
+    const name = 'Artista Dois - Bright Day'
+    expect(body.path).toBe(path.join(project, 'audio', 'clube', 'music', name))
     expect(body.files.map((file: { version: string }) => file.version).sort()).toEqual([
-      'Bright Day - Full',
-      'Bright Day - No drums',
-      'Bright Day - Stem',
+      `${name} - completa`,
+      `${name} - instrumental`,
+      `${name} - vocal`,
     ])
     expect(body.format).toBe('wav')
   })
@@ -234,8 +272,17 @@ describe('the sound tools on the agent tools channel', () => {
     await spent.call('sound_search', {})
     const daily = await spent.call('sound_use', { id: '101' })
     expect(daily.isError).toBe(true)
-    expect(daily.text).toContain('used up')
+    expect(daily.text).toContain('rolling 24 hours')
+    expect(daily.text).not.toMatch(/midnight.*reset|tomorrow/)
     expect(daily.text).toContain('audio/clube')
+
+    // A track the Clube will not give now: its own sentence reaches the agent.
+    const music = await open()
+    music.fake.dailyMusic = 0
+    const track = await music.call('music_use', { id: 'm1' })
+    expect(track.isError).toBe(true)
+    expect(track.text).toContain('Limite de 0 arquivos por dia atingido')
+    expect(track.text).toContain('rolling 24 hours')
   })
 
   it('answer a library the person turned off, without calling the Clube', async () => {

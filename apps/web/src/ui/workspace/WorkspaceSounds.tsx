@@ -7,20 +7,29 @@ import {
   IconSearch as Search,
   IconWaveSine as WaveSine,
 } from '@tabler/icons-react'
-import type { SoundDaily, SoundFacetsResult, SoundFailure, SoundItem } from '@harness/contracts'
+import type {
+  MusicAvailable,
+  SoundDaily,
+  SoundFacetsResult,
+  SoundFailure,
+  SoundItem,
+} from '@harness/contracts'
 import { attachDeliveredFile, isDesktop } from '../../bridge.js'
 import { CLUBE_PLANS_LINK, useClube } from '../../clube.js'
 import { attachToComposer } from '../../composer-attach.js'
 import { useI18n, type I18n, type MessageKey } from '../../i18n/index.js'
 import {
   formatSoundDuration,
+  kindOf,
+  MUSIC_SOURCES,
   NO_FILTERS,
-  SOUND_KINDS,
+  SOUND_TABS,
   SOUNDS_PAGE,
   attachmentFor,
   searchParamsFor,
+  type MusicSource,
   type SoundFilters,
-  type SoundKind,
+  type SoundTab,
 } from '../../sounds.js'
 import type { Transport } from '../../transport.js'
 import { AppSelect } from '../AppSelect.js'
@@ -33,11 +42,16 @@ const QUERY_DELAY_MS = 300
 
 type Facets = Extract<SoundFacetsResult, { ok: true }>
 
-const KIND_LABELS = {
+const TAB_LABELS = {
   tonal: 'sounds.type.tonal',
   efeito: 'sounds.type.efeito',
   music: 'sounds.type.music',
-} as const satisfies Record<SoundKind, MessageKey>
+} as const satisfies Record<SoundTab, MessageKey>
+
+const SOURCE_LABELS = {
+  trilha: 'sounds.source.trilha',
+  clube: 'sounds.source.clube',
+} as const satisfies Record<MusicSource, MessageKey>
 
 type Results =
   | { state: 'loading'; items: readonly SoundItem[] }
@@ -67,9 +81,13 @@ export function WorkspaceSounds(props: {
   const { t } = i18n
   const { transport, active } = props
   const clube = useClube(transport, active)
-  const [kind, setKind] = useState<SoundKind>('tonal')
+  const [tab, setTab] = useState<SoundTab>('tonal')
+  const [source, setSource] = useState<MusicSource>('trilha')
+  const kind = kindOf(tab, source)
   const [filters, setFilters] = useState<SoundFilters>(NO_FILTERS)
-  const [debounced, setDebounced] = useState('')
+  const [debounced, setDebounced] = useState<SoundFilters>(NO_FILTERS)
+  /** What the Clube music search says it can be filtered by; it sends that with an unfiltered search. */
+  const [available, setAvailable] = useState<MusicAvailable>()
   const [results, setResults] = useState<Results>(LOADING)
   const [facets, setFacets] = useState<Facets>()
   const [daily, setDaily] = useState<Partial<Record<'sound' | 'music', SoundDaily>>>({})
@@ -81,7 +99,7 @@ export function WorkspaceSounds(props: {
   const preview = usePreview(transport, (failed) =>
     setNotice(failed ? { tone: 'error', text: t('sounds.row.previewFailed') } : undefined),
   )
-  const shelf = kind === 'music' ? 'music' : 'sound'
+  const shelf = kind === 'clube' ? 'music' : 'sound'
 
   const status = clube.status
   const link: 'loading' | 'unreachable' | 'not-linked' | 'no-subscription' | 'open' = !status
@@ -102,9 +120,9 @@ export function WorkspaceSounds(props: {
   const effective = link === 'open' && refused ? refused : link
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebounced(filters.query), QUERY_DELAY_MS)
+    const timer = setTimeout(() => setDebounced(filters), QUERY_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [filters.query])
+  }, [filters])
 
   const remember = useCallback((on: 'sound' | 'music', value: SoundDaily) => {
     setDaily((current) => ({ ...current, [on]: value }))
@@ -128,10 +146,7 @@ export function WorkspaceSounds(props: {
     }
   }, [active, link, transport, remember])
 
-  const params = useMemo(
-    () => searchParamsFor(kind, { query: debounced, category: filters.category, key: filters.key }),
-    [kind, debounced, filters.category, filters.key],
-  )
+  const params = useMemo(() => searchParamsFor(kind, debounced), [kind, debounced])
   useEffect(() => {
     if (!active || link !== 'open') return
     let current = true
@@ -144,6 +159,7 @@ export function WorkspaceSounds(props: {
         if (result.ok) {
           setResults({ state: 'ready', items: result.items, total: result.total })
           remember(shelf, result.daily)
+          if (result.available) setAvailable(result.available)
         } else {
           setResults({ state: 'failed', items: [], failure: result })
           if (result.reason === 'rate-limit') {
@@ -168,7 +184,7 @@ export function WorkspaceSounds(props: {
     if (results.state !== 'ready') return
     const offset = results.items.length
     void transport
-      .request('sounds.search', searchParamsFor(kind, { ...filters, query: debounced }, offset))
+      .request('sounds.search', searchParamsFor(kind, debounced, offset))
       .then((result) => {
         if (!result.ok) return
         setResults((now) =>
@@ -213,11 +229,14 @@ export function WorkspaceSounds(props: {
   }
 
   const categories = useMemo(() => {
-    const wanted = kind === 'music' ? 'trilha' : kind
+    if (kind === 'clube') return available?.category ?? []
     return (facets?.categories ?? [])
-      .filter((entry) => entry.type === wanted)
+      .filter((entry) => entry.type === kind)
       .map((entry) => entry.category)
-  }, [facets, kind])
+  }, [facets, available, kind])
+  const keys =
+    kind === 'clube' ? (available?.key ?? []) : kind === 'efeito' ? [] : (facets?.keys ?? [])
+  const tempo = kind === 'trilha' || kind === 'clube'
 
   if (effective === 'loading') {
     return (
@@ -275,15 +294,28 @@ export function WorkspaceSounds(props: {
       <div className="workspace-sounds__head">
         <SettingsSegmented
           ariaLabel={t('sounds.type.label')}
-          value={kind}
-          options={SOUND_KINDS.map((value) => ({ value, label: t(KIND_LABELS[value]) }))}
+          value={tab}
+          options={SOUND_TABS.map((value) => ({ value, label: t(TAB_LABELS[value]) }))}
           onChange={(value) => {
-            setKind(value as SoundKind)
+            setTab(value as SoundTab)
             setFilters(NO_FILTERS)
-            setDebounced('')
+            setDebounced(NO_FILTERS)
             preview.stop()
           }}
         />
+        {tab === 'music' ? (
+          <SettingsSegmented
+            ariaLabel={t('sounds.source.label')}
+            value={source}
+            options={MUSIC_SOURCES.map((value) => ({ value, label: t(SOURCE_LABELS[value]) }))}
+            onChange={(value) => {
+              setSource(value as MusicSource)
+              setFilters(NO_FILTERS)
+              setDebounced(NO_FILTERS)
+              preview.stop()
+            }}
+          />
+        ) : null}
         <label className="workspace-tree-search workspace-sounds__search">
           <Search size={14} aria-hidden />
           <input
@@ -291,25 +323,33 @@ export function WorkspaceSounds(props: {
             maxLength={200}
             onChange={(event) => setFilters({ ...filters, query: event.target.value })}
             placeholder={t(
-              kind === 'music'
+              kind === 'clube'
                 ? 'sounds.search.placeholder.music'
-                : 'sounds.search.placeholder.sound',
+                : kind === 'trilha'
+                  ? 'sounds.search.placeholder.trilha'
+                  : 'sounds.search.placeholder.sound',
             )}
             aria-label={t('sounds.search.label')}
           />
         </label>
-        {categories.length > 0 || (kind === 'tonal' && (facets?.keys.length ?? 0) > 0) ? (
+        {categories.length > 0 || keys.length > 0 ? (
           <div className="workspace-sounds__filters">
             {categories.length > 0 ? (
               <AppSelect
                 value={filters.category}
-                ariaLabel={t(kind === 'music' ? 'sounds.filter.genre' : 'sounds.filter.category')}
+                ariaLabel={t(
+                  kind === 'clube' || kind === 'trilha'
+                    ? 'sounds.filter.genre'
+                    : 'sounds.filter.category',
+                )}
                 className="workspace-sounds__select"
                 options={[
                   {
                     value: '',
                     label: t(
-                      kind === 'music' ? 'sounds.filter.allGenres' : 'sounds.filter.allCategories',
+                      kind === 'clube' || kind === 'trilha'
+                        ? 'sounds.filter.allGenres'
+                        : 'sounds.filter.allCategories',
                     ),
                   },
                   ...categories.map((category) => ({ value: category, label: category })),
@@ -317,18 +357,42 @@ export function WorkspaceSounds(props: {
                 onChange={(category) => setFilters({ ...filters, category })}
               />
             ) : null}
-            {kind === 'tonal' && (facets?.keys.length ?? 0) > 0 ? (
+            {keys.length > 0 ? (
               <AppSelect
                 value={filters.key}
                 ariaLabel={t('sounds.filter.key')}
                 className="workspace-sounds__select"
                 options={[
                   { value: '', label: t('sounds.filter.anyKey') },
-                  ...(facets?.keys ?? []).map((key) => ({ value: key, label: key })),
+                  ...keys.map((key) => ({ value: key, label: key })),
                 ]}
                 onChange={(key) => setFilters({ ...filters, key })}
               />
             ) : null}
+          </div>
+        ) : null}
+        {tempo ? (
+          <div className="workspace-sounds__filters workspace-sounds__tempo">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={400}
+              value={filters.bpmMin}
+              onChange={(event) => setFilters({ ...filters, bpmMin: event.target.value })}
+              placeholder={t('sounds.filter.bpmMin')}
+              aria-label={t('sounds.filter.bpmMin')}
+            />
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={400}
+              value={filters.bpmMax}
+              onChange={(event) => setFilters({ ...filters, bpmMax: event.target.value })}
+              placeholder={t('sounds.filter.bpmMax')}
+              aria-label={t('sounds.filter.bpmMax')}
+            />
           </div>
         ) : null}
       </div>
@@ -408,7 +472,7 @@ export function WorkspaceSounds(props: {
           <span>{results.state === 'ready' ? i18n.tp('sounds.results', results.total) : ''}</span>
           {today ? (
             <span title={t('sounds.daily.note')}>
-              {t(kind === 'music' ? 'sounds.daily.leftMusic' : 'sounds.daily.left', {
+              {t(shelf === 'music' ? 'sounds.daily.leftMusic' : 'sounds.daily.left', {
                 left: Math.max(0, today.limit - today.used),
                 limit: today.limit,
               })}
@@ -431,7 +495,12 @@ function modeWord(mode: string | undefined, t: I18n['t']): string {
 function failureNotice(failure: SoundFailure, t: I18n['t']): Notice {
   switch (failure.reason) {
     case 'daily-limit':
-      return { tone: 'info', text: t('sounds.daily.spent.title') }
+      // The Clube's own sentence, when it gave one, is the truth of the day.
+      return { tone: 'info', text: failure.message ?? t('sounds.daily.spent.title') }
+    case 'no-subscription':
+      return failure.message
+        ? { tone: 'info', text: failure.message }
+        : { tone: 'error', text: t('sounds.use.failed') }
     case 'rate-limit':
       return {
         tone: 'info',
@@ -466,10 +535,9 @@ const SoundRow = memo(function SoundRow(props: {
         ? item.key
         : t('sounds.row.keyMode', { key: item.key, mode: modeWord(item.mode, t) }).trim()
       : undefined,
-    music && item.bpm !== undefined
-      ? t('sounds.row.bpm', { bpm: Math.round(item.bpm) })
-      : undefined,
-    music && (item.key || item.bpm !== undefined) ? t('sounds.row.estimated') : undefined,
+    item.bpm !== undefined ? t('sounds.row.bpm', { bpm: Math.round(item.bpm) }) : undefined,
+    // Only a soundtrack's key and BPM are estimates; a Clube track's are catalogued.
+    item.estimated && (item.key || item.bpm !== undefined) ? t('sounds.row.estimated') : undefined,
     item.durationS === undefined ? undefined : formatSoundDuration(item.durationS, language),
     !music ? item.category : (item.artist ?? item.category),
   ].filter((part): part is string => Boolean(part))

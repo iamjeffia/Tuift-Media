@@ -6,9 +6,15 @@ export const soundsEn = {
   'sounds.type.tonal': 'Tonal',
   'sounds.type.efeito': 'Effects',
   'sounds.type.music': 'Music',
+  'sounds.source.label': 'Kind of music',
+  'sounds.source.trilha': 'Soundtracks',
+  'sounds.source.clube': 'Clube music',
   'sounds.search.label': 'Search the sound library',
   'sounds.search.placeholder.sound': 'Search by name, instrument or role',
   'sounds.search.placeholder.music': 'Search by title, artist or mood',
+  'sounds.search.placeholder.trilha': 'Search by name or genre',
+  'sounds.filter.bpmMin': 'BPM min',
+  'sounds.filter.bpmMax': 'BPM max',
   'sounds.filter.category': 'Category',
   'sounds.filter.genre': 'Genre',
   'sounds.filter.key': 'Key',
@@ -42,19 +48,20 @@ export const soundsEn = {
   'sounds.state.retry': 'Try again',
   'sounds.state.notLinked.title': 'Connect your Clube do Motion account',
   'sounds.state.notLinked.detail':
-    "The Clube's sound library opens here once your account is connected: tonal sounds in every key, effects and music. The agents use it in your videos too.",
+    "The Clube's sound library opens here once your account is connected: tonal sounds in every key, effects, soundtracks and music. The agents use it in your videos too.",
   'sounds.state.notLinked.action': 'Open the Clube settings',
   'sounds.state.noSubscription.title': 'The library is for subscribers',
   'sounds.state.noSubscription.detail':
     'Your Clube do Motion account is connected but has no subscription. The plans include the whole sound library.',
   'sounds.state.noSubscription.action': 'See the plans',
   // The day
-  'sounds.daily.left': '{left} of {limit} files left today',
-  'sounds.daily.leftMusic': '{left} of {limit} tracks left today',
-  'sounds.daily.note': 'Counted by this app, as an estimate.',
-  'sounds.daily.spent.title': "Today's files are used up",
+  'sounds.daily.left': '{left} of {limit} files left in 24 h',
+  'sounds.daily.leftMusic': '{left} of {limit} tracks left in 24 h',
+  'sounds.daily.note':
+    'Counted by this app, as an estimate, over a rolling 24 hours: files free up one by one, not at midnight.',
+  'sounds.daily.spent.title': 'The file limit is reached',
   'sounds.daily.spent.detail':
-    'You can still search and play previews. Sounds already in the project keep working, and the count starts again tomorrow.',
+    'You can still search and play previews. Sounds already in the project keep working, and files free up gradually over the next 24 hours.',
   'sounds.rate.notice': 'Too many searches in a row. Try again in {seconds} seconds.',
   'sounds.rate.noticeNow': 'Too many searches in a row. Try again in a minute.',
   // Using a sound

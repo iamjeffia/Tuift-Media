@@ -98,7 +98,7 @@ const OWN = (own: NonNullable<SoundsSession['own']>) =>
   `This project has its own sounds in ${own.dir}/ (${own.files} audio files): use them first, and go further only for what they lack.`
 
 const LIBRARY = {
-  tools: `The app's sound library (the Clube's tonal sounds in every key, sound effects and music) is available through the tools ${SOUND_TOOL_NAMES.join(', ')}: at the soundtrack stage search it after the project's own sounds. Using a sound fetches one file into ${LIBRARY_FOLDER}/ in the project (about 200 a day), so choose before you use; what is already there is reused for free. A track's key and BPM are estimates.`,
+  tools: `The app's sound library (the Clube's tonal sounds in every key, sound effects, soundtracks and music) is available through the tools ${SOUND_TOOL_NAMES.join(', ')}: at the soundtrack stage search it after the project's own sounds. Using a sound fetches one file into ${LIBRARY_FOLDER}/ in the project (about 200 per 24 hours), so choose before you use; what is already there is reused for free. A soundtrack's (type trilha) key and BPM are estimates.`,
   panel:
     "The app's sound library has no tools for this provider. When the person needs a sound or a track from it, ask them to pick it in the Sounds tab of the side panel: the tab attaches it to the chat.",
   off: `The person turned the app's sound library off in Settings: do not call ${SOUND_TOOL_NAMES.join(', ')}.`,

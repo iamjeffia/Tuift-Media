@@ -82,6 +82,12 @@ describe('the sentence a Motion role carries about sounds', () => {
     expect(text).toContain('nothing in it is indexed or copied')
   })
 
+  it('says the library has soundtracks as well as tonal sounds, effects and music', () => {
+    const text = soundsSentence({ library: 'tools' })
+    expect(text).toContain('tonal sounds in every key, sound effects, soundtracks and music')
+    expect(text).toContain('key and BPM are estimates')
+  })
+
   it('stays short', () => {
     expect(soundsSentence({ library: 'tools' }).length).toBeLessThan(500)
     expect(

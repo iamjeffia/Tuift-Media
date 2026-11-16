@@ -649,8 +649,7 @@ it. The next use of the same id finds the file there and spends nothing; a resta
 searches but not the manifest. The SHA-256 header is checked (a mismatch is dropped, not kept, not
 counted), the folder's real path must stay inside the project's (a link that points out is refused),
 names lose every path and device character, and a track's zip is read entry by entry from a temporary
-file, keeping only file names. The Clube's daily ceilings (200 files, 60 tracks) are counted here as an
-estimate, kept in the database, and a 429 with the daily reason is remembered so the next use does not ask.
+file, keeping only file names. The Clube's ceilings (200 sound files and 60 tracks, over a rolling 24 hours, not a calendar day) are counted here as an estimate, kept in the database; a 429 with the daily reason is remembered so the next use does not ask. A track is different: the Clube answers its detail with a 200, and without `zip.url` when the account may not download now, with a sentence that says why (a limit starts with "Limite"); that sentence is what the person and the agent are shown. A missing or wrong SHA-256 is refused. A track's previews are open MP3 links that come with the search, so listening asks nothing of the account. Music has two sources the person sees apart: the soundtracks (`trilha`, sounds of the library: one MP3, key and BPM estimated, counted with the sounds) and the Clube's music (three aligned WAV versions, key and BPM catalogued).
 
 The agent reaches it on the agent tools channel, in Motion chats only (`sound_search`, `sound_use`,
 `music_search`, `music_use`; listed for a Motion chat the way `motion_stage` is). Outside Motion they

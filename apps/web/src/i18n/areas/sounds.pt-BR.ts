@@ -14,9 +14,15 @@ export const soundsPt = {
   'sounds.type.tonal': 'Tonais',
   'sounds.type.efeito': 'Efeitos',
   'sounds.type.music': 'Músicas',
+  'sounds.source.label': 'Tipo de música',
+  'sounds.source.trilha': 'Trilhas',
+  'sounds.source.clube': 'Músicas do Clube',
   'sounds.search.label': 'Buscar na biblioteca de sons',
   'sounds.search.placeholder.sound': 'Buscar por nome, instrumento ou função',
   'sounds.search.placeholder.music': 'Buscar por título, artista ou clima',
+  'sounds.search.placeholder.trilha': 'Buscar por nome ou gênero',
+  'sounds.filter.bpmMin': 'BPM mín.',
+  'sounds.filter.bpmMax': 'BPM máx.',
   'sounds.filter.category': 'Categoria',
   'sounds.filter.genre': 'Gênero',
   'sounds.filter.key': 'Tom',
@@ -50,19 +56,20 @@ export const soundsPt = {
   'sounds.state.retry': 'Tentar de novo',
   'sounds.state.notLinked.title': 'Conecte sua conta do Clube do Motion',
   'sounds.state.notLinked.detail':
-    'A biblioteca de sons do Clube abre aqui quando a conta está conectada: sons tonais em todos os tons, efeitos e músicas. Os agentes também usam a biblioteca nos seus vídeos.',
+    'A biblioteca de sons do Clube abre aqui quando a conta está conectada: sons tonais em todos os tons, efeitos, trilhas e músicas. Os agentes também usam a biblioteca nos seus vídeos.',
   'sounds.state.notLinked.action': 'Abrir os ajustes do Clube',
   'sounds.state.noSubscription.title': 'A biblioteca é para assinantes',
   'sounds.state.noSubscription.detail':
     'Sua conta do Clube do Motion está conectada, mas não tem assinatura. Os planos incluem toda a biblioteca de sons.',
   'sounds.state.noSubscription.action': 'Ver os planos',
   // The day
-  'sounds.daily.left': '{left} de {limit} arquivos restantes hoje',
-  'sounds.daily.leftMusic': '{left} de {limit} músicas restantes hoje',
-  'sounds.daily.note': 'Contagem feita por este app, como estimativa.',
-  'sounds.daily.spent.title': 'Os arquivos de hoje acabaram',
+  'sounds.daily.left': '{left} de {limit} arquivos restantes em 24 h',
+  'sounds.daily.leftMusic': '{left} de {limit} músicas restantes em 24 h',
+  'sounds.daily.note':
+    'Contagem feita por este app, como estimativa, numa janela de 24 horas que corre: os arquivos voltam um a um, não à meia-noite.',
+  'sounds.daily.spent.title': 'O limite de arquivos foi atingido',
   'sounds.daily.spent.detail':
-    'Você ainda pode buscar e ouvir prévias. Os sons que já estão no projeto continuam valendo, e a contagem recomeça amanhã.',
+    'Você ainda pode buscar e ouvir prévias. Os sons que já estão no projeto continuam valendo, e os arquivos voltam aos poucos nas próximas 24 horas.',
   'sounds.rate.notice': 'Muitas buscas seguidas. Tente de novo em {seconds} segundos.',
   'sounds.rate.noticeNow': 'Muitas buscas seguidas. Tente de novo em um minuto.',
   // Using a sound

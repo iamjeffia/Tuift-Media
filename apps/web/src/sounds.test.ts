@@ -3,6 +3,7 @@ import type { UsedSound } from '@harness/contracts'
 import {
   attachmentFor,
   formatSoundDuration,
+  kindOf,
   NO_FILTERS,
   searchParamsFor,
   SOUNDS_PAGE,
@@ -10,7 +11,9 @@ import {
 
 describe('what a tab asks the server', () => {
   it('asks the sound shelf for a type, with the words, the category and the key', () => {
-    expect(searchParamsFor('tonal', { query: '  cello ', category: 'Drones', key: 'A' })).toEqual({
+    expect(
+      searchParamsFor('tonal', { ...NO_FILTERS, query: '  cello ', category: 'Drones', key: 'A' }),
+    ).toEqual({
       shelf: 'sound',
       type: 'tonal',
       query: 'cello',
@@ -18,20 +21,61 @@ describe('what a tab asks the server', () => {
       key: 'A',
       limit: SOUNDS_PAGE,
     })
-    expect(searchParamsFor('efeito', { ...NO_FILTERS, key: 'A' })).toEqual({
+    // Effects have no key, and no tempo to filter by.
+    expect(searchParamsFor('efeito', { ...NO_FILTERS, key: 'A', bpmMin: '90' })).toEqual({
       shelf: 'sound',
       type: 'efeito',
       limit: SOUNDS_PAGE,
     })
   })
 
-  it('asks the music shelf for a genre, never filters a track by a single sound key, and pages', () => {
-    expect(searchParamsFor('music', { query: '', category: 'Pop', key: 'A' }, 30)).toEqual({
+  it('asks the sound shelf for soundtracks by genre, key and a BPM range', () => {
+    expect(
+      searchParamsFor('trilha', {
+        query: '',
+        category: 'Ambient',
+        key: 'D',
+        bpmMin: '60',
+        bpmMax: '90',
+      }),
+    ).toEqual({
+      shelf: 'sound',
+      type: 'trilha',
+      category: 'Ambient',
+      key: 'D',
+      bpmMin: 60,
+      bpmMax: 90,
+      limit: SOUNDS_PAGE,
+    })
+    // A box that is not a number asks nothing.
+    expect(searchParamsFor('trilha', { ...NO_FILTERS, bpmMin: 'abc', bpmMax: '999' })).toEqual({
+      shelf: 'sound',
+      type: 'trilha',
+      limit: SOUNDS_PAGE,
+    })
+  })
+
+  it('asks the music shelf for the Clube music by genre, key and BPM, and pages', () => {
+    expect(
+      searchParamsFor(
+        'clube',
+        { query: '', category: 'Pop', key: 'Am', bpmMin: '100', bpmMax: '' },
+        30,
+      ),
+    ).toEqual({
       shelf: 'music',
       category: 'Pop',
+      key: 'Am',
+      bpmMin: 100,
       limit: SOUNDS_PAGE,
       offset: 30,
     })
+  })
+
+  it('maps a tab and a music source to what is listed', () => {
+    expect(kindOf('tonal', 'clube')).toBe('tonal')
+    expect(kindOf('music', 'trilha')).toBe('trilha')
+    expect(kindOf('music', 'clube')).toBe('clube')
   })
 })
 
@@ -67,15 +111,19 @@ describe('what a used sound puts in the prompt box', () => {
   it('is the full mix of a track, the others sitting beside it', () => {
     const used = sound([
       {
-        version: 'Slow - No drums',
-        path: '/p/audio/clube/music/Slow/Slow - No drums.wav',
+        version: 'Slow - instrumental',
+        path: '/p/audio/clube/music/Slow/Slow - instrumental.wav',
         format: 'wav',
       },
-      { version: 'Slow - Full', path: '/p/audio/clube/music/Slow/Slow - Full.wav', format: 'wav' },
+      {
+        version: 'Slow - completa',
+        path: '/p/audio/clube/music/Slow/Slow - completa.wav',
+        format: 'wav',
+      },
     ])
     expect(attachmentFor(used)).toEqual({
-      path: '/p/audio/clube/music/Slow/Slow - Full.wav',
-      name: 'Slow - Full.wav',
+      path: '/p/audio/clube/music/Slow/Slow - completa.wav',
+      name: 'Slow - completa.wav',
     })
   })
 })
