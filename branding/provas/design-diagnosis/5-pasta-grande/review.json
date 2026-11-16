@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "verdict": "pass",
+  "summary": "Os sintomas anteriores foram resolvidos. Os painéis escuros respeitam a margem da .wrap, o título do hero respira no topo, a chamada final tem cartão e título começando no topo do painel, a linha de acento do horário aparece sob o título e as seções densas ocupam o espaço de forma proporcional. Marca, tokens, fonte Onest e ordem das seções seguem coerentes entre 1440 e 390. A captura é estática, então hover, movimento de carga do feixe e o desenho da linha no horário ficam sem confirmação visual.",
+  "findings": []
+}

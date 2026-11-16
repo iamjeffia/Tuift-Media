@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "verdict": "pass",
+  "summary": "A auditoria do DOM não aponta mais alvos de toque abaixo de 44x44 px. Na página inicial, o hero segue o anchor no desktop e no celular, com wordmark grande, quadro de foto de raio 24px, texto claro na zona escura e quatro cartões de item. O horário tem fotos na mesma altura, o botão alinhado pela base delas e a faixa de quatro células com o cartão marrom '1998'. O rodapé ficou compacto, sem o grande vazio anterior. Não restam achados acionáveis nas duas capturas fornecidas. Só a página inicial foi capturada, então Cardápio e Contato não foram revisados aqui. Carga do hero, hover, linha do dia e prefers-reduced-motion não são comprováveis por captura estática.",
+  "findings": []
+}

@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "verdict": "pass",
+  "summary": "Perfil em 1440 e 390 sem falhas visíveis. Os campos Telefone e Fuso horário começam na mesma linha, Idioma ocupa as duas colunas, o avatar do rodapé aparece como círculo com as iniciais centralizadas e o botão Salvar ocupa a largura toda no celular. A barra lateral some no celular e vira barra de 48px com o menu. Há um h1 por visão, o produto 'Fio' e o escopo 'Conta de Marina' aparecem na barra lateral, e a auditoria de DOM não acusa alvos abaixo de 44px. O raspberry fica só em marcas pequenas (item ativo, avatar, botão Salvar). Só a visão Perfil foi capturada: as outras quatro visões, os estados de erro, vazio e carregamento e os diálogos não puderam ser avaliados (confiança unknown).",
+  "findings": []
+}

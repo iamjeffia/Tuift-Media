@@ -1,0 +1,9 @@
+[commentary] Vou localizar o index.html para registrar as restrições reais da revisão.
+
+---
+
+[commentary] Brief locked in. Starting the design.
+
+---
+
+[final_answer] Website built. Preview ready at http://127.0.0.1:4173/. Visual review stopped after 2 repair attempts with 7 findings remaining.

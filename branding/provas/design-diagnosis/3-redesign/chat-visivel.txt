@@ -1,0 +1,65 @@
+[commentary] Vou olhar rapidamente os arquivos do site antes de montar o briefing.
+
+---
+
+[commentary] Brief locked in. Starting the design.
+
+---
+
+[commentary] Vou testar se há acesso à rede para buscar fotos licenciadas no Wikimedia Commons.
+
+---
+
+[commentary] Os downloads estão saindo devagar (4 de 6 baixados, o Wikimedia limita o ritmo). Vou esperar o fim e depois olhar as fotos.
+
+---
+
+[commentary] Os seis arquivos chegaram. Vou conferir tamanho e ver cada foto.
+
+---
+
+[commentary] Das seis fotos, quatro servem como miniaturas e uma como foto de prateleira. A do hero (xadrez e cestas azuis) foge da marca e não vou usar. Vou recortar e salvar as aprovadas no projeto.
+
+---
+
+[commentary] Ainda faltam três fotos (hero, mãos no forno e balcão). Vou tentar de novo o Wikimedia com pausas entre as buscas.
+
+---
+
+[commentary] As mãos amassando (CC BY 2.0) servem para a foto das mãos. Vou buscar candidatas para o hero e para o balcão.
+
+---
+
+[commentary] As candidatas encontradas são fachadas de padarias reais, então não servem. Vou tentar gerar as fotos do hero e do balcão com o Higgsfield.
+
+---
+
+[commentary] Os dois arquivos foram gerados. Vou baixá-los e conferir.
+
+---
+
+[commentary] Vou conferir os arquivos de fonte e o estado do projeto antes de escrever.
+
+---
+
+[commentary] Vou escrever o CSS único com os tokens e depois as três páginas.
+
+---
+
+[commentary] Vou fazer uma checagem visual rápida com o Chrome em modo headless.
+
+---
+
+[commentary] O desktop ficou como planejado. Na linha do dia, o traço aparece tracejado por causa do `non-scaling-stroke`. Vou trocar o SVG por uma barra animada com `transform`.
+
+---
+
+[commentary] Os arquivos mudaram por causa da minha própria edição. Vou conferir as outras duas páginas.
+
+---
+
+[commentary] Não há package.json no projeto, só HTML e CSS puros. O plano é estático, com index.html como entrada.
+
+---
+
+[final_answer] Website built. Preview ready at http://127.0.0.1:4173/. Visual review passed after 1 repair attempt. Verify before publishing: o site foi refeito nas três páginas (index.html, cardapio.html e contato.html) com um único styles.css, em HTML e CSS puros, e todo o conteúdo e os preços originais foram mantidos. Itens que o cliente deve conferir: (1) as fotos do hero e do balcão no Contato foram geradas por IA e as demais são fotos do Wikimedia Commons (CC0, CC BY e CC BY-SA), todas ilustrativas e não os produtos reais da padaria; (2) a linha de crédito do rodapé diz 'Fotografias via Wikimedia Commons' e as licenças CC BY e CC BY-SA exigem atribuição por foto, o que ainda precisa de uma página ou lista de créditos; (3) textos novos de interface: 'Horário', 'Preços', 'Onde fica', 'Escreva para a padaria', 'Enviar mensagem', 'Falar com a padaria' e os índices (01) a (04); (4) o endereço mantém o número da casa por ser conteúdo existente, e o rodapé mostra o ano 2026; (5) sem telefone, e-mail ou redes sociais, e o formulário não envia (botão type=button); (6) o cardápio mostra o pão de queijo em fundo escuro e o bolo de fubá inteiro, e não em fatia.

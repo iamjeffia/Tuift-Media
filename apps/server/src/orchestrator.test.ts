@@ -109,6 +109,9 @@ const previewStarts = vi.hoisted(() => ({
   failures: [] as unknown[],
 }))
 
+/** Holds the next brand font download, so a test can stop the run while it is under way. */
+const fontDownloads = vi.hoisted(() => ({ count: 0, barriers: [] as Promise<void>[] }))
+
 /** Lets one test prove that a failing consistency audit never fails a Design run. */
 const consistencyAuditFailure = vi.hoisted(() => ({ current: undefined as Error | undefined }))
 
@@ -123,10 +126,14 @@ vi.mock('@harness/design-agent', async (importOriginal) => {
     // The real download, against a local Google Fonts. Fetching the drawn family from the
     // network before the Asset prompt made the workflow tests wait on it, past vi.waitFor's
     // second on a slow runner (CI 42116597499, macOS), and fail without a network.
-    acquireBrandFonts: (
+    acquireBrandFonts: async (
       brand: Parameters<typeof actual.acquireBrandFonts>[0],
       workspacePath: string,
-    ) => actual.acquireBrandFonts(brand, workspacePath, localGoogleFonts),
+    ) => {
+      fontDownloads.count += 1
+      await fontDownloads.barriers.shift()
+      return actual.acquireBrandFonts(brand, workspacePath, localGoogleFonts)
+    },
   }
 })
 
@@ -4298,6 +4305,31 @@ describe('provider-neutral design briefing', () => {
     },
   )
 
+  it('tells the person when the folder was too large for the code quality checks', async () => {
+    const result = await previewRecoveryHarness(undefined, 'preview', [], () => ({
+      designScanSkipped: 'Design workspace scan exceeds 25000 entries',
+    }))
+    try {
+      result.capturePreview.mockReset().mockResolvedValue(undefined)
+      result.sessions[0]?.emit(message(JSON.stringify(commandPreviewPlan), 's1-turn'))
+      result.sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+      await vi.waitFor(() =>
+        expect(
+          result.received.some(
+            ({ event }) =>
+              event.type === 'item.completed' &&
+              event.item.text?.startsWith('Website built.') &&
+              event.item.text.includes('too many files to scan'),
+          ),
+        ).toBe(true),
+      )
+    } finally {
+      await result.orchestrator.disposeAll()
+      result.store.close()
+      rmSync(result.workspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+    }
+  })
+
   it('starts Design with an existing comparison HTML file larger than 2 MB', async () => {
     const workspace = mkdtempSync(path.join(os.tmpdir(), 'harness-design-large-source-'))
     const { orchestrator, sessions, received, store } = harness()
@@ -5563,6 +5595,130 @@ describe('provider-neutral design briefing', () => {
     }
   })
 
+  it.each(['preview start', 'screenshot capture'] as const)(
+    'does not launch Review when Stop all lands during %s and it then finishes with screenshots',
+    async (delay) => {
+      const result = await previewRecoveryHarness(undefined)
+      let release = () => {}
+      const barrier = new Promise<void>((resolve) => (release = resolve))
+      const shots = (viewports: Array<{ width: number; height: number }>) =>
+        viewports.map((viewport) => ({
+          path: path.join(os.tmpdir(), `${viewport.width}x${viewport.height}.png`),
+          ...viewport,
+        }))
+      try {
+        result.capturePreview.mockReset()
+        result.capturePreview.mockImplementation(async (_url, viewports) => {
+          await barrier
+          return shots(viewports)
+        })
+        if (delay === 'preview start') previewStarts.barriers.push(barrier)
+        const session = result.sessions[0]!
+        const starts = previewStarts.count
+        session.emit(message(JSON.stringify(commandPreviewPlan), 's1-turn'))
+        session.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+        if (delay === 'preview start')
+          await vi.waitFor(() => expect(previewStarts.count).toBe(starts + 1))
+        else await vi.waitFor(() => expect(result.capturePreview).toHaveBeenCalledTimes(1))
+        const sent = session.sent.length
+        // The runner is mocked and ignores its signal, so the stop waits for it: let it finish.
+        const stopping = result.orchestrator.panicStop()
+        release()
+        await stopping
+        await new Promise<void>((resolve) => setTimeout(resolve, 50))
+        expect(session.sent).toHaveLength(sent)
+        expect(session.sent.some((prompt) => prompt.includes('visual Review phase'))).toBe(false)
+        expect(result.store.designRun('preview-recovery')).toMatchObject({
+          phase: 'preview',
+          suspended: true,
+        })
+      } finally {
+        release()
+        await result.orchestrator.disposeAll()
+        rmSync(result.workspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+      }
+    },
+  )
+
+  it('does not start the next phase when Stop all lands while the brand fonts download', async () => {
+    const workspace = mkdtempSync(path.join(os.tmpdir(), 'harness-design-fonts-stop-'))
+    writePreviewArtifacts(workspace)
+    const store = new Store(':memory:')
+    store.addProject(workspace)
+    store.addThread({ id: 'fonts-stop', projectPath: workspace, provider: 'codex', title: 'Fonts' })
+    store.setDesignRun('fonts-stop', {
+      ...approvalSnapshot(workspace),
+      originalRequest: 'Build a site.',
+      options: {},
+      phase: 'assets',
+      suspended: true,
+      askedQuestions: false,
+      explicitAnswers: [],
+    })
+    const { orchestrator, sessions } = harness(undefined, store)
+    let release = () => {}
+    fontDownloads.barriers.push(new Promise<void>((resolve) => (release = resolve)))
+    const downloads = fontDownloads.count
+    try {
+      const resuming = orchestrator.submitTurn('fonts-stop', 'continue')
+      const refused = expect(resuming).rejects.toThrow(/panic stop|no longer active/)
+      await vi.waitFor(() => expect(fontDownloads.count).toBe(downloads + 1))
+      // The stop waits for the start that is under way, so the download finishes during it.
+      const stopping = orchestrator.panicStop()
+      release()
+      await stopping
+      await refused
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      expect(sessions.flatMap(({ sent }) => sent)).toEqual([])
+    } finally {
+      release()
+      await orchestrator.disposeAll()
+      store.close()
+      rmSync(workspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+    }
+  })
+
+  it('does not send the Assets correction when Stop all lands while the brand fonts download', async () => {
+    const workspace = mkdtempSync(path.join(os.tmpdir(), 'harness-design-fonts-turn-'))
+    writePreviewArtifacts(workspace)
+    const store = new Store(':memory:')
+    store.addProject(workspace)
+    store.addThread({ id: 'fonts-turn', projectPath: workspace, provider: 'codex', title: 'Fonts' })
+    store.setDesignRun('fonts-turn', {
+      ...approvalSnapshot(workspace),
+      originalRequest: 'Build a site.',
+      options: {},
+      phase: 'assets',
+      askedQuestions: false,
+      explicitAnswers: [],
+    })
+    const { orchestrator, sessions } = harness(undefined, store)
+    let release = () => {}
+    try {
+      const queued = await orchestrator.submitTurn('fonts-turn', 'Afterward.')
+      if (queued.queued) orchestrator.deleteQueuedTurn('fonts-turn', queued.queuedTurn.id)
+      await vi.waitFor(() => expect(sessions[0]?.sent).toHaveLength(1))
+      const session = sessions[0]!
+      session.emit(turnStarted('fonts-turn', 's1-turn'))
+      // An invalid manifest queues one correction, which waits for the font download first.
+      fontDownloads.barriers.push(new Promise<void>((resolve) => (release = resolve)))
+      const downloads = fontDownloads.count
+      session.emit(message('{"not":"a manifest"}', 's1-turn'))
+      session.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+      await vi.waitFor(() => expect(fontDownloads.count).toBe(downloads + 1))
+      await orchestrator.panicStop()
+      release()
+      await new Promise<void>((resolve) => setTimeout(resolve, 50))
+      expect(session.sent).toHaveLength(1)
+      expect(store.designRun('fonts-turn')).toMatchObject({ phase: 'assets', suspended: true })
+    } finally {
+      release()
+      await orchestrator.disposeAll()
+      store.close()
+      rmSync(workspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+    }
+  })
+
   it('suspends a running Design run when its project is removed', async () => {
     const { orchestrator, store, workspace } = await previewRecoveryHarness(undefined)
     try {
@@ -5803,6 +5959,38 @@ describe('provider-neutral design briefing', () => {
       { name: 'mobile', width: 390, height: 844 },
     ],
   }
+
+  it.each([
+    ['the window closes during the capture', new Error('Preview capture client disconnected')],
+    ['no window is connected', undefined],
+  ] as const)('finishes with an explained skipped review when %s', async (_case, failure) => {
+    const { orchestrator, sessions, received, store, workspace, capturePreview } =
+      await previewRecoveryHarness(undefined)
+    if (failure) capturePreview.mockReset().mockRejectedValue(failure)
+    else capturePreview.mockReset().mockResolvedValue(undefined)
+    try {
+      sessions[0]?.emit(message(JSON.stringify(commandPreviewPlan), 's1-turn'))
+      sessions[0]?.emit({ type: 'turn.completed', turnId: 's1-turn', status: 'completed' })
+      await vi.waitFor(() =>
+        expect(
+          received.some(
+            ({ event }) =>
+              event.type === 'item.completed' &&
+              event.item.text?.includes(
+                'Visual review skipped because no TUIFT Code window was open to take the screenshots',
+              ),
+          ),
+        ).toBe(true),
+      )
+      expect(received.some(({ event }) => event.type === 'thread.error')).toBe(false)
+      expect(store.designRun('preview-recovery')).toBeUndefined()
+      expect(sessions[0]?.sent).toHaveLength(1)
+    } finally {
+      await orchestrator.disposeAll()
+      store.close()
+      rmSync(workspace, { recursive: true, force: true, maxRetries: 3, retryDelay: 20 })
+    }
+  })
 
   it.each(['preview', 'repair'] as const)(
     'keeps the built preview available when capture disconnects during %s',
@@ -7369,6 +7557,9 @@ describe('provider-neutral design briefing', () => {
           'Visual review stopped after 2 repair attempts with 2 findings remaining.',
         ),
       )
+      // The findings the review left open reach the chat, not only review.json.
+      expect(designCompletion(received)).toContain('Still open: (1) ')
+      expect(designCompletion(received)).toContain('(2) ')
       expect(session.sent).toHaveLength(5)
       expect(store.designRun('preview-recovery')).toBeUndefined()
       expect(received.some(({ event }) => event.type === 'thread.error')).toBe(false)

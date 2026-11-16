@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "verdict": "repair",
+  "summary": "As capturas seguem mostrando a página original, sem nenhuma alteração (o pedido era só de revisão e nenhum arquivo foi editado), então o plano de design não aparece. Os achados abaixo valem para a página como está, na ordem do que corrigir primeiro: ação e hierarquia, alvos de toque e foco, contraste, espaçamento, fonte e endereço. TUIFT Code DOM audit found 2 blocking accessibility groups.",
+  "findings": [
+    {
+      "id": "hierarchy_no_hero_or_action",
+      "severity": "blocking",
+      "area": "1440x1000 e 390x844, topo da página",
+      "evidenceType": "visual_inspection",
+      "confidence": "high",
+      "evidence": "O h2 'Bem-vindo' é genérico e quase igual ao corpo, nada diz o que é a padaria e onde fica no primeiro olhar, o horário 'Abrimos de segunda a sábado, das 6h às 19h' é um parágrafo comum e não há botão para o cardápio. Mais de 70% da tela fica vazia sem hierarquia.",
+      "repair": "Criar um bloco de abertura com um título que diga padaria de bairro em Campinas, o horário em destaque e um botão 'Ver o cardápio' para cardapio.html."
+    },
+    {
+      "id": "focus_and_current_page_missing",
+      "severity": "major",
+      "area": "navegação",
+      "evidenceType": "visual_inspection",
+      "confidence": "medium",
+      "evidence": "Nenhum link marca a página atual, e a captura não mostra foco visível nem link de pular para o conteúdo.",
+      "repair": "Marcar a página atual com aria-current e uma barra de 2px, definir foco visível de 2px em marrom, acrescentar link 'Pular para o conteúdo' e aria-label no nav."
+    },
+    {
+      "id": "contrast_near_aa_limit",
+      "severity": "major",
+      "area": "cabeçalho, h2 e rodapé",
+      "evidenceType": "visual_inspection",
+      "confidence": "medium",
+      "evidence": "O cinza do endereço no rodapé e o marrom do h2 sobre o fundo claro parecem fracos e ficam perto do limite AA para texto pequeno.",
+      "repair": "Escurecer o cinza do rodapé e o marrom do texto pequeno um passo (por exemplo #534C45 e #623600) e conferir cada par em 4,5:1 ou mais."
+    },
+    {
+      "id": "spacing_no_rhythm",
+      "severity": "major",
+      "area": "1440x1000 e 390x844, conteúdo e rodapé",
+      "evidenceType": "visual_inspection",
+      "confidence": "high",
+      "evidence": "Cabeçalho, texto e rodapé ficam colados no topo, com margens padrão e sem ritmo. Em 1440px a linha de texto corre por cerca de 780px e o rodapé fica logo abaixo do parágrafo.",
+      "repair": "Definir uma escala de espaçamento (seções de 64 a 128px, gutters de 20 a 40px), limitar a largura do texto e dar ao rodapé um bloco próprio."
+    },
+    {
+      "id": "typography_arial_default",
+      "severity": "major",
+      "area": "todas as seções",
+      "evidenceType": "visual_inspection",
+      "confidence": "high",
+      "evidence": "A página inteira usa a fonte padrão (Arial) com títulos de tamanho parecido e sem escala tipográfica.",
+      "repair": "Carregar a Space Grotesk dos arquivos do projeto e definir uma escala (display, h1, h2, h3, corpo, pequeno) com títulos terminando em ponto."
+    },
+    {
+      "id": "footer_address_house_number",
+      "severity": "minor",
+      "area": "rodapé",
+      "evidenceType": "visual_inspection",
+      "confidence": "high",
+      "evidence": "O rodapé mostra 'Rua das Flores, 120 - Campinas', com número de casa, e não tem link para ver como chegar.",
+      "repair": "Mostrar só rua e cidade e acrescentar o link 'Ver como chegar' para a busca no OpenStreetMap."
+    },
+    {
+      "id": "interactive_target_size",
+      "severity": "blocking",
+      "area": "Interaction targets",
+      "evidenceType": "automated",
+      "confidence": "high",
+      "evidence": "6 visible interactive targets below 44x44 CSS px. 1440px a:nth-of-type(1) (Início): 38.25x17; 1440px a:nth-of-type(2) (Cardápio): 64.9375x17; 1440px a:nth-of-type(3) (Contato): 56.046875x17; 390px a:nth-of-type(1) (Início): 38.25x17; 390px a:nth-of-type(2) (Cardápio): 64.9375x17",
+      "repair": "Make every visible interactive target at every reviewed viewport at least 44x44 CSS px."
+    }
+  ]
+}

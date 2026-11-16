@@ -1,0 +1,20 @@
+{
+  "how": "built",
+  "threadId": "claude-8efe288d-07d8-4e8e-9b82-b63649c467e9",
+  "turns": 10,
+  "turnSeconds": [49, 27, 20, 46, 4, 22, 4, 11, 14, 5],
+  "wallSeconds": 205,
+  "phases": [
+    "design:brief",
+    "design:brand",
+    "design:brand",
+    "design:page",
+    "design:assets",
+    "design:build",
+    "design:preview",
+    "design:review",
+    "design:repair",
+    "design:review"
+  ],
+  "errors": []
+}

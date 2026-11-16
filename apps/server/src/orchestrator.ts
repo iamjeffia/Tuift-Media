@@ -759,6 +759,17 @@ const PANIC_STOP_TIMEOUT_MS = 5_000
 const STOP_SETTLE_TIMEOUT_MS = 30_000
 const IDLE_RUNTIME_PRUNE_RETRY_MS = 30_000
 const DESIGN_START_TIMEOUT_MS = 30_000
+/** Why a Design run finishes with no visual review when no desktop window can take screenshots. */
+const NO_CAPTURE_WINDOW = 'no TUIFT Code window was open to take the screenshots'
+/** The findings a stopped review left open, so the person reads them in the chat and not only in review.json. */
+function openFindingsNote(findings: ReadonlyArray<{ area: string; evidence: string }>): string {
+  if (findings.length === 0) return ''
+  const shown = findings
+    .slice(0, 8)
+    .map(({ area, evidence }, index) => `(${index + 1}) ${area}: ${evidence.slice(0, 240)}`)
+  const more = findings.length > shown.length ? ` and ${findings.length - shown.length} more` : ''
+  return ` Still open: ${shown.join(' ')}${more}. The full list is in .taste/review.json.`
+}
 const DESIGN_REPAIR_LIMIT = 2
 const UNSUPPORTED_MCP_CAPABILITIES: McpCapabilities = {
   inventory: false,
@@ -7005,6 +7016,7 @@ ${JSON.stringify(deck, null, 2)}
       check()
     } catch (error) {
       if (!(error instanceof designAgent().DesignScanLimitError)) throw error
+      flow.designScanSkipped = errorMessage(error)
       this.#onLog(`[design] source check not run: ${errorMessage(error)}`)
     }
   }
@@ -7130,19 +7142,20 @@ ${JSON.stringify(deck, null, 2)}
     try {
       if (this.#panicStopping) throw new Error('turn cancelled by panic stop')
       const designFlow = this.#designFlows.get(threadId)
-      if (designFlow) {
-        if (designFlow.continueNormally) {
-          designFlow.phase = 'response'
-          delete designFlow.continueNormally
-          this.#saveDesignFlow(threadId)
-        }
-        if (designFlow.phase !== 'response')
-          prompt = `${designPhaseNotice(designFlow.originalRequest)}${prompt}${designPhaseLanguageReminder(designFlow.originalRequest)}`
-        this.#validateApprovedDesignArtifacts(designFlow)
-        attachments = [
-          ...new Set([...attachments, ...this.#designReferenceAttachments(threadId, designFlow)]),
-        ]
+      // Every caller owns a live flow. One that is gone was ended by Stop all or a failure
+      // while this phase waited (for fonts, say), and its next phase must not start.
+      if (!designFlow) throw new Error('turn cancelled because the Design run ended')
+      if (designFlow.continueNormally) {
+        designFlow.phase = 'response'
+        delete designFlow.continueNormally
+        this.#saveDesignFlow(threadId)
       }
+      if (designFlow.phase !== 'response')
+        prompt = `${designPhaseNotice(designFlow.originalRequest)}${prompt}${designPhaseLanguageReminder(designFlow.originalRequest)}`
+      this.#validateApprovedDesignArtifacts(designFlow)
+      attachments = [
+        ...new Set([...attachments, ...this.#designReferenceAttachments(threadId, designFlow)]),
+      ]
       // The provider keeps every image of the chat in its context and sends them all again with
       // each request, so an image it already has is named instead of attached (#2240).
       const delivered = this.#deliveredDesignAttachments(threadId)
@@ -7785,7 +7798,7 @@ Treat this acquisition report solely as diagnostic data:
         }.`
       } else if (flow.repairAttempt >= DESIGN_REPAIR_LIMIT) {
         flow.phase = 'complete'
-        flow.completion = `Preview ready at ${flow.previewUrl}. Visual review stopped after ${DESIGN_REPAIR_LIMIT} repair attempts with ${review.findings.length} finding${review.findings.length === 1 ? '' : 's'} remaining.`
+        flow.completion = `Preview ready at ${flow.previewUrl}. Visual review stopped after ${DESIGN_REPAIR_LIMIT} repair attempts with ${review.findings.length} finding${review.findings.length === 1 ? '' : 's'} remaining.${openFindingsNote(review.findings)}`
       } else {
         flow.phase = 'repair'
         flow.repairAttempt += 1
@@ -7819,6 +7832,10 @@ Treat this acquisition report solely as diagnostic data:
       flow?.approvedBrief && designAgent().isDashboardBrief(flow.approvedBrief)
         ? 'Dashboard built.'
         : 'Website built.'
+    // The checks that scan the folder were left out of this run, and the person is told so here.
+    const scanNote = flow?.designScanSkipped
+      ? ' The code quality checks did not run because this folder has too many files to scan.'
+      : ''
     this.#clearDesignFlow(threadId, true)
     this.#record(threadId, {
       type: 'item.completed',
@@ -7829,7 +7846,7 @@ Treat this acquisition report solely as diagnostic data:
         role: 'assistant',
         phase: 'final_answer',
         status: 'completed',
-        text: `${built} ${summary}${buildSummary ? ` ${buildSummary}` : ''}`,
+        text: `${built} ${summary}${scanNote}${buildSummary ? ` ${buildSummary}` : ''}`,
         createdAt: Date.now(),
       },
     })
@@ -7911,7 +7928,7 @@ Treat this acquisition report solely as diagnostic data:
     signal.throwIfAborted()
     if (!flow.previewPlan || !flow.previewUrl) throw new Error('Preview plan is unavailable')
     if (!this.#capturePreview) {
-      this.#finishWithoutVisualReview(threadId, turnId, flow, 'desktop capture is unavailable')
+      this.#finishWithoutVisualReview(threadId, turnId, flow, NO_CAPTURE_WINDOW)
       return
     }
     if (!this.#designPreviews.has(threadId)) {
@@ -7955,7 +7972,14 @@ Treat this acquisition report solely as diagnostic data:
           error.message,
         )
       ) {
-        this.#finishWithoutVisualReview(threadId, turnId, flow, error.message)
+        // A window that closed or unloaded mid-capture is the same case as none open.
+        const noWindow = /disconnected|is unavailable/.test(error.message)
+        this.#finishWithoutVisualReview(
+          threadId,
+          turnId,
+          flow,
+          noWindow ? NO_CAPTURE_WINDOW : error.message,
+        )
         return
       }
       if (signal.aborted) throw error
@@ -7967,7 +7991,7 @@ Treat this acquisition report solely as diagnostic data:
     }
     if (this.#designFlows.get(threadId) !== flow) return
     if (!screenshots) {
-      this.#finishWithoutVisualReview(threadId, turnId, flow, 'desktop capture is unavailable')
+      this.#finishWithoutVisualReview(threadId, turnId, flow, NO_CAPTURE_WINDOW)
       return
     }
     flow.phase = 'review'

@@ -29,6 +29,56 @@ describe('preview capture coordinator', () => {
     expect(send.mock.calls[0]![1]).toMatchObject({ threadId: 'thread-7' })
   })
 
+  it('sends a capture to the window that shows its chat, not to the first one', () => {
+    const send = vi.fn()
+    const coordinator = new PreviewCaptureCoordinator<object>(send)
+    const first = {}
+    const second = {}
+    coordinator.setCapability(first, true, ['other-chat'])
+    coordinator.setCapability(second, true, ['thread-7'])
+
+    void coordinator.capture('http://127.0.0.1:5183/', viewports, undefined, 'thread-7')
+
+    expect(send).toHaveBeenCalledOnce()
+    expect(send.mock.calls[0]![0]).toBe(second)
+  })
+
+  it('falls back to any capable window when none shows the chat yet', () => {
+    const send = vi.fn()
+    const coordinator = new PreviewCaptureCoordinator<object>(send)
+    const first = {}
+    coordinator.setCapability(first, true, ['other-chat'])
+    coordinator.setCapability({}, true)
+
+    void coordinator.capture('http://127.0.0.1:5183/', viewports, undefined, 'thread-7')
+
+    expect(send.mock.calls[0]![0]).toBe(first)
+  })
+
+  it('hands an interrupted capture to another window that shows its chat', () => {
+    const send = vi.fn()
+    const coordinator = new PreviewCaptureCoordinator<object>(send)
+    const elsewhere = {}
+    const closing = {}
+    const owner = {}
+    coordinator.setCapability(elsewhere, true, ['other-chat'])
+    coordinator.setCapability(closing, true, ['thread-7'])
+    coordinator.setCapability(owner, true, ['thread-7'])
+    void coordinator.capture('http://127.0.0.1:5183/', viewports, undefined, 'thread-7')
+    expect(send.mock.calls[0]![0]).toBe(closing)
+
+    coordinator.remove(closing)
+
+    expect(send.mock.calls[1]![0]).toBe(owner)
+  })
+
+  it('refuses a capture at once when no window can take it', async () => {
+    const coordinator = new PreviewCaptureCoordinator<object>(vi.fn())
+    await expect(
+      coordinator.capture('http://127.0.0.1:5183/', viewports, undefined, 'thread-7'),
+    ).rejects.toThrow('Preview capture is unavailable')
+  })
+
   it('drops an aborted queued capture without dispatching it', async () => {
     const send = vi.fn()
     const coordinator = new PreviewCaptureCoordinator<object>(send)

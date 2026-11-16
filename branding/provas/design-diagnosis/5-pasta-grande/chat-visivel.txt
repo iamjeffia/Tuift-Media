@@ -1,0 +1,17 @@
+[commentary] Brief locked in. Starting the design.
+
+---
+
+[commentary] Vou ver o que existe no projeto, principalmente os arquivos da fonte Onest.
+
+---
+
+[commentary] Nada foi gravado. Vou criar os arquivos com a ferramenta de escrita.
+
+---
+
+[commentary] Vou corrigir a causa raiz: o `flex:1` fazia os painéis ignorarem a largura da `.wrap`.
+
+---
+
+[final_answer] Website built. Preview ready at http://127.0.0.1:4173/. Visual review passed after 2 repair attempts. Verify before publishing: os preços (R$ 45, 35, 70, 15, 15), os horários (terça a sexta 9h às 19h, sábado 8h às 17h, domingo e segunda fechado) e o número de WhatsApp (link wa.me/5500000000000) são exemplos inventados e precisam ser confirmados pelo dono. A página nova é index.html com page.css, só HTML e CSS, sem fotos, usando a fonte Onest local e os tokens da marca. Tem cabeçalho com o botão de WhatsApp, hero escuro com feixe de luz que entra em 1s, tabela de serviços, cartão de horário com a linha desenhada no título, chamada final escura e rodapé. Desvios: as seções usam min-height de 100svh em vez de altura fixa, para não cortar conteúdo; o link Privacidade do rodapé ficou de fora porque não existe página para ele; o ano no rodapé é 2026. O styles.css antigo, em Arial e sem relação com esta página, foi mantido sem alterações.
