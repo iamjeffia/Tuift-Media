@@ -95,6 +95,14 @@ export const SETTINGS_PAGES: SettingsSearchEntry[] = [
     page: true,
   },
   {
+    id: 'page:clube',
+    section: 'clube',
+    title: 'Clube do Motion',
+    titleKey: 'settings.nav.clube',
+    keywords: 'account login sign in connect subscription clube conta assinatura entrar',
+    page: true,
+  },
+  {
     id: 'page:phone',
     section: 'phone',
     title: 'Phone',

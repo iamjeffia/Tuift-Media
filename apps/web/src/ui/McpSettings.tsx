@@ -435,7 +435,11 @@ function ProviderMcpSettings(props: {
   // The provider loads these in every chat whether or not the project adds anything;
   // hiding them made a fully configured provider read as having no MCP servers.
   const inheritedServers =
-    currentInventory?.servers.filter((server) => server.scope === 'global') ?? []
+    currentInventory?.servers.filter(
+      (server) => server.scope === 'global' && server.providedBy === undefined,
+    ) ?? []
+  // What a link of the person's Clube do Motion account provides: shown, never edited here.
+  const providedServers = currentInventory?.servers.filter((server) => server.providedBy) ?? []
   // The provider is still collecting its servers, so an empty list is not final.
   const checking = Boolean(currentInventory?.loading)
   const canHide = currentInventory ? canHideInherited(currentInventory.capabilities) : false
@@ -570,6 +574,11 @@ function ProviderMcpSettings(props: {
           }
         >
           {projectList}
+        </SettingsSection>
+      ) : null}
+      {currentInventory && providedServers.length > 0 ? (
+        <SettingsSection title={t('settings.mcp.clube.title')} note={t('settings.mcp.clube.note')}>
+          <div className="mcp-list">{providedServers.map((server) => card(server, true))}</div>
         </SettingsSection>
       ) : null}
       {currentInventory && inheritedServers.length > 0 ? (

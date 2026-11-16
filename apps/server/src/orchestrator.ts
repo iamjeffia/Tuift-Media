@@ -185,6 +185,13 @@ import {
   type AgentToolsGrant,
   type BrowserToolsBroker,
 } from './agent-tools-mcp.js'
+import type { ClubeAccount } from './clube-account.js'
+import {
+  CLUBE_SERVER_ID,
+  clubeProvidedServer,
+  clubeServerConfig,
+  isClubeServer,
+} from './clube-mcp.js'
 import {
   SUBAGENT_INSTRUCTIONS,
   SubagentBroker,
@@ -855,6 +862,7 @@ export class Orchestrator {
   #subagents: SubagentBroker
   /** TUIFT Code's agent tools; absent when this orchestrator serves none. */
   #agentTools: AgentToolsEndpoint | undefined
+  #clube: ClubeAccount | undefined
   /** Each parent chat's token for the agent tools, kept while it exists. */
   #agentToolGrants = new Map<string, AgentToolsGrant>()
   #activeTurns = new Set<string>()
@@ -1063,6 +1071,8 @@ export class Orchestrator {
       agentTools?: boolean
       /** Runs agent browser commands; without it the browser tools are not offered. */
       browserTools?: BrowserToolsBroker
+      /** The link to a Clube do Motion account; once linked to a subscriber, its MCP server comes with every chat that gets the agent tools. */
+      clube?: ClubeAccount
       /** A chat's settings changed from inside the server (an agent set its Motion stage): tell the clients. */
       onThreadSettings?: (threadId: string) => void
       onQueue?: (threadId: string, state: QueueState) => void
@@ -1203,8 +1213,10 @@ export class Orchestrator {
             () => this.#bundledPack('motion'),
             (threadId) => this.afterEffectsState(threadId),
           ),
+          handlers.clube,
         )
       : undefined
+    this.#clube = handlers.clube
     this.#onQueue = handlers.onQueue ?? (() => {})
     this.#onChatStatus = handlers.onChatStatus ?? (() => {})
     this.#onLog = handlers.onLog
@@ -1779,7 +1791,9 @@ export class Orchestrator {
         )
       : { capabilities: PROJECT_MCP_MANAGEMENT_CAPABILITIES, servers: [] }
     // TUIFT Code's own agent tools are not one of the user's servers.
-    const inherited = inventory.servers.filter((server) => server.id !== AGENT_TOOLS_SERVER_ID)
+    const inherited = inventory.servers.filter(
+      (server) => server.id !== AGENT_TOOLS_SERVER_ID && server.id !== CLUBE_SERVER_ID,
+    )
     const servers = new Map(inherited.map((server) => [server.id, server]))
     for (const config of this.#mcpConfig.list(provider, projectPath)) {
       const current = servers.get(config.id)
@@ -1809,9 +1823,18 @@ export class Orchestrator {
             }),
       })
     }
+    // The Clube's server comes with the link, unless the person has their own.
+    const clube = this.#clube
+    const provided =
+      clube?.linked() &&
+      this.#offersAgentTools(provider) &&
+      ![...servers.values()].some((server) => isClubeServer(server, clube.origin)) &&
+      (await clube.subscriber()) === true
+        ? [clubeProvidedServer(clube.origin)]
+        : []
     return {
       capabilities: inventory.capabilities,
-      servers: [...servers.values()],
+      servers: [...servers.values(), ...provided],
       ...(inventory.loading ? { loading: true } : {}),
     }
   }
@@ -2050,7 +2073,8 @@ export class Orchestrator {
           const own = this.#keepAfterEffects(
             threadId,
             this.#agentToolGrants.has(threadId)
-              ? (await this.#agentToolsOptions(provider, threadId, options)).options
+              ? (await this.#agentToolsOptions(provider, threadId, options, false, projectPath))
+                  .options
               : options,
           )
           return this.#withThreadRuntimeOperation(threadId, () =>
@@ -2324,6 +2348,7 @@ export class Orchestrator {
     threadId: string | undefined,
     mcp: StartOptions,
     startsInMotion = false,
+    projectPath?: string,
   ): Promise<{ options: StartOptions; grant?: AgentToolsGrant }> {
     const endpoint = this.#agentTools
     if (!endpoint || !PROVIDER_CAPABILITIES[provider].agentTools) return { options: mcp }
@@ -2350,15 +2375,78 @@ export class Orchestrator {
         headers: { Authorization: { source: 'credential', credentialRef: AGENT_TOOLS_CREDENTIAL } },
       },
     }
+    const clubeServer = await this.#clubeServer(provider, projectPath, mcp, endpoint)
     return {
       options: {
         mcpServers: [
-          ...(mcp.mcpServers ?? []).filter((entry) => entry.id !== AGENT_TOOLS_SERVER_ID),
+          ...(mcp.mcpServers ?? []).filter(
+            (entry) => entry.id !== AGENT_TOOLS_SERVER_ID && entry.id !== CLUBE_SERVER_ID,
+          ),
           server,
+          ...(clubeServer ? [clubeServer] : []),
         ],
         mcpCredentials: { ...mcp.mcpCredentials, [AGENT_TOOLS_CREDENTIAL]: grant.authorization },
       },
       grant,
+    }
+  }
+
+  /**
+   * The Clube do Motion's MCP server for a chat that gets the agent tools: only
+   * with a link to a subscriber account, and never over the person's own server
+   * for the Clube (saved for the project, hidden by them, or one their provider
+   * loads), which wins. Reached through the app's endpoint, so the provider holds
+   * the chat's credential and never the account's token.
+   */
+  async #clubeServer(
+    provider: ProviderId,
+    projectPath: string | undefined,
+    mcp: StartOptions,
+    endpoint: AgentToolsEndpoint,
+  ): Promise<McpServerConfig | undefined> {
+    const clube = this.#clube
+    if (!clube?.linked() || (await clube.subscriber()) !== true) return undefined
+    const own = (server: Parameters<typeof isClubeServer>[0]) => isClubeServer(server, clube.origin)
+    if (mcp.mcpServers?.some(own)) return undefined
+    if (projectPath !== undefined) {
+      if (this.#mcpConfig.list(provider, projectPath).some(own)) return undefined
+      if (await this.#inventoryHas(provider, projectPath, own)) return undefined
+    }
+    try {
+      return clubeServerConfig(await endpoint.clubeUrl(), AGENT_TOOLS_CREDENTIAL)
+    } catch {
+      return undefined
+    }
+  }
+
+  /**
+   * Whether the servers the provider itself loads for the project include one
+   * that `matches`. The provider's answer may need a process; it is waited for
+   * briefly (a cold inventory answers "still loading"), and a late one is cached
+   * for the next chat.
+   */
+  async #inventoryHas(
+    provider: ProviderId,
+    projectPath: string,
+    matches: (server: McpServer) => boolean,
+  ): Promise<boolean> {
+    if (!PROVIDER_CAPABILITIES[provider].mcpInventory) return false
+    let timer: NodeJS.Timeout | undefined
+    const expired = new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => resolve(undefined), AFTER_EFFECTS_INVENTORY_WAIT_MS)
+    })
+    try {
+      for (;;) {
+        const inventory = await Promise.race([this.listMcpServers(provider, projectPath), expired])
+        if (!inventory) return false
+        if (inventory.servers.some(matches)) return true
+        if (!inventory.loading) return false
+        await Promise.race([new Promise((resolve) => setTimeout(resolve, 250)), expired])
+      }
+    } catch {
+      return false
+    } finally {
+      clearTimeout(timer)
     }
   }
 
@@ -2743,7 +2831,15 @@ export class Orchestrator {
           afterEffects: afterEffects.decision,
         }),
         ...(this.#offersAgentTools(target.provider)
-          ? (await this.#agentToolsOptions(target.provider, threadId, afterEffects.options)).options
+          ? (
+              await this.#agentToolsOptions(
+                target.provider,
+                threadId,
+                afterEffects.options,
+                false,
+                stored.projectPath,
+              )
+            ).options
           : afterEffects.options),
         ...this.#contextRuntimeOptions(target.provider, target.agent, accountId),
       }
@@ -2934,6 +3030,7 @@ export class Orchestrator {
           undefined,
           afterEffects.options,
           options.mode === 'motion',
+          workspacePath,
         )
       : { options: afterEffects.options, grant: undefined }
     try {
@@ -6518,7 +6615,15 @@ export class Orchestrator {
       // Side chats and sub-agents never get the agent tools: one level deep.
       ...(stored.ephemeral || !this.#offersAgentTools(stored.provider)
         ? afterEffects.options
-        : (await this.#agentToolsOptions(stored.provider, threadId, afterEffects.options)).options),
+        : (
+            await this.#agentToolsOptions(
+              stored.provider,
+              threadId,
+              afterEffects.options,
+              false,
+              stored.projectPath,
+            )
+          ).options),
       ...this.#contextRuntimeOptions(stored.provider, stored.agent, stored.accountId),
     }
     const sessionStart = this.#sessionStart(stored.provider, undefined, {

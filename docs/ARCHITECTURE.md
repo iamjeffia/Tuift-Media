@@ -607,6 +607,35 @@ command execution; revisit only with an explicit trust gate) · SQLite config (n
 human-readable or hand-editable) · writing project state into each vendor's global config
 (provider-specific, lossy, and too easy to overwrite unrelated user settings).
 
+### The Clube do Motion link
+
+The app is an OAuth 2.1 public client of the Clube (`clube-account.ts`): it registers itself once as
+"TUIFT Code", signs in with PKCE (S256) and the `resource` of the Clube's MCP server, receives the
+code on a listener bound to `127.0.0.1` that lives for that sign-in alone (it answers `/callback`
+only, and a request with another `state` is refused and ignored), and keeps the tokens in the OS
+credential store like a provider key (Windows Credential Manager, sealed with the user's DPAPI key;
+the macOS Keychain), one small credential each. Nothing reaches a file, the database, a log, a push
+or the phone: the page sees `ClubeStatus` and nothing more, and `clube.changed` carries no payload.
+The refresh token is single use, so `#refresh` is the one place that renews: serialised, early
+(two minutes before expiry, and once more after a 401), and a refusal unlinks. A paired phone can
+call none of `clube.*`.
+
+A chat reaches the Clube's tools through the app, never directly: the agent tools endpoint serves
+`<route>/clube`, which forwards to `https://clubedomotion.com/mcp` with a token that is fresh at
+that moment, so no provider process ever holds the account's token. The provider is given the
+endpoint with the chat's own credential, the same as for the agent tools. It is attached to every
+chat that gets the agent tools (Claude Code, Codex and OpenCode) once the account is a subscriber,
+under the id `tuift-clube`, which is not a name a person picks for their own, so their own server
+(saved for the project, hidden by them, or loaded by their provider) is always told apart and wins.
+A 403, a 429 and an unreachable Clube reach the agent as a tool error.
+
+_Rejected:_ writing a bearer header into the provider's MCP configuration (the token lasts an hour
+and the provider's process would hold it) · one file of tokens next to the database (the credential
+store is the app's rule for secrets) · a fixed loopback port (taken by another program, the
+sign-in would fail; the app registers the port it got and tries it again next time) · attaching the
+server to Motion chats only (the owner asked for "MCP connected", and the Clube is not only for
+Motion).
+
 ---
 
 ## Storage
@@ -1137,3 +1166,4 @@ registry entry, which is deliberately a good first outside contribution.
 | 2026-11-15 | A provider process that dies is classified once, in the orchestrator, from the adapters' own end sentences (`process-exit.ts`), into a `reason` on `thread.error` the renderer words with a Continue action; closing the app stops running turns like Stop and marks them; the quit asks first while chats work; a low memory warning (`system.memory`) reads free physical memory per tick while a turn runs and the commit charge only when that is low. Rejected: structured exit data from every adapter (eight edits for what one parser covers), auto-resuming after a crash, polling the commit charge on a timer. |
 | 2026-11-15 | Pictures inside a saved transcript are kept as content-addressed files beside the pasted attachments; events carry the path, old inline pictures move out when the chat opens.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | 2026-11-16 | Gave the plan, the reasoning and the person's message a ceiling (256 KiB each; the message is refused, never cut), sent an event over the frame limit cut to fit instead of closing the socket, and wrote provider children to a registry the next start reads to end the ones a crash left behind.                                                                                                                                                                                                                                                                                                                       |
+| 2026-11-16 | Linked the app to a Clube do Motion account (OAuth 2.1 public client, tokens in the credential store) and offered the Clube's MCP server to every chat through the app's own endpoint.                                                                                                                                                                                                                                                                                                                                                                                                                                    |

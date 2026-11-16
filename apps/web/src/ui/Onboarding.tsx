@@ -37,6 +37,7 @@ import { Skeleton, SkeletonGroup, SkeletonStatus } from './Skeleton.js'
 import { useDialogFocus } from './dialog-focus.js'
 import { catchIn, fly, flyText, morphInto, prefersReducedMotion } from './onboarding-motion.js'
 import type { Transport } from '../transport.js'
+import { CLUBE_FAILURE_WORDS, useClube } from '../clube.js'
 
 const STEPS = [
   { id: 'welcome', label: 'onboarding.step.welcome', hint: undefined },
@@ -44,6 +45,7 @@ const STEPS = [
   { id: 'appearance', label: 'onboarding.step.appearance', hint: undefined },
   { id: 'providers', label: 'onboarding.step.agents', hint: 'model' },
   { id: 'subagents', label: 'onboarding.step.subagents', hint: undefined },
+  { id: 'clube', label: 'onboarding.step.clube', hint: undefined },
   { id: 'project', label: 'onboarding.step.project', hint: undefined },
 ] as const satisfies ReadonlyArray<{
   id: string
@@ -191,7 +193,10 @@ export function Onboarding(props: {
   // Undefined until the user answers here or answered before; nothing is preselected.
   const [otherProviders, setOtherProviders] = useState<boolean>()
   const [subagentError, setSubagentError] = useState<string>()
-  const step: StepId = STEPS[index]?.id ?? 'welcome'
+  // The Clube page needs the server to talk to; without one the setup skips it.
+  const steps = props.transport ? STEPS : STEPS.filter((entry) => entry.id !== 'clube')
+  const step: StepId = steps[index]?.id ?? 'welcome'
+  const clube = useClube(props.transport, step === 'clube')
   const leaving = pending !== undefined
   const titleId = useId()
   const nameId = useId()
@@ -401,7 +406,7 @@ export function Onboarding(props: {
   }
 
   const go = (next: number) => {
-    const clamped = Math.min(STEPS.length - 1, Math.max(0, next))
+    const clamped = Math.min(steps.length - 1, Math.max(0, next))
     if (clamped === index || leaving || closing) return
     if (step === 'name') handOverName(clamped > index)
     setPointingFolder(false)
@@ -411,6 +416,7 @@ export function Onboarding(props: {
   const advance = () => {
     if (leaving || closing) return
     if (step === 'project') props.onAddProject()
+    else if (step === 'clube' && clube.status?.state === 'disconnected') void clube.connect()
     else go(index + 1)
   }
 
@@ -550,7 +556,7 @@ export function Onboarding(props: {
           <span>TUIFT Code</span>
         </div>
         <ol className="onboarding__progress" aria-label={t('onboarding.progress.label')}>
-          {STEPS.map((entry, position) => {
+          {steps.map((entry, position) => {
             const current = position === index
             const label = <span className="visually-hidden">{t(entry.label)}</span>
             return (
@@ -790,6 +796,69 @@ export function Onboarding(props: {
               </>
             ) : null}
 
+            {step === 'clube' ? (
+              <>
+                <h1 className="onboarding__title" id={titleId} ref={setFocusTarget} tabIndex={-1}>
+                  {t('onboarding.clube.title')}
+                </h1>
+                <p className="onboarding__lead">{t('onboarding.clube.lead')}</p>
+                {clube.status?.state === 'disconnected' && clube.status.failure ? (
+                  <p className="onboarding__lead" role="alert">
+                    {t(CLUBE_FAILURE_WORDS[clube.status.failure])}
+                  </p>
+                ) : null}
+                {clube.status?.state === 'connecting' ? (
+                  <p className="onboarding__lead" role="status">
+                    {t('onboarding.clube.waiting')}
+                  </p>
+                ) : null}
+                {clube.status?.state === 'connected' ? (
+                  <>
+                    <p className="onboarding__lead" role="status">
+                      {clube.status.account
+                        ? t('onboarding.clube.connectedAs', { name: clube.status.account.name })
+                        : t('onboarding.clube.connected')}
+                    </p>
+                    {clube.status.subscriber === false ? (
+                      <p className="onboarding__lead">{t('onboarding.clube.noSubscription')}</p>
+                    ) : null}
+                  </>
+                ) : null}
+                {clube.failed ? (
+                  <p className="onboarding__lead" role="alert">
+                    {t('settings.clube.unavailable')}
+                  </p>
+                ) : null}
+                <footer className="onboarding__actions onboarding__actions--split">
+                  <BackButton onClick={() => go(index - 1)} />
+                  <div className="onboarding__actions-end">
+                    {clube.status?.state === 'connecting' ? (
+                      <button
+                        className="ghost onboarding__ghost"
+                        type="button"
+                        onClick={() => void clube.cancel()}
+                      >
+                        {t('settings.clube.cancel')}
+                      </button>
+                    ) : clube.status?.state === 'disconnected' ? (
+                      <button
+                        className="ghost onboarding__ghost"
+                        type="button"
+                        onClick={() => go(index + 1)}
+                      >
+                        {t('onboarding.clube.skip')}
+                      </button>
+                    ) : null}
+                    <PrimaryButton onClick={advance} pressed={enterHeld}>
+                      {clube.status?.state === 'disconnected'
+                        ? t('onboarding.clube.connect')
+                        : t('onboarding.continue')}
+                    </PrimaryButton>
+                  </div>
+                </footer>
+              </>
+            ) : null}
+
             {step === 'project' ? (
               <>
                 <h1 className="onboarding__title" id={titleId} ref={setFocusTarget} tabIndex={-1}>
@@ -823,7 +892,7 @@ export function Onboarding(props: {
           <div className="onboarding__preview" data-receiving={receivingName || undefined}>
             <OnboardingPreview
               {...preview}
-              hint={STEPS[index]?.hint}
+              hint={steps[index]?.hint}
               newProject={step === 'project' ? (pointingFolder ? 'ready' : 'open') : undefined}
             />
           </div>

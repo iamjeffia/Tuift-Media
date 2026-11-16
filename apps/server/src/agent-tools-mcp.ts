@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { z } from 'zod'
 import type { BrowserAnswer, BrowserRequest } from './browser-commands.js'
 import { BrowserCommandError } from './browser-commands.js'
+import { forwardToClube, type ClubeMcpSource } from './clube-mcp.js'
 import {
   MOTION_STAGE_TOOL,
   MotionStageError,
@@ -299,15 +300,28 @@ export class AgentToolsEndpoint {
 
   #browser: BrowserToolsBroker | undefined
   #motion: MotionStageBroker | undefined
+  /** The Clube do Motion's MCP server, forwarded at `<route>/clube` with a token the endpoint never shows. */
+  #clube: ClubeMcpSource | undefined
 
   /**
    * Without a browser broker the browser tools are not offered at all, and without
    * a motion broker neither is `motion_stage`, which only Motion chats see.
    */
-  constructor(broker: AgentToolsBroker, browser?: BrowserToolsBroker, motion?: MotionStageBroker) {
+  constructor(
+    broker: AgentToolsBroker,
+    browser?: BrowserToolsBroker,
+    motion?: MotionStageBroker,
+    clube?: ClubeMcpSource,
+  ) {
     this.#broker = broker
     this.#browser = browser
     this.#motion = motion
+    this.#clube = clube
+  }
+
+  /** The Clube's stand-in on this endpoint: the same listener and the same per-chat credential. */
+  async clubeUrl(): Promise<string> {
+    return `${await this.url()}/clube`
   }
 
   /** The endpoint's URL, listening on first use. */
@@ -378,11 +392,12 @@ export class AgentToolsEndpoint {
 
   async #respond(request: IncomingMessage, response: ServerResponse): Promise<void> {
     // A browser page must never reach this, whatever it guesses.
-    if (request.headers.origin !== undefined || request.url !== this.#route) {
+    const toClube = this.#clube !== undefined && request.url === `${this.#route}/clube`
+    if (request.headers.origin !== undefined || (request.url !== this.#route && !toClube)) {
       response.writeHead(request.headers.origin !== undefined ? 403 : 404).end()
       return
     }
-    if (request.method !== 'POST') {
+    if (request.method !== 'POST' && !toClube) {
       response.writeHead(405, { allow: 'POST' }).end()
       return
     }
@@ -402,6 +417,10 @@ export class AgentToolsEndpoint {
         return
       }
       chunks.push(buffer)
+    }
+    if (toClube) {
+      await forwardToClube(this.#clube!, request, Buffer.concat(chunks), response)
+      return
     }
     let body: unknown
     try {

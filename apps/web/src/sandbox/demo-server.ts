@@ -5,6 +5,7 @@ import {
   type ApprovalMode,
   type AvailableSkill,
   type BackgroundModelPreference,
+  type ClubeStatus,
   type ChannelName,
   type DataOf,
   type DomainEvent,
@@ -128,6 +129,28 @@ const SCENE_HOLD_MS = 10 * 60_000
 /** The sandbox URL's `afterEffects` value, when it is one of the three states. */
 export function afterEffectsFromSearch(search: string): AfterEffectsState | undefined {
   return AfterEffectsStateSchema.safeParse(new URLSearchParams(search).get('afterEffects')).data
+}
+
+/** The states of the Clube link the sandbox can open in, for screens and tests. */
+function demoClubeStatus(name: string | null): ClubeStatus {
+  const account = { name: 'Marina Duarte', email: 'marina@example.com' }
+  switch (name) {
+    case 'connecting':
+      return { state: 'connecting' }
+    case 'connected':
+      return { state: 'connected', account: { ...account, plan: 'anual' }, subscriber: true }
+    case 'free':
+      return { state: 'connected', account: { ...account, plan: 'grátis' }, subscriber: false }
+    case 'noaccount':
+      return { state: 'connected' }
+    case 'timeout':
+    case 'denied':
+    case 'unlinked':
+    case 'unreachable':
+      return { state: 'disconnected', failure: name }
+    default:
+      return { state: 'disconnected' }
+  }
 }
 
 type Handler<M extends MethodName> = (params: ParamsOf<M>) => ResultOf<M> | Promise<ResultOf<M>>
@@ -296,6 +319,10 @@ export class DemoServer {
   #timers = new Set<ReturnType<typeof setTimeout>>()
   #sidebar: SidebarSettings = { mode: 'classic', autoSettleDays: 3 }
   #subagents: SubagentSettings = {}
+  // The Clube do Motion link; `?clube=` picks the state the sandbox opens in.
+  #clube: ClubeStatus = demoClubeStatus(
+    typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('clube'),
+  )
   #hiddenModels: string[] = []
   #roster: string[] | null = null
   #contextSettings: ProviderContextSettingsMap = {}
@@ -1281,7 +1308,26 @@ export class DemoServer {
           startOAuth: false,
           cancelOAuth: false,
         },
-        servers: provider(params.provider).mcp,
+        servers: [
+          ...provider(params.provider).mcp,
+          ...(this.#clube.state === 'connected' && this.#clube.subscriber
+            ? [
+                {
+                  id: 'tuift-clube',
+                  displayName: 'Clube do Motion',
+                  scope: 'global' as const,
+                  enabled: true,
+                  transport: { type: 'http' as const, url: 'https://clubedomotion.com/mcp' },
+                  auth: { status: 'authenticated' as const, method: 'oauth' as const },
+                  startup: { state: 'ready' as const },
+                  tools: [],
+                  resources: [],
+                  resourceTemplates: [],
+                  providedBy: 'clube' as const,
+                },
+              ]
+            : []),
+        ],
       }),
 
       'usage.summary': (params) => {
@@ -1329,6 +1375,22 @@ export class DemoServer {
       'subagents.updateSettings': ({ otherProviders }) => {
         this.#subagents = { otherProviders }
         return this.#subagents
+      },
+      'clube.status': () => this.#clube,
+      'clube.connect': () => {
+        this.#clube = { state: 'connecting' }
+        this.#push('clube.changed', {})
+        return { authUrl: 'https://clubedomotion.com/oauth/autorizar?demo=1' }
+      },
+      'clube.cancel': () => {
+        this.#clube = { state: 'disconnected' }
+        this.#push('clube.changed', {})
+        return this.#clube
+      },
+      'clube.disconnect': () => {
+        this.#clube = { state: 'disconnected' }
+        this.#push('clube.changed', {})
+        return this.#clube
       },
       'phone.status': () => ({
         available: false,
