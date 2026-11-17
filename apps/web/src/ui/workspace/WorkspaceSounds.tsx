@@ -16,7 +16,7 @@ import type {
 } from '@harness/contracts'
 import { attachDeliveredFile, isDesktop } from '../../bridge.js'
 import { CLUBE_PLANS_LINK, useClube } from '../../clube.js'
-import { attachToComposer } from '../../composer-attach.js'
+import { attachToComposer, useAttachedToComposer } from '../../composer-attach.js'
 import { useI18n, type I18n, type MessageKey } from '../../i18n/index.js'
 import {
   formatSoundDuration,
@@ -95,7 +95,9 @@ export function WorkspaceSounds(props: {
   const [notice, setNotice] = useState<Notice>()
   const [spent, setSpent] = useState<Partial<Record<'sound' | 'music', boolean>>>({})
   const [sending, setSending] = useState<string>()
-  const [sent, setSent] = useState<ReadonlySet<string>>(() => new Set())
+  // Row to the path its file was attached as: a row reads "in the chat" only while the prompt box
+  // still holds that path, so it goes back to "Send" once the message is sent or the file removed.
+  const [attached, setAttached] = useState<ReadonlyMap<string, string>>(() => new Map())
   const preview = usePreview(transport, (failed) =>
     setNotice(failed ? { tone: 'error', text: t('sounds.row.previewFailed') } : undefined),
   )
@@ -220,7 +222,7 @@ export function WorkspaceSounds(props: {
           ? await attachDeliveredFile(attachment.path, [props.projectPath])
           : attachment
       if (!attachToComposer([picked])) throw new Error('no composer')
-      setSent((now) => new Set(now).add(key))
+      setAttached((now) => new Map(now).set(key, picked.path))
     } catch {
       setNotice({ tone: 'error', text: t('sounds.use.attachFailed') })
     } finally {
@@ -439,7 +441,7 @@ export function WorkspaceSounds(props: {
                       playing={preview.playing === key}
                       loadingPreview={preview.loading === key}
                       sending={sending === key}
-                      sent={sent.has(key)}
+                      attachedPath={attached.get(key)}
                       canSend={Boolean(props.threadId) && !isSpent}
                       onPreview={() => preview.toggle(item)}
                       onSend={() => void send(item)}
@@ -521,13 +523,15 @@ const SoundRow = memo(function SoundRow(props: {
   playing: boolean
   loadingPreview: boolean
   sending: boolean
-  sent: boolean
+  /** The path this row's file went into the prompt box as, if it did. */
+  attachedPath: string | undefined
   canSend: boolean
   onPreview: () => void
   onSend: () => void
 }) {
   const { t, language } = props.i18n
   const { item } = props
+  const sent = useAttachedToComposer(props.attachedPath)
   const music = item.shelf === 'music'
   const parts = [
     item.key
@@ -563,14 +567,14 @@ const SoundRow = memo(function SoundRow(props: {
         type="button"
         className="sounds-row__send"
         aria-label={t('sounds.row.sendLabel', { name: item.name })}
-        disabled={!props.canSend || props.sending}
+        disabled={!props.canSend || props.sending || sent}
         onClick={props.onSend}
       >
-        {props.sent ? <Check size={13} aria-hidden /> : <Paperclip size={13} aria-hidden />}
+        {sent ? <Check size={13} aria-hidden /> : <Paperclip size={13} aria-hidden />}
         <span>
           {props.sending
             ? t('sounds.row.sending')
-            : props.sent
+            : sent
               ? t('sounds.row.sent')
               : t('sounds.row.send')}
         </span>

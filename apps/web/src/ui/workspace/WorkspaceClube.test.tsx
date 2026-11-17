@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   ClubeFacets,
@@ -13,10 +13,17 @@ import type {
 import { CLUBE_PLANS_URL } from '@harness/contracts'
 import { setLanguage } from '../../i18n/index.js'
 import { TestTransport } from '../../test-transport.js'
+import { registerComposerAttacher, reportComposerAttachments } from '../../composer-attach.js'
 import { WorkspaceClube } from './WorkspaceClube.js'
 
-const attach = vi.hoisted(() => vi.fn(() => true))
-vi.mock('../../composer-attach.js', () => ({ attachToComposer: attach }))
+const attach = vi.hoisted(() => vi.fn((_files: Array<{ path: string }>) => true))
+vi.mock('../../composer-attach.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../composer-attach.js')>()),
+  attachToComposer: attach,
+}))
+// The prompt box: what it was handed it reports holding, as the composer does, until a test lets go.
+const promptBox = () => undefined
+let leaveBox = () => {}
 vi.mock('../../bridge.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../bridge.js')>()),
   isDesktop: false,
@@ -31,8 +38,15 @@ const pause = vi.fn()
 const writeText = vi.fn(() => Promise.resolve())
 
 beforeEach(() => {
+  leaveBox = registerComposerAttacher(promptBox)
   attach.mockClear()
-  attach.mockReturnValue(true)
+  attach.mockImplementation((files) => {
+    reportComposerAttachments(
+      promptBox,
+      files.map((file) => file.path),
+    )
+    return true
+  })
   play.mockClear()
   pause.mockClear()
   writeText.mockClear()
@@ -43,6 +57,7 @@ beforeEach(() => {
   setLanguage('en', { persist: false })
 })
 afterEach(() => {
+  leaveBox()
   cleanup()
   setLanguage('en', { persist: false })
 })
@@ -837,6 +852,15 @@ describe('music', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Play the Vocal preview' }))
     await waitFor(() => expect(play).toHaveBeenCalledTimes(2))
     expect(screen.getByRole('button', { name: 'Play the Instrumental preview' })).toBeTruthy()
+  })
+
+  it('sends the track again once the prompt box lets go of it', async () => {
+    open({ item: musicRecord })
+    await openItem('Maré lenta')
+    fireEvent.click(await screen.findByRole('button', { name: 'Send the track to the chat' }))
+    expect(await screen.findByRole('button', { name: 'In the chat' })).toBeTruthy()
+    act(() => reportComposerAttachments(promptBox, []))
+    expect(await screen.findByRole('button', { name: 'Send the track to the chat' })).toBeTruthy()
   })
 
   it('sends the track by the road of the Sounds tab, with the id after the slash', async () => {
