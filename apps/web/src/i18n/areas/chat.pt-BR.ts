@@ -169,6 +169,12 @@ export const chatPt = {
   'chat.actions.restoreBeforePrompt': 'Restaurar para antes deste prompt',
   'chat.actions.restoreBeforeTurn': 'Restaurar para antes deste turno',
 
+  // What is attached to a sent message: the group, a sound's play button, a file's button
+  'chat.said.attachments': 'Anexos',
+  'chat.said.play': 'Ouvir {name}',
+  'chat.said.pause': 'Pausar {name}',
+  'chat.said.show': 'Mostrar {name}',
+
   // Notices of the composer: attachments and the queue of prompts
   'chat.attach.unsupported': 'Este provedor não aceita anexos.',
   'chat.attach.blockSend': 'Remova os anexos ou troque para um provedor que aceite anexos.',

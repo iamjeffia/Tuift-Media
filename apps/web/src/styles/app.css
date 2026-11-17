@@ -1929,6 +1929,10 @@
   cursor: pointer;
 }
 
+.queue-row__media--file {
+  cursor: default;
+}
+
 .queue-row__media:disabled {
   opacity: 1;
   cursor: default;

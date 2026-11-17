@@ -24,6 +24,7 @@ import {
   IconArrowUp as ArrowUp,
   IconCornerDownRight as CornerDownRight,
   IconFile as FileIcon,
+  IconMusic as Music,
   IconFolder as Folder,
   IconFolderPlus as FolderPlus,
   IconGitBranch as GitBranch,
@@ -51,6 +52,7 @@ import {
   type PickedAttachment,
 } from '../bridge.js'
 import { appCommands, parseAppActionCommand, type AppScreen } from '../app-commands.js'
+import { attachmentKind } from './MessageAttachments.js'
 import { registerComposerAttacher } from '../composer-attach.js'
 import { rememberChipTokens, rememberedChipTokens } from '../composer-chip-memory.js'
 import { parseFeedbackCommand } from '../feedback-command.js'
@@ -407,10 +409,24 @@ export type SendAvailability =
 
 function QueuedMediaPreview({ attachments, text }: { attachments: string[]; text: string }) {
   const commentImages = browserCommentImages(text, attachments)
-  const reference = attachments.find(
-    (attachment) => !commentImages.has(attachment) && previewMediaType('', attachment),
+  const shown = attachments.filter((attachment) => !commentImages.has(attachment))
+  const reference = shown.find((attachment) => previewMediaType('', attachment))
+  if (reference) return <QueuedMediaPreviewCard key={reference} reference={reference} />
+  // A sound or another file has no picture: its icon stands in, and the names are the tooltip.
+  const [first] = shown
+  if (first === undefined) return null
+  return (
+    <span
+      className="queue-row__media queue-row__media--file"
+      title={shown.map((attachment) => basename(attachment)).join(', ')}
+    >
+      {attachmentKind(first) === 'audio' ? (
+        <Music size={12} aria-hidden />
+      ) : (
+        <FileIcon size={12} aria-hidden />
+      )}
+    </span>
   )
-  return reference ? <QueuedMediaPreviewCard key={reference} reference={reference} /> : null
 }
 
 function QueuedMediaPreviewCard({ reference }: { reference: string }) {

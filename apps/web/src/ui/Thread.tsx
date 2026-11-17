@@ -47,11 +47,13 @@ import {
   IconLoader2 as LoaderCircle,
   IconPalette as Palette,
   IconPencil as Pencil,
+  IconPlayerPlay as Play,
   IconPlayerStop as Stop,
   IconRotate as RotateCcw,
   IconSearch as Search,
   IconTerminal as Terminal,
   IconTool as Wrench,
+  IconVideo as Video,
   IconWorldSearch as WorldSearch,
 } from '@tabler/icons-react'
 import {
@@ -76,6 +78,7 @@ import { parseToolCall, toolArgumentEntries, toolArgumentSnippet } from './tool-
 import { browserCommentsAsPlainText } from './browser-comments.js'
 import { CopyButton } from './CopyButton.js'
 import { MessageActionButton } from './MessageActionButton.js'
+import { attachmentKind, MessageFileChip } from './MessageAttachments.js'
 import { canShowDeliveredFiles } from '../delivered-files.js'
 import { DeliveredFileMenu, DeliveredFiles } from './DeliveredFiles.js'
 import { LazyMediaViewer as MediaViewer, preloadMediaViewer } from './LazyMediaViewer.js'
@@ -2405,20 +2408,33 @@ const Row = memo(function Row({
   // begins; the agent's answer is plain prose, which is what you actually read.
   if (item.type === 'message' && item.role === 'user') {
     const commentImages = browserCommentImages(item.text ?? '', item.attachments ?? [])
-    const imageAttachments =
-      item.attachments?.filter(
-        (attachment) => isImageAttachment(attachment) && !commentImages.has(attachment),
-      ) ?? []
+    // Everything attached shows: images and videos as thumbnails first, then sounds and files as
+    // chips. A browser comment's screenshot is drawn by its own block in the text.
+    const attached = (item.attachments ?? []).filter((attachment) => !commentImages.has(attachment))
+    const tiles = attached.filter((attachment) => {
+      const kind = attachmentKind(attachment)
+      return kind === 'image' || kind === 'video'
+    })
+    const chips = attached.filter((attachment) => !tiles.includes(attachment))
     return (
       <div className="said">
-        {imageAttachments.length > 0 ? (
-          <div className="said__attachments" aria-label="Attached images">
-            {imageAttachments.map((attachment) => (
+        {attached.length > 0 ? (
+          <div className="said__attachments" role="group" aria-label={t('chat.said.attachments')}>
+            {tiles.map((attachment) => (
               <ViewedImagePreview
                 key={attachment}
                 reference={attachment}
                 active
                 variant="message"
+                {...(attachmentKind(attachment) === 'video' ? { media: 'video' as const } : {})}
+              />
+            ))}
+            {chips.map((attachment) => (
+              <MessageFileChip
+                key={attachment}
+                reference={attachment}
+                kind={attachmentKind(attachment) === 'audio' ? 'audio' : 'file'}
+                projectPath={projectPath}
               />
             ))}
           </div>
@@ -3447,17 +3463,24 @@ function ViewedImagePreview({
   active,
   fallbackClassName,
   variant = 'detail',
+  media = 'image',
 }: {
   reference: string
   active: boolean
   fallbackClassName?: string
   variant?: 'detail' | 'message'
+  /** A sent video is a thumbnail of the same shape, with a play mark; it only comes from the desktop. */
+  media?: 'image' | 'video'
 }) {
   // A disclosure measures its row in the commit that opens it. A preview that
   // arrives a frame later would resize the reveal mid-wipe, so anything
   // already known renders in the first frame.
   const chatImages = useContext(ChatImageContext)
-  const viaServerOnly = !canPreviewViewedImages && variant === 'message' && chatImages !== undefined
+  const viaServerOnly =
+    !canPreviewViewedImages &&
+    variant === 'message' &&
+    media === 'image' &&
+    chatImages !== undefined
   const [preview, setPreview] = useState(() => knownViewedImagePreview(reference))
   const [previewSettled, setPreviewSettled] = useState(
     () => preview !== undefined || (!canPreviewViewedImages && !viaServerOnly),
@@ -3537,7 +3560,7 @@ function ViewedImagePreview({
         aria-label={label}
       >
         <span className="viewed-image-preview__placeholder" aria-hidden>
-          <Images />
+          {media === 'video' ? <Video /> : <Images />}
           {previewSettled ? (
             <span className="viewed-image-preview__unavailable-copy">
               {attachmentName(reference)}
@@ -3572,11 +3595,21 @@ function ViewedImagePreview({
               : setImageFailed(true)
           }
         />
+        {media === 'video' ? (
+          <span className="viewed-image-preview__play" aria-hidden>
+            <Play size={14} fill="currentColor" />
+          </span>
+        ) : null}
       </button>
       {variant === 'message' && canShowDeliveredFiles() && !reference.startsWith('data:') ? (
         <DeliveredFileMenu
           targetRef={openButton}
-          file={{ path: preview.path, name: preview.name, mediaType: 'image', copyable: true }}
+          file={{
+            path: preview.path,
+            name: preview.name,
+            mediaType: media,
+            copyable: media === 'image',
+          }}
           roots={[]}
           actionPath={reference}
           onReveal={() => void revealPath(reference)}
@@ -3593,22 +3626,13 @@ function ViewedImagePreview({
             src={preview.previewUrl}
             thumbnailSrc={inlineSource}
             name={preview.name}
-            mediaType="image"
+            mediaType={media}
             onReveal={variant === 'message' ? () => void revealPath(reference) : undefined}
             onClose={() => setViewerOpen(false)}
           />
         </Suspense>
       ) : null}
     </div>
-  )
-}
-
-const IMAGE_ATTACHMENT_RE = /\.(?:apng|avif|bmp|gif|ico|jpe?g|png|webp)$/i
-
-function isImageAttachment(reference: string): boolean {
-  return (
-    IMAGE_ATTACHMENT_RE.test(reference) ||
-    /^data:image\/(?:png|jpeg|gif|webp|avif);base64,/.test(reference)
   )
 }
 

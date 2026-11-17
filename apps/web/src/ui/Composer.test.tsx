@@ -1234,6 +1234,26 @@ describe('Composer send handoff', () => {
 })
 
 describe('Composer queue', () => {
+  it('shows a queued sound or file as an icon tile named by its files, not as nothing', () => {
+    renderComposer(vi.fn(), {
+      queuedTurns: [
+        { id: 'q1', text: 'Use this sound', attachments: ['/work/wave.flac'], createdAt: 1 },
+        {
+          id: 'q2',
+          text: 'Read these',
+          attachments: ['/work/brief.pdf', '/work/notes.txt'],
+          createdAt: 2,
+        },
+      ],
+    })
+    const tiles = document.querySelectorAll<HTMLElement>('.queue-row__media--file')
+    expect(tiles).toHaveLength(2)
+    expect(tiles[0]?.title).toBe('wave.flac')
+    expect(tiles[0]?.querySelector('.tabler-icon-music')).not.toBeNull()
+    expect(tiles[1]?.title).toBe('brief.pdf, notes.txt')
+    expect(tiles[1]?.querySelector('.tabler-icon-file')).not.toBeNull()
+  })
+
   it('waits for queue deletion confirmation and preserves typing during the wait', async () => {
     let finish!: (removed: boolean) => void
     const onDeleteQueuedTurn = vi.fn(

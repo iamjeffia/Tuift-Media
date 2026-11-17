@@ -155,6 +155,12 @@ export const chatEn = {
   'chat.actions.restoreBeforePrompt': 'Restore to before this prompt',
   'chat.actions.restoreBeforeTurn': 'Restore to before this turn',
 
+  // What is attached to a sent message: the group, a sound's play button, a file's button
+  'chat.said.attachments': 'Attachments',
+  'chat.said.play': 'Play {name}',
+  'chat.said.pause': 'Pause {name}',
+  'chat.said.show': 'Show {name}',
+
   // Notices of the composer: attachments and the queue of prompts
   'chat.attach.unsupported': 'Attachments aren’t supported by this source.',
   'chat.attach.blockSend': 'Remove attachments or switch to a source that supports them.',
