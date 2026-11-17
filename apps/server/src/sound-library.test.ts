@@ -214,6 +214,12 @@ describe('searching the library', () => {
     expect(fake.previewCalls).toEqual(['101', 'm1/completa'])
     expect(fake.detailCalls).toEqual([])
     expect(library.daily('sound').used).toBe(0)
+    // A track's preview is the whole track: several megabytes, far above a sound's few seconds.
+    fake.musicPreview = Buffer.alloc(8 * 1024 * 1024, 1)
+    const whole = await library.preview('music', 'm1')
+    expect(whole.ok && Buffer.from(whole.data, 'base64').length).toBe(8 * 1024 * 1024)
+    fake.musicPreview = Buffer.alloc(25 * 1024 * 1024, 1)
+    expect(await library.preview('music', 'm1')).toEqual({ ok: false, reason: 'unreachable' })
     expect((await library.preview('sound', 'nope')).ok).toBe(false)
   })
 })

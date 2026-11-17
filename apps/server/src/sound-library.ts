@@ -42,6 +42,13 @@ const DEFAULT_LIMIT = 20
 const MAX_JSON_BYTES = 1024 * 1024
 const MAX_SOUND_BYTES = 96 * 1024 * 1024
 const MAX_PREVIEW_BYTES = 2 * 1024 * 1024
+/**
+ * A track's preview is the whole track as an MP3 (the largest in the catalogue is about 8 MB),
+ * not a few seconds like a sound's.
+ * ponytail: the bytes still travel to the page in one message; stream them through the server's
+ * media route, as the Clube tab does, if tracks get much longer.
+ */
+const MAX_MUSIC_PREVIEW_BYTES = 24 * 1024 * 1024
 const MAX_ZIP_BYTES = 1024 * 1024 * 1024
 const MAX_RECORDS = 3_000
 const FACETS_TTL_MS = 10 * 60_000
@@ -485,7 +492,7 @@ export class SoundLibrary {
     // A track's previews come with the search; asking its detail for one would be a second call.
     const link = this.#previews.get(id)
     if (!link) return fail('not-found')
-    const bytes = await this.#fetchLink(link, MAX_PREVIEW_BYTES)
+    const bytes = await this.#fetchLink(link, MAX_MUSIC_PREVIEW_BYTES)
     if (!bytes) return fail('unreachable')
     return { ok: true, mime: 'audio/mpeg', data: bytes.toString('base64') }
   }

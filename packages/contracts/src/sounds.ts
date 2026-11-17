@@ -140,7 +140,10 @@ export const SoundFacetsResultSchema = z.union([
 ])
 export type SoundFacetsResult = z.infer<typeof SoundFacetsResultSchema>
 
-/** A preview: at most eight seconds of Opus, handed over as base64 so the page never calls the Clube. */
+/**
+ * A preview, handed over as base64 so the page never calls the Clube: at most eight seconds of
+ * Opus for a sound, the whole track as an MP3 (several megabytes) for music.
+ */
 export const SoundPreviewResultSchema = z.union([
   z.object({ ok: z.literal(true), mime: z.string(), data: z.string() }),
   SoundFailureSchema,

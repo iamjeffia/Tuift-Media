@@ -40,6 +40,8 @@ export class FakeClube {
   /** The sound library: what `/api/v1/sons` and `/api/v1/musicas` answer from. */
   sons: FakeSom[] = defaultSons()
   musicas: FakeMusica[] = defaultMusicas()
+  /** What a track's open preview answers with. */
+  musicPreview: Buffer = Buffer.from('ID3-preview')
   /** Ids asked of `/sons/arquivo`, of `/sons/previa`, and of the track zips, in order. */
   readonly fileCalls: string[] = []
   readonly previewCalls: string[] = []
@@ -225,9 +227,7 @@ export class FakeClube {
     const preview = /^\/previas\/([^/]+)\/(completa|instrumental|vocal)\.mp3$/.exec(url.pathname)
     if (preview) {
       this.previewCalls.push(`${preview[1]}/${preview[2]}`)
-      return void response
-        .writeHead(200, { 'content-type': 'audio/mpeg' })
-        .end(Buffer.from('ID3-preview'))
+      return void response.writeHead(200, { 'content-type': 'audio/mpeg' }).end(this.musicPreview)
     }
     if (url.pathname.startsWith('/zips/')) {
       const id = url.pathname.slice('/zips/'.length).replace(/\.zip$/, '')
