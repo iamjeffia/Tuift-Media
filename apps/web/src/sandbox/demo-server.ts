@@ -562,6 +562,7 @@ export class DemoServer {
         role: 'user',
         status: 'completed',
         text: turn.prompt,
+        ...(turn.attachments?.length ? { attachments: turn.attachments } : {}),
         createdAt: startedAt,
       },
     })

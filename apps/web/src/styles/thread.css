@@ -488,6 +488,7 @@ button.thread__older:hover {
 }
 
 .said__attachments:not(:has(> .viewed-image-preview)) > .said__chip {
+  max-width: 100%;
   margin: 0;
 }
 

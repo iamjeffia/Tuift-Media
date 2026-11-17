@@ -24,6 +24,20 @@ if (new URLSearchParams(window.location.search).get('bridge') === 'files') {
       setTheme: nothing,
       capturePreview: nothing,
       openExternal: nothing,
+      // A file sent with a prompt: the picture or the video the sandbox makes for its path.
+      previewViewedImage: async (reference: string) => {
+        if (/gone|missing/.test(reference)) return undefined
+        const media = await demoMedia(reference)
+        if (!media || media.mediaType === 'audio') return undefined
+        const frame = media.mediaType === 'video' ? await demoMedia('frame.png') : media
+        return {
+          path: reference,
+          name: reference.split('/').at(-1) ?? reference,
+          mediaType: media.mediaType,
+          previewUrl: media.url,
+          ...(frame ? { thumbnailUrl: frame.url } : {}),
+        }
+      },
       // The two the Files tab uses.
       revealProjectFile: async (path: string) => void asked.push(path),
       previewProjectFile: async (path: string) => demoMedia(path),
