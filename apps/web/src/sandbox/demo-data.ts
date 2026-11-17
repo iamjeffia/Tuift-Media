@@ -16,6 +16,7 @@ import {
   FILE_LINK_DEMO_CHAT,
   FILE_VIEWER_DEMO_FILES,
   MEDIA_DELIVERY_DEMO_CHAT,
+  SENT_ATTACHMENTS_DEMO_CHAT,
 } from './demo-files.js'
 
 /**
@@ -383,6 +384,8 @@ export type DemoUsage = Omit<Usage, 'cumulative' | 'inputIncludesCached'>
 
 export type DemoTurn = {
   prompt: string
+  /** Files sent with the prompt, as the prompt box hands them over (paths in the demo project). */
+  attachments?: string[]
   /** How long before "now" the turn started. */
   agoMs: number
   durationMs: number
@@ -542,6 +545,7 @@ export const DEMO_PROJECTS: ReadonlyArray<DemoProject> = [
     chats: [
       FILE_LINK_DEMO_CHAT,
       MEDIA_DELIVERY_DEMO_CHAT,
+      SENT_ATTACHMENTS_DEMO_CHAT,
       longChat(),
       {
         id: 'demo-focus-ring',

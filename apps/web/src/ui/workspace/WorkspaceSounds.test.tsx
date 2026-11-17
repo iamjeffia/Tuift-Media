@@ -12,10 +12,17 @@ import type {
 import { CLUBE_PLANS_URL } from '@harness/contracts'
 import { setLanguage } from '../../i18n/index.js'
 import { TestTransport } from '../../test-transport.js'
+import { registerComposerAttacher, reportComposerAttachments } from '../../composer-attach.js'
 import { WorkspaceSounds } from './WorkspaceSounds.js'
 
-const attach = vi.hoisted(() => vi.fn(() => true))
-vi.mock('../../composer-attach.js', () => ({ attachToComposer: attach }))
+const attach = vi.hoisted(() => vi.fn((_files: Array<{ path: string }>) => true))
+vi.mock('../../composer-attach.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../composer-attach.js')>()),
+  attachToComposer: attach,
+}))
+// The prompt box: what it was handed it reports holding, as the composer does, until a test lets go.
+const promptBox = () => undefined
+let leaveBox = () => {}
 vi.mock('../../bridge.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../bridge.js')>()),
   isDesktop: false,
@@ -25,15 +32,25 @@ const play = vi.fn(() => Promise.resolve())
 const pause = vi.fn()
 
 beforeEach(() => {
+  leaveBox = registerComposerAttacher(promptBox)
   attach.mockClear()
-  attach.mockReturnValue(true)
+  attach.mockImplementation((files) => {
+    reportComposerAttachments(
+      promptBox,
+      files.map((file) => file.path),
+    )
+    return true
+  })
   play.mockClear()
   pause.mockClear()
   Object.assign(HTMLMediaElement.prototype, { play, pause })
   URL.createObjectURL = vi.fn(() => 'blob:preview')
   URL.revokeObjectURL = vi.fn()
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  leaveBox()
+})
 
 const connected: ClubeStatus = {
   state: 'connected',
@@ -345,6 +362,40 @@ describe('the Sounds tab: the library', () => {
 })
 
 describe('the Sounds tab: sending a sound to the chat', () => {
+  it('reads "in the chat" only while the prompt box holds the sound, and sends it again after', async () => {
+    open()
+    await screen.findByRole('list', { name: 'Sounds' })
+    const send = () => screen.getByRole('button', { name: 'Send Cello drone to the chat' })
+    fireEvent.click(send())
+    expect(await screen.findByText('In the chat')).toBeTruthy()
+    // Held: the row cannot send it a second time.
+    expect((send() as HTMLButtonElement).disabled).toBe(true)
+
+    // The message went out (or the chip was removed): the box lets go of the file.
+    act(() => reportComposerAttachments(promptBox, []))
+    expect(screen.queryByText('In the chat')).toBeNull()
+    expect((send() as HTMLButtonElement).disabled).toBe(false)
+    expect(send().textContent).toBe('Send')
+
+    fireEvent.click(send())
+    await waitFor(() => expect(attach).toHaveBeenCalledTimes(2))
+    expect(await screen.findByText('In the chat')).toBeTruthy()
+  })
+
+  it('keeps the mark while the box holds the sound among other files', async () => {
+    open()
+    await screen.findByRole('list', { name: 'Sounds' })
+    fireEvent.click(screen.getByRole('button', { name: 'Send Cello drone to the chat' }))
+    expect(await screen.findByText('In the chat')).toBeTruthy()
+    act(() =>
+      reportComposerAttachments(promptBox, [
+        'C:\\p\\notes.txt',
+        'C:\\p\\audio\\clube\\Cello drone.flac',
+      ]),
+    )
+    expect(screen.getByText('In the chat')).toBeTruthy()
+  })
+
   it("fetches it into the chat's project and puts it in the prompt box", async () => {
     const { transport } = open()
     await screen.findByRole('list', { name: 'Sounds' })

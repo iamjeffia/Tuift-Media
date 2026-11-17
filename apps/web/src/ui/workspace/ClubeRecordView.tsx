@@ -46,7 +46,7 @@ import {
   withoutFrontMatter,
   type ClubeMedia,
 } from '../../clube-library.js'
-import { attachToComposer } from '../../composer-attach.js'
+import { attachToComposer, useAttachedToComposer } from '../../composer-attach.js'
 import { useI18n, type I18n, type MessageKey } from '../../i18n/index.js'
 import { attachmentFor, formatSoundDuration } from '../../sounds.js'
 import type { Transport } from '../../transport.js'
@@ -457,7 +457,9 @@ function PartsDownload(props: Props & { record: ClubeRecord; i18n: I18n }) {
   const [job, setJob] = useState<ClubeJob>()
   const [starting, setStarting] = useState(false)
   const [failure, setFailure] = useState<ClubeLibraryFailure>()
-  const [sent, setSent] = useState(false)
+  // "Sent" means the folder is in the prompt box now: it goes back once the message is sent.
+  const [sentPath, setSentPath] = useState<string>()
+  const sent = useAttachedToComposer(sentPath)
   const [sendFailed, setSendFailed] = useState(false)
   const chosenWhenStarted = useRef<ReadonlySet<string>>(new Set())
   const spent = useRef(props.onSpent)
@@ -519,7 +521,7 @@ function PartsDownload(props: Props & { record: ClubeRecord; i18n: I18n }) {
     setFailure(undefined)
     setJobId(undefined)
     setJob(undefined)
-    setSent(false)
+    setSentPath(undefined)
     chosenWhenStarted.current = chosen
     try {
       const result = await transport.request('clube.library.download', {
@@ -541,7 +543,7 @@ function PartsDownload(props: Props & { record: ClubeRecord; i18n: I18n }) {
     const name = path.split(/[\\/]/).at(-1) ?? path
     // A folder is referenced by its path; the prompt box takes it as it takes a dropped one.
     if (attachToComposer([{ path, name }])) {
-      setSent(true)
+      setSentPath(path)
       void transport
         .request('clube.library.signal', { id: item.id, signal: 'used' })
         .catch(() => {})
@@ -776,7 +778,11 @@ function SkillInstall(props: Props & { record: ClubeRecord; i18n: I18n }) {
 /** An item that is only text: its analysis and prompt become one Markdown file in the project, which goes to the chat. */
 function SendText(props: Props & { record: ClubeRecord; i18n: I18n }) {
   const { t } = props.i18n
-  const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
+  const [sentState, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
+  const [sentPath, setSentPath] = useState<string>()
+  // "Sent" means the file is in the prompt box now: the button comes back once the message is sent.
+  const inBox = useAttachedToComposer(sentPath)
+  const state = sentState === 'sent' && !inBox ? 'idle' : sentState
   const [failure, setFailure] = useState<ClubeLibraryFailure>()
   const [attachFailed, setAttachFailed] = useState(false)
   const send = async () => {
@@ -799,8 +805,10 @@ function SendText(props: Props & { record: ClubeRecord; i18n: I18n }) {
         isDesktop && props.projectPath
           ? await attachDeliveredFile(result.path, [props.projectPath])
           : { path: result.path, name }
-      if (attachToComposer([picked])) setState('sent')
-      else {
+      if (attachToComposer([picked])) {
+        setSentPath(picked.path)
+        setState('sent')
+      } else {
         setState('idle')
         setAttachFailed(true)
       }
@@ -895,7 +903,11 @@ function MusicVersions(props: Props & { record: ClubeRecord; i18n: I18n }) {
   const [playing, setPlaying] = useState<string>()
   const [loading, setLoading] = useState<string>()
   const [previewFailed, setPreviewFailed] = useState(false)
-  const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
+  const [sentState, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
+  const [sentPath, setSentPath] = useState<string>()
+  // "Sent" means the track is in the prompt box now: the button comes back once the message is sent.
+  const inBox = useAttachedToComposer(sentPath)
+  const state = sentState === 'sent' && !inBox ? 'idle' : sentState
   const [failure, setFailure] = useState<string>()
 
   useEffect(
@@ -960,6 +972,7 @@ function MusicVersions(props: Props & { record: ClubeRecord; i18n: I18n }) {
           ? await attachDeliveredFile(attachment.path, [props.projectPath])
           : attachment
       if (attachToComposer([picked])) {
+        setSentPath(picked.path)
         setState('sent')
         void transport
           .request('clube.library.signal', { id: item.id, signal: 'used' })

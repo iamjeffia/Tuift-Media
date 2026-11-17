@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { attachToComposer, canAttachToComposer } from '../composer-attach.js'
+import { attachToComposer, canAttachToComposer, useAttachedToComposer } from '../composer-attach.js'
 import { rememberedChipTokens, resetRememberedChipTokens } from '../composer-chip-memory.js'
 import { MAX_USER_MESSAGE_CHARS } from '@harness/contracts'
 import { setLanguage } from '../i18n/index.js'
@@ -1163,6 +1163,101 @@ describe('Composer attach from a file shown in the chat', () => {
   })
 })
 
+describe('Composer after a send that carried an attachment', () => {
+  const sound = { path: '/work/assets/Light_Waves.flac', name: 'Light_Waves.flac' }
+
+  it('hands the sound over and leaves the box empty, and tells the saved draft so', async () => {
+    const onSend = vi.fn()
+    const onAttachmentsChange = vi.fn()
+    // An open chat with earlier messages: the draft was restored once, empty.
+    renderComposer(onSend, {
+      newSession: false,
+      onAttachmentsChange,
+      draftRequest: { text: '', attachments: [], request: 1 },
+    })
+    act(() => void attachToComposer([sound]))
+    expect(await screen.findByText('Light_Waves.flac')).toBeTruthy()
+    expect(onAttachmentsChange).toHaveBeenLastCalledWith([sound.path])
+
+    const composer = screen.getByPlaceholderText('Do anything') as HTMLTextAreaElement
+    fireEvent.change(composer, { target: { value: 'use esse som' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    expect(onSend).toHaveBeenCalledWith('use esse som', [sound.path])
+    expect(screen.queryByText('Light_Waves.flac')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Remove Light_Waves.flac' })).toBeNull()
+    expect(onAttachmentsChange).toHaveBeenLastCalledWith([])
+  })
+
+  it('leaves the box empty when the send is queued behind a running turn', async () => {
+    const onSend = vi.fn()
+    renderComposer(onSend, { newSession: false, running: true })
+    act(() => void attachToComposer([sound]))
+    expect(await screen.findByText('Light_Waves.flac')).toBeTruthy()
+    const composer = screen.getByPlaceholderText('Do anything') as HTMLTextAreaElement
+    fireEvent.change(composer, { target: { value: 'use esse som' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }))
+    expect(onSend).toHaveBeenCalledWith('use esse som', [sound.path])
+    expect(screen.queryByText('Light_Waves.flac')).toBeNull()
+  })
+})
+
+describe('Composer in a split: which prompt box takes a file', () => {
+  const sound = { path: '/work/assets/Light_Waves.flac', name: 'Light_Waves.flac' }
+  const chipsOf = (dormant: boolean) =>
+    document.querySelector(`.composer${dormant ? '.is-dormant' : ':not(.is-dormant)'} .chips`)
+      ?.textContent
+
+  it('goes to the focused pane even when the dormant pane mounted last', async () => {
+    const focused = renderComposer(vi.fn(), { newSession: false })
+    const dormant = renderComposer(vi.fn(), { newSession: false, dormant: true })
+    act(() => void attachToComposer([sound]))
+    await waitFor(() => expect(chipsOf(false)).toBe('Light_Waves.flac'))
+    expect(chipsOf(true)).toBe('')
+    focused.unmount()
+    dormant.unmount()
+  })
+
+  it('moves with the focus: the pane that takes focus takes the files', async () => {
+    const left = renderComposer(vi.fn(), { newSession: false })
+    const right = renderComposer(vi.fn(), { newSession: false, dormant: true })
+    left.rerenderComposer({ dormant: true })
+    right.rerenderComposer({ dormant: false })
+    act(() => void attachToComposer([sound]))
+    await waitFor(() =>
+      expect(right.container.querySelector('.chips')?.textContent).toBe('Light_Waves.flac'),
+    )
+    expect(left.container.querySelector('.chips')?.textContent).toBe('')
+    left.unmount()
+    right.unmount()
+  })
+})
+
+describe('Composer tells what it holds', () => {
+  const sound = { path: '/work/assets/Light_Waves.flac', name: 'Light_Waves.flac' }
+  function Mark() {
+    return <output>{useAttachedToComposer(sound.path) ? 'held' : 'free'}</output>
+  }
+
+  it('holds the path from the attach until the send or the remove button', async () => {
+    renderComposer(vi.fn(), { newSession: false })
+    render(<Mark />)
+    expect(screen.getByRole('status').textContent).toBe('free')
+    act(() => void attachToComposer([sound]))
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('held'))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove Light_Waves.flac' }))
+    expect(screen.getByRole('status').textContent).toBe('free')
+
+    act(() => void attachToComposer([sound]))
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('held'))
+    const composer = screen.getByPlaceholderText('Do anything') as HTMLTextAreaElement
+    fireEvent.change(composer, { target: { value: 'use esse som' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    expect(screen.getByRole('status').textContent).toBe('free')
+  })
+})
+
 describe('Composer attachment preview', () => {
   it('says the preview is unavailable once the attempt resolves without one', async () => {
     const settle = deferred()
@@ -1234,6 +1329,26 @@ describe('Composer send handoff', () => {
 })
 
 describe('Composer queue', () => {
+  it('shows a queued sound or file as an icon tile named by its files, not as nothing', () => {
+    renderComposer(vi.fn(), {
+      queuedTurns: [
+        { id: 'q1', text: 'Use this sound', attachments: ['/work/wave.flac'], createdAt: 1 },
+        {
+          id: 'q2',
+          text: 'Read these',
+          attachments: ['/work/brief.pdf', '/work/notes.txt'],
+          createdAt: 2,
+        },
+      ],
+    })
+    const tiles = document.querySelectorAll<HTMLElement>('.queue-row__media--file')
+    expect(tiles).toHaveLength(2)
+    expect(tiles[0]?.title).toBe('wave.flac')
+    expect(tiles[0]?.querySelector('.tabler-icon-music')).not.toBeNull()
+    expect(tiles[1]?.title).toBe('brief.pdf, notes.txt')
+    expect(tiles[1]?.querySelector('.tabler-icon-file')).not.toBeNull()
+  })
+
   it('waits for queue deletion confirmation and preserves typing during the wait', async () => {
     let finish!: (removed: boolean) => void
     const onDeleteQueuedTurn = vi.fn(

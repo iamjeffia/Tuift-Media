@@ -175,3 +175,108 @@ export const MEDIA_DELIVERY_DEMO_CHAT: DemoChat = {
     },
   ],
 }
+
+/**
+ * Prompts that were sent with files: a sound, a video, an image, a PDF, four of them at once, and
+ * files that are gone or have no preview. The files are the demo project's (`media/`, `docs/`),
+ * made in the page by the sandbox's own bridge, so nothing here is a real file.
+ */
+export const SENT_ATTACHMENTS_DEMO_CHAT: DemoChat = {
+  id: 'demo-sent-attachments',
+  title: 'Score the product teaser',
+  provider: 'claude-code',
+  model: 'claude-opus-5-5',
+  effort: 'high',
+  approval: 'auto',
+  turns: [
+    {
+      prompt: 'Use this sound under the intro.',
+      attachments: ['media/voice.wav'],
+      agoMs: 60 * 60_000,
+      durationMs: 14_000,
+      items: [
+        {
+          type: 'message',
+          role: 'assistant',
+          phase: 'final_answer',
+          text: 'Done: the sound sits under the first three seconds, with a one second fade in.',
+        },
+      ],
+    },
+    {
+      prompt: 'Here is the cut so far.',
+      attachments: ['media/clip.mp4'],
+      agoMs: 50 * 60_000,
+      durationMs: 12_000,
+      items: [
+        {
+          type: 'message',
+          role: 'assistant',
+          phase: 'final_answer',
+          text: 'Watched it. The second scene runs long; I would trim it by a second.',
+        },
+      ],
+    },
+    {
+      prompt: 'Match the colours to this reference.',
+      attachments: ['media/frame.png'],
+      agoMs: 40 * 60_000,
+      durationMs: 12_000,
+      items: [
+        {
+          type: 'message',
+          role: 'assistant',
+          phase: 'final_answer',
+          text: 'The reference is warmer than the cut. I pulled the highlights toward it.',
+        },
+      ],
+    },
+    {
+      prompt: 'The brief for this one.',
+      attachments: ['docs/brief.pdf'],
+      agoMs: 30 * 60_000,
+      durationMs: 12_000,
+      items: [
+        {
+          type: 'message',
+          role: 'assistant',
+          phase: 'final_answer',
+          text: 'Read it. Two points change the ending: the logo comes last, and the voice stays dry.',
+        },
+      ],
+    },
+    {
+      prompt: 'Everything for the final pass.',
+      attachments: ['media/voice.wav', 'media/clip.mp4', 'media/frame.png', 'docs/brief.pdf'],
+      agoMs: 20 * 60_000,
+      durationMs: 20_000,
+      items: [
+        {
+          type: 'message',
+          role: 'assistant',
+          phase: 'final_answer',
+          text: 'Got all four. Starting the final pass.',
+        },
+      ],
+    },
+    {
+      prompt: 'And the old exports, in case they still help.',
+      attachments: [
+        'render/gone.wav',
+        'render/gone.mp4',
+        'exports/frames.zip',
+        'exports/product-teaser-final-cut-v3-approved-with-captions-and-music-bed-and-alt-ending.zip',
+      ],
+      agoMs: 10 * 60_000,
+      durationMs: 9_000,
+      items: [
+        {
+          type: 'message',
+          role: 'assistant',
+          phase: 'final_answer',
+          text: 'The two renders are no longer in the project, so I used the archive only.',
+        },
+      ],
+    },
+  ],
+}

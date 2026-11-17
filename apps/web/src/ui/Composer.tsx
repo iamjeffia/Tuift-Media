@@ -24,6 +24,7 @@ import {
   IconArrowUp as ArrowUp,
   IconCornerDownRight as CornerDownRight,
   IconFile as FileIcon,
+  IconMusic as Music,
   IconFolder as Folder,
   IconFolderPlus as FolderPlus,
   IconGitBranch as GitBranch,
@@ -51,7 +52,8 @@ import {
   type PickedAttachment,
 } from '../bridge.js'
 import { appCommands, parseAppActionCommand, type AppScreen } from '../app-commands.js'
-import { registerComposerAttacher } from '../composer-attach.js'
+import { attachmentKind } from './MessageAttachments.js'
+import { registerComposerAttacher, reportComposerAttachments } from '../composer-attach.js'
 import { rememberChipTokens, rememberedChipTokens } from '../composer-chip-memory.js'
 import { parseFeedbackCommand } from '../feedback-command.js'
 import { userMessageTooLongText } from '../message-limit.js'
@@ -407,10 +409,24 @@ export type SendAvailability =
 
 function QueuedMediaPreview({ attachments, text }: { attachments: string[]; text: string }) {
   const commentImages = browserCommentImages(text, attachments)
-  const reference = attachments.find(
-    (attachment) => !commentImages.has(attachment) && previewMediaType('', attachment),
+  const shown = attachments.filter((attachment) => !commentImages.has(attachment))
+  const reference = shown.find((attachment) => previewMediaType('', attachment))
+  if (reference) return <QueuedMediaPreviewCard key={reference} reference={reference} />
+  // A sound or another file has no picture: its icon stands in, and the names are the tooltip.
+  const [first] = shown
+  if (first === undefined) return null
+  return (
+    <span
+      className="queue-row__media queue-row__media--file"
+      title={shown.map((attachment) => basename(attachment)).join(', ')}
+    >
+      {attachmentKind(first) === 'audio' ? (
+        <Music size={12} aria-hidden />
+      ) : (
+        <FileIcon size={12} aria-hidden />
+      )}
+    </span>
   )
-  return reference ? <QueuedMediaPreviewCard key={reference} reference={reference} /> : null
 }
 
 function QueuedMediaPreviewCard({ reference }: { reference: string }) {
@@ -1426,7 +1442,20 @@ function ComposerComponent(props: {
   // "Attach as context" on a file shown in the chat comes in through the same intake as a drop.
   const attachFilesRef = useRef(attachFiles)
   attachFilesRef.current = attachFiles
-  useEffect(() => registerComposerAttacher((files) => attachFilesRef.current(files)), [])
+  const attacher = useMemo(() => (files: PickedAttachment[]) => attachFilesRef.current(files), [])
+  // A split pane that is not focused still renders a composer, frozen and inert: a file asked for
+  // from the focused pane's side must not land in it.
+  useEffect(
+    () => (props.dormant ? undefined : registerComposerAttacher(attacher)),
+    [attacher, props.dormant],
+  )
+  // Sounds and records mark a file "in the prompt box" for as long as this list holds it.
+  useLayoutEffect(() => {
+    reportComposerAttachments(
+      attacher,
+      attachments.flatMap((attachment) => attachment.path ?? []),
+    )
+  }, [attacher, attachments, props.dormant])
 
   const addPastedFiles = (files: File[], source: 'paste' | 'drop') => {
     const owner = draftRequestRef.current?.request

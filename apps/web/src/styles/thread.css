@@ -449,6 +449,111 @@ button.thread__older:hover {
   height: 178px;
 }
 
+/* A sent video is a tile like an image, with the play mark the prompt box draws on its own. */
+.viewed-image-preview--message .viewed-image-preview__open {
+  position: relative;
+}
+
+.viewed-image-preview__play {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0 0 0 1px;
+  background: rgb(14 14 15 / 78%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: var(--r-md);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 24%);
+  color: rgb(250 250 250 / 92%);
+}
+
+/* A sound or any other file attached to a sent message: a chip with its icon and name, a long
+   name cut with the whole name in the tooltip. Beside tiles each chip takes its own row; alone
+   the chips wrap and the bubble keeps the width of its words. */
+.said__attachments > .said__chip {
+  grid-column: 1 / -1;
+  justify-self: start;
+  max-width: calc(100% - 12px);
+  margin: 0 6px;
+}
+
+.said__attachments:not(:has(> .viewed-image-preview)) {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: none;
+  margin: 0 0 7px;
+}
+
+.said__attachments:not(:has(> .viewed-image-preview)) > .said__chip {
+  max-width: 100%;
+  margin: 0;
+}
+
+.said__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 28px;
+  padding: 3px 8px 3px 7px;
+  background: var(--chrome-recessed);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--r-md);
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--t-sm);
+  line-height: 1.3;
+}
+
+.said__chip > svg {
+  flex: none;
+  color: var(--text-3);
+}
+
+.said__chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.said__chip--action {
+  cursor: pointer;
+  text-align: left;
+}
+
+button.said__chip--action:focus-visible,
+.said__chip-play:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.said__chip-play {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: 0 -3px 0 2px;
+  padding: 0;
+  background: var(--chrome-raised);
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--r-circle);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.said__chip-play[aria-pressed='true'] {
+  background: var(--light);
+  border-color: transparent;
+  color: var(--on-light);
+}
+
 .viewed-image-preview__placeholder {
   display: grid;
   place-items: center;
