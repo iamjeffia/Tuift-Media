@@ -79,7 +79,8 @@ export const CLUBE_LIMITS = {
   skillBytes: 64 * MB,
   /** A cover, a music preview and an animation's preview, as the page gets them (base64 over the socket). */
   image: 4 * MB,
-  audio: 8 * MB,
+  // A track's preview is the whole track: the largest in the catalogue is just under 8 MB.
+  audio: 24 * MB,
   video: 10 * MB,
   /** The first bytes of an answer and the silence between two chunks. */
   headersMs: 30_000,
