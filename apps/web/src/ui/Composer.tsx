@@ -1658,6 +1658,12 @@ function ComposerComponent(props: {
     // puts the words back into this chat's draft, and a later clear would
     // erase them from the saved draft while the box still showed them.
     updateText('')
+    // The same for the files, and now rather than in the effect that reports the list: if this
+    // composer is replaced before that effect runs, the saved draft would bring them back.
+    if (attachments.length > 0) {
+      attachmentsEdited.current = true
+      props.onAttachmentsChange?.([])
+    }
     // The transcript draws these tokens as chips wherever they sit in the prompt.
     rememberChipTokens(composerChips(content))
     if (submission === 'steer') props.onSteer(trimmed, paths)

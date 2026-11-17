@@ -1167,8 +1167,10 @@ describe('Composer after a send that carried an attachment', () => {
   const sound = { path: '/work/assets/Light_Waves.flac', name: 'Light_Waves.flac' }
 
   it('hands the sound over and leaves the box empty, and tells the saved draft so', async () => {
-    const onSend = vi.fn()
     const onAttachmentsChange = vi.fn()
+    // The saved draft must already be empty when the message is handed over.
+    const savedWhenSent: unknown[] = []
+    const onSend = vi.fn(() => void savedWhenSent.push(onAttachmentsChange.mock.lastCall?.[0]))
     // An open chat with earlier messages: the draft was restored once, empty.
     renderComposer(onSend, {
       newSession: false,
@@ -1184,6 +1186,7 @@ describe('Composer after a send that carried an attachment', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
     expect(onSend).toHaveBeenCalledWith('use esse som', [sound.path])
+    expect(savedWhenSent).toEqual([[]])
     expect(screen.queryByText('Light_Waves.flac')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Remove Light_Waves.flac' })).toBeNull()
     expect(onAttachmentsChange).toHaveBeenLastCalledWith([])
