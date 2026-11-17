@@ -45,6 +45,12 @@ that is still running. The installer therefore asks it to quit first, and waits
 - **First update after this shipped:** a version without the marker file
   `resources\clean-exit.txt` does not know the switch, so the installer ends it as before.
   The clean path starts from the next update.
+- **Started from inside a packaged Windows app (MSIX):** Windows gives every process started
+  there a private copy of any new file it creates under `%APPDATA%`, and that copy hides the
+  real file from it. A script run from such an app can then read a stale secret: the request
+  goes unanswered (exit code 20) and the installer ends the app by force, as before. An app
+  started from there also writes part of its data folder into that private copy. Run the
+  install from a plain terminal or from Explorer, and never start the app from such a session.
 - The Update button (**Restart to update**) quits the same way first and starts the
   installer as the last step, so the installer finds the app already gone. On macOS the update
   is applied by Squirrel.Mac after the app exits and the app goes through the same quit; Linux
