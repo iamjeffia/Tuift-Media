@@ -53,7 +53,7 @@ import {
 } from '../bridge.js'
 import { appCommands, parseAppActionCommand, type AppScreen } from '../app-commands.js'
 import { attachmentKind } from './MessageAttachments.js'
-import { registerComposerAttacher } from '../composer-attach.js'
+import { registerComposerAttacher, reportComposerAttachments } from '../composer-attach.js'
 import { rememberChipTokens, rememberedChipTokens } from '../composer-chip-memory.js'
 import { parseFeedbackCommand } from '../feedback-command.js'
 import { userMessageTooLongText } from '../message-limit.js'
@@ -1442,7 +1442,20 @@ function ComposerComponent(props: {
   // "Attach as context" on a file shown in the chat comes in through the same intake as a drop.
   const attachFilesRef = useRef(attachFiles)
   attachFilesRef.current = attachFiles
-  useEffect(() => registerComposerAttacher((files) => attachFilesRef.current(files)), [])
+  const attacher = useMemo(() => (files: PickedAttachment[]) => attachFilesRef.current(files), [])
+  // A split pane that is not focused still renders a composer, frozen and inert: a file asked for
+  // from the focused pane's side must not land in it.
+  useEffect(
+    () => (props.dormant ? undefined : registerComposerAttacher(attacher)),
+    [attacher, props.dormant],
+  )
+  // Sounds and records mark a file "in the prompt box" for as long as this list holds it.
+  useLayoutEffect(() => {
+    reportComposerAttachments(
+      attacher,
+      attachments.flatMap((attachment) => attachment.path ?? []),
+    )
+  }, [attacher, attachments, props.dormant])
 
   const addPastedFiles = (files: File[], source: 'paste' | 'drop') => {
     const owner = draftRequestRef.current?.request
